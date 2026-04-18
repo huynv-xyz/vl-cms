@@ -1,0 +1,34 @@
+export type Transaction = {
+    id: number
+    posting_date: string
+    document_date: string
+    document_no: string
+    customer_code: string
+    customer_name: string
+    description: string
+    product_code: string
+    product_name: string
+    unit: string
+    sale_qty: number
+    return_qty: number
+    sale_user_name: string
+    contact_name: string
+    vthh_con: string
+    vthh_group_name: string
+    customer_type: string
+    is_gift: number
+    sl_rieng_tl: number
+    sl_tl_nhom: number
+    sl_lb2c: number
+    sl_lb2b: number
+    sl_hdn: number
+    diem_hdn: number
+    process_month: number
+    npp: string
+    valid_code: string
+    common_group: string
+    sl_hdn_k0_ma_rieng: number
+    status: number
+    created_at: string
+    updated_at: string
+}

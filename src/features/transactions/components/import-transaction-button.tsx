@@ -1,0 +1,60 @@
+import { useRef } from "react"
+import { Upload } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { importTransactionsCsv, type ImportTransactionsResponse } from "@/api/transactions"
+
+type ImportTransactionButtonProps = {
+    disabled?: boolean
+    onSuccess?: (result: ImportTransactionsResponse) => void
+    onError?: (error: Error) => void
+    onUploadingChange?: (uploading: boolean) => void
+}
+
+export function ImportTransactionButton({
+    disabled,
+    onSuccess,
+    onError,
+    onUploadingChange,
+}: ImportTransactionButtonProps) {
+    const inputRef = useRef<HTMLInputElement | null>(null)
+
+    const handleOpenFilePicker = () => {
+        if (disabled) return
+        inputRef.current?.click()
+    }
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+
+        event.currentTarget.value = ""
+
+        if (!file) return
+
+        try {
+            onUploadingChange?.(true)
+            const result = await importTransactionsCsv(file)
+            onSuccess?.(result)
+        } catch (error) {
+            onError?.(error as Error)
+        } finally {
+            onUploadingChange?.(false)
+        }
+    }
+
+    return (
+        <>
+            <input
+                ref={inputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={handleFileChange}
+            />
+
+            <Button variant="outline" onClick={handleOpenFilePicker} disabled={disabled}>
+                <Upload className="size-4" />
+                Import
+            </Button>
+        </>
+    )
+}
