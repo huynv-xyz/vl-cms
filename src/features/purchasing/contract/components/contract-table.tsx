@@ -193,7 +193,7 @@ export function ContractTable({
             ]}
 
             enableExpand
-            defaultExpandAll
+            //defaultExpandAll
 
             renderExpanded={(row: any) => (
                 <ContractItemsInline
