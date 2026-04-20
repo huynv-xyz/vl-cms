@@ -1,0 +1,1 @@
+function s(n,t){const a={pageIndex:n.page-1,pageSize:n.size};return{pagination:a,setPagination:e=>{const i=typeof e=="function"?e(a):e;t({search:o=>({...o,page:i.pageIndex+1,size:i.pageSize}),replace:!0})}}}export{s as u};

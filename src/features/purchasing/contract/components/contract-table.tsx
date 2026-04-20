@@ -240,8 +240,12 @@ function ContractItemsInline({
 
     const totalRow = filteredItems.reduce(
         (acc, i) => {
-            acc.quantity += i.quantity ?? 0
-            acc.total += i.total_amount ?? 0
+            const q = i.quantity ?? 0
+            const unit = i.unit_price ?? 0
+
+            acc.quantity += q
+            acc.total += q * unit
+
             return acc
         },
         {
@@ -250,6 +254,7 @@ function ContractItemsInline({
         }
     )
 
+
     return (
         <div className="p-3 border rounded bg-muted/30">
             <table className="w-full text-sm">
@@ -257,10 +262,9 @@ function ContractItemsInline({
                     <tr>
                         <th className="p-2 text-left">Mã</th>
                         <th className="p-2 text-left">Tên</th>
-                        <th className="p-2 text-left">SL mua</th>
+                        <th className="p-2 text-left">SL HĐ</th>
                         <th className="p-2 text-left">Đơn vị</th>
                         <th className="p-2 text-left">Đơn giá</th>
-                        <th className="p-2 text-left">Sau CK</th>
                         <th className="p-2 text-left">Thành tiền</th>
                     </tr>
                 </thead>
@@ -273,17 +277,22 @@ function ContractItemsInline({
                             <td className="p-2">{formatNumber(i.quantity)}</td>
                             <td className="p-2">{i.product?.unit}</td>
                             <td className="p-2">{formatNumber(i.unit_price)}</td>
-                            <td className="p-2">{formatNumber(i.base_price)}</td>
                             <td className="p-2 font-bold">
-                                {formatNumber(i.total_amount)}
+                                {formatNumber(
+                                    (i.quantity ?? 0) * (i.unit_price ?? 0)
+                                )}
                             </td>
                         </tr>
                     ))}
-
                     <tr className="border-t bg-muted font-bold">
                         <td colSpan={2} className="p-2">Tổng</td>
-                        <td className="p-2">{formatNumber(totalRow.quantity)}</td>
-                        <td colSpan={3}></td>
+
+                        <td className="p-2">
+                            {formatNumber(totalRow.quantity)}
+                        </td>
+
+                        <td colSpan={2}></td>
+
                         <td className="p-2">
                             {formatNumber(totalRow.total)}
                         </td>

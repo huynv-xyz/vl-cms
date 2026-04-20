@@ -38,6 +38,8 @@ import { Route as AuthenticatedPurchasingShipmentsIndexRouteImport } from './rou
 import { Route as AuthenticatedPurchasingPortsIndexRouteImport } from './routes/_authenticated/purchasing/ports/index'
 import { Route as AuthenticatedPurchasingContractsIndexRouteImport } from './routes/_authenticated/purchasing/contracts/index'
 import { Route as AuthenticatedVipCustomerIdRouteImport } from './routes/_authenticated/vip/customer/$id'
+import { Route as AuthenticatedSalesOrdersIdIndexRouteImport } from './routes/_authenticated/sales/orders/$id/index'
+import { Route as AuthenticatedSalesDeliveriesIdIndexRouteImport } from './routes/_authenticated/sales/deliveries/$id/index'
 import { Route as AuthenticatedPurchasingContractsIdIndexRouteImport } from './routes/_authenticated/purchasing/contracts/$id/index'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -204,6 +206,18 @@ const AuthenticatedVipCustomerIdRoute =
     path: '/vip/customer/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSalesOrdersIdIndexRoute =
+  AuthenticatedSalesOrdersIdIndexRouteImport.update({
+    id: '/sales/orders/$id/',
+    path: '/sales/orders/$id/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalesDeliveriesIdIndexRoute =
+  AuthenticatedSalesDeliveriesIdIndexRouteImport.update({
+    id: '/sales/deliveries/$id/',
+    path: '/sales/deliveries/$id/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPurchasingContractsIdIndexRoute =
   AuthenticatedPurchasingContractsIdIndexRouteImport.update({
     id: '/purchasing/contracts/$id/',
@@ -241,6 +255,8 @@ export interface FileRoutesByFullPath {
   '/vip/private-rule/': typeof AuthenticatedVipPrivateRuleIndexRoute
   '/vip/tier/': typeof AuthenticatedVipTierIndexRoute
   '/purchasing/contracts/$id/': typeof AuthenticatedPurchasingContractsIdIndexRoute
+  '/sales/deliveries/$id/': typeof AuthenticatedSalesDeliveriesIdIndexRoute
+  '/sales/orders/$id/': typeof AuthenticatedSalesOrdersIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof authSignInRoute
@@ -272,6 +288,8 @@ export interface FileRoutesByTo {
   '/vip/private-rule': typeof AuthenticatedVipPrivateRuleIndexRoute
   '/vip/tier': typeof AuthenticatedVipTierIndexRoute
   '/purchasing/contracts/$id': typeof AuthenticatedPurchasingContractsIdIndexRoute
+  '/sales/deliveries/$id': typeof AuthenticatedSalesDeliveriesIdIndexRoute
+  '/sales/orders/$id': typeof AuthenticatedSalesOrdersIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -305,6 +323,8 @@ export interface FileRoutesById {
   '/_authenticated/vip/private-rule/': typeof AuthenticatedVipPrivateRuleIndexRoute
   '/_authenticated/vip/tier/': typeof AuthenticatedVipTierIndexRoute
   '/_authenticated/purchasing/contracts/$id/': typeof AuthenticatedPurchasingContractsIdIndexRoute
+  '/_authenticated/sales/deliveries/$id/': typeof AuthenticatedSalesDeliveriesIdIndexRoute
+  '/_authenticated/sales/orders/$id/': typeof AuthenticatedSalesOrdersIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -338,6 +358,8 @@ export interface FileRouteTypes {
     | '/vip/private-rule/'
     | '/vip/tier/'
     | '/purchasing/contracts/$id/'
+    | '/sales/deliveries/$id/'
+    | '/sales/orders/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/sign-in'
@@ -369,6 +391,8 @@ export interface FileRouteTypes {
     | '/vip/private-rule'
     | '/vip/tier'
     | '/purchasing/contracts/$id'
+    | '/sales/deliveries/$id'
+    | '/sales/orders/$id'
   id:
     | '__root__'
     | '/_authenticated'
@@ -401,6 +425,8 @@ export interface FileRouteTypes {
     | '/_authenticated/vip/private-rule/'
     | '/_authenticated/vip/tier/'
     | '/_authenticated/purchasing/contracts/$id/'
+    | '/_authenticated/sales/deliveries/$id/'
+    | '/_authenticated/sales/orders/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -618,6 +644,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVipCustomerIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/sales/orders/$id/': {
+      id: '/_authenticated/sales/orders/$id/'
+      path: '/sales/orders/$id'
+      fullPath: '/sales/orders/$id/'
+      preLoaderRoute: typeof AuthenticatedSalesOrdersIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sales/deliveries/$id/': {
+      id: '/_authenticated/sales/deliveries/$id/'
+      path: '/sales/deliveries/$id'
+      fullPath: '/sales/deliveries/$id/'
+      preLoaderRoute: typeof AuthenticatedSalesDeliveriesIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/purchasing/contracts/$id/': {
       id: '/_authenticated/purchasing/contracts/$id/'
       path: '/purchasing/contracts/$id'
@@ -652,6 +692,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedVipPrivateRuleIndexRoute: typeof AuthenticatedVipPrivateRuleIndexRoute
   AuthenticatedVipTierIndexRoute: typeof AuthenticatedVipTierIndexRoute
   AuthenticatedPurchasingContractsIdIndexRoute: typeof AuthenticatedPurchasingContractsIdIndexRoute
+  AuthenticatedSalesDeliveriesIdIndexRoute: typeof AuthenticatedSalesDeliveriesIdIndexRoute
+  AuthenticatedSalesOrdersIdIndexRoute: typeof AuthenticatedSalesOrdersIdIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -686,6 +728,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedVipTierIndexRoute: AuthenticatedVipTierIndexRoute,
   AuthenticatedPurchasingContractsIdIndexRoute:
     AuthenticatedPurchasingContractsIdIndexRoute,
+  AuthenticatedSalesDeliveriesIdIndexRoute:
+    AuthenticatedSalesDeliveriesIdIndexRoute,
+  AuthenticatedSalesOrdersIdIndexRoute: AuthenticatedSalesOrdersIdIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
