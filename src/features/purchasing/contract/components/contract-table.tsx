@@ -285,10 +285,9 @@ function ContractItemsInline({
                         </tr>
                     ))}
                     <tr className="border-t bg-muted font-bold">
-                        <td colSpan={2} className="p-2">Tổng</td>
+                        <td colSpan={2} className="p-2"></td>
 
                         <td className="p-2">
-                            {formatNumber(totalRow.quantity)}
                         </td>
 
                         <td colSpan={2}></td>

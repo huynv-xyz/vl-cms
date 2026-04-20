@@ -1,1 +1,0 @@
-import{al as u,am as i,an as n,U as t}from"./index-rEZ6VS5-.js";function p(e){return{detail(r){return t(`${e}/${r}`)},list(r){return t(e,r)},create(r){return n(e,r)},update(r){return i(`${e}/${r.id}`,r)},delete(r){return u(`${e}/${r}`,{id:r})}}}export{p as c};
