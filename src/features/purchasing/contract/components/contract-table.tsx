@@ -260,8 +260,8 @@ function ContractItemsInline({
             <table className="w-full text-sm">
                 <thead>
                     <tr>
-                        <th className="p-2 text-left">Mã</th>
-                        <th className="p-2 text-left">Tên</th>
+                        <th className="p-2 text-left">Mã sản phẩm</th>
+                        <th className="p-2 text-left">Tên sản phẩm</th>
                         <th className="p-2 text-left">SL HĐ</th>
                         <th className="p-2 text-left">Đơn vị</th>
                         <th className="p-2 text-left">Đơn giá</th>
