@@ -29,6 +29,8 @@ import { Route as AuthenticatedVipTierIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedVipPrivateRuleIndexRouteImport } from './routes/_authenticated/vip/private-rule/index'
 import { Route as AuthenticatedVipPointRuleIndexRouteImport } from './routes/_authenticated/vip/point-rule/index'
 import { Route as AuthenticatedVipCustomerIndexRouteImport } from './routes/_authenticated/vip/customer/index'
+import { Route as AuthenticatedSalesOrdersIndexRouteImport } from './routes/_authenticated/sales/orders/index'
+import { Route as AuthenticatedSalesDeliveriesIndexRouteImport } from './routes/_authenticated/sales/deliveries/index'
 import { Route as AuthenticatedSalarySalesTargetsIndexRouteImport } from './routes/_authenticated/salary/sales-targets/index'
 import { Route as AuthenticatedSalarySalesActualsIndexRouteImport } from './routes/_authenticated/salary/sales-actuals/index'
 import { Route as AuthenticatedPurchasingSuppliersIndexRouteImport } from './routes/_authenticated/purchasing/suppliers/index'
@@ -148,6 +150,18 @@ const AuthenticatedVipCustomerIndexRoute =
     path: '/vip/customer/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSalesOrdersIndexRoute =
+  AuthenticatedSalesOrdersIndexRouteImport.update({
+    id: '/sales/orders/',
+    path: '/sales/orders/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalesDeliveriesIndexRoute =
+  AuthenticatedSalesDeliveriesIndexRouteImport.update({
+    id: '/sales/deliveries/',
+    path: '/sales/deliveries/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSalarySalesTargetsIndexRoute =
   AuthenticatedSalarySalesTargetsIndexRouteImport.update({
     id: '/salary/sales-targets/',
@@ -220,6 +234,8 @@ export interface FileRoutesByFullPath {
   '/purchasing/suppliers/': typeof AuthenticatedPurchasingSuppliersIndexRoute
   '/salary/sales-actuals/': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/salary/sales-targets/': typeof AuthenticatedSalarySalesTargetsIndexRoute
+  '/sales/deliveries/': typeof AuthenticatedSalesDeliveriesIndexRoute
+  '/sales/orders/': typeof AuthenticatedSalesOrdersIndexRoute
   '/vip/customer/': typeof AuthenticatedVipCustomerIndexRoute
   '/vip/point-rule/': typeof AuthenticatedVipPointRuleIndexRoute
   '/vip/private-rule/': typeof AuthenticatedVipPrivateRuleIndexRoute
@@ -249,6 +265,8 @@ export interface FileRoutesByTo {
   '/purchasing/suppliers': typeof AuthenticatedPurchasingSuppliersIndexRoute
   '/salary/sales-actuals': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/salary/sales-targets': typeof AuthenticatedSalarySalesTargetsIndexRoute
+  '/sales/deliveries': typeof AuthenticatedSalesDeliveriesIndexRoute
+  '/sales/orders': typeof AuthenticatedSalesOrdersIndexRoute
   '/vip/customer': typeof AuthenticatedVipCustomerIndexRoute
   '/vip/point-rule': typeof AuthenticatedVipPointRuleIndexRoute
   '/vip/private-rule': typeof AuthenticatedVipPrivateRuleIndexRoute
@@ -280,6 +298,8 @@ export interface FileRoutesById {
   '/_authenticated/purchasing/suppliers/': typeof AuthenticatedPurchasingSuppliersIndexRoute
   '/_authenticated/salary/sales-actuals/': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/_authenticated/salary/sales-targets/': typeof AuthenticatedSalarySalesTargetsIndexRoute
+  '/_authenticated/sales/deliveries/': typeof AuthenticatedSalesDeliveriesIndexRoute
+  '/_authenticated/sales/orders/': typeof AuthenticatedSalesOrdersIndexRoute
   '/_authenticated/vip/customer/': typeof AuthenticatedVipCustomerIndexRoute
   '/_authenticated/vip/point-rule/': typeof AuthenticatedVipPointRuleIndexRoute
   '/_authenticated/vip/private-rule/': typeof AuthenticatedVipPrivateRuleIndexRoute
@@ -311,6 +331,8 @@ export interface FileRouteTypes {
     | '/purchasing/suppliers/'
     | '/salary/sales-actuals/'
     | '/salary/sales-targets/'
+    | '/sales/deliveries/'
+    | '/sales/orders/'
     | '/vip/customer/'
     | '/vip/point-rule/'
     | '/vip/private-rule/'
@@ -340,6 +362,8 @@ export interface FileRouteTypes {
     | '/purchasing/suppliers'
     | '/salary/sales-actuals'
     | '/salary/sales-targets'
+    | '/sales/deliveries'
+    | '/sales/orders'
     | '/vip/customer'
     | '/vip/point-rule'
     | '/vip/private-rule'
@@ -370,6 +394,8 @@ export interface FileRouteTypes {
     | '/_authenticated/purchasing/suppliers/'
     | '/_authenticated/salary/sales-actuals/'
     | '/_authenticated/salary/sales-targets/'
+    | '/_authenticated/sales/deliveries/'
+    | '/_authenticated/sales/orders/'
     | '/_authenticated/vip/customer/'
     | '/_authenticated/vip/point-rule/'
     | '/_authenticated/vip/private-rule/'
@@ -529,6 +555,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVipCustomerIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/sales/orders/': {
+      id: '/_authenticated/sales/orders/'
+      path: '/sales/orders'
+      fullPath: '/sales/orders/'
+      preLoaderRoute: typeof AuthenticatedSalesOrdersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sales/deliveries/': {
+      id: '/_authenticated/sales/deliveries/'
+      path: '/sales/deliveries'
+      fullPath: '/sales/deliveries/'
+      preLoaderRoute: typeof AuthenticatedSalesDeliveriesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/salary/sales-targets/': {
       id: '/_authenticated/salary/sales-targets/'
       path: '/salary/sales-targets'
@@ -605,6 +645,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPurchasingSuppliersIndexRoute: typeof AuthenticatedPurchasingSuppliersIndexRoute
   AuthenticatedSalarySalesActualsIndexRoute: typeof AuthenticatedSalarySalesActualsIndexRoute
   AuthenticatedSalarySalesTargetsIndexRoute: typeof AuthenticatedSalarySalesTargetsIndexRoute
+  AuthenticatedSalesDeliveriesIndexRoute: typeof AuthenticatedSalesDeliveriesIndexRoute
+  AuthenticatedSalesOrdersIndexRoute: typeof AuthenticatedSalesOrdersIndexRoute
   AuthenticatedVipCustomerIndexRoute: typeof AuthenticatedVipCustomerIndexRoute
   AuthenticatedVipPointRuleIndexRoute: typeof AuthenticatedVipPointRuleIndexRoute
   AuthenticatedVipPrivateRuleIndexRoute: typeof AuthenticatedVipPrivateRuleIndexRoute
@@ -635,6 +677,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedSalarySalesActualsIndexRoute,
   AuthenticatedSalarySalesTargetsIndexRoute:
     AuthenticatedSalarySalesTargetsIndexRoute,
+  AuthenticatedSalesDeliveriesIndexRoute:
+    AuthenticatedSalesDeliveriesIndexRoute,
+  AuthenticatedSalesOrdersIndexRoute: AuthenticatedSalesOrdersIndexRoute,
   AuthenticatedVipCustomerIndexRoute: AuthenticatedVipCustomerIndexRoute,
   AuthenticatedVipPointRuleIndexRoute: AuthenticatedVipPointRuleIndexRoute,
   AuthenticatedVipPrivateRuleIndexRoute: AuthenticatedVipPrivateRuleIndexRoute,

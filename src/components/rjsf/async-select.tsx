@@ -71,6 +71,8 @@ export const AsyncSelect = React.memo(function AsyncSelect({
         }
     }, [keyword, open, dataSource, mapOption])
 
+    const fetchedRef = React.useRef<any>(null)
+
     React.useEffect(() => {
         let active = true
 
@@ -79,6 +81,9 @@ export const AsyncSelect = React.memo(function AsyncSelect({
                 setSelected(null)
                 return
             }
+
+            if (fetchedRef.current === value) return
+            fetchedRef.current = value
 
             if (initialOption && String(initialOption.value) === String(value)) {
                 setSelected(initialOption)
@@ -96,10 +101,11 @@ export const AsyncSelect = React.memo(function AsyncSelect({
         }
 
         run()
+
         return () => {
             active = false
         }
-    }, [value, initialOption, dataSource, mapOption])
+    }, [value])
 
     return (
         <Popover open={open} onOpenChange={setOpen}>

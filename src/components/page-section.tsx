@@ -41,7 +41,6 @@ export function PageSection<T>({
 
     const navigate = useNavigate()
 
-    // ===== LOADING =====
     if (isLoading) {
         return (
             <Main>
@@ -103,12 +102,10 @@ export function PageSection<T>({
                         </div>
                     </div>
 
-                    {/* RIGHT */}
                     {actions}
                 </div>
             )}
 
-            {/* ===== CONTENT ===== */}
             <div className="w-full min-w-0 max-w-full">
                 {children(data)}
             </div>

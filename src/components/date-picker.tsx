@@ -28,7 +28,7 @@ export function DatePicker({
 
     return (
         <Popover>
-            <div className={cn("relative w-[220px]", className)}>
+            <div className={cn("relative", className)}>
                 <PopoverTrigger asChild>
                     <Button
                         type="button"

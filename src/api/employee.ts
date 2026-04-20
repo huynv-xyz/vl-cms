@@ -51,6 +51,7 @@ const employeeApi = createCrudApi<
 >("/employees")
 
 export const listEmployees = employeeApi.list
+export const getEmployee = employeeApi.detail
 export const createEmployee = employeeApi.create
 export const updateEmployee = employeeApi.update
 export const deleteEmployee = employeeApi.delete

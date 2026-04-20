@@ -1,15 +1,15 @@
 import { PageSection } from '@/components/page-section'
 import { usePaginatedList } from '@/hooks/use-paginated-list'
-import { listContracts } from '@/api/purchasing/contract'
-import { ContractTable } from './components/contract-table'
-import { ContractDialogs } from './components/contract-dialogs'
-import { ContractsProvider } from './components/contracts-provider'
-import { CreateContractButton } from './components/create-contract-button'
-import { Route } from '@/routes/_authenticated/purchasing/contracts'
+import { OrderTable } from './components/order-table'
+import { OrderDialogs } from './components/order-dialogs'
+import { OrdersProvider } from './components/orders-provider'
+import { CreateOrderButton } from './components/create-order-button'
+import { Route } from '@/routes/_authenticated/sales/orders'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
+import { listOrders } from '@/api/sale/order'
 
-export default function ContractPage() {
+export default function OrderPage() {
     const search = Route.useSearch()
     const navigate = Route.useNavigate()
 
@@ -27,46 +27,54 @@ export default function ContractPage() {
         search,
         navigate,
         ['status'],
-        ['product_id', 'supplier_id', 'signed_date_from', 'signed_date_to']
+        ['customer_id', 'employee_id', 'from_date', 'to_date']
     )
+
     const { data, isLoading, error } = usePaginatedList(
         [
-            'contract',
+            'orders',
             search.page,
             search.size,
             keyword,
             multiFilters.status,
-            singleFilters.product_id,
-            singleFilters.supplier_id,
-            singleFilters.signed_date_from,
-            singleFilters.signed_date_to,
+            singleFilters.customer_id,
+            singleFilters.employee_id,
+            singleFilters.from_date,
+            singleFilters.to_date,
         ],
-        listContracts,
+        listOrders,
         {
             page: search.page,
             size: search.size,
             keyword,
             status: requestFilters.status,
-            product_id: requestFilters.product_id,
-            supplier_id: requestFilters.supplier_id,
-            signed_date_from: requestFilters.signed_date_from,
-            signed_date_to: requestFilters.signed_date_to,
+
+            customer_id: requestFilters.customer_id
+                ? Number(requestFilters.customer_id)
+                : undefined,
+
+            employee_id: requestFilters.employee_id
+                ? Number(requestFilters.employee_id)
+                : undefined,
+
+            from_date: requestFilters.from_date,
+            to_date: requestFilters.to_date,
         },
     )
 
     return (
-        <ContractsProvider>
+        <OrdersProvider>
             <PageSection
                 isLoading={isLoading}
                 error={error}
-                title="Hợp đồng"
-                actions={<CreateContractButton />}
+                title="Đơn hàng"
+                actions={<CreateOrderButton />}
                 data={data}
             >
                 {(data) => (
                     <div className="space-y-4">
 
-                        <ContractTable
+                        <OrderTable
                             data={data.items}
                             pagination={pagination}
                             onPaginationChange={setPagination}
@@ -77,14 +85,14 @@ export default function ContractPage() {
 
                             filters={{
                                 status: multiFilters.status,
-                                product_id: singleFilters.product_id
-                                    ? Number(singleFilters.product_id)
+                                customer_id: singleFilters.customer_id
+                                    ? Number(singleFilters.customer_id)
                                     : undefined,
-                                supplier_id: singleFilters.supplier_id
-                                    ? Number(singleFilters.supplier_id)
+                                employee_id: singleFilters.employee_id
+                                    ? Number(singleFilters.employee_id)
                                     : undefined,
-                                signed_date_from: singleFilters.signed_date_from,
-                                signed_date_to: singleFilters.signed_date_to,
+                                from_date: singleFilters.from_date,
+                                to_date: singleFilters.to_date,
                             }}
 
                             onFiltersChange={(next) => {
@@ -93,24 +101,24 @@ export default function ContractPage() {
                                 })
 
                                 setSingleFilters({
-                                    product_id: next.product_id
-                                        ? String(next.product_id)
+                                    customer_id: next.customer_id
+                                        ? String(next.customer_id)
                                         : undefined,
 
-                                    supplier_id: next.supplier_id
-                                        ? String(next.supplier_id)
+                                    employee_id: next.employee_id
+                                        ? String(next.employee_id)
                                         : undefined,
 
-                                    signed_date_from: next.signed_date_from,
-                                    signed_date_to: next.signed_date_to,
+                                    from_date: next.from_date,
+                                    to_date: next.to_date,
                                 })
                             }}
                         />
 
-                        <ContractDialogs />
+                        <OrderDialogs />
                     </div>
                 )}
             </PageSection>
-        </ContractsProvider>
+        </OrdersProvider>
     )
 }

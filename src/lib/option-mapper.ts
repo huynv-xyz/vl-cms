@@ -49,3 +49,38 @@ export const shipmentOption = (item: any) => ({
     value: item.id,
     label: `${item.code ?? "Lô"}${item.etd ? ` - ${item.etd}` : ""}`,
 })
+
+// ========================
+// ORDER
+// ========================
+export const orderOption = createOptionMapper({
+    getLabel: (x: any) =>
+        `${x.order_no}${x.customer?.name ? ` - ${x.customer.name}` : ""}`,
+})
+
+
+// ========================
+// WAREHOUSE
+// ========================
+export const warehouseOption = createOptionMapper({
+    getLabel: (x: any) =>
+        `${x.name}${x.code ? ` (${x.code})` : ""}`,
+})
+
+
+// ========================
+// COMPANY
+// ========================
+export const companyOption = createOptionMapper({
+    getLabel: (x: any) =>
+        `${x.name}${x.code ? ` (${x.code})` : ""}`,
+})
+
+
+// ========================
+// DELIVERY
+// ========================
+export const deliveryOption = createOptionMapper({
+    getLabel: (x: any) =>
+        `${x.delivery_no}${x.order?.order_no ? ` - ${x.order.order_no}` : ""}`,
+})

@@ -1,0 +1,28 @@
+import { CrudTable } from "@/components/crud/crud-table"
+import type { Order } from "../data/schema"
+import { orderColumns } from "./order-columns"
+
+export function OrderTable({
+    data,
+    pagination,
+    onPaginationChange,
+    pageCount,
+    keyword,
+    onKeywordChange,
+}: any) {
+    return (
+        <CrudTable<Order>
+            data={data}
+            columns={orderColumns}
+            entityName="đơn hàng"
+            searchPlaceholder="Tìm theo số đơn..."
+
+            pagination={pagination}
+            onPaginationChange={onPaginationChange}
+            pageCount={pageCount}
+
+            keyword={keyword}
+            onKeywordChange={onKeywordChange}
+        />
+    )
+}

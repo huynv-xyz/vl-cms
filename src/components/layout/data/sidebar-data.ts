@@ -132,5 +132,42 @@ export const sidebarData: SidebarData = {
                 }
             ],
         },
+
+        {
+            title: 'Bán hàng & Công nợ',
+            items: [
+                {
+                    title: 'Đơn hàng',
+                    url: '/sales/orders',
+                    icon: ListOrdered,
+                },
+                {
+                    title: 'Giao hàng',
+                    url: '/sales/deliveries',
+                    icon: Truck,
+                },
+                {
+                    title: 'Xuất kho',
+                    url: '/sales/exports',
+                    icon: Boxes,
+                },
+                {
+                    title: 'Trả hàng',
+                    url: '/sales/returns',
+                    icon: ReceiptText,
+                },
+                {
+                    title: 'Thu tiền',
+                    url: '/sales/receipts',
+                    icon: DollarSign,
+                },
+                {
+                    title: 'Công nợ',
+                    url: '/sales/ar',
+                    icon: BarChart3,
+                },
+            ],
+        }
     ],
+
 }
