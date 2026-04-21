@@ -34,6 +34,7 @@ export function UpdateContractDialog({
                 currency_id: contract.currency_id || 1,
 
                 payment_method: contract.payment_method ?? "TT",
+                term: contract.term ?? "",
 
                 deposit_rate: contract.deposit_rate ?? 0,
                 deposit_date: contract.deposit_date || "",
@@ -54,6 +55,7 @@ export function UpdateContractDialog({
                 currency_id: v.currency_id,
 
                 payment_method: v.payment_method ?? "TT",
+                term: v.term ?? "",
 
                 deposit_rate: v.deposit_rate ?? 0,
                 deposit_date: v.deposit_date || '',

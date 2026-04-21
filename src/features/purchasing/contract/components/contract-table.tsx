@@ -3,18 +3,8 @@ import type { Contract } from "../data/schema"
 import { contractColumns } from "./contract-columns"
 import { formatNumber } from "@/lib/utils"
 import type { PaginationState, OnChangeFn } from "@tanstack/react-table"
-
 import { listProducts, getProduct } from "@/api/product"
-
 import { AsyncSelect } from "@/components/rjsf/async-select"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-
 import { getSupplier, listSuppliers } from "@/api/purchasing/supplier"
 import { DatePicker } from "@/components/date-picker"
 

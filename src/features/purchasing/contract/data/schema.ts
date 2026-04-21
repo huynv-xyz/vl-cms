@@ -1,5 +1,12 @@
 import { Currency } from "../../currency/data/schema"
-import { Nation } from "../../nation/data/schema"
+import { Supplier } from "../../supplier/data/schema"
+
+export type PaymentMethod =
+    | "TT"
+    | "LC_IMMEDIATE"
+    | "LC_60_BL"
+    | "DA"
+    | "DP"
 
 export type Contract = {
     id: number
@@ -7,19 +14,15 @@ export type Contract = {
     code?: string
 
     supplier_id?: number
-    supplier?: {
-        id: number
-        name: string
-        code?: string
-        nation?: Nation
-    }
+    supplier?: Supplier
 
     signed_date?: string
 
     currency_id?: number
     currency?: Currency
 
-    payment_method?: "TT" | "LC"
+    payment_method?: PaymentMethod
+    term?: string
 
     deposit_rate?: number
 

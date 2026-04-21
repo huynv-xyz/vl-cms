@@ -33,8 +33,8 @@ export function ContractInfoTable({ contract }: Props) {
 
                     <InfoCard>
                         <Row label="Tiền tệ" value={contract.currency?.code} />
-                        <Row label="Term (Loại giá)" value="" />
-                        <Row label="Hình thức TT" value="" />
+                        <Row label="Term (Loại giá)" value={contract.term} />
+                        <Row label="Phương thức TT" value={contract.payment_method} />
                     </InfoCard>
 
                 </div>

@@ -71,6 +71,16 @@ export const contractColumns: ColumnDef<Contract>[] = [
         title: "Ngày ký",
     }),
 
+    buildTextColumn({
+        accessorKey: "payment_method",
+        title: "Phương thức TT",
+    }),
+
+    buildTextColumn({
+        accessorKey: "term",
+        title: "Term",
+    }),
+
     {
         accessorKey: "currency_id",
         header: "Tiền tệ",
@@ -80,32 +90,9 @@ export const contractColumns: ColumnDef<Contract>[] = [
     // ===== DEPOSIT =====
     {
         accessorKey: "deposit_rate",
-        header: "Cọc (%)",
+        header: "Tỉ lệ cọc (%)",
         cell: ({ row }) => (
             <span>{row.original.deposit_rate ?? 0}%</span>
-        ),
-    },
-
-    {
-        accessorKey: "deposit_date",
-        header: "Ngày cọc",
-        cell: ({ row }) => row.original.deposit_date ?? "-",
-    },
-
-    // ===== TAX =====
-    {
-        accessorKey: "vat_rate",
-        header: "VAT (%)",
-        cell: ({ row }) => (
-            <span>{row.original.vat_rate ?? 0}%</span>
-        ),
-    },
-
-    {
-        accessorKey: "import_tax_rate",
-        header: "Thuế NK (%)",
-        cell: ({ row }) => (
-            <span>{row.original.import_tax_rate ?? 0}%</span>
         ),
     },
 
@@ -117,11 +104,6 @@ export const contractColumns: ColumnDef<Contract>[] = [
             <span className="font-bold">{formatNumber(row.original.total_amount ?? 0)}</span>
         ),
     },
-
-    buildTextColumn({
-        accessorKey: "created_at",
-        title: "Ngày tạo",
-    }),
 
     buildActionsColumn({
         renderActions: (_, row) => <ContractRowActions row={row} />,

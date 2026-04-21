@@ -46,14 +46,14 @@ export function CreateContractDialog({ open, onOpenChange }: Props) {
                 supplier_id: v.supplier_id,
                 signed_date: v.signed_date,
                 currency_id: v.currency_id,
-
                 payment_method: v.payment_method ?? "TT",
-
+                term: v.term ?? "",
                 deposit_rate: v.deposit_rate ?? 0,
                 deposit_date: v.deposit_date || '',
 
                 vat_rate: v.vat_rate ?? 0,
                 import_tax_rate: v.import_tax_rate ?? 0,
+
             })}
         />
     )

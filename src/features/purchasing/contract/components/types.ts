@@ -1,3 +1,5 @@
+import { PaymentMethod } from "../data/schema"
+
 export type ContractFormValues = {
     code: string
 
@@ -7,7 +9,8 @@ export type ContractFormValues = {
 
     currency_id: number
 
-    payment_method?: "TT" | "LC"
+    payment_method?: PaymentMethod
+    term?: string
 
     deposit_rate?: number
 

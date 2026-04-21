@@ -42,6 +42,24 @@ export const contractSchema: RJSFSchema = {
             title: "Ngày đặt cọc",
         },
 
+        payment_method: {
+            type: "string",
+            title: "Hình thức thanh toán",
+            enum: ["TT", "LC_IMMEDIATE", "LC_60_BL", "DA", "DP"],
+            enumNames: [
+                "TT",
+                "LC trả ngay",
+                "LC 60 ngày BL",
+                "DA",
+                "DP",
+            ],
+        },
+
+        term: {
+            type: "string",
+            title: "Incoterm",
+        },
+
         vat_rate: {
             type: "number",
             title: "Thuế VAT (%)",
@@ -96,10 +114,6 @@ export const contractUiSchema: UiSchema = {
         "ui:widget": "date",
     },
 
-    payment_method: {
-        "ui:widget": "select",
-    },
-
     deposit_rate: {
         "ui:widget": "text",
         "ui:options": {
@@ -108,6 +122,16 @@ export const contractUiSchema: UiSchema = {
     },
     deposit_date: {
         "ui:widget": "date",
+    },
+
+    payment_method: {
+        "ui:widget": "select",
+        "ui:placeholder": "Chọn hình thức thanh toán",
+    },
+
+    term: {
+        "ui:widget": "text",
+        "ui:placeholder": "EXW, FOB, CIF...",
     },
 
     vat_rate: {
