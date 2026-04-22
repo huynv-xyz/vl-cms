@@ -33,7 +33,7 @@ export const contractSchema: RJSFSchema = {
         },
 
         deposit_rate: {
-            type: "number",
+            type: "integer",
             title: "Tỷ lệ cọc (%)",
             default: 0,
         },
@@ -61,15 +61,13 @@ export const contractSchema: RJSFSchema = {
         },
 
         vat_rate: {
-            type: "number",
-            title: "Thuế VAT (%)",
-            default: 0,
+            type: "integer",
+            title: "Thuế VAT (%)"
         },
 
         import_tax_rate: {
-            type: "number",
+            type: "integer",
             title: "Thuế nhập khẩu (%)",
-            default: 0,
         },
     },
 
@@ -117,7 +115,7 @@ export const contractUiSchema: UiSchema = {
     deposit_rate: {
         "ui:widget": "text",
         "ui:options": {
-            step: 0.1,
+            inputType: "text",
         },
     },
     deposit_date: {
@@ -137,14 +135,14 @@ export const contractUiSchema: UiSchema = {
     vat_rate: {
         "ui:widget": "text",
         "ui:options": {
-            step: 0.1,
+            inputType: "text",
         },
     },
 
     import_tax_rate: {
         "ui:widget": "text",
         "ui:options": {
-            step: 0.1,
+            inputType: "text",
         },
     },
 }

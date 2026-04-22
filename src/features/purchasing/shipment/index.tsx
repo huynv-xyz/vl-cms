@@ -21,7 +21,7 @@ export default function ShipmentPage() {
     } = useUrlListFilters(
         search,
         navigate,
-        [] as const // 🔥 bỏ hết filter
+        [] as const
     )
 
     const { data, isLoading, error } = usePaginatedList(
@@ -50,7 +50,6 @@ export default function ShipmentPage() {
             >
                 {(data) => (
                     <div className="space-y-4">
-
                         <ShipmentItemTable
                             data={data.items}
                             pagination={pagination}

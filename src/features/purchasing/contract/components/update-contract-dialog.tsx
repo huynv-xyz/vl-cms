@@ -28,16 +28,22 @@ export function UpdateContractDialog({
             schema={contractSchema}
             uiSchema={contractUiSchema}
             defaultValues={{
-                code: contract.code || "",
-                supplier_id: contract.supplier_id || 0,
-                signed_date: contract.signed_date || "",
-                currency_id: contract.currency_id || 1,
+                code: contract.code ?? "",
 
-                payment_method: contract.payment_method ?? "TT",
+                supplier_id: contract.supplier_id ?? undefined,
+                signed_date: contract.signed_date ?? "",
+                currency_id: contract.currency_id ?? undefined,
+
+                payment_method:
+                    contract.payment_method &&
+                        ["TT", "LC_IMMEDIATE", "LC_60_BL", "DA", "DP"].includes(contract.payment_method)
+                        ? contract.payment_method
+                        : "TT",
+
                 term: contract.term ?? "",
 
                 deposit_rate: contract.deposit_rate ?? 0,
-                deposit_date: contract.deposit_date || "",
+                deposit_date: contract.deposit_date ?? "",
 
                 vat_rate: contract.vat_rate ?? 0,
                 import_tax_rate: contract.import_tax_rate ?? 0,

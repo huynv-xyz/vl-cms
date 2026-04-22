@@ -3,11 +3,11 @@ import { PaymentMethod } from "../data/schema"
 export type ContractFormValues = {
     code: string
 
-    supplier_id: number
+    supplier_id?: number
 
     signed_date: string
 
-    currency_id: number
+    currency_id?: number
 
     payment_method?: PaymentMethod
     term?: string

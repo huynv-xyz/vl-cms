@@ -22,9 +22,6 @@ export function VipPointRuleRowActions({ row }: VipPointRuleRowActionsProps) {
                     queryKey: ["vip-point-rule"],
                 })
             }}
-            deleteSuccessMessage="Xoá VIP Point Rule thành công"
-            deleteErrorMessage="Xoá VIP Point Rule thất bại"
-            confirmDeleteMessage={`Bạn có chắc muốn xoá rule "${row.original.vthh_con}" không?`}
         />
     )
 }

@@ -31,7 +31,7 @@ export default function ContractPage() {
     )
     const { data, isLoading, error } = usePaginatedList(
         [
-            'contract',
+            'contracts',
             search.page,
             search.size,
             keyword,

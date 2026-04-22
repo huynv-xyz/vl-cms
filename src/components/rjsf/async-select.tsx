@@ -82,9 +82,6 @@ export const AsyncSelect = React.memo(function AsyncSelect({
                 return
             }
 
-            if (fetchedRef.current === value) return
-            fetchedRef.current = value
-
             if (initialOption && String(initialOption.value) === String(value)) {
                 setSelected(initialOption)
                 return

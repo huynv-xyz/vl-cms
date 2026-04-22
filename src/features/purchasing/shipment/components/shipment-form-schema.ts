@@ -73,6 +73,9 @@ export const shipmentUiSchema: UiSchema = {
 
     exchange_rate: {
         "ui:widget": "text",
+        "ui:options": {
+            inputType: "text",
+        },
     },
 
     status: {

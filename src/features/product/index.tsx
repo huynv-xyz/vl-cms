@@ -5,6 +5,7 @@ import { ProductTable } from './components/product-table'
 import { ProductDialogs } from './components/product-dialogs'
 import { ProductsProvider } from './components/products-provider'
 import { CreateProductButton } from './components/create-product-button'
+import { ImportProductButton } from './components/import-product-button'
 import { Route } from '@/routes/_authenticated/products'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
@@ -34,12 +35,17 @@ export default function ProductPage() {
             <PageSection
                 isLoading={isLoading}
                 error={error}
-                title='Sản phẩm'
-                actions={<CreateProductButton />}
+                title="Sản phẩm"
+                actions={
+                    <div className="flex items-center gap-2">
+                        <ImportProductButton />
+                        <CreateProductButton />
+                    </div>
+                }
                 data={data}
             >
                 {(data) => (
-                    <div className='space-y-4'>
+                    <div className="space-y-4">
                         <ProductTable
                             data={data.items}
                             pagination={pagination}

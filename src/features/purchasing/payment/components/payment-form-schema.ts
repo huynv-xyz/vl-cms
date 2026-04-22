@@ -74,10 +74,16 @@ export const buildPaymentUiSchema = (
 
     amount: {
         "ui:widget": "text",
+        "ui:options": {
+            inputType: "text",
+        },
     },
 
     exchange_rate: {
         "ui:widget": "text",
+        "ui:options": {
+            inputType: "text",
+        },
     },
 
     type: {

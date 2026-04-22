@@ -1,15 +1,15 @@
-
 import { createCrudApi } from "@/api/crud"
 import type { Product } from "@/features/product/data/schema"
+import { apiPostMultipart } from "./client"
 
 export type ProductListParams = {
     page: number
     size: number
     keyword?: string
+    status?: string
 }
 
 export type CreateProductRequest = Partial<Product>
-
 export type UpdateProductRequest = Product
 
 const productApi = createCrudApi<
@@ -24,3 +24,10 @@ export const getProduct = productApi.detail
 export const createProduct = productApi.create
 export const updateProduct = productApi.update
 export const deleteProduct = productApi.delete
+
+export async function importProducts(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<{ affected: number }>("/products/import-csv", formData)
+}

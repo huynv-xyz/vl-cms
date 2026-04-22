@@ -58,6 +58,6 @@ export const shipmentColumns: ColumnDef<Shipment>[] = [
     }),
 
     buildActionsColumn({
-        renderActions: (_, row) => <ShipmentRowActions row={row} />,
-    }),
+        renderActions: (_, row) => <ShipmentRowActions row={row.original} />,
+    })
 ]

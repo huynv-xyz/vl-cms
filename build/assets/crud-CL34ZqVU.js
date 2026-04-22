@@ -1,0 +1,1 @@
+import{an as u,ao as i,Q as n,V as t}from"./index-CujhwNVh.js";function a(e){return{detail(r){return t(`${e}/${r}`)},list(r){return t(e,r)},create(r){return n(e,r)},update(r){return i(`${e}/${r.id}`,r)},delete(r){return u(`${e}/${r}`,{id:r})}}}export{a as c};

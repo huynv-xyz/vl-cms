@@ -23,9 +23,6 @@ export function VipTierRowActions({ row }: Props) {
                     queryKey: ["vip-tier"],
                 })
             }}
-            deleteSuccessMessage="Xoá VIP Tier thành công"
-            deleteErrorMessage="Xoá VIP Tier thất bại"
-            confirmDeleteMessage={`Bạn có chắc muốn xoá VIP Tier "${row.original.name}" không?`}
         />
     )
 }

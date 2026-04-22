@@ -68,22 +68,37 @@ export const buildContractItemUiSchema = (initialOption?: any): UiSchema => ({
     },
 
     quantity: {
-        "ui:widget": "updown",
+        "ui:widget": "text",
+        "ui:options": {
+            inputType: "text",
+        },
     },
 
     unit_price: {
-        "ui:widget": "updown",
+        "ui:widget": "text",
+        "ui:options": {
+            inputType: "text",
+        },
     },
 
     discount_amount: {
-        "ui:widget": "updown",
+        "ui:widget": "text",
+        "ui:options": {
+            inputType: "text",
+        },
     },
 
     packaging_price: {
-        "ui:widget": "updown",
+        "ui:widget": "text",
+        "ui:options": {
+            inputType: "text",
+        },
     },
 
     freight_price: {
-        "ui:widget": "updown",
+        "ui:widget": "text",
+        "ui:options": {
+            inputType: "text",
+        },
     },
 })

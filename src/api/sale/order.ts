@@ -1,5 +1,6 @@
 import { createCrudApi } from "@/api/crud"
-import { Order } from "@/features/sale/order/data/schema"
+import { Order, OrderDetail } from "@/features/sale/order/data/schema"
+import { apiGet } from "@/api/client"
 
 export type OrderListParams = {
     page: number
@@ -22,7 +23,10 @@ const orderApi = createCrudApi<
 >("/sales/orders")
 
 export const listOrders = orderApi.list
-export const getOrder = orderApi.detail
 export const createOrder = orderApi.create
 export const updateOrder = orderApi.update
 export const deleteOrder = orderApi.delete
+
+// 👇 override detail đúng type
+export const getOrder = (id: number) =>
+    apiGet<OrderDetail>(`/sales/orders/${id}`)

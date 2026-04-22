@@ -1,5 +1,6 @@
 import { createCrudApi } from "@/api/crud"
 import type { Delivery } from "@/features/sale/delivery/data/schema"
+import { apiPost } from "../client"
 
 // ========================
 // LIST PARAMS
@@ -12,7 +13,7 @@ export type DeliveryListParams = {
 }
 
 // ========================
-// REQUEST TYPES (QUAN TRỌNG)
+// ITEM
 // ========================
 export type DeliveryItemRequest = {
     product_id: number
@@ -20,6 +21,9 @@ export type DeliveryItemRequest = {
     note?: string
 }
 
+// ========================
+// CREATE
+// ========================
 export type CreateDeliveryRequest = {
     order_id: number
     delivery_date: string
@@ -35,13 +39,14 @@ export type CreateDeliveryRequest = {
     items: DeliveryItemRequest[]
 }
 
-export type UpdateDeliveryRequest = CreateDeliveryRequest & {
+export type UpdateDeliveryRequest = {
     id: number
+} & CreateDeliveryRequest
+
+type ConfirmDeliveryResponse = {
+    status: string
 }
 
-// ========================
-// API
-// ========================
 const deliveryApi = createCrudApi<
     Delivery,
     CreateDeliveryRequest,
@@ -49,8 +54,15 @@ const deliveryApi = createCrudApi<
     DeliveryListParams
 >("/sales/deliveries")
 
+
 export const listDeliveries = deliveryApi.list
 export const getDelivery = deliveryApi.detail
 export const createDelivery = deliveryApi.create
 export const updateDelivery = deliveryApi.update
 export const deleteDelivery = deliveryApi.delete
+
+export function confirmDelivery(id: number) {
+    return apiPost<ConfirmDeliveryResponse>(
+        `/sales/deliveries/${id}/confirm`
+    )
+}

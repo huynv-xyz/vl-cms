@@ -23,9 +23,6 @@ export function VipPrivateRuleRowActions({ row }: Props) {
                     queryKey: ["vip-private-rule"],
                 })
             }}
-            deleteSuccessMessage="Xoá VIP Private Rule thành công"
-            deleteErrorMessage="Xoá VIP Private Rule thất bại"
-            confirmDeleteMessage={`Bạn có chắc muốn xoá rule "${row.original.name}" không?`}
         />
     )
 }
