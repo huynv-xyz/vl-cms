@@ -1,4 +1,4 @@
-import OrderDetailPage from '@/features/sale/order/detail'
+import OrderDetailPage from '@/features/sale/order-detail'
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute(

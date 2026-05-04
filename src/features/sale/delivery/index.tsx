@@ -2,12 +2,12 @@ import { PageSection } from '@/components/page-section'
 import { usePaginatedList } from '@/hooks/use-paginated-list'
 import { DeliveryTable } from './components/delivery-table'
 import { DeliveryDialogs } from './components/delivery-dialogs'
-import { CreateDeliveryButton } from './components/create-delivery-button'
 import { Route } from '@/routes/_authenticated/sales/deliveries'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
 import { listDeliveries } from '@/api/sale/delivery'
 import { DeliveriesProvider } from './components/deliverys-provider'
+import { CreateDeliveryButton } from './components/create-delivery-button'
 
 export default function DeliveryPage() {
     const search = Route.useSearch()

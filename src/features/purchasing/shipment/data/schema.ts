@@ -1,3 +1,4 @@
+import { Warehouse } from "@/features/warehouse/data/schema"
 import { Port } from "../../port/data/schema"
 import { ShipmentItem } from "../../shipment-item/data/schema"
 
@@ -12,6 +13,8 @@ export type Shipment = {
     id: number
 
     contract_id?: number
+    warehouse_id?: number
+    warehouse?: Warehouse
 
     code?: string
     status?: ShipmentStatus

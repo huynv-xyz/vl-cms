@@ -15,6 +15,12 @@ export const shipmentColumns: ColumnDef<Shipment>[] = [
     }),
 
     buildTextColumn({
+        accessorKey: "warehouse_id",
+        title: "Mã lô",
+        render: (row) => row.warehouse?.name
+    }),
+
+    buildTextColumn({
         accessorKey: "etd",
         title: "Ngày dự kiến đi",
     }),

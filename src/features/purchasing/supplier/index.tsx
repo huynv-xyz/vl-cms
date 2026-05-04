@@ -21,7 +21,7 @@ export default function SupplierPage() {
     } = useUrlListFilters(search, navigate, ['keyword'])
 
     const { data, isLoading, error } = usePaginatedList(
-        ['supplier', search.page, search.size, keyword],
+        ['suppliers', search.page, search.size, keyword],
         listSuppliers,
         {
             page: search.page,

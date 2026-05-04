@@ -34,6 +34,7 @@ export type ShipmentHeaderFormValues = {
     eta?: string
     ata?: string
     warehouse_at?: string
+    warehouse_id?: number
 
     container_no?: string
     destination_port_id?: number

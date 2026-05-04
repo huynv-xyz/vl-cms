@@ -1,1 +1,0 @@
-import{A as u,t}from"./index-CujhwNVh.js";import{u as i}from"./crud-create-button-CjUJ5g3D.js";function m(s,n){const o=u(),e=i({mutationFn:s,onSuccess:()=>{t.success("Xoá thành công"),o.invalidateQueries({queryKey:n})},onError:r=>{t.error(r?.message||"Xoá thất bại")}});return{deleteById:e.mutateAsync,isDeleting:e.isPending}}export{m as u};

@@ -41,6 +41,7 @@ const defaultHeader: ShipmentHeaderFormValues = {
     eta: "",
     ata: "",
     warehouse_at: "",
+    warehouse_id: 0,
     container_no: "",
     destination_port_id: undefined,
     exchange_rate: 1,
@@ -79,6 +80,7 @@ export function UpdateShipmentDialog({
     const mappedContractItems: ShipmentFormItem[] = useMemo(
         () =>
             rawContractItems.map((item: any) => ({
+                warehouse_id: item.warehouse_id,
                 product_id: item.product_id,
                 product: item.product,
                 selected: false,
@@ -117,7 +119,6 @@ export function UpdateShipmentDialog({
             }
         })
 
-        // 2. override bằng shipment items
         detailItems.forEach((i: any) => {
             map.set(i.product_id, {
                 id: i.id,
@@ -143,6 +144,7 @@ export function UpdateShipmentDialog({
             return updateShipment({
                 id: shipment.id,
                 contract_id: shipment.contract_id,
+                warehouse_id: shipment.warehouse_id,
 
                 ...headerFormData,
                 destination_port_id: headerFormData.destination_port_id

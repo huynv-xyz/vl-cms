@@ -11,37 +11,18 @@ import { formatCurrency } from "@/lib/utils"
 export const deliveryColumns: ColumnDef<Delivery>[] = [
     buildIndexColumn(),
 
-    // ===== MÃ GIAO
     buildTextColumn({
         accessorKey: "delivery_no",
-        title: "Mã giao",
-        render: (row) => (
-            <Link
-                to="/sales/deliveries/$id"
-                params={{ id: String(row.id) }}
-                className="text-primary hover:underline font-medium"
-            >
-                {row.delivery_no}
-            </Link>
-        ),
+        title: "Mã giao"
     }),
 
-    // ===== ORDER
     {
         accessorKey: "order_id",
         header: "Đơn hàng",
-        cell: ({ row }) => (
-            <Link
-                to="/sales/orders/$id"
-                params={{ id: String(row.original.order_id) }}
-                className="text-primary hover:underline"
-            >
-                {row.original.order?.order_no ?? row.original.order_id}
-            </Link>
-        ),
+        cell: ({ row }) =>
+            row.original.order?.order_no
     },
 
-    // ===== KHO
     {
         accessorKey: "warehouse_id",
         header: "Kho",
@@ -51,7 +32,6 @@ export const deliveryColumns: ColumnDef<Delivery>[] = [
             "-",
     },
 
-    // ===== CÔNG TY
     {
         accessorKey: "company_id",
         header: "Công ty",
@@ -61,19 +41,16 @@ export const deliveryColumns: ColumnDef<Delivery>[] = [
             "-",
     },
 
-    // ===== NGÀY GIAO
     buildTextColumn({
         accessorKey: "delivery_date",
         title: "Ngày giao",
     }),
 
-    // ===== ĐỊA CHỈ
     buildTextColumn({
         accessorKey: "delivery_address",
         title: "Địa chỉ giao",
     }),
 
-    // ===== STATUS
     {
         accessorKey: "status",
         header: "Trạng thái",

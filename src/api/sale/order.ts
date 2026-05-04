@@ -27,6 +27,5 @@ export const createOrder = orderApi.create
 export const updateOrder = orderApi.update
 export const deleteOrder = orderApi.delete
 
-// 👇 override detail đúng type
 export const getOrder = (id: number) =>
     apiGet<OrderDetail>(`/sales/orders/${id}`)

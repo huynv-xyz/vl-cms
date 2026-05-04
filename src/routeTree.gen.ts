@@ -29,16 +29,26 @@ import { Route as AuthenticatedVipTierIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedVipPrivateRuleIndexRouteImport } from './routes/_authenticated/vip/private-rule/index'
 import { Route as AuthenticatedVipPointRuleIndexRouteImport } from './routes/_authenticated/vip/point-rule/index'
 import { Route as AuthenticatedVipCustomerIndexRouteImport } from './routes/_authenticated/vip/customer/index'
+import { Route as AuthenticatedSalesReturnsIndexRouteImport } from './routes/_authenticated/sales/returns/index'
+import { Route as AuthenticatedSalesReceiptsIndexRouteImport } from './routes/_authenticated/sales/receipts/index'
 import { Route as AuthenticatedSalesOrdersIndexRouteImport } from './routes/_authenticated/sales/orders/index'
+import { Route as AuthenticatedSalesExportsIndexRouteImport } from './routes/_authenticated/sales/exports/index'
 import { Route as AuthenticatedSalesDeliveriesIndexRouteImport } from './routes/_authenticated/sales/deliveries/index'
+import { Route as AuthenticatedSalesArLedgersIndexRouteImport } from './routes/_authenticated/sales/ar-ledgers/index'
 import { Route as AuthenticatedSalarySalesTargetsIndexRouteImport } from './routes/_authenticated/salary/sales-targets/index'
 import { Route as AuthenticatedSalarySalesActualsIndexRouteImport } from './routes/_authenticated/salary/sales-actuals/index'
 import { Route as AuthenticatedPurchasingSuppliersIndexRouteImport } from './routes/_authenticated/purchasing/suppliers/index'
 import { Route as AuthenticatedPurchasingShipmentsIndexRouteImport } from './routes/_authenticated/purchasing/shipments/index'
 import { Route as AuthenticatedPurchasingPortsIndexRouteImport } from './routes/_authenticated/purchasing/ports/index'
 import { Route as AuthenticatedPurchasingContractsIndexRouteImport } from './routes/_authenticated/purchasing/contracts/index'
+import { Route as AuthenticatedInventorySummaryIndexRouteImport } from './routes/_authenticated/inventory/summary/index'
+import { Route as AuthenticatedInventoryProductionsIndexRouteImport } from './routes/_authenticated/inventory/productions/index'
+import { Route as AuthenticatedInventoryLotsIndexRouteImport } from './routes/_authenticated/inventory/lots/index'
+import { Route as AuthenticatedInventoryLedgersIndexRouteImport } from './routes/_authenticated/inventory/ledgers/index'
+import { Route as AuthenticatedInventoryInboundsIndexRouteImport } from './routes/_authenticated/inventory/inbounds/index'
 import { Route as AuthenticatedVipCustomerIdRouteImport } from './routes/_authenticated/vip/customer/$id'
 import { Route as AuthenticatedSalesOrdersIdIndexRouteImport } from './routes/_authenticated/sales/orders/$id/index'
+import { Route as AuthenticatedSalesExportsIdIndexRouteImport } from './routes/_authenticated/sales/exports/$id/index'
 import { Route as AuthenticatedSalesDeliveriesIdIndexRouteImport } from './routes/_authenticated/sales/deliveries/$id/index'
 import { Route as AuthenticatedPurchasingContractsIdIndexRouteImport } from './routes/_authenticated/purchasing/contracts/$id/index'
 
@@ -152,16 +162,40 @@ const AuthenticatedVipCustomerIndexRoute =
     path: '/vip/customer/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSalesReturnsIndexRoute =
+  AuthenticatedSalesReturnsIndexRouteImport.update({
+    id: '/sales/returns/',
+    path: '/sales/returns/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalesReceiptsIndexRoute =
+  AuthenticatedSalesReceiptsIndexRouteImport.update({
+    id: '/sales/receipts/',
+    path: '/sales/receipts/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSalesOrdersIndexRoute =
   AuthenticatedSalesOrdersIndexRouteImport.update({
     id: '/sales/orders/',
     path: '/sales/orders/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSalesExportsIndexRoute =
+  AuthenticatedSalesExportsIndexRouteImport.update({
+    id: '/sales/exports/',
+    path: '/sales/exports/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSalesDeliveriesIndexRoute =
   AuthenticatedSalesDeliveriesIndexRouteImport.update({
     id: '/sales/deliveries/',
     path: '/sales/deliveries/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalesArLedgersIndexRoute =
+  AuthenticatedSalesArLedgersIndexRouteImport.update({
+    id: '/sales/ar-ledgers/',
+    path: '/sales/ar-ledgers/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSalarySalesTargetsIndexRoute =
@@ -200,6 +234,36 @@ const AuthenticatedPurchasingContractsIndexRoute =
     path: '/purchasing/contracts/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedInventorySummaryIndexRoute =
+  AuthenticatedInventorySummaryIndexRouteImport.update({
+    id: '/inventory/summary/',
+    path: '/inventory/summary/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedInventoryProductionsIndexRoute =
+  AuthenticatedInventoryProductionsIndexRouteImport.update({
+    id: '/inventory/productions/',
+    path: '/inventory/productions/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedInventoryLotsIndexRoute =
+  AuthenticatedInventoryLotsIndexRouteImport.update({
+    id: '/inventory/lots/',
+    path: '/inventory/lots/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedInventoryLedgersIndexRoute =
+  AuthenticatedInventoryLedgersIndexRouteImport.update({
+    id: '/inventory/ledgers/',
+    path: '/inventory/ledgers/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedInventoryInboundsIndexRoute =
+  AuthenticatedInventoryInboundsIndexRouteImport.update({
+    id: '/inventory/inbounds/',
+    path: '/inventory/inbounds/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedVipCustomerIdRoute =
   AuthenticatedVipCustomerIdRouteImport.update({
     id: '/vip/customer/$id',
@@ -210,6 +274,12 @@ const AuthenticatedSalesOrdersIdIndexRoute =
   AuthenticatedSalesOrdersIdIndexRouteImport.update({
     id: '/sales/orders/$id/',
     path: '/sales/orders/$id/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalesExportsIdIndexRoute =
+  AuthenticatedSalesExportsIdIndexRouteImport.update({
+    id: '/sales/exports/$id/',
+    path: '/sales/exports/$id/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSalesDeliveriesIdIndexRoute =
@@ -242,20 +312,30 @@ export interface FileRoutesByFullPath {
   '/transactions/': typeof AuthenticatedTransactionsIndexRoute
   '/user/': typeof AuthenticatedUserIndexRoute
   '/vip/customer/$id': typeof AuthenticatedVipCustomerIdRoute
+  '/inventory/inbounds/': typeof AuthenticatedInventoryInboundsIndexRoute
+  '/inventory/ledgers/': typeof AuthenticatedInventoryLedgersIndexRoute
+  '/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
+  '/inventory/productions/': typeof AuthenticatedInventoryProductionsIndexRoute
+  '/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
   '/purchasing/contracts/': typeof AuthenticatedPurchasingContractsIndexRoute
   '/purchasing/ports/': typeof AuthenticatedPurchasingPortsIndexRoute
   '/purchasing/shipments/': typeof AuthenticatedPurchasingShipmentsIndexRoute
   '/purchasing/suppliers/': typeof AuthenticatedPurchasingSuppliersIndexRoute
   '/salary/sales-actuals/': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/salary/sales-targets/': typeof AuthenticatedSalarySalesTargetsIndexRoute
+  '/sales/ar-ledgers/': typeof AuthenticatedSalesArLedgersIndexRoute
   '/sales/deliveries/': typeof AuthenticatedSalesDeliveriesIndexRoute
+  '/sales/exports/': typeof AuthenticatedSalesExportsIndexRoute
   '/sales/orders/': typeof AuthenticatedSalesOrdersIndexRoute
+  '/sales/receipts/': typeof AuthenticatedSalesReceiptsIndexRoute
+  '/sales/returns/': typeof AuthenticatedSalesReturnsIndexRoute
   '/vip/customer/': typeof AuthenticatedVipCustomerIndexRoute
   '/vip/point-rule/': typeof AuthenticatedVipPointRuleIndexRoute
   '/vip/private-rule/': typeof AuthenticatedVipPrivateRuleIndexRoute
   '/vip/tier/': typeof AuthenticatedVipTierIndexRoute
   '/purchasing/contracts/$id/': typeof AuthenticatedPurchasingContractsIdIndexRoute
   '/sales/deliveries/$id/': typeof AuthenticatedSalesDeliveriesIdIndexRoute
+  '/sales/exports/$id/': typeof AuthenticatedSalesExportsIdIndexRoute
   '/sales/orders/$id/': typeof AuthenticatedSalesOrdersIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -275,20 +355,30 @@ export interface FileRoutesByTo {
   '/transactions': typeof AuthenticatedTransactionsIndexRoute
   '/user': typeof AuthenticatedUserIndexRoute
   '/vip/customer/$id': typeof AuthenticatedVipCustomerIdRoute
+  '/inventory/inbounds': typeof AuthenticatedInventoryInboundsIndexRoute
+  '/inventory/ledgers': typeof AuthenticatedInventoryLedgersIndexRoute
+  '/inventory/lots': typeof AuthenticatedInventoryLotsIndexRoute
+  '/inventory/productions': typeof AuthenticatedInventoryProductionsIndexRoute
+  '/inventory/summary': typeof AuthenticatedInventorySummaryIndexRoute
   '/purchasing/contracts': typeof AuthenticatedPurchasingContractsIndexRoute
   '/purchasing/ports': typeof AuthenticatedPurchasingPortsIndexRoute
   '/purchasing/shipments': typeof AuthenticatedPurchasingShipmentsIndexRoute
   '/purchasing/suppliers': typeof AuthenticatedPurchasingSuppliersIndexRoute
   '/salary/sales-actuals': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/salary/sales-targets': typeof AuthenticatedSalarySalesTargetsIndexRoute
+  '/sales/ar-ledgers': typeof AuthenticatedSalesArLedgersIndexRoute
   '/sales/deliveries': typeof AuthenticatedSalesDeliveriesIndexRoute
+  '/sales/exports': typeof AuthenticatedSalesExportsIndexRoute
   '/sales/orders': typeof AuthenticatedSalesOrdersIndexRoute
+  '/sales/receipts': typeof AuthenticatedSalesReceiptsIndexRoute
+  '/sales/returns': typeof AuthenticatedSalesReturnsIndexRoute
   '/vip/customer': typeof AuthenticatedVipCustomerIndexRoute
   '/vip/point-rule': typeof AuthenticatedVipPointRuleIndexRoute
   '/vip/private-rule': typeof AuthenticatedVipPrivateRuleIndexRoute
   '/vip/tier': typeof AuthenticatedVipTierIndexRoute
   '/purchasing/contracts/$id': typeof AuthenticatedPurchasingContractsIdIndexRoute
   '/sales/deliveries/$id': typeof AuthenticatedSalesDeliveriesIdIndexRoute
+  '/sales/exports/$id': typeof AuthenticatedSalesExportsIdIndexRoute
   '/sales/orders/$id': typeof AuthenticatedSalesOrdersIdIndexRoute
 }
 export interface FileRoutesById {
@@ -310,20 +400,30 @@ export interface FileRoutesById {
   '/_authenticated/transactions/': typeof AuthenticatedTransactionsIndexRoute
   '/_authenticated/user/': typeof AuthenticatedUserIndexRoute
   '/_authenticated/vip/customer/$id': typeof AuthenticatedVipCustomerIdRoute
+  '/_authenticated/inventory/inbounds/': typeof AuthenticatedInventoryInboundsIndexRoute
+  '/_authenticated/inventory/ledgers/': typeof AuthenticatedInventoryLedgersIndexRoute
+  '/_authenticated/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
+  '/_authenticated/inventory/productions/': typeof AuthenticatedInventoryProductionsIndexRoute
+  '/_authenticated/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
   '/_authenticated/purchasing/contracts/': typeof AuthenticatedPurchasingContractsIndexRoute
   '/_authenticated/purchasing/ports/': typeof AuthenticatedPurchasingPortsIndexRoute
   '/_authenticated/purchasing/shipments/': typeof AuthenticatedPurchasingShipmentsIndexRoute
   '/_authenticated/purchasing/suppliers/': typeof AuthenticatedPurchasingSuppliersIndexRoute
   '/_authenticated/salary/sales-actuals/': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/_authenticated/salary/sales-targets/': typeof AuthenticatedSalarySalesTargetsIndexRoute
+  '/_authenticated/sales/ar-ledgers/': typeof AuthenticatedSalesArLedgersIndexRoute
   '/_authenticated/sales/deliveries/': typeof AuthenticatedSalesDeliveriesIndexRoute
+  '/_authenticated/sales/exports/': typeof AuthenticatedSalesExportsIndexRoute
   '/_authenticated/sales/orders/': typeof AuthenticatedSalesOrdersIndexRoute
+  '/_authenticated/sales/receipts/': typeof AuthenticatedSalesReceiptsIndexRoute
+  '/_authenticated/sales/returns/': typeof AuthenticatedSalesReturnsIndexRoute
   '/_authenticated/vip/customer/': typeof AuthenticatedVipCustomerIndexRoute
   '/_authenticated/vip/point-rule/': typeof AuthenticatedVipPointRuleIndexRoute
   '/_authenticated/vip/private-rule/': typeof AuthenticatedVipPrivateRuleIndexRoute
   '/_authenticated/vip/tier/': typeof AuthenticatedVipTierIndexRoute
   '/_authenticated/purchasing/contracts/$id/': typeof AuthenticatedPurchasingContractsIdIndexRoute
   '/_authenticated/sales/deliveries/$id/': typeof AuthenticatedSalesDeliveriesIdIndexRoute
+  '/_authenticated/sales/exports/$id/': typeof AuthenticatedSalesExportsIdIndexRoute
   '/_authenticated/sales/orders/$id/': typeof AuthenticatedSalesOrdersIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -345,20 +445,30 @@ export interface FileRouteTypes {
     | '/transactions/'
     | '/user/'
     | '/vip/customer/$id'
+    | '/inventory/inbounds/'
+    | '/inventory/ledgers/'
+    | '/inventory/lots/'
+    | '/inventory/productions/'
+    | '/inventory/summary/'
     | '/purchasing/contracts/'
     | '/purchasing/ports/'
     | '/purchasing/shipments/'
     | '/purchasing/suppliers/'
     | '/salary/sales-actuals/'
     | '/salary/sales-targets/'
+    | '/sales/ar-ledgers/'
     | '/sales/deliveries/'
+    | '/sales/exports/'
     | '/sales/orders/'
+    | '/sales/receipts/'
+    | '/sales/returns/'
     | '/vip/customer/'
     | '/vip/point-rule/'
     | '/vip/private-rule/'
     | '/vip/tier/'
     | '/purchasing/contracts/$id/'
     | '/sales/deliveries/$id/'
+    | '/sales/exports/$id/'
     | '/sales/orders/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -378,20 +488,30 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/user'
     | '/vip/customer/$id'
+    | '/inventory/inbounds'
+    | '/inventory/ledgers'
+    | '/inventory/lots'
+    | '/inventory/productions'
+    | '/inventory/summary'
     | '/purchasing/contracts'
     | '/purchasing/ports'
     | '/purchasing/shipments'
     | '/purchasing/suppliers'
     | '/salary/sales-actuals'
     | '/salary/sales-targets'
+    | '/sales/ar-ledgers'
     | '/sales/deliveries'
+    | '/sales/exports'
     | '/sales/orders'
+    | '/sales/receipts'
+    | '/sales/returns'
     | '/vip/customer'
     | '/vip/point-rule'
     | '/vip/private-rule'
     | '/vip/tier'
     | '/purchasing/contracts/$id'
     | '/sales/deliveries/$id'
+    | '/sales/exports/$id'
     | '/sales/orders/$id'
   id:
     | '__root__'
@@ -412,20 +532,30 @@ export interface FileRouteTypes {
     | '/_authenticated/transactions/'
     | '/_authenticated/user/'
     | '/_authenticated/vip/customer/$id'
+    | '/_authenticated/inventory/inbounds/'
+    | '/_authenticated/inventory/ledgers/'
+    | '/_authenticated/inventory/lots/'
+    | '/_authenticated/inventory/productions/'
+    | '/_authenticated/inventory/summary/'
     | '/_authenticated/purchasing/contracts/'
     | '/_authenticated/purchasing/ports/'
     | '/_authenticated/purchasing/shipments/'
     | '/_authenticated/purchasing/suppliers/'
     | '/_authenticated/salary/sales-actuals/'
     | '/_authenticated/salary/sales-targets/'
+    | '/_authenticated/sales/ar-ledgers/'
     | '/_authenticated/sales/deliveries/'
+    | '/_authenticated/sales/exports/'
     | '/_authenticated/sales/orders/'
+    | '/_authenticated/sales/receipts/'
+    | '/_authenticated/sales/returns/'
     | '/_authenticated/vip/customer/'
     | '/_authenticated/vip/point-rule/'
     | '/_authenticated/vip/private-rule/'
     | '/_authenticated/vip/tier/'
     | '/_authenticated/purchasing/contracts/$id/'
     | '/_authenticated/sales/deliveries/$id/'
+    | '/_authenticated/sales/exports/$id/'
     | '/_authenticated/sales/orders/$id/'
   fileRoutesById: FileRoutesById
 }
@@ -581,6 +711,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVipCustomerIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/sales/returns/': {
+      id: '/_authenticated/sales/returns/'
+      path: '/sales/returns'
+      fullPath: '/sales/returns/'
+      preLoaderRoute: typeof AuthenticatedSalesReturnsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sales/receipts/': {
+      id: '/_authenticated/sales/receipts/'
+      path: '/sales/receipts'
+      fullPath: '/sales/receipts/'
+      preLoaderRoute: typeof AuthenticatedSalesReceiptsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/sales/orders/': {
       id: '/_authenticated/sales/orders/'
       path: '/sales/orders'
@@ -588,11 +732,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSalesOrdersIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/sales/exports/': {
+      id: '/_authenticated/sales/exports/'
+      path: '/sales/exports'
+      fullPath: '/sales/exports/'
+      preLoaderRoute: typeof AuthenticatedSalesExportsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/sales/deliveries/': {
       id: '/_authenticated/sales/deliveries/'
       path: '/sales/deliveries'
       fullPath: '/sales/deliveries/'
       preLoaderRoute: typeof AuthenticatedSalesDeliveriesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sales/ar-ledgers/': {
+      id: '/_authenticated/sales/ar-ledgers/'
+      path: '/sales/ar-ledgers'
+      fullPath: '/sales/ar-ledgers/'
+      preLoaderRoute: typeof AuthenticatedSalesArLedgersIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/salary/sales-targets/': {
@@ -637,6 +795,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPurchasingContractsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/inventory/summary/': {
+      id: '/_authenticated/inventory/summary/'
+      path: '/inventory/summary'
+      fullPath: '/inventory/summary/'
+      preLoaderRoute: typeof AuthenticatedInventorySummaryIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/inventory/productions/': {
+      id: '/_authenticated/inventory/productions/'
+      path: '/inventory/productions'
+      fullPath: '/inventory/productions/'
+      preLoaderRoute: typeof AuthenticatedInventoryProductionsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/inventory/lots/': {
+      id: '/_authenticated/inventory/lots/'
+      path: '/inventory/lots'
+      fullPath: '/inventory/lots/'
+      preLoaderRoute: typeof AuthenticatedInventoryLotsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/inventory/ledgers/': {
+      id: '/_authenticated/inventory/ledgers/'
+      path: '/inventory/ledgers'
+      fullPath: '/inventory/ledgers/'
+      preLoaderRoute: typeof AuthenticatedInventoryLedgersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/inventory/inbounds/': {
+      id: '/_authenticated/inventory/inbounds/'
+      path: '/inventory/inbounds'
+      fullPath: '/inventory/inbounds/'
+      preLoaderRoute: typeof AuthenticatedInventoryInboundsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/vip/customer/$id': {
       id: '/_authenticated/vip/customer/$id'
       path: '/vip/customer/$id'
@@ -649,6 +842,13 @@ declare module '@tanstack/react-router' {
       path: '/sales/orders/$id'
       fullPath: '/sales/orders/$id/'
       preLoaderRoute: typeof AuthenticatedSalesOrdersIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sales/exports/$id/': {
+      id: '/_authenticated/sales/exports/$id/'
+      path: '/sales/exports/$id'
+      fullPath: '/sales/exports/$id/'
+      preLoaderRoute: typeof AuthenticatedSalesExportsIdIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/sales/deliveries/$id/': {
@@ -679,20 +879,30 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTransactionsIndexRoute: typeof AuthenticatedTransactionsIndexRoute
   AuthenticatedUserIndexRoute: typeof AuthenticatedUserIndexRoute
   AuthenticatedVipCustomerIdRoute: typeof AuthenticatedVipCustomerIdRoute
+  AuthenticatedInventoryInboundsIndexRoute: typeof AuthenticatedInventoryInboundsIndexRoute
+  AuthenticatedInventoryLedgersIndexRoute: typeof AuthenticatedInventoryLedgersIndexRoute
+  AuthenticatedInventoryLotsIndexRoute: typeof AuthenticatedInventoryLotsIndexRoute
+  AuthenticatedInventoryProductionsIndexRoute: typeof AuthenticatedInventoryProductionsIndexRoute
+  AuthenticatedInventorySummaryIndexRoute: typeof AuthenticatedInventorySummaryIndexRoute
   AuthenticatedPurchasingContractsIndexRoute: typeof AuthenticatedPurchasingContractsIndexRoute
   AuthenticatedPurchasingPortsIndexRoute: typeof AuthenticatedPurchasingPortsIndexRoute
   AuthenticatedPurchasingShipmentsIndexRoute: typeof AuthenticatedPurchasingShipmentsIndexRoute
   AuthenticatedPurchasingSuppliersIndexRoute: typeof AuthenticatedPurchasingSuppliersIndexRoute
   AuthenticatedSalarySalesActualsIndexRoute: typeof AuthenticatedSalarySalesActualsIndexRoute
   AuthenticatedSalarySalesTargetsIndexRoute: typeof AuthenticatedSalarySalesTargetsIndexRoute
+  AuthenticatedSalesArLedgersIndexRoute: typeof AuthenticatedSalesArLedgersIndexRoute
   AuthenticatedSalesDeliveriesIndexRoute: typeof AuthenticatedSalesDeliveriesIndexRoute
+  AuthenticatedSalesExportsIndexRoute: typeof AuthenticatedSalesExportsIndexRoute
   AuthenticatedSalesOrdersIndexRoute: typeof AuthenticatedSalesOrdersIndexRoute
+  AuthenticatedSalesReceiptsIndexRoute: typeof AuthenticatedSalesReceiptsIndexRoute
+  AuthenticatedSalesReturnsIndexRoute: typeof AuthenticatedSalesReturnsIndexRoute
   AuthenticatedVipCustomerIndexRoute: typeof AuthenticatedVipCustomerIndexRoute
   AuthenticatedVipPointRuleIndexRoute: typeof AuthenticatedVipPointRuleIndexRoute
   AuthenticatedVipPrivateRuleIndexRoute: typeof AuthenticatedVipPrivateRuleIndexRoute
   AuthenticatedVipTierIndexRoute: typeof AuthenticatedVipTierIndexRoute
   AuthenticatedPurchasingContractsIdIndexRoute: typeof AuthenticatedPurchasingContractsIdIndexRoute
   AuthenticatedSalesDeliveriesIdIndexRoute: typeof AuthenticatedSalesDeliveriesIdIndexRoute
+  AuthenticatedSalesExportsIdIndexRoute: typeof AuthenticatedSalesExportsIdIndexRoute
   AuthenticatedSalesOrdersIdIndexRoute: typeof AuthenticatedSalesOrdersIdIndexRoute
 }
 
@@ -707,6 +917,15 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTransactionsIndexRoute: AuthenticatedTransactionsIndexRoute,
   AuthenticatedUserIndexRoute: AuthenticatedUserIndexRoute,
   AuthenticatedVipCustomerIdRoute: AuthenticatedVipCustomerIdRoute,
+  AuthenticatedInventoryInboundsIndexRoute:
+    AuthenticatedInventoryInboundsIndexRoute,
+  AuthenticatedInventoryLedgersIndexRoute:
+    AuthenticatedInventoryLedgersIndexRoute,
+  AuthenticatedInventoryLotsIndexRoute: AuthenticatedInventoryLotsIndexRoute,
+  AuthenticatedInventoryProductionsIndexRoute:
+    AuthenticatedInventoryProductionsIndexRoute,
+  AuthenticatedInventorySummaryIndexRoute:
+    AuthenticatedInventorySummaryIndexRoute,
   AuthenticatedPurchasingContractsIndexRoute:
     AuthenticatedPurchasingContractsIndexRoute,
   AuthenticatedPurchasingPortsIndexRoute:
@@ -719,9 +938,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedSalarySalesActualsIndexRoute,
   AuthenticatedSalarySalesTargetsIndexRoute:
     AuthenticatedSalarySalesTargetsIndexRoute,
+  AuthenticatedSalesArLedgersIndexRoute: AuthenticatedSalesArLedgersIndexRoute,
   AuthenticatedSalesDeliveriesIndexRoute:
     AuthenticatedSalesDeliveriesIndexRoute,
+  AuthenticatedSalesExportsIndexRoute: AuthenticatedSalesExportsIndexRoute,
   AuthenticatedSalesOrdersIndexRoute: AuthenticatedSalesOrdersIndexRoute,
+  AuthenticatedSalesReceiptsIndexRoute: AuthenticatedSalesReceiptsIndexRoute,
+  AuthenticatedSalesReturnsIndexRoute: AuthenticatedSalesReturnsIndexRoute,
   AuthenticatedVipCustomerIndexRoute: AuthenticatedVipCustomerIndexRoute,
   AuthenticatedVipPointRuleIndexRoute: AuthenticatedVipPointRuleIndexRoute,
   AuthenticatedVipPrivateRuleIndexRoute: AuthenticatedVipPrivateRuleIndexRoute,
@@ -730,6 +953,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedPurchasingContractsIdIndexRoute,
   AuthenticatedSalesDeliveriesIdIndexRoute:
     AuthenticatedSalesDeliveriesIdIndexRoute,
+  AuthenticatedSalesExportsIdIndexRoute: AuthenticatedSalesExportsIdIndexRoute,
   AuthenticatedSalesOrdersIdIndexRoute: AuthenticatedSalesOrdersIdIndexRoute,
 }
 

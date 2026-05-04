@@ -37,6 +37,7 @@ const customerApi = createCrudApi<
 >("/customers")
 
 export const listCustomers = customerApi.list
+export const getCustomer = customerApi.detail
 export const createCustomer = customerApi.create
 export const updateCustomer = customerApi.update
 export const deleteCustomer = customerApi.delete

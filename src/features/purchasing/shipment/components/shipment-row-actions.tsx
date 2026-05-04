@@ -17,8 +17,6 @@ export function ShipmentRowActions({ row }: Props) {
         ["shipments"]
     )
 
-    console.log('deleteById:', deleteById)
-
     return (
         <CrudRowActions
             row={row}

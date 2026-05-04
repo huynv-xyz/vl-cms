@@ -60,6 +60,7 @@ export function CreateShipmentDialog({
     const mappedItems = useMemo<ShipmentFormItem[]>(
         () =>
             rawItems.map((item: any) => ({
+                warehouse_id: item.warehouse_id,
                 product_id: item.product_id,
                 product: item.product,
                 selected: false,

@@ -10,14 +10,12 @@ import { buildBadgeColumn } from "@/components/crud/build-badge-column"
 export const shipmentItemColumns: ColumnDef<ShipmentItem>[] = [
     buildIndexColumn(),
 
-    // ===== SHIPMENT =====
     buildTextColumn({
         id: "shipment_code",
         title: "Mã lô",
         accessorFn: (row) => row.shipment?.code ?? `#${row.shipment_id ?? "-"}`,
     }),
 
-    // ===== PRODUCT =====
     buildTextColumn({
         id: "product_code",
         title: "Mã sản phẩm",
@@ -48,6 +46,13 @@ export const shipmentItemColumns: ColumnDef<ShipmentItem>[] = [
         title: "Ngày dự kiến đến",
         render: (row) => row.shipment?.eta,
     }),
+
+    buildTextColumn({
+        id: "warehouse_id",
+        title: "Kho",
+        accessorFn: (row) => row.shipment?.warehouse?.name
+    }),
+
 
     buildTextColumn({
         id: "warehouse_at",

@@ -163,11 +163,31 @@ export const sidebarData: SidebarData = {
                 },
                 {
                     title: 'Công nợ',
-                    url: '/sales/ar',
+                    url: '/sales/ar-ledgers',
                     icon: BarChart3,
                 },
             ],
-        }
+        },
+        {
+            title: 'Tồn kho',
+            items: [
+                {
+                    title: 'Tồn kho',
+                    url: '/inventory/summary',
+                    icon: BarChart3,
+                },
+                {
+                    title: 'Sổ kho',
+                    url: '/inventory/ledgers',
+                    icon: ListOrdered,
+                },
+                {
+                    title: 'Lệnh sản xuất',
+                    url: '/inventory/productions',
+                    icon: Package,
+                },
+            ],
+        },
     ],
 
 }

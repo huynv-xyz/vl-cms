@@ -2,6 +2,8 @@ import { Customer } from "@/features/customer/data/schema"
 import { Employee } from "@/features/employee/data/schema"
 import { Product } from "@/features/product/data/schema"
 import { Delivery } from "../../delivery/data/schema"
+import { Export } from "../../export/data/schema"
+import { Receipt } from "../../receipt/data/schema"
 
 // ========================
 // ITEM
@@ -14,22 +16,6 @@ export type OrderItem = {
 
     quantity: number
     exported_quantity: number
-}
-
-// ========================
-// EXPORT
-// ========================
-export type ExportItem = {
-    product_id: number
-    product_name?: string
-    quantity: number
-}
-
-export type Export = {
-    id: number
-    export_no: string
-    status: string
-    items: ExportItem[]
 }
 
 // ========================
@@ -77,6 +63,8 @@ export type OrderDetail = Order & {
     deliveries: Delivery[]
 
     exports: Export[]
+
+    receipts?: Receipt[]
 
     ar_summary: ArSummary
 }

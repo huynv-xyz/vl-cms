@@ -1,14 +1,20 @@
 import { getPort, listPorts } from "@/api/purchasing/port"
+import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { RJSFSchema, UiSchema } from "@rjsf/utils"
 
 export const shipmentSchema: RJSFSchema = {
     type: "object",
-    required: ["code"],
+    required: ["code", "warehouse_id"],
     properties: {
         code: {
             type: "string",
             title: "Mã lô",
             minLength: 1,
+        },
+
+        warehouse_id: {
+            type: "integer",
+            title: "Kho",
         },
 
         etd: {
@@ -80,6 +86,25 @@ export const shipmentUiSchema: UiSchema = {
 
     status: {
         "ui:widget": "select",
+    },
+
+    warehouse_id: {
+        "ui:widget": "asyncSelect",
+        "ui:options": {
+            placeholder: "Chọn kho",
+            dataSource: {
+                getList: listWarehouses,
+                getById: getWarehouse,
+                params: { page: 1, size: 20 },
+            },
+
+            mapOption: (w: any) => ({
+                value: w.id,
+                label: w.name,
+            }),
+
+        },
+
     },
 
     destination_port_id: {

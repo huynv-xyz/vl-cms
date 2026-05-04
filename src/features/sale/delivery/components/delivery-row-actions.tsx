@@ -55,7 +55,6 @@ export function DeliveryRowActions({ row }) {
                 )}
             />
 
-            {/* ===== CONFIRM DIALOG ===== */}
             <AlertDialog open={openConfirm} onOpenChange={setOpenConfirm}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
