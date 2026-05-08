@@ -9,6 +9,7 @@ type OrderItem = {
     product?: any
     quantity: number
     unit_price: number
+    unit?: string
 }
 
 type Props = {
@@ -81,7 +82,6 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                     <AsyncSelect
                                         value={row.product_id}
                                         onChange={(value: any, option: any) => {
-
                                             if (items.some((x, idx) => idx !== i && x.product_id === value)) {
                                                 return
                                             }
@@ -89,8 +89,6 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                             updateRow(i, {
                                                 product_id: value,
                                                 product: option?.raw,
-
-                                                // 🔥 auto fill giá
                                                 unit_price: option?.raw?.price ?? 0,
                                             })
                                         }}
@@ -134,6 +132,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                         }
                                     />
                                 </td>
+
 
                                 {/* TOTAL */}
                                 <td className="p-2 text-right font-semibold">

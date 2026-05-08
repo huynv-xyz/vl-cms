@@ -1,70 +1,86 @@
-// components/ar-ledger-columns.ts
 import { ColumnDef } from "@tanstack/react-table"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
-import { buildBadgeColumn } from "@/components/crud/build-badge-column"
 import type { ArLedger } from "../data/schema"
-import { buildCurrencyColumn } from "@/components/crud/build-currency-column"
-import { buildNumberColumn } from "@/components/crud/build-number-column"
+import { formatCurrency } from "@/lib/utils"
 
 export const arLedgerColumns: ColumnDef<ArLedger>[] = [
 
+    // STT
     buildIndexColumn(),
 
+    // Ngày
     buildTextColumn({
         accessorKey: "posting_date",
-        title: "Ngày",
+        title: "Ngày chứng từ",
     }),
 
+    // Chứng từ
     buildTextColumn({
         accessorKey: "doc_no",
         title: "Chứng từ",
     }),
 
+    // Khách hàng
     buildTextColumn({
-        accessorKey: "customer_id",
-        title: "Khách hàng",
-        render: (row) => row.customer?.name,
-    }),
-
-    buildTextColumn({
-        accessorKey: "order_id",
-        title: "Đơn hàng",
-        render: (row) => row.order?.order_no,
+        id: "customer_code",
+        title: "Mã khách hàng",
+        render: (row) => row.customer?.code
     }),
 
     buildTextColumn({
-        accessorKey: "product_id",
-        title: "Sản phẩm",
-        render: (row) => row.product?.name,
+        id: "customer_name",
+        title: "Tên khách hàng",
+        render: (row) => row.customer?.name
     }),
 
-    buildNumberColumn({
-        accessorKey: "quantity",
-        title: "SL",
+    // TK
+    buildTextColumn({
+        accessorKey: "account_code",
+        title: "TK",
     }),
 
-    buildCurrencyColumn({
+    // Nợ
+    buildTextColumn({
         accessorKey: "debit_amount",
-        title: "Phát sinh Nợ",
+        title: "Nợ",
+        className: "text-right",
+        textClassName: "text-sm text-right text-red-600",
+        render: (row) => <b>{formatCurrency(row.debit_amount)}</b>,
     }),
 
-    buildCurrencyColumn({
+    // Có
+    buildTextColumn({
         accessorKey: "credit_amount",
-        title: "Phát sinh Có",
+        title: "Có",
+        className: "text-right",
+        textClassName: "text-sm text-right text-green-600",
+        render: (row) => <b>{formatCurrency(row.credit_amount)}</b>,
     }),
 
-    buildBadgeColumn({
-        accessorKey: "doc_type",
+    // Loại nghiệp vụ
+    buildTextColumn({
+        accessorKey: "source_type",
         title: "Loại",
-        mapValueToLabel: (v: unknown): string => {
-            const value = String(v ?? "-")
-
-            switch (value) {
-                case "BAN_HANG": return "Bán hàng"
-                case "THU_TIEN": return "Thu tiền"
-                default: return value
+        render: (row) => {
+            switch (row.source_type) {
+                case "EXPORT":
+                    return "Bán hàng"
+                case "RECEIPT":
+                    return "Thu tiền"
+                case "ADJUST":
+                    return "Điều chỉnh"
+                case "IMPORT":
+                    return "Import"
+                default:
+                    return row.source_type ?? "-"
             }
         },
+    }),
+
+    // Diễn giải
+    buildTextColumn({
+        accessorKey: "description",
+        title: "Diễn giải",
     }),
 ]

@@ -16,7 +16,7 @@ export const shipmentColumns: ColumnDef<Shipment>[] = [
 
     buildTextColumn({
         accessorKey: "warehouse_id",
-        title: "Mã lô",
+        title: "Kho",
         render: (row) => row.warehouse?.name
     }),
 

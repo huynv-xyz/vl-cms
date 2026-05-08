@@ -1,31 +1,27 @@
-import { Order } from "../../order/data/schema"
-import { Export } from "../../export/data/schema"
-import { Product } from "@/features/product/data/schema"
 import { Customer } from "@/features/customer/data/schema"
 
 export type ArLedger = {
     id: number
 
     posting_date: string
+    doc_date?: string
+
+    doc_no: string
+
     customer_id: number
     customer?: Customer
 
-    doc_type: string
-    doc_no: string
+    customer_name?: string
 
-    order_id?: number
-    order?: Order
-
-    export_id?: number
-    export?: Export
-
-    product_id?: number
-    product?: Product
-
-    quantity?: number
+    description?: string
+    account_code?: string
 
     debit_amount: number
     credit_amount: number
 
+    source_type?: "EXPORT" | "RECEIPT" | "ADJUST" | "IMPORT"
+    source_id?: number
+
     created_at: string
+    updated_at?: string
 }

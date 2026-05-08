@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo } from "react"
 import {
     flexRender,
     getCoreRowModel,
@@ -6,128 +6,91 @@ import {
     ColumnDef,
 } from "@tanstack/react-table"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table"
 import { formatNumber } from "@/lib/utils"
-import type { OrderItem } from "../../order/data/schema"
-import type { DeliveryFormItem } from "./types"
-
-type RowData = OrderItem & {
-    selected: boolean
-    quantity_delivery: number
-}
+import { useQuery } from "@tanstack/react-query"
+import { getStockLots } from "@/api/inventory/lot"
+import { QuantityInputCell } from "./delivery-quantity-input-cell"
 
 type Props = {
-    orderItems: OrderItem[]
-    items: DeliveryFormItem[]
-    onChange: (items: DeliveryFormItem[]) => void
+    orderItems: any[]
+    items: any[]
+    warehouseId?: number
+    onChange: (items: any[]) => void
 }
 
-type QuantityInputCellProps = {
-    productId: number
-    value: number
-    disabled: boolean
-    max: number
-    onCommit: (productId: number, quantity: number) => void
-}
+export function DeliveryItemsEditor({
+    orderItems,
+    items,
+    warehouseId,
+    onChange,
+}: Props) {
 
-function QuantityInputCell({
-    productId,
-    value,
-    disabled,
-    max,
-    onCommit,
-}: QuantityInputCellProps) {
-    const [localValue, setLocalValue] = useState(String(value ?? 0))
+    const productIds = orderItems.map(i => i.product_id)
 
-    useEffect(() => {
-        setLocalValue(String(value ?? 0))
-    }, [value])
+    const { data: stockRes } = useQuery({
+        queryKey: ["stock-lots", warehouseId, productIds],
+        queryFn: () =>
+            getStockLots({
+                warehouse_id: warehouseId!,
+                product_ids: productIds,
+            }),
+        enabled: !!warehouseId && productIds.length > 0,
+    })
 
-    const commitValue = () => {
-        let nextValue = Number(localValue)
+    const stockMap = useMemo(() => {
+        const map = new Map<number, number>()
 
-        if (Number.isNaN(nextValue) || nextValue < 0) {
-            nextValue = 0
+        stockRes?.forEach((x) => {
+            map.set(x.product_id, x.quantity)
+        })
+
+        return map
+    }, [stockRes])
+
+    const updateRow = (productId: number, patch: any) => {
+
+        const map = new Map(items.map(i => [i.product_id, i]))
+
+        const current = map.get(productId) ?? {
+            product_id: productId,
+            quantity: 0,
+            selected: false,
         }
 
-        if (nextValue > max) {
-            nextValue = max
-        }
+        const next = { ...current, ...patch }
 
-        setLocalValue(String(nextValue))
-        onCommit(productId, nextValue)
-    }
+        const order = orderItems.find(o => o.product_id === productId)
 
-    return (
-        <Input
-            type="number"
-            value={localValue}
-            disabled={disabled}
-            onChange={(e) => setLocalValue(e.target.value)}
-            onBlur={commitValue}
-            onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                    ; (e.target as HTMLInputElement).blur()
-                }
-            }}
-        />
-    )
-}
+        if (order) {
+            const stock = stockMap.get(productId) ?? 0
 
-export function DeliveryItemsEditor({ orderItems, items, onChange }: Props) {
-    const updateRow = (
-        productId: number,
-        patch: Partial<DeliveryFormItem>
-    ) => {
-        const map = new Map(items.map((i) => [i.product_id, i]))
+            const limit = Math.min(order.quantity, stock)
 
-        const current: DeliveryFormItem =
-            map.get(productId) ?? {
-                product_id: productId,
-                quantity: 0,
-                selected: false,
-                note: "",
-            }
-
-        const next: DeliveryFormItem = {
-            ...current,
-            ...patch,
-        }
-
-        const order = orderItems.find((o) => o.product_id === productId)
-        if (order && next.quantity > order.quantity) {
-            next.quantity = order.quantity
-        }
-
-        if (next.quantity < 0) {
-            next.quantity = 0
+            if (next.quantity > limit) next.quantity = limit
+            if (next.quantity < 0) next.quantity = 0
         }
 
         map.set(productId, next)
         onChange(Array.from(map.values()))
     }
 
-    const data: RowData[] = useMemo(() => {
-        return orderItems.map((o) => {
-            const existing = items.find((i) => i.product_id === o.product_id)
+    const data = useMemo(() => {
+        return orderItems.map(o => {
+            const existing = items.find(i => i.product_id === o.product_id)
 
             return {
                 ...o,
                 selected: existing?.selected ?? false,
                 quantity_delivery: existing?.quantity ?? 0,
+                stock_quantity: stockMap.get(o.product_id) ?? 0,
             }
         })
-    }, [orderItems, items])
+    }, [orderItems, items, stockMap])
 
-    const columns: ColumnDef<RowData>[] = [
+    const columns: ColumnDef<any>[] = [
         {
             header: "Chọn",
             cell: ({ row }) => (
@@ -155,26 +118,39 @@ export function DeliveryItemsEditor({ orderItems, items, onChange }: Props) {
             cell: ({ row }) => row.original.product?.unit,
         },
         {
-            header: "SL đặt",
+            header: "SL đặt còn lại",
+            cell: ({ row }) => formatNumber(row.original.remain_quantity),
+        },
+        {
+            header: "Tồn kho",
             cell: ({ row }) => (
-                <span className="font-medium">
-                    {formatNumber(row.original.quantity)}
+                <span className="text-blue-600 font-medium">
+                    {formatNumber(row.original.stock_quantity)}
                 </span>
             ),
         },
         {
             header: "SL giao",
-            cell: ({ row }) => (
-                <QuantityInputCell
-                    productId={row.original.product_id}
-                    value={row.original.quantity_delivery}
-                    disabled={!row.original.selected}
-                    max={row.original.quantity}
-                    onCommit={(productId, quantity) =>
-                        updateRow(productId, { quantity })
-                    }
-                />
-            ),
+            cell: ({ row }) => {
+
+                const max = Math.min(
+                    row.original.quantity,
+                    row.original.stock_quantity
+                )
+
+                return (
+                    <QuantityInputCell
+                        productId={row.original.product_id}
+                        value={row.original.quantity_delivery}
+                        disabled={!row.original.selected}
+                        max={row.original.quantity}
+                        stock={row.original.stock_quantity ?? 0}
+                        onCommit={(productId, quantity) =>
+                            updateRow(productId, { quantity })
+                        }
+                    />
+                )
+            },
         },
     ]
 
@@ -187,14 +163,11 @@ export function DeliveryItemsEditor({ orderItems, items, onChange }: Props) {
     return (
         <Table>
             <TableHeader>
-                {table.getHeaderGroups().map((hg) => (
+                {table.getHeaderGroups().map(hg => (
                     <TableRow key={hg.id}>
-                        {hg.headers.map((h) => (
+                        {hg.headers.map(h => (
                             <TableHead key={h.id}>
-                                {flexRender(
-                                    h.column.columnDef.header,
-                                    h.getContext()
-                                )}
+                                {flexRender(h.column.columnDef.header, h.getContext())}
                             </TableHead>
                         ))}
                     </TableRow>
@@ -202,14 +175,11 @@ export function DeliveryItemsEditor({ orderItems, items, onChange }: Props) {
             </TableHeader>
 
             <TableBody>
-                {table.getRowModel().rows.map((row) => (
+                {table.getRowModel().rows.map(row => (
                     <TableRow key={row.id}>
-                        {row.getVisibleCells().map((cell) => (
+                        {row.getVisibleCells().map(cell => (
                             <TableCell key={cell.id}>
-                                {flexRender(
-                                    cell.column.columnDef.cell,
-                                    cell.getContext()
-                                )}
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </TableCell>
                         ))}
                     </TableRow>

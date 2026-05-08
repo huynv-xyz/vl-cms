@@ -17,10 +17,14 @@ import { rjsfValidator } from "@/components/rjsf/rjsf-validator"
 
 import { createReceipt } from "@/api/sale/receipt"
 import { getOrder } from "@/api/sale/order"
+import { getCashBankLedger } from "@/api/sale/cash-bank-ledger"
 
 import { receiptSchema, receiptUiSchema } from "./receipt-form-schema"
 
-export function CreateReceiptDialog({ open, onOpenChange }: any) {
+export function CreateReceiptDialog({
+    open,
+    onOpenChange,
+}: any) {
     const qc = useQueryClient()
 
     const [formData, setFormData] = useState<any>({
@@ -31,17 +35,57 @@ export function CreateReceiptDialog({ open, onOpenChange }: any) {
         method: "CASH",
         status: "DONE",
         note: "",
+        cash_bank_ledger_id: undefined,
     })
 
     const orderId = formData.order_id
+    const ledgerId = formData.cash_bank_ledger_id
 
+    // ===== load order
     const { data: orderDetail } = useQuery({
         queryKey: ["order-detail", orderId],
         queryFn: () => getOrder(orderId),
         enabled: !!orderId,
     })
 
-    // ===== auto set customer
+    // ===== load ledger
+    const { data: selectedLedger } = useQuery({
+        queryKey: ["ledger-detail", ledgerId],
+        queryFn: () => getCashBankLedger(ledgerId),
+        enabled: !!ledgerId,
+    })
+
+    const isLedgerMode = !!selectedLedger
+
+    // ===== auto fill từ ledger
+    useEffect(() => {
+        if (!selectedLedger) return
+
+        const amount =
+            selectedLedger.debit_amount && selectedLedger.debit_amount > 0
+                ? selectedLedger.debit_amount
+                : selectedLedger.credit_amount
+
+        setFormData((prev: any) => ({
+            ...prev,
+            amount: amount,
+            receipt_date: selectedLedger.doc_date,
+            method: "BANK",
+            note: selectedLedger.description,
+        }))
+    }, [selectedLedger])
+
+    // ===== clear nếu bỏ chọn ledger
+    useEffect(() => {
+        if (ledgerId) return
+
+        setFormData((prev: any) => ({
+            ...prev,
+            amount: 0,
+        }))
+    }, [ledgerId])
+
+    // ===== auto set customer theo order
     useEffect(() => {
         if (!orderDetail) return
 
@@ -70,6 +114,7 @@ export function CreateReceiptDialog({ open, onOpenChange }: any) {
 
         onSuccess: async () => {
             await qc.invalidateQueries({ queryKey: ["receipts"] })
+            await qc.invalidateQueries({ queryKey: ["cash-bank-ledger"] })
             toast.success("Tạo phiếu thu thành công")
             onOpenChange(false)
         },
@@ -88,6 +133,25 @@ export function CreateReceiptDialog({ open, onOpenChange }: any) {
 
                 <div className="flex-1 overflow-y-auto">
 
+                    {/* ===== LEDGER INFO */}
+                    {selectedLedger && (
+                        <div className="mb-3 p-3 border rounded bg-blue-50 text-sm">
+                            <div className="font-medium mb-1">
+                                Giao dịch tiền
+                            </div>
+                            <div>Ngày: {selectedLedger.doc_date}</div>
+                            <div>
+                                Số tiền:{" "}
+                                {(
+                                    selectedLedger.debit_amount ||
+                                    selectedLedger.credit_amount
+                                )?.toLocaleString()}
+                            </div>
+                            <div>Nội dung: {selectedLedger.description}</div>
+                        </div>
+                    )}
+
+                    {/* ===== CUSTOMER */}
                     {orderDetail?.customer && (
                         <div className="mb-2 text-sm text-muted-foreground">
                             Khách hàng:{" "}
@@ -98,7 +162,24 @@ export function CreateReceiptDialog({ open, onOpenChange }: any) {
                     <Form
                         validator={rjsfValidator}
                         schema={receiptSchema}
-                        uiSchema={receiptUiSchema}
+                        uiSchema={{
+                            ...receiptUiSchema,
+
+                            amount: {
+                                ...receiptUiSchema.amount,
+                                "ui:disabled": isLedgerMode,
+                            },
+
+                            receipt_date: {
+                                ...receiptUiSchema.receipt_date,
+                                "ui:disabled": isLedgerMode,
+                            },
+
+                            method: {
+                                ...receiptUiSchema.method,
+                                "ui:disabled": isLedgerMode,
+                            },
+                        }}
                         formData={formData}
                         widgets={widgets}
                         templates={{ FieldTemplate: ShadcnFieldTemplate }}
@@ -111,6 +192,9 @@ export function CreateReceiptDialog({ open, onOpenChange }: any) {
                                 ...formData,
                                 ...(isOrderChanged
                                     ? { customer_id: undefined }
+                                    : {}),
+                                ...(formData.method !== "BANK"
+                                    ? { cash_bank_ledger_id: undefined }
                                     : {}),
                             }))
                         }}

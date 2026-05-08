@@ -26,7 +26,7 @@ const companyDataSource = {
 
 export const deliverySchema: RJSFSchema = {
     type: "object",
-    required: ["order_id", "delivery_date"],
+    required: ["order_id", "delivery_date", "warehouse_id"],
     properties: {
         order_id: {
             type: "integer",
@@ -52,19 +52,6 @@ export const deliverySchema: RJSFSchema = {
             type: "string",
             title: "Địa chỉ giao",
         },
-
-        status: {
-            type: "string",
-            title: "Trạng thái",
-            default: "NEW",
-            oneOf: [
-                { const: "NEW", title: "Mới" },
-                { const: "DELIVERING", title: "Đang giao" },
-                { const: "DONE", title: "Hoàn thành" },
-                { const: "CANCELLED", title: "Hủy" },
-            ],
-        },
-
         note: {
             type: "string",
             title: "Ghi chú",

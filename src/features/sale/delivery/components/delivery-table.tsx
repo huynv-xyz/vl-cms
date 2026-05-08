@@ -1,6 +1,6 @@
 import { CrudTable } from "@/components/crud/crud-table"
 import type { Delivery } from "../data/schema"
-import { deliveryColumns } from "./delivery-columns"
+import { useDeliveryColumns } from "../hook/use-delivery-columns"
 
 export function DeliveryTable({
     data,
@@ -10,19 +10,25 @@ export function DeliveryTable({
     keyword,
     onKeywordChange,
 }: any) {
+    const { columns, dialog } = useDeliveryColumns()
+
     return (
-        <CrudTable<Delivery>
-            data={data}
-            columns={deliveryColumns}
-            entityName="phiếu giao"
-            searchPlaceholder="Tìm theo mã giao..."
+        <>
+            <CrudTable<Delivery>
+                data={data}
+                columns={columns}
+                entityName="phiếu giao"
+                searchPlaceholder="Tìm theo mã giao..."
 
-            pagination={pagination}
-            onPaginationChange={onPaginationChange}
-            pageCount={pageCount}
+                pagination={pagination}
+                onPaginationChange={onPaginationChange}
+                pageCount={pageCount}
 
-            keyword={keyword}
-            onKeywordChange={onKeywordChange}
-        />
+                keyword={keyword}
+                onKeywordChange={onKeywordChange}
+            />
+            {dialog}
+        </>
+
     )
 }

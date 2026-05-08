@@ -1,5 +1,6 @@
 import { createCrudApi } from "@/api/crud"
 import type { InventoryLot } from "@/features/inventory/lot/data/schema"
+import { apiGet } from "../client"
 
 export type InventoryLotListParams = {
     page: number
@@ -33,6 +34,11 @@ export type UpdateInventoryLotRequest =
         id: number
     }
 
+export type StockRow = {
+    product_id: number
+    quantity: number
+}
+
 const inventoryLotApi = createCrudApi<
     InventoryLot,
     CreateInventoryLotRequest,
@@ -45,3 +51,15 @@ export const getInventoryLot = inventoryLotApi.detail
 export const createInventoryLot = inventoryLotApi.create
 export const updateInventoryLot = inventoryLotApi.update
 export const deleteInventoryLot = inventoryLotApi.delete
+
+export async function getStockLots(params: {
+    warehouse_id: number
+    product_ids: number[]
+}) {
+    const query = new URLSearchParams({
+        warehouse_id: String(params.warehouse_id),
+        product_ids: params.product_ids.join(","),
+    })
+
+    return apiGet<StockRow[]>(`/inventory/lots/stock?${query}`)
+}

@@ -1,6 +1,6 @@
 import { createCrudApi } from "@/api/crud"
 import type { Delivery } from "@/features/sale/delivery/data/schema"
-import { apiPost } from "../client"
+import { apiPost, apiPut } from "../client"
 
 // ========================
 // LIST PARAMS
@@ -65,4 +65,10 @@ export function confirmDelivery(id: number) {
     return apiPost<ConfirmDeliveryResponse>(
         `/sales/deliveries/${id}/confirm`
     )
+}
+
+export const updateDeliveryStatus = (id: number, status: string) => {
+    return apiPut(`/sales/deliveries/${id}/status`, {
+        status,
+    })
 }

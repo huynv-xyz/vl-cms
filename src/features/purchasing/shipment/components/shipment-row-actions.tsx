@@ -9,7 +9,6 @@ type Props = {
 }
 
 export function ShipmentRowActions({ row }: Props) {
-
     const { openEditById } = useShipments()
 
     const { deleteById } = useCrudDelete(

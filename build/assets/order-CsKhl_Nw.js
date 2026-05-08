@@ -1,1 +1,0 @@
-import{c as s}from"./crud-BOFgQJ88.js";import{Y as t}from"./index-C6Y1yOsY.js";const r=s("/sales/orders"),c=r.list,d=r.create,p=r.update,i=e=>t(`/sales/orders/${e}`);export{d as c,i as g,c as l,p as u};

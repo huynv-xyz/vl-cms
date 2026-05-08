@@ -16,6 +16,7 @@ export type OrderItem = {
 
     quantity: number
     exported_quantity: number
+    stock_quantity?: number
 }
 
 // ========================

@@ -34,6 +34,7 @@ import { Route as AuthenticatedSalesReceiptsIndexRouteImport } from './routes/_a
 import { Route as AuthenticatedSalesOrdersIndexRouteImport } from './routes/_authenticated/sales/orders/index'
 import { Route as AuthenticatedSalesExportsIndexRouteImport } from './routes/_authenticated/sales/exports/index'
 import { Route as AuthenticatedSalesDeliveriesIndexRouteImport } from './routes/_authenticated/sales/deliveries/index'
+import { Route as AuthenticatedSalesCashBankLedgerIndexRouteImport } from './routes/_authenticated/sales/cash-bank-ledger/index'
 import { Route as AuthenticatedSalesArLedgersIndexRouteImport } from './routes/_authenticated/sales/ar-ledgers/index'
 import { Route as AuthenticatedSalarySalesTargetsIndexRouteImport } from './routes/_authenticated/salary/sales-targets/index'
 import { Route as AuthenticatedSalarySalesActualsIndexRouteImport } from './routes/_authenticated/salary/sales-actuals/index'
@@ -41,6 +42,7 @@ import { Route as AuthenticatedPurchasingSuppliersIndexRouteImport } from './rou
 import { Route as AuthenticatedPurchasingShipmentsIndexRouteImport } from './routes/_authenticated/purchasing/shipments/index'
 import { Route as AuthenticatedPurchasingPortsIndexRouteImport } from './routes/_authenticated/purchasing/ports/index'
 import { Route as AuthenticatedPurchasingContractsIndexRouteImport } from './routes/_authenticated/purchasing/contracts/index'
+import { Route as AuthenticatedProductionOrdersIndexRouteImport } from './routes/_authenticated/production/orders/index'
 import { Route as AuthenticatedInventorySummaryIndexRouteImport } from './routes/_authenticated/inventory/summary/index'
 import { Route as AuthenticatedInventoryProductionsIndexRouteImport } from './routes/_authenticated/inventory/productions/index'
 import { Route as AuthenticatedInventoryLotsIndexRouteImport } from './routes/_authenticated/inventory/lots/index'
@@ -192,6 +194,12 @@ const AuthenticatedSalesDeliveriesIndexRoute =
     path: '/sales/deliveries/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSalesCashBankLedgerIndexRoute =
+  AuthenticatedSalesCashBankLedgerIndexRouteImport.update({
+    id: '/sales/cash-bank-ledger/',
+    path: '/sales/cash-bank-ledger/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSalesArLedgersIndexRoute =
   AuthenticatedSalesArLedgersIndexRouteImport.update({
     id: '/sales/ar-ledgers/',
@@ -232,6 +240,12 @@ const AuthenticatedPurchasingContractsIndexRoute =
   AuthenticatedPurchasingContractsIndexRouteImport.update({
     id: '/purchasing/contracts/',
     path: '/purchasing/contracts/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedProductionOrdersIndexRoute =
+  AuthenticatedProductionOrdersIndexRouteImport.update({
+    id: '/production/orders/',
+    path: '/production/orders/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedInventorySummaryIndexRoute =
@@ -317,6 +331,7 @@ export interface FileRoutesByFullPath {
   '/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
   '/inventory/productions/': typeof AuthenticatedInventoryProductionsIndexRoute
   '/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
+  '/production/orders/': typeof AuthenticatedProductionOrdersIndexRoute
   '/purchasing/contracts/': typeof AuthenticatedPurchasingContractsIndexRoute
   '/purchasing/ports/': typeof AuthenticatedPurchasingPortsIndexRoute
   '/purchasing/shipments/': typeof AuthenticatedPurchasingShipmentsIndexRoute
@@ -324,6 +339,7 @@ export interface FileRoutesByFullPath {
   '/salary/sales-actuals/': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/salary/sales-targets/': typeof AuthenticatedSalarySalesTargetsIndexRoute
   '/sales/ar-ledgers/': typeof AuthenticatedSalesArLedgersIndexRoute
+  '/sales/cash-bank-ledger/': typeof AuthenticatedSalesCashBankLedgerIndexRoute
   '/sales/deliveries/': typeof AuthenticatedSalesDeliveriesIndexRoute
   '/sales/exports/': typeof AuthenticatedSalesExportsIndexRoute
   '/sales/orders/': typeof AuthenticatedSalesOrdersIndexRoute
@@ -360,6 +376,7 @@ export interface FileRoutesByTo {
   '/inventory/lots': typeof AuthenticatedInventoryLotsIndexRoute
   '/inventory/productions': typeof AuthenticatedInventoryProductionsIndexRoute
   '/inventory/summary': typeof AuthenticatedInventorySummaryIndexRoute
+  '/production/orders': typeof AuthenticatedProductionOrdersIndexRoute
   '/purchasing/contracts': typeof AuthenticatedPurchasingContractsIndexRoute
   '/purchasing/ports': typeof AuthenticatedPurchasingPortsIndexRoute
   '/purchasing/shipments': typeof AuthenticatedPurchasingShipmentsIndexRoute
@@ -367,6 +384,7 @@ export interface FileRoutesByTo {
   '/salary/sales-actuals': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/salary/sales-targets': typeof AuthenticatedSalarySalesTargetsIndexRoute
   '/sales/ar-ledgers': typeof AuthenticatedSalesArLedgersIndexRoute
+  '/sales/cash-bank-ledger': typeof AuthenticatedSalesCashBankLedgerIndexRoute
   '/sales/deliveries': typeof AuthenticatedSalesDeliveriesIndexRoute
   '/sales/exports': typeof AuthenticatedSalesExportsIndexRoute
   '/sales/orders': typeof AuthenticatedSalesOrdersIndexRoute
@@ -405,6 +423,7 @@ export interface FileRoutesById {
   '/_authenticated/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
   '/_authenticated/inventory/productions/': typeof AuthenticatedInventoryProductionsIndexRoute
   '/_authenticated/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
+  '/_authenticated/production/orders/': typeof AuthenticatedProductionOrdersIndexRoute
   '/_authenticated/purchasing/contracts/': typeof AuthenticatedPurchasingContractsIndexRoute
   '/_authenticated/purchasing/ports/': typeof AuthenticatedPurchasingPortsIndexRoute
   '/_authenticated/purchasing/shipments/': typeof AuthenticatedPurchasingShipmentsIndexRoute
@@ -412,6 +431,7 @@ export interface FileRoutesById {
   '/_authenticated/salary/sales-actuals/': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/_authenticated/salary/sales-targets/': typeof AuthenticatedSalarySalesTargetsIndexRoute
   '/_authenticated/sales/ar-ledgers/': typeof AuthenticatedSalesArLedgersIndexRoute
+  '/_authenticated/sales/cash-bank-ledger/': typeof AuthenticatedSalesCashBankLedgerIndexRoute
   '/_authenticated/sales/deliveries/': typeof AuthenticatedSalesDeliveriesIndexRoute
   '/_authenticated/sales/exports/': typeof AuthenticatedSalesExportsIndexRoute
   '/_authenticated/sales/orders/': typeof AuthenticatedSalesOrdersIndexRoute
@@ -450,6 +470,7 @@ export interface FileRouteTypes {
     | '/inventory/lots/'
     | '/inventory/productions/'
     | '/inventory/summary/'
+    | '/production/orders/'
     | '/purchasing/contracts/'
     | '/purchasing/ports/'
     | '/purchasing/shipments/'
@@ -457,6 +478,7 @@ export interface FileRouteTypes {
     | '/salary/sales-actuals/'
     | '/salary/sales-targets/'
     | '/sales/ar-ledgers/'
+    | '/sales/cash-bank-ledger/'
     | '/sales/deliveries/'
     | '/sales/exports/'
     | '/sales/orders/'
@@ -493,6 +515,7 @@ export interface FileRouteTypes {
     | '/inventory/lots'
     | '/inventory/productions'
     | '/inventory/summary'
+    | '/production/orders'
     | '/purchasing/contracts'
     | '/purchasing/ports'
     | '/purchasing/shipments'
@@ -500,6 +523,7 @@ export interface FileRouteTypes {
     | '/salary/sales-actuals'
     | '/salary/sales-targets'
     | '/sales/ar-ledgers'
+    | '/sales/cash-bank-ledger'
     | '/sales/deliveries'
     | '/sales/exports'
     | '/sales/orders'
@@ -537,6 +561,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventory/lots/'
     | '/_authenticated/inventory/productions/'
     | '/_authenticated/inventory/summary/'
+    | '/_authenticated/production/orders/'
     | '/_authenticated/purchasing/contracts/'
     | '/_authenticated/purchasing/ports/'
     | '/_authenticated/purchasing/shipments/'
@@ -544,6 +569,7 @@ export interface FileRouteTypes {
     | '/_authenticated/salary/sales-actuals/'
     | '/_authenticated/salary/sales-targets/'
     | '/_authenticated/sales/ar-ledgers/'
+    | '/_authenticated/sales/cash-bank-ledger/'
     | '/_authenticated/sales/deliveries/'
     | '/_authenticated/sales/exports/'
     | '/_authenticated/sales/orders/'
@@ -746,6 +772,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSalesDeliveriesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/sales/cash-bank-ledger/': {
+      id: '/_authenticated/sales/cash-bank-ledger/'
+      path: '/sales/cash-bank-ledger'
+      fullPath: '/sales/cash-bank-ledger/'
+      preLoaderRoute: typeof AuthenticatedSalesCashBankLedgerIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/sales/ar-ledgers/': {
       id: '/_authenticated/sales/ar-ledgers/'
       path: '/sales/ar-ledgers'
@@ -793,6 +826,13 @@ declare module '@tanstack/react-router' {
       path: '/purchasing/contracts'
       fullPath: '/purchasing/contracts/'
       preLoaderRoute: typeof AuthenticatedPurchasingContractsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/production/orders/': {
+      id: '/_authenticated/production/orders/'
+      path: '/production/orders'
+      fullPath: '/production/orders/'
+      preLoaderRoute: typeof AuthenticatedProductionOrdersIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/inventory/summary/': {
@@ -884,6 +924,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInventoryLotsIndexRoute: typeof AuthenticatedInventoryLotsIndexRoute
   AuthenticatedInventoryProductionsIndexRoute: typeof AuthenticatedInventoryProductionsIndexRoute
   AuthenticatedInventorySummaryIndexRoute: typeof AuthenticatedInventorySummaryIndexRoute
+  AuthenticatedProductionOrdersIndexRoute: typeof AuthenticatedProductionOrdersIndexRoute
   AuthenticatedPurchasingContractsIndexRoute: typeof AuthenticatedPurchasingContractsIndexRoute
   AuthenticatedPurchasingPortsIndexRoute: typeof AuthenticatedPurchasingPortsIndexRoute
   AuthenticatedPurchasingShipmentsIndexRoute: typeof AuthenticatedPurchasingShipmentsIndexRoute
@@ -891,6 +932,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSalarySalesActualsIndexRoute: typeof AuthenticatedSalarySalesActualsIndexRoute
   AuthenticatedSalarySalesTargetsIndexRoute: typeof AuthenticatedSalarySalesTargetsIndexRoute
   AuthenticatedSalesArLedgersIndexRoute: typeof AuthenticatedSalesArLedgersIndexRoute
+  AuthenticatedSalesCashBankLedgerIndexRoute: typeof AuthenticatedSalesCashBankLedgerIndexRoute
   AuthenticatedSalesDeliveriesIndexRoute: typeof AuthenticatedSalesDeliveriesIndexRoute
   AuthenticatedSalesExportsIndexRoute: typeof AuthenticatedSalesExportsIndexRoute
   AuthenticatedSalesOrdersIndexRoute: typeof AuthenticatedSalesOrdersIndexRoute
@@ -926,6 +968,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedInventoryProductionsIndexRoute,
   AuthenticatedInventorySummaryIndexRoute:
     AuthenticatedInventorySummaryIndexRoute,
+  AuthenticatedProductionOrdersIndexRoute:
+    AuthenticatedProductionOrdersIndexRoute,
   AuthenticatedPurchasingContractsIndexRoute:
     AuthenticatedPurchasingContractsIndexRoute,
   AuthenticatedPurchasingPortsIndexRoute:
@@ -939,6 +983,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSalarySalesTargetsIndexRoute:
     AuthenticatedSalarySalesTargetsIndexRoute,
   AuthenticatedSalesArLedgersIndexRoute: AuthenticatedSalesArLedgersIndexRoute,
+  AuthenticatedSalesCashBankLedgerIndexRoute:
+    AuthenticatedSalesCashBankLedgerIndexRoute,
   AuthenticatedSalesDeliveriesIndexRoute:
     AuthenticatedSalesDeliveriesIndexRoute,
   AuthenticatedSalesExportsIndexRoute: AuthenticatedSalesExportsIndexRoute,

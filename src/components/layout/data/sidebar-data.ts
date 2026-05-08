@@ -20,7 +20,8 @@ import {
     Globe,
     TrendingUp,
     Target,
-    FileText
+    FileText,
+    Ship
 } from 'lucide-react'
 import { SidebarData } from '../types'
 import { Logo } from '@/assets/logo'
@@ -118,17 +119,22 @@ export const sidebarData: SidebarData = {
                 {
                     title: 'Hợp đồng',
                     url: '/purchasing/contracts',
-                    icon: FileText, // 📄 hợp đồng chuẩn hơn Package
+                    icon: FileText,
+                },
+                {
+                    title: 'Lịch hàng về',
+                    url: '/purchasing/shipments',
+                    icon: Ship,
                 },
                 {
                     title: 'Nhà cung cấp',
                     url: '/purchasing/suppliers',
-                    icon: Warehouse, // 🏭 supplier ≠ user
+                    icon: Warehouse,
                 },
                 {
                     title: 'Cảng',
                     url: '/purchasing/ports',
-                    icon: Anchor, // ⚓ chuẩn domain logistics
+                    icon: Anchor,
                 }
             ],
         },
@@ -157,14 +163,15 @@ export const sidebarData: SidebarData = {
                     icon: ReceiptText,
                 },
                 {
-                    title: 'Thu tiền',
-                    url: '/sales/receipts',
-                    icon: DollarSign,
-                },
-                {
-                    title: 'Công nợ',
+                    title: 'Sổ công nợ',
                     url: '/sales/ar-ledgers',
                     icon: BarChart3,
+
+                },
+                {
+                    title: 'Điều chỉnh công nợ',
+                    url: '/sales/ar-adjustments',
+                    icon: Calculator,
                 },
             ],
         },
@@ -181,10 +188,27 @@ export const sidebarData: SidebarData = {
                     url: '/inventory/ledgers',
                     icon: ListOrdered,
                 },
+            ],
+        },
+        {
+            title: 'Sản xuất',
+            items: [
                 {
                     title: 'Lệnh sản xuất',
-                    url: '/inventory/productions',
+                    url: '/production/orders',
                     icon: Package,
+                },
+
+                {
+                    title: 'Định mức BOM',
+                    url: '/production/boms',
+                    icon: Layers3,
+                },
+
+                {
+                    title: 'Phát sinh vật tư',
+                    url: '/production/extras',
+                    icon: Boxes,
                 },
             ],
         },

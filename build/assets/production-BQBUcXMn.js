@@ -1,0 +1,1 @@
+import{c}from"./crud-BTDXUToJ.js";import{l as r}from"./index-D3tnz9WH.js";const t=c("/productions"),a=t.list,e=t.detail,u=t.create,n=t.update;function d(o){return r(`/product-boms/by-product/${o}`)}export{e as a,u as c,d as g,a as l,n as u};

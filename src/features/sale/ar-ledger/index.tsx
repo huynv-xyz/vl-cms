@@ -5,6 +5,7 @@ import { ArLedgerTable } from './components/ar-ledger-table'
 import { Route } from '@/routes/_authenticated/sales/ar-ledgers'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
+import { ImportArLedgerButton } from './components/ar-ledger-import-button'
 
 export default function ArLedgerPage() {
 
@@ -18,21 +19,38 @@ export default function ArLedgerPage() {
         setKeyword,
         multiFilters,
         setMultiFilters,
-    } = useUrlListFilters(search, navigate, ['doc_type'])
+        singleFilters,
+        setSingleFilters,
+    } = useUrlListFilters(
+        search,
+        navigate,
+        ['source_type'], // multi
+        ['from_date', 'to_date', 'customer_id'] // single
+    )
 
-    const docType = multiFilters.doc_type?.[0] ?? ""
-
-    const setDocType = (v: string) => {
-        setMultiFilters({ doc_type: v ? [v] : [] })
-    }
+    const sourceType = multiFilters.source_type?.[0] ?? ""
 
     const { data, isLoading, error } = usePaginatedList(
-        ['ar-ledgers', search.page, search.size, keyword, docType],
+        [
+            'ar-ledgers',
+            search.page,
+            search.size,
+            keyword,
+            sourceType,
+            singleFilters,
+        ],
         listArLedgers,
         {
             page: search.page,
             size: search.size,
-            doc_type: docType,
+            keyword,
+            source_type: sourceType,
+            from_date: singleFilters.from_date,
+            to_date: singleFilters.to_date,
+            customer_id: singleFilters.customer_id
+                ? Number(singleFilters.customer_id)
+                : undefined,
+
         },
     )
 
@@ -42,6 +60,7 @@ export default function ArLedgerPage() {
             error={error}
             title="Công nợ"
             data={data}
+            actions={<ImportArLedgerButton />}
         >
             {(data) => (
                 <ArLedgerTable
@@ -51,8 +70,27 @@ export default function ArLedgerPage() {
                     pageCount={data.total_page}
                     keyword={keyword}
                     onKeywordChange={setKeyword}
-                    docType={docType}
-                    onDocTypeChange={setDocType}
+
+                    filters={{
+                        ...singleFilters,
+                        source_type: multiFilters.source_type,
+                        customer_id: singleFilters.customer_id
+                            ? Number(singleFilters.customer_id)
+                            : undefined,
+                    }}
+
+                    onFiltersChange={(f) => {
+                        setSingleFilters({
+                            ...f,
+                            customer_id: f.customer_id?.toString(),
+                        })
+
+                        if (f.source_type !== undefined) {
+                            setMultiFilters({
+                                source_type: f.source_type,
+                            })
+                        }
+                    }}
                 />
             )}
         </PageSection>

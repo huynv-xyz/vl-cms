@@ -36,6 +36,7 @@ export function CreateDeliveryDialog({ open, onOpenChange }: any) {
     })
 
     const orderId = formData.order_id
+    const warehouseId = formData.warehouse_id
 
     const { data: orderDetail, isLoading } = useQuery({
         queryKey: ["order-detail", orderId],
@@ -132,6 +133,7 @@ export function CreateDeliveryDialog({ open, onOpenChange }: any) {
                             <DeliveryItemsEditor
                                 orderItems={orderDetail?.items ?? []}
                                 items={items}
+                                warehouseId={warehouseId}
                                 onChange={setItems}
                             />
                         )}

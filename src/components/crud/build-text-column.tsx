@@ -17,7 +17,6 @@ type BuildTextColumnOptions<T> = {
 
     render?: (row: T) => React.ReactNode
 }
-
 export function buildTextColumn<T>({
     accessorKey,
     accessorFn,
@@ -60,7 +59,11 @@ export function buildTextColumn<T>({
             return (
                 <span
                     className={`block truncate ${textClassName}`}
-                    style={maxWidthStyle ? { maxWidth: `${maxWidthStyle}px` } : undefined}
+                    style={
+                        maxWidthStyle
+                            ? { maxWidth: `${maxWidthStyle}px` }
+                            : undefined
+                    }
                 >
                     {display}
                 </span>

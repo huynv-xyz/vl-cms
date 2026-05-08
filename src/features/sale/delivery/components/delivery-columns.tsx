@@ -4,9 +4,7 @@ import { buildTextColumn } from "@/components/crud/build-text-column"
 import { buildActionsColumn } from "@/components/crud/build-actions-column"
 import type { Delivery } from "../data/schema"
 import { DeliveryRowActions } from "./delivery-row-actions"
-import { Link } from "@tanstack/react-router"
 import { Badge } from "@/components/ui/badge"
-import { formatCurrency } from "@/lib/utils"
 
 export const deliveryColumns: ColumnDef<Delivery>[] = [
     buildIndexColumn(),

@@ -52,6 +52,8 @@ export function ShipmentItemTable({
             keyword={keyword}
             onKeywordChange={onKeywordChange}
 
+
+
             footer={
                 <div className="flex justify-end w-full">
                     <span className="text-muted-foreground mr-2">

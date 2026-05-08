@@ -1,0 +1,1 @@
+import{c as r}from"./crud-BTDXUToJ.js";import{l as s}from"./index-D3tnz9WH.js";const o=r("/inventory/lots"),a=o.list,c=o.detail;async function d(t){const n=new URLSearchParams({warehouse_id:String(t.warehouse_id),product_ids:t.product_ids.join(",")});return s(`/inventory/lots/stock?${n}`)}export{c as a,d as g,a as l};

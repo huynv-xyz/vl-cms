@@ -23,7 +23,7 @@ const productionApi = createCrudApi<
     CreateProductionRequest,
     UpdateProductionRequest,
     ProductionListParams
->("/inventory/productions")
+>("/productions")
 
 export const listProductions = productionApi.list
 export const getProduction = productionApi.detail
@@ -32,9 +32,9 @@ export const updateProduction = productionApi.update
 export const deleteProduction = productionApi.delete
 
 export function confirmProduction(id: number) {
-    return apiPost<boolean>(`/inventory/productions/${id}/confirm`)
+    return apiPost<boolean>(`/productions/${id}/confirm`)
 }
 
 export function getActiveBomByProduct(productId: number) {
-    return apiGet<ProductBomDetail>(`/inventory/product-boms/by-product/${productId}`)
+    return apiGet<ProductBomDetail>(`/product-boms/by-product/${productId}`)
 }

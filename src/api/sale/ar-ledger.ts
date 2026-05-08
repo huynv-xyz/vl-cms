@@ -1,6 +1,6 @@
-// api/sale/ar-ledger.ts
 import { createCrudApi } from "@/api/crud"
 import type { ArLedger } from "@/features/sale/ar-ledger/data/schema"
+import { apiPostMultipart } from "@/api/client"
 
 export type ArLedgerListParams = {
     page: number
@@ -23,3 +23,14 @@ export const getArLedger = api.detail
 export const createArLedger = api.create
 export const updateArLedger = api.update
 export const deleteArLedger = api.delete
+
+
+export async function importArLedgers(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<number>(
+        "/sales/ar-ledgers/import",
+        formData
+    )
+}
