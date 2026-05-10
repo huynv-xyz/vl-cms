@@ -17,17 +17,6 @@ export const returnSchema = {
             title: "Phiếu xuất",
         },
 
-        status: {
-            type: "string",
-            title: "Trạng thái",
-            default: "NEW",
-            oneOf: [
-                { const: "NEW", title: "Mới" },
-                { const: "DONE", title: "Hoàn thành" },
-                { const: "CANCELLED", title: "Hủy" },
-            ],
-        },
-
         reason: {
             type: "string",
             title: "Lý do trả hàng",

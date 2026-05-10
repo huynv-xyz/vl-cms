@@ -51,3 +51,11 @@ export function formatCurrency(value?: number) {
     if (value == null) return "-"
     return value.toLocaleString("vi-VN")
 }
+
+export function normalizeDate(d?: string) {
+    if (!d) return ""
+
+    const [dd, mm, yyyy] = d.split("-")
+
+    return `${yyyy}-${mm}-${dd}` // yyyy-MM-dd
+}

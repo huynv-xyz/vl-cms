@@ -10,6 +10,7 @@ export type ExportItem = {
     product_id: number
     product?: Product
     quantity: number
+    returned_quantity?: number
 }
 
 export type Export = {

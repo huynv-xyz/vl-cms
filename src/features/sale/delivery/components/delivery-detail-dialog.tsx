@@ -67,6 +67,11 @@ export function DeliveryDetailDialog({
                             <b>Trạn thái:</b> {data.status}
                         </div>
 
+
+                        <div>
+                            <b>Ghi chú:</b> {data.note}
+                        </div>
+
                         {/* ITEMS */}
                         <table className="w-full mt-3 text-sm border">
                             <thead>

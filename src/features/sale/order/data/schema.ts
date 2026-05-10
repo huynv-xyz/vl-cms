@@ -4,6 +4,7 @@ import { Product } from "@/features/product/data/schema"
 import { Delivery } from "../../delivery/data/schema"
 import { Export } from "../../export/data/schema"
 import { Receipt } from "../../receipt/data/schema"
+import { Return } from "../../return/data/schema"
 
 // ========================
 // ITEM
@@ -66,6 +67,7 @@ export type OrderDetail = Order & {
     exports: Export[]
 
     receipts?: Receipt[]
+    returns?: Return[]
 
     ar_summary: ArSummary
 }

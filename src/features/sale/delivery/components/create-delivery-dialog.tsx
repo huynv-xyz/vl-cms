@@ -22,13 +22,12 @@ import { deliverySchema, deliveryUiSchema } from "./delivery-form-schema"
 import { DeliveryItemsEditor } from "./delivery-items-editor"
 import type { DeliveryFormItem } from "./types"
 
-export function CreateDeliveryDialog({ open, onOpenChange }: any) {
-
+export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
     const queryClient = useQueryClient()
     const initializedRef = useRef(false)
 
     const [formData, setFormData] = useState<any>({
-        order_id: undefined,
+        order_id: order?.id, // FIX
         delivery_date: new Date().toISOString().slice(0, 10),
         status: "NEW",
         note: "",
@@ -115,7 +114,7 @@ export function CreateDeliveryDialog({ open, onOpenChange }: any) {
                     <Form
                         validator={rjsfValidator}
                         schema={deliverySchema}
-                        uiSchema={deliveryUiSchema}
+                        uiSchema={deliveryUiSchema(!!order?.id)}
                         formData={formData}
                         widgets={widgets}
                         templates={{ FieldTemplate: ShadcnFieldTemplate }}

@@ -1,75 +1,136 @@
+import { useState } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
 import { buildActionsColumn } from "@/components/crud/build-actions-column"
 import type { Return } from "../data/schema"
 import { ReturnRowActions } from "./return-row-actions"
-import { Badge } from "@/components/ui/badge"
 
-export const returnColumns: ColumnDef<Return>[] = [
+import {
+    Select,
+    SelectTrigger,
+    SelectValue,
+    SelectContent,
+    SelectItem,
+} from "@/components/ui/select"
 
-    // STT
-    buildIndexColumn(),
+import { useUpdateStatus } from "@/hooks/use-update-status"
+import { updateReturnStatus } from "@/api/sale/return"
+import { ReturnDetailDialog } from "../components/return-detail-dialog" // 🔥 thêm
 
-    // Mã phiếu trả
-    buildTextColumn({
-        accessorKey: "return_no",
-        title: "Mã trả"
-    }),
+export function useReturnColumns() {
 
-    // Đơn hàng
-    {
-        accessorKey: "order_id",
-        header: "Đơn hàng",
-        cell: ({ row }) =>
-            row.original.order?.order_no ??
-            `#${row.original.order_id}`,
-    },
+    const [selectedId, setSelectedId] = useState<number | null>(null)
 
-    // Phiếu xuất
-    {
-        accessorKey: "export_id",
-        header: "Phiếu xuất",
-        cell: ({ row }) =>
-            row.original.export?.export_no ??
-            `#${row.original.export_id}`,
-    },
+    const mutation = useUpdateStatus<Return>({
+        queryKey: ["returns"],
+        mutationFn: updateReturnStatus,
+        getId: (x) => x.id,
+    })
 
-    // Lý do
-    buildTextColumn({
-        accessorKey: "reason",
-        title: "Lý do",
-    }),
+    const statusOptions = [
+        { value: "NEW", label: "Mới" },
+        { value: "DONE", label: "Hoàn thành" },
+        { value: "CANCELLED", label: "Hủy" },
+    ]
 
-    // Trạng thái
-    {
-        accessorKey: "status",
-        header: "Trạng thái",
-        cell: ({ row }) => {
+    const columns: ColumnDef<Return>[] = [
 
-            const status = row.original.status
+        buildIndexColumn(),
 
-            const map: any = {
-                NEW: { label: "Mới", variant: "secondary" },
-                DONE: { label: "Hoàn thành", variant: "outline" },
-                CANCELLED: { label: "Hủy", variant: "destructive" },
-            }
+        buildTextColumn({
+            accessorKey: "return_no",
+            title: "Mã trả",
+            render: (row) => (
+                <span
+                    className="text-primary cursor-pointer hover:underline"
+                    onClick={() => setSelectedId(row.id)}
+                >
+                    {row.return_no}
+                </span>
+            ),
+        }),
 
-            const meta = map[status] || {
-                label: status,
-                variant: "outline",
-            }
-
-            return (
-                <Badge variant={meta.variant}>
-                    {meta.label}
-                </Badge>
-            )
+        {
+            accessorKey: "order_id",
+            header: "Đơn hàng",
+            cell: ({ row }) =>
+                row.original.order?.order_no ??
+                `#${row.original.order_id}`,
         },
-    },
 
-    // Actions
-    buildActionsColumn({
-        renderActions: (_, row) => <ReturnRowActions row={row} />,
-    }),
-]
+        {
+            accessorKey: "export_id",
+            header: "Phiếu xuất",
+            cell: ({ row }) =>
+                row.original.export?.export_no ??
+                `#${row.original.export_id}`,
+        },
+
+        buildTextColumn({
+            accessorKey: "reason",
+            title: "Lý do",
+        }),
+
+        {
+            accessorKey: "status",
+            header: "Trạng thái",
+            cell: ({ row }) => {
+
+                const status = row.original.status
+                const isLocked = status === "DONE"
+
+                return (
+                    <Select
+                        value={status}
+                        onValueChange={(v) =>
+                            mutation.mutate({
+                                id: row.original.id,
+                                status: v,
+                            })
+                        }
+                        disabled={mutation.isPending || isLocked}
+                    >
+                        <SelectTrigger className="w-[140px]">
+                            <SelectValue>
+                                {statusOptions.find(s => s.value === status)?.label}
+                            </SelectValue>
+                        </SelectTrigger>
+
+                        <SelectContent>
+                            {statusOptions.map((s) => (
+                                <SelectItem
+                                    key={s.value}
+                                    value={s.value}
+                                    disabled={isLocked}
+                                >
+                                    {s.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )
+            },
+        },
+
+        buildActionsColumn({
+            renderActions: (_, row) => {
+                if (row.original.status === "DONE") return null
+                return <ReturnRowActions row={row} />
+            },
+        }),
+    ]
+
+    return {
+        columns,
+
+        // 🔥 DIALOG
+        dialog: (
+            <ReturnDetailDialog
+                open={!!selectedId}
+                id={selectedId ?? undefined}
+                onClose={() => setSelectedId(null)}
+            />
+        ),
+    }
+}

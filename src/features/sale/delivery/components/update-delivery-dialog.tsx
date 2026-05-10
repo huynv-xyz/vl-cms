@@ -24,14 +24,17 @@ import { DeliveryItemsEditor } from "./delivery-items-editor"
 import type { Delivery } from "../data/schema"
 import type { DeliveryFormItem, DeliveryFormValues } from "./types"
 import type { Order } from "../../order/data/schema"
+import { normalizeDate } from "@/lib/utils"
 
 type Props = {
+    order?: Order
     delivery: Delivery
     open: boolean
     onOpenChange: (open: boolean) => void
 }
 
 export function UpdateDeliveryDialog({
+    order,
     delivery,
     open,
     onOpenChange,
@@ -75,7 +78,7 @@ export function UpdateDeliveryDialog({
         setHeaderFormData({
             order_id: detail.order_id,
 
-            delivery_date: detail.delivery_date,
+            delivery_date: normalizeDate(detail.delivery_date),
 
             warehouse_id: detail.warehouse_id ?? undefined,
             company_id: detail.company_id ?? undefined,
@@ -177,7 +180,7 @@ export function UpdateDeliveryDialog({
                         <Form
                             validator={rjsfValidator}
                             schema={deliverySchema}
-                            uiSchema={deliveryUiSchema}
+                            uiSchema={deliveryUiSchema(!!order?.id)}
                             formData={headerFormData}
                             widgets={widgets}
                             templates={{

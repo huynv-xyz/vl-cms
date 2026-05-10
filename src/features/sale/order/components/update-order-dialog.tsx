@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import Form from "@rjsf/shadcn"
 import { toast } from "sonner"
-import { widgets } from "@/components/rjsf/widgets"
 
+import { widgets } from "@/components/rjsf/widgets"
 import {
     Dialog,
     DialogContent,
@@ -20,6 +20,7 @@ import { orderSchema, orderUiSchema } from "./order-form-schema"
 import { OrderItemsEditor } from "./order-items-editor"
 
 import type { Order } from "../data/schema"
+import { normalizeDate } from "@/lib/utils"
 
 type Props = {
     order: Order
@@ -32,43 +33,41 @@ export function UpdateOrderDialog({
     open,
     onOpenChange,
 }: Props) {
+
     const queryClient = useQueryClient()
 
-    // ===== LOAD DETAIL
-    const { data, isLoading } = useQuery({
+    // ========================
+    // LOAD DETAIL
+    // ========================
+    const { data: detail, isLoading } = useQuery({
         queryKey: ["order-detail", order?.id],
         queryFn: () => getOrder(order.id),
         enabled: open && !!order?.id,
     })
 
-    const detail = data
-
-    // ===== STATE
-    const [headerFormData, setHeaderFormData] = useState<any>({
-        customer_id: 0,
-        employee_id: undefined,
-        order_date: "",
-        status: "NEW",
-        note: "",
-    })
-
+    // ========================
+    // STATE
+    // ========================
+    const [headerFormData, setHeaderFormData] = useState<any>(null)
     const [items, setItems] = useState<any[]>([])
 
-    // ===== INIT DATA
+    // ========================
+    // INIT DATA
+    // ========================
     useEffect(() => {
         if (!open || !detail) return
 
         setHeaderFormData({
-            customer_id: detail.customer_id,
-            employee_id: detail.employee_id,
-            order_date: detail.order_date,
-            status: detail.status,
+            customer_id: detail.customer_id ?? undefined,
+            employee_id: detail.employee_id ?? undefined,
+            order_date: normalizeDate(detail.order_date), // 🔥 FIX
+            status: detail.status ?? "NEW",
             note: detail.note ?? "",
         })
 
         setItems(
             (detail.items ?? []).map((i: any) => ({
-                id: i.id, // 🔥 quan trọng cho update
+                id: i.id,
                 product_id: i.product_id,
                 product: i.product,
                 quantity: i.quantity ?? 0,
@@ -77,9 +76,12 @@ export function UpdateOrderDialog({
                 line_type: i.line_type ?? "NORMAL",
             }))
         )
+
     }, [open, detail])
 
-    // ===== MUTATION
+    // ========================
+    // MUTATION
+    // ========================
     const { mutate, isPending } = useMutation({
         mutationFn: async () => {
 
@@ -98,11 +100,9 @@ export function UpdateOrderDialog({
 
             return updateOrder({
                 id: order.id,
-
                 ...headerFormData,
-
                 items: items.map((i) => ({
-                    id: i.id, // 🔥 để BE biết update hay insert
+                    id: i.id,
                     product_id: i.product_id,
                     quantity: i.quantity,
                     unit_price: i.unit_price,
@@ -113,9 +113,9 @@ export function UpdateOrderDialog({
         },
 
         onSuccess: async () => {
-            await queryClient.invalidateQueries({
-                queryKey: ["orders"],
-            })
+            await queryClient.invalidateQueries({ queryKey: ["orders"] })
+            await queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] })
+
             toast.success("Cập nhật thành công")
             onOpenChange(false)
         },
@@ -125,18 +125,33 @@ export function UpdateOrderDialog({
         },
     })
 
+    // ========================
+    // RENDER
+    // ========================
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog
+            open={open}
+            onOpenChange={(v) => {
+                if (!v) {
+                    setHeaderFormData(null) // reset
+                    setItems([])
+                }
+                onOpenChange(v)
+            }}
+        >
             <DialogContent className="flex h-[90vh] max-h-[90vh] flex-col sm:max-w-5xl">
+
                 <DialogHeader>
                     <DialogTitle>Cập nhật đơn hàng</DialogTitle>
                 </DialogHeader>
 
-                {isLoading ? (
+                {isLoading || !headerFormData ? (
                     <div className="p-4 text-sm">Đang tải dữ liệu...</div>
                 ) : (
                     <div className="flex-1 overflow-y-auto">
+
                         <Form
+                            key={detail?.id} // 🔥 FIX RJSF KHÔNG REFRESH
                             validator={rjsfValidator}
                             schema={orderSchema}
                             uiSchema={orderUiSchema}
@@ -150,6 +165,7 @@ export function UpdateOrderDialog({
                             }
                             onSubmit={() => mutate()}
                         >
+
                             <OrderItemsEditor
                                 items={items}
                                 setItems={setItems}
@@ -162,6 +178,7 @@ export function UpdateOrderDialog({
                             >
                                 {isPending ? "Đang lưu..." : "Lưu"}
                             </Button>
+
                         </Form>
                     </div>
                 )}

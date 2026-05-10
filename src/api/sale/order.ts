@@ -1,6 +1,6 @@
 import { createCrudApi } from "@/api/crud"
 import { Order, OrderDetail } from "@/features/sale/order/data/schema"
-import { apiGet } from "@/api/client"
+import { apiGet, apiPost, apiDelete, apiPut } from "@/api/client"
 
 export type OrderListParams = {
     page: number
@@ -14,6 +14,12 @@ export type OrderListParams = {
 
 export type CreateOrderRequest = Partial<Order>
 export type UpdateOrderRequest = Order
+
+export type CreateOrderItemRequest = {
+    product_id: number
+    quantity: number
+    unit_price: number
+}
 
 const orderApi = createCrudApi<
     Order,
@@ -29,3 +35,24 @@ export const deleteOrder = orderApi.delete
 
 export const getOrder = (id: number) =>
     apiGet<OrderDetail>(`/sales/orders/${id}`)
+
+export const createOrderItem = (
+    orderId: number,
+    data: CreateOrderItemRequest
+) =>
+    apiPost(`/sales/orders/${orderId}/items`, data)
+
+export const updateOrderItem = (
+    id: number,
+    data: {
+        quantity: number
+        unit_price: number
+    }
+) =>
+    apiPut(`/sales/orders/items/${id}`, data)
+
+export const deleteOrderItem = (id: number) =>
+    apiDelete(`/sales/orders/items/${id}`)
+
+export const updateOrderStatus = (id: number, status: string) =>
+    apiPut(`/sales/orders/${id}/status`, { status })

@@ -83,6 +83,7 @@ export function CreateShipmentDialog({
             etd: "",
             eta: "",
             ata: "",
+            warehouse_id: 0,
             warehouse_at: "",
             container_no: "",
             destination_port_id: undefined,
@@ -105,6 +106,7 @@ export function CreateShipmentDialog({
             eta: "",
             ata: "",
             warehouse_at: "",
+            warehouse_id: 0,
             container_no: "",
             destination_port_id: undefined,
             exchange_rate: contract?.currency?.exchange_rate ?? 1, // ✅ FIX
@@ -142,6 +144,10 @@ export function CreateShipmentDialog({
                 code: headerFormData.code,
                 etd: headerFormData.etd,
                 eta: headerFormData.eta,
+                warehouse_at: headerFormData.warehouse_at,
+                warehouse_id: headerFormData.warehouse_id,
+                container_no: headerFormData.container_no,
+                destination_port_id: headerFormData.destination_port_id,
 
                 exchange_rate: headerFormData.exchange_rate ?? 1,
                 status: headerFormData.status,

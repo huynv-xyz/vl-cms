@@ -1,0 +1,1 @@
+import{C as u,t}from"./index-qoqPsyHF.js";import{u as i}from"./useMutation-D9YQTBPf.js";function m(s,n){const o=u(),e=i({mutationFn:s,onSuccess:()=>{t.success("Xoá thành công"),o.invalidateQueries({queryKey:n})},onError:r=>{t.error(r?.message||"Xoá thất bại")}});return{deleteById:e.mutateAsync,isDeleting:e.isPending}}export{m as u};

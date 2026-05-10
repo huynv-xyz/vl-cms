@@ -1,6 +1,6 @@
 import { CrudTable } from "@/components/crud/crud-table"
 import type { Order } from "../data/schema"
-import { orderColumns } from "./order-columns"
+import { useOrderColumns } from "./order-columns"
 
 export function OrderTable({
     data,
@@ -10,6 +10,7 @@ export function OrderTable({
     keyword,
     onKeywordChange,
 }: any) {
+    const orderColumns = useOrderColumns()
     return (
         <CrudTable<Order>
             data={data}

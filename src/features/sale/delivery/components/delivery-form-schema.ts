@@ -59,13 +59,14 @@ export const deliverySchema: RJSFSchema = {
     },
 } as any
 
-export const deliveryUiSchema: UiSchema = {
+export const deliveryUiSchema = (isLocked: boolean): UiSchema => ({
     order_id: {
         "ui:widget": "asyncSelect",
         "ui:options": {
             placeholder: "Chọn đơn hàng",
             dataSource: orderDataSource,
             mapOption: orderOption,
+            "ui:disabled": isLocked,
         },
     },
 
@@ -102,4 +103,4 @@ export const deliveryUiSchema: UiSchema = {
     note: {
         "ui:widget": "textarea",
     },
-}
+})

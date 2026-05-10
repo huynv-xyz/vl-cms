@@ -84,9 +84,7 @@ export function OrderReceipts({ order, receipts }: any) {
                                             onClick={() => setEditRow(r)}
 
                                         >
-
                                             <Pencil className="h-4 w-4" />
-
                                         </Button>
 
                                         <Button

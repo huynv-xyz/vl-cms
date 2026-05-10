@@ -19,7 +19,7 @@ export type ArLedger = {
     debit_amount: number
     credit_amount: number
 
-    source_type?: "EXPORT" | "RECEIPT" | "ADJUST" | "IMPORT"
+    source_type?: "EXPORT" | "RECEIPT" | "ADJUST" | "IMPORT" | "RETURN"
     source_id?: number
 
     created_at: string

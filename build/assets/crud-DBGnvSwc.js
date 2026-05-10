@@ -1,0 +1,1 @@
+import{ao as u,ap as i,aq as p,l as t}from"./index-qoqPsyHF.js";function n(e){return{detail(r){return t(`${e}/${r}`)},list(r){return t(e,r)},create(r){return p(e,r)},update(r){return i(`${e}/${r.id}`,r)},delete(r){return u(`${e}/${r}`,{id:r})}}}export{n as c};

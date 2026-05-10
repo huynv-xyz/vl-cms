@@ -64,6 +64,8 @@ export const arLedgerColumns: ColumnDef<ArLedger>[] = [
         title: "Loại",
         render: (row) => {
             switch (row.source_type) {
+                case "RETURN":
+                    return "Trả hàng"
                 case "EXPORT":
                     return "Bán hàng"
                 case "RECEIPT":

@@ -145,6 +145,8 @@ export function UpdateShipmentDialog({
                 id: shipment.id,
                 contract_id: shipment.contract_id,
                 warehouse_id: shipment.warehouse_id,
+                warehouse_at: headerFormData.warehouse_at,
+                container_no: headerFormData.container_no,
 
                 ...headerFormData,
                 destination_port_id: headerFormData.destination_port_id

@@ -24,6 +24,7 @@ import type { ReturnFormItem } from "./types"
 type RowData = ExportItem & {
     selected: boolean
     quantity_return: number
+    remain_quantity: number // 🔥 thêm
 }
 
 type Props = {
@@ -50,7 +51,6 @@ function QuantityInputCell({
     }, [value])
 
     const commitValue = () => {
-
         let next = Number(localValue)
 
         if (Number.isNaN(next) || next < 0) next = 0
@@ -77,7 +77,7 @@ function QuantityInputCell({
 }
 
 // ========================
-// MAIN EDITOR
+// MAIN
 // ========================
 export function ReturnItemsEditor({
     exportItems,
@@ -100,20 +100,20 @@ export function ReturnItemsEditor({
                 note: "",
             }
 
+        const exportItem = exportItems.find(x => x.product_id === productId)
+
+        const remain =
+            (exportItem?.quantity ?? 0) -
+            (exportItem?.returned_quantity ?? 0) // 🔥 cần BE trả field này
+
         const next: ReturnFormItem = {
             ...current,
             ...patch,
         }
 
-        const exportItem = exportItems.find(x => x.product_id === productId)
-
-        if (exportItem && next.quantity > exportItem.quantity) {
-            next.quantity = exportItem.quantity
-        }
-
-        if (next.quantity < 0) {
-            next.quantity = 0
-        }
+        // 🔥 clamp theo remain
+        if (next.quantity > remain) next.quantity = remain
+        if (next.quantity < 0) next.quantity = 0
 
         map.set(productId, next)
         onChange(Array.from(map.values()))
@@ -121,22 +121,28 @@ export function ReturnItemsEditor({
 
     const data: RowData[] = useMemo(() => {
 
-        return exportItems.map(e => {
+        return exportItems
+            // 🔥 CHỈ LẤY ITEM CÒN RETURN ĐƯỢC
+            .map(e => {
 
-            const existing = items.find(i => i.product_id === e.product_id)
+                const returned = e.returned_quantity ?? 0
+                const remain = e.quantity - returned
 
-            return {
-                ...e,
-                selected: existing?.selected ?? false,
-                quantity_return: existing?.quantity ?? 0,
-            }
-        })
+                return {
+                    ...e,
+                    remain_quantity: remain,
+                    selected:
+                        items.find(i => i.product_id === e.product_id)?.selected ?? false,
+                    quantity_return:
+                        items.find(i => i.product_id === e.product_id)?.quantity ?? 0,
+                }
+            })
+            .filter(e => e.remain_quantity > 0) // 🔥 key quan trọng
 
     }, [exportItems, items])
 
     const columns: ColumnDef<RowData>[] = [
 
-        // checkbox
         {
             header: "Chọn",
             cell: ({ row }) => (
@@ -145,14 +151,13 @@ export function ReturnItemsEditor({
                     onCheckedChange={(checked) =>
                         updateRow(row.original.product_id, {
                             selected: !!checked,
-                            quantity: checked ? row.original.quantity : 0,
+                            quantity: checked ? row.original.remain_quantity : 0,
                         })
                     }
                 />
             ),
         },
 
-        // product code
         {
             header: "Mã",
             cell: ({ row }) => row.original.product?.code,
@@ -168,17 +173,26 @@ export function ReturnItemsEditor({
             cell: ({ row }) => row.original.product?.unit,
         },
 
-        // exported quantity
         {
-            header: "SL đã xuất",
+            header: "Đã xuất",
+            cell: ({ row }) => formatNumber(row.original.quantity),
+        },
+
+        {
+            header: "Đã trả",
+            cell: ({ row }) =>
+                formatNumber(row.original.returned_quantity ?? 0),
+        },
+
+        {
+            header: "Còn lại",
             cell: ({ row }) => (
-                <span className="font-medium">
-                    {formatNumber(row.original.quantity)}
+                <span className="font-semibold text-orange-500">
+                    {formatNumber(row.original.remain_quantity)}
                 </span>
             ),
         },
 
-        // return quantity
         {
             header: "SL trả",
             cell: ({ row }) => (
@@ -186,7 +200,7 @@ export function ReturnItemsEditor({
                     productId={row.original.product_id}
                     value={row.original.quantity_return}
                     disabled={!row.original.selected}
-                    max={row.original.quantity}
+                    max={row.original.remain_quantity}
                     onCommit={(productId: number, quantity: number) =>
                         updateRow(productId, { quantity })
                     }

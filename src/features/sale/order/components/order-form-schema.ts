@@ -1,12 +1,11 @@
 import type { RJSFSchema, UiSchema } from "@rjsf/utils"
-import { listCustomers } from "@/api/customer"
-import { getCustomerVipDetail } from "@/api/customer-vip"
+import { getCustomer, listCustomers } from "@/api/customer"
 import { getEmployee, listEmployees } from "@/api/employee"
 import { ORDER_STATUSES } from "./order-status"
 
 const customerDataSource = {
     getList: listCustomers,
-    getById: getCustomerVipDetail,
+    getById: getCustomer,
 }
 
 const employeeDataSource = {

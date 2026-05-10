@@ -1,5 +1,6 @@
 import { createCrudApi } from "@/api/crud"
 import type { Return } from "@/features/sale/return/data/schema"
+import { apiPut } from "../client"
 
 export type ReturnListParams = {
     page: number
@@ -22,3 +23,7 @@ export const getReturn = returnApi.detail
 export const createReturn = returnApi.create
 export const updateReturn = returnApi.update
 export const deleteReturn = returnApi.delete
+
+export function updateReturnStatus(id: number, status: string) {
+    return apiPut(`/sales/returns/${id}/status`, { status })
+}
