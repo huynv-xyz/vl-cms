@@ -1,56 +1,89 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Plus, X } from "lucide-react"
+import { Plus, Save, Trash2 } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
+import { createProduction } from "@/api/production/order"
+import { listProducts, getProduct } from "@/api/product"
+import { listWarehouses, getWarehouse } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
 import { AsyncSelect } from "@/components/rjsf/async-select"
+import { Button } from "@/components/ui/button"
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-
-import { listProducts, getProduct } from "@/api/product"
-import { listWarehouses, getWarehouse } from "@/api/warehouse"
-import { createProduction } from "@/api/production/order"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+    ProductionItemsBulkPaste,
+    type ProductionItemDraft,
+} from "./production-items-bulk-paste"
 
 type Props = {
     open: boolean
     onOpenChange: (open: boolean) => void
 }
 
-type Row = {
-    product_id?: number
-    product?: any
-    quantity_plan: number
-    quantity_done: number
-    lot_no?: string
-    expiry_date?: string
-    note?: string
-}
+type Row = ProductionItemDraft
+
+const newRow = (): Row => ({
+    quantity_plan: 1,
+    quantity_done: 1,
+})
+
+const today = () => new Date().toISOString().slice(0, 10)
 
 export function CreateProductionDialog({ open, onOpenChange }: Props) {
     const queryClient = useQueryClient()
 
-    const [productionDate, setProductionDate] = useState("")
+    const [productionDate, setProductionDate] = useState(today())
     const [warehouseId, setWarehouseId] = useState<number>()
     const [packingCode, setPackingCode] = useState("")
-    const [items, setItems] = useState<Row[]>([
-        { quantity_plan: 1, quantity_done: 1 },
-    ])
+    const [note, setNote] = useState("")
+    const [items, setItems] = useState<Row[]>([newRow()])
+
+    const summary = useMemo(() => {
+        const totalQuantity = items.reduce((sum, x) => sum + (Number(x.quantity_plan) || 0), 0)
+        const units = Array.from(
+            new Set(
+                items
+                    .map((x) => getProductUnit(x.product))
+                    .filter(Boolean)
+            )
+        )
+        const unit = units.length === 1 ? units[0] : units.length > 1 ? "nhiều ĐV" : ""
+
+        return {
+            count: items.length,
+            totalQuantity,
+            unit,
+        }
+    }, [items])
 
     const { mutate, isPending } = useMutation({
         mutationFn: createProduction,
-        onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ["productions"] })
+        onSuccess: () => {
             toast.success("Tạo lệnh sản xuất thành công")
+            resetForm()
             onOpenChange(false)
+            void queryClient.invalidateQueries({ queryKey: ["productions"] })
+            void queryClient.invalidateQueries({ queryKey: ["production-orders"] })
         },
-        onError: (e: any) => toast.error(e.message || "Lỗi"),
+        onError: (e: any) => toast.error(e.message || "Không thể tạo lệnh sản xuất"),
     })
+
+    const resetForm = () => {
+        setProductionDate(today())
+        setWarehouseId(undefined)
+        setPackingCode("")
+        setNote("")
+        setItems([newRow()])
+    }
 
     const updateRow = (index: number, patch: Partial<Row>) => {
         setItems((old) =>
@@ -59,14 +92,15 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
     }
 
     const addRow = () => {
-        setItems((old) => [
-            ...old,
-            { quantity_plan: 1, quantity_done: 1 },
-        ])
+        setItems((old) => [...old, newRow()])
     }
 
     const removeRow = (index: number) => {
         setItems((old) => old.filter((_, i) => i !== index))
+    }
+
+    const applyBulkItems = (rows: Row[]) => {
+        setItems(rows.length ? rows : [newRow()])
     }
 
     const submit = () => {
@@ -74,265 +108,206 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
         if (!warehouseId) return toast.error("Kho nhập TP là bắt buộc")
         if (!items.length) return toast.error("Cần ít nhất 1 thành phẩm")
 
-        for (const i of items) {
-            if (!i.product_id) return toast.error("Mã thành phẩm là bắt buộc")
-            if (!i.quantity_plan || i.quantity_plan <= 0) {
-                return toast.error("SL đơn vị chuẩn phải > 0")
-            }
-            if (!i.quantity_done || i.quantity_done <= 0) {
-                return toast.error("SL nhập TP phải > 0")
+        for (const [index, item] of items.entries()) {
+            if (!item.product_id) return toast.error(`Thành phẩm #${index + 1} chưa chọn mã`)
+            if (!item.quantity_plan || item.quantity_plan <= 0) {
+                return toast.error(`Số lượng sản xuất của thành phẩm #${index + 1} phải > 0`)
             }
         }
 
-        const first = items[0]
-
         mutate({
-            product_id: first.product_id!,
             warehouse_id: warehouseId,
             production_date: productionDate,
-            quantity_plan: first.quantity_plan,
-            quantity_done: first.quantity_done,
-            status: "PLANNED",
-            packing_code: packingCode,
-            items: items.map((i) => ({
-                product_id: i.product_id,
-                quantity_plan: i.quantity_plan,
-                quantity_done: i.quantity_done,
-                lot_no: i.lot_no,
-                expiry_date: i.expiry_date,
-                note: i.note,
+            packing_code: packingCode || undefined,
+            note: note || undefined,
+            items: items.map((item) => ({
+                product_id: item.product_id,
+                warehouse_id: warehouseId,
+                quantity_plan: item.quantity_plan,
+                quantity_done: item.quantity_done,
+                note: item.note || undefined,
             })),
-        } as any)
+        })
     }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="!max-w-4xl max-h-[92vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>Tạo lệnh sản xuất mới</DialogTitle>
+            <DialogContent className="flex max-h-[92vh] !max-w-5xl flex-col gap-0 overflow-hidden p-0">
+                <DialogHeader className="border-b px-6 py-5">
+                    <DialogTitle>Tạo lệnh sản xuất</DialogTitle>
+                    <DialogDescription>
+                        Chọn ngày, kho nhập và thành phẩm cần sản xuất. Mã lệnh và định mức sẽ được hệ thống tự xử lý.
+                    </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-6">
-                    <section className="rounded-xl border p-4 space-y-4">
-                        <h3 className="font-semibold">Thông tin lệnh</h3>
+                <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+                    <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+                        <section className="space-y-4">
+                            <div className="grid gap-3 md:grid-cols-3">
+                                <Field label="Mã lệnh SX">
+                                    <Input value="Auto" disabled />
+                                </Field>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Field label="Mã lệnh SX *">
-                                <input
-                                    className="h-10 w-full rounded-md border bg-muted px-3"
-                                    value="Auto"
-                                    disabled
-                                />
-                            </Field>
+                                <Field label="Ngày lệnh" required>
+                                    <DatePicker
+                                        value={productionDate}
+                                        onChange={(v) => setProductionDate(v || "")}
+                                        placeholder="Chọn ngày"
+                                    />
+                                </Field>
 
-                            <Field label="Ngày lệnh *">
-                                <DatePicker
-                                    value={productionDate}
-                                    onChange={(v) => setProductionDate(v || "")}
-                                    placeholder="Ngày lệnh"
-                                />
-                            </Field>
+                                <Field label="Kho nhập thành phẩm" required>
+                                    <AsyncSelect
+                                        value={warehouseId}
+                                        onChange={(v: any) => setWarehouseId(v || undefined)}
+                                        placeholder="Chọn kho"
+                                        dataSource={{
+                                            getList: listWarehouses,
+                                            getById: getWarehouse,
+                                            params: { page: 1, size: 20 },
+                                        }}
+                                        mapOption={(x: any) => ({
+                                            value: x.id,
+                                            label: x.name,
+                                        })}
+                                    />
+                                </Field>
 
-                            <Field label="Kho nhập TP *">
-                                <AsyncSelect
-                                    value={warehouseId}
-                                    onChange={(v: any) => setWarehouseId(v || undefined)}
-                                    placeholder="Kho nhập TP"
-                                    dataSource={{
-                                        getList: listWarehouses,
-                                        getById: getWarehouse,
-                                        params: { page: 1, size: 20 },
-                                    }}
-                                    mapOption={(x: any) => ({
-                                        value: x.id,
-                                        label: x.name,
-                                    })}
-                                />
-                            </Field>
+                                <Field label="Packing code">
+                                    <Input
+                                        value={packingCode}
+                                        onChange={(e) => setPackingCode(e.target.value)}
+                                        placeholder="PACK001"
+                                    />
+                                </Field>
 
-                            <Field label="Packing code">
-                                <input
-                                    className="h-10 w-full rounded-md border px-3"
-                                    value={packingCode}
-                                    onChange={(e) => setPackingCode(e.target.value)}
-                                    placeholder="PACK001"
-                                />
-                            </Field>
-                        </div>
-                    </section>
+                                <Field label="Trạng thái">
+                                    <Input value="Kế hoạch" disabled />
+                                </Field>
 
-                    <section className="space-y-3">
-                        <div className="flex items-center justify-between">
-                            <h3 className="font-semibold">
-                                Danh sách thành phẩm trong lệnh
-                            </h3>
+                                <Field label="Ghi chú">
+                                    <Input
+                                        value={note}
+                                        onChange={(e) => setNote(e.target.value)}
+                                        placeholder="Ghi chú chung"
+                                    />
+                                </Field>
+                            </div>
 
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={addRow}
-                            >
-                                <Plus className="mr-2 h-4 w-4" />
-                                Thêm thành phẩm
-                            </Button>
-                        </div>
-
-                        <div className="space-y-4">
-                            {items.map((row, index) => (
-                                <div
-                                    key={index}
-                                    className="rounded-xl border p-4 space-y-4"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div className="font-semibold">
-                                            Thành phẩm #{index + 1}
-                                        </div>
-
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="icon"
-                                            onClick={() => removeRow(index)}
-                                            disabled={items.length <= 1}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
+                            <div className="space-y-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                        <h3 className="font-semibold">Thành phẩm</h3>
+                                        <p className="text-muted-foreground text-sm">
+                                            Mỗi dòng là một thành phẩm trong cùng lệnh sản xuất.
+                                        </p>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <Field label="Mã thành phẩm *">
-                                            <AsyncSelect
-                                                value={row.product_id}
-                                                onChange={(v: any, option: any) =>
-                                                    updateRow(index, {
-                                                        product_id: v || undefined,
-                                                        product: option?.raw,
-                                                    })
-                                                }
-                                                placeholder="Mã thành phẩm"
-                                                dataSource={{
-                                                    getList: listProducts,
-                                                    getById: getProduct,
-                                                    params: { page: 1, size: 20 },
-                                                }}
-                                                mapOption={(x: any) => ({
-                                                    value: x.id,
-                                                    label: `${x.code} - ${x.name}`,
-                                                    raw: x,
-                                                })}
-                                            />
-                                        </Field>
-
-                                        <Field label="Tên hàng">
-                                            <input
-                                                className="h-10 w-full rounded-md border bg-muted px-3"
-                                                value={row.product?.name ?? ""}
-                                                disabled
-                                                placeholder="Tự điền từ danh mục"
-                                            />
-                                        </Field>
-
-                                        <Field label="SL ĐV chuẩn *">
-                                            <input
-                                                type="number"
-                                                className="h-10 w-full rounded-md border px-3"
-                                                value={row.quantity_plan}
-                                                onChange={(e) =>
-                                                    updateRow(index, {
-                                                        quantity_plan: Number(e.target.value),
-                                                    })
-                                                }
-                                            />
-                                        </Field>
-
-                                        <Field label="SL nhập TP *">
-                                            <input
-                                                type="number"
-                                                className="h-10 w-full rounded-md border px-3"
-                                                value={row.quantity_done}
-                                                onChange={(e) =>
-                                                    updateRow(index, {
-                                                        quantity_done: Number(e.target.value),
-                                                    })
-                                                }
-                                            />
-                                        </Field>
-
-                                        <Field label="ĐM NVL/ĐV">
-                                            <input
-                                                className="h-10 w-full rounded-md border bg-muted px-3"
-                                                value="Auto"
-                                                disabled
-                                            />
-                                        </Field>
-
-                                        <Field label="ĐM BB/ĐV">
-                                            <input
-                                                className="h-10 w-full rounded-md border bg-muted px-3"
-                                                value="Auto"
-                                                disabled
-                                            />
-                                        </Field>
-
-                                        <Field label="Số lô TP">
-                                            <input
-                                                className="h-10 w-full rounded-md border px-3"
-                                                value={row.lot_no ?? ""}
-                                                onChange={(e) =>
-                                                    updateRow(index, {
-                                                        lot_no: e.target.value,
-                                                    })
-                                                }
-                                                placeholder="Số lô TP"
-                                            />
-                                        </Field>
-
-                                        <Field label="HSD TP">
-                                            <DatePicker
-                                                value={row.expiry_date}
-                                                onChange={(v) =>
-                                                    updateRow(index, {
-                                                        expiry_date: v || "",
-                                                    })
-                                                }
-                                                placeholder="HSD"
-                                            />
-                                        </Field>
-
-                                        <div className="md:col-span-2">
-                                            <Field label="Ghi chú">
-                                                <textarea
-                                                    className="min-h-20 w-full rounded-md border px-3 py-2"
-                                                    value={row.note ?? ""}
-                                                    onChange={(e) =>
-                                                        updateRow(index, {
-                                                            note: e.target.value,
-                                                        })
-                                                    }
-                                                    placeholder="Ghi chú..."
-                                                />
-                                            </Field>
-                                        </div>
-                                    </div>
+                                    <Button type="button" variant="outline" size="sm" onClick={addRow}>
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Thêm dòng
+                                    </Button>
                                 </div>
-                            ))}
-                        </div>
-                    </section>
 
-                    <div className="sticky bottom-0 -mx-6 -mb-6 border-t bg-background px-6 py-4 flex justify-end gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => onOpenChange(false)}
-                        >
-                            Huỷ
-                        </Button>
+                                <ProductionItemsBulkPaste
+                                    disabled={isPending}
+                                    onApply={applyBulkItems}
+                                />
 
-                        <Button onClick={submit} disabled={isPending}>
-                            {isPending ? "Đang lưu..." : "Phát lệnh SX"}
-                        </Button>
+                                <div className="space-y-3">
+                                    {items.map((row, index) => (
+                                            <div key={index} className="rounded-md border">
+                                                <div className="grid gap-3 p-3 lg:grid-cols-[minmax(260px,1fr)_160px_auto]">
+                                                    <Field label={`Thành phẩm #${index + 1}`} required>
+                                                        <AsyncSelect
+                                                            value={row.product_id}
+                                                            onChange={(v: any, option: any) =>
+                                                                updateRow(index, {
+                                                                    product_id: v || undefined,
+                                                                    product: option?.raw,
+                                                                })
+                                                            }
+                                                            placeholder="Chọn mã hoặc tên thành phẩm"
+                                                            dataSource={{
+                                                                getList: listProducts,
+                                                                getById: getProduct,
+                                                                params: { page: 1, size: 20 },
+                                                            }}
+                                                            mapOption={(x: any) => ({
+                                                                value: x.id,
+                                                                label: `${x.code} - ${x.name}`,
+                                                                raw: x,
+                                                            })}
+                                                        />
+                                                    </Field>
+
+                                                    <Field label="Số lượng sản xuất" required>
+                                                        <QuantityInput
+                                                            type="number"
+                                                            min={0}
+                                                            value={row.quantity_plan}
+                                                            unit={getProductUnit(row.product)}
+                                                            onChange={(e) => {
+                                                                const quantity = Number(e.target.value)
+                                                                updateRow(index, {
+                                                                    quantity_plan: quantity,
+                                                                    quantity_done: quantity,
+                                                                })
+                                                            }}
+                                                        />
+                                                    </Field>
+
+                                                    <div className="flex items-end justify-end">
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => removeRow(index)}
+                                                            disabled={items.length <= 1}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+
+                                                {row.product?.name && (
+                                                    <div className="border-t px-3 py-2 text-sm text-muted-foreground">
+                                                        {row.product.code} - {row.product.name}
+                                                        {getProductUnit(row.product) && (
+                                                            <span className="ml-2 rounded border px-1.5 py-0.5 text-xs">
+                                                                Đơn vị: {getProductUnit(row.product)}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+                        </section>
+
+                        <aside className="h-fit rounded-md border bg-muted/20 p-4">
+                            <div className="text-sm font-medium">Tóm tắt lệnh</div>
+                            <div className="mt-3 space-y-3 text-sm">
+                                <SummaryRow label="Số thành phẩm" value={summary.count} />
+                                <SummaryRow label="Tổng SL sản xuất" value={formatQuantity(summary.totalQuantity, summary.unit)} />
+                            </div>
+                            <div className="mt-4 rounded-md border bg-background p-3 text-sm text-muted-foreground">
+                                Định mức NVL/bao bì được lấy theo BOM sau khi phát lệnh và sinh vật tư.
+                            </div>
+                        </aside>
                     </div>
                 </div>
+
+                <DialogFooter className="border-t px-6 py-4">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Hủy
+                    </Button>
+                    <Button onClick={submit} disabled={isPending}>
+                        <Save className="mr-2 h-4 w-4" />
+                        {isPending ? "Đang lưu..." : "Phát lệnh SX"}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     )
@@ -340,15 +315,59 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
 
 function Field({
     label,
+    required,
     children,
 }: {
     label: string
+    required?: boolean
     children: React.ReactNode
 }) {
     return (
         <div className="space-y-1.5">
-            <label className="text-sm font-medium">{label}</label>
+            <Label className="text-sm">
+                {label}
+                {required && <span className="text-destructive">*</span>}
+            </Label>
             {children}
         </div>
     )
+}
+
+function QuantityInput({
+    unit,
+    className,
+    ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & {
+    unit?: string
+}) {
+    return (
+        <div className="relative">
+            <Input
+                className={`${unit ? "pr-16" : ""} ${className ?? ""}`}
+                {...props}
+            />
+            {unit && (
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-medium text-muted-foreground">
+                    {unit}
+                </span>
+            )}
+        </div>
+    )
+}
+
+function SummaryRow({ label, value }: { label: string; value: React.ReactNode }) {
+    return (
+        <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">{label}</span>
+            <span className="font-semibold">{value}</span>
+        </div>
+    )
+}
+
+function getProductUnit(product: any) {
+    return product?.unit?.trim?.() || ""
+}
+
+function formatQuantity(value: number, unit?: string) {
+    return unit ? `${value} ${unit}` : value
 }

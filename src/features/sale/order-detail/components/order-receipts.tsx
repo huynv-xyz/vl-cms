@@ -6,7 +6,16 @@ import { formatCurrency } from "@/lib/utils"
 import { deleteReceipt } from "@/api/sale/receipt"
 import { CreateReceiptDialog } from "../../receipt/components/create-receipt-dialog"
 import { UpdateReceiptDialog } from "../../receipt/components/update-receipt-dialog"
-import { Pencil, Trash2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
+import { CalendarDays, Pencil, Plus, Trash2, WalletCards } from "lucide-react"
 
 
 export function OrderReceipts({ order, receipts }: any) {
@@ -27,54 +36,67 @@ export function OrderReceipts({ order, receipts }: any) {
     })
 
     return (
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between">
+        <div className="rounded-md border bg-background">
+            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
                 <div>
                     <h2 className="font-semibold">Thu tiền</h2>
                     <p className="text-sm text-muted-foreground">
-                        Danh sách phiếu thu của đơn hàng
+                        Theo dõi các khoản thanh toán đã ghi nhận cho đơn hàng.
                     </p>
                 </div>
 
                 <Button size="sm" onClick={() => setCreateOpen(true)}>
-                    + Thu tiền
+                    <Plus className="mr-2 h-4 w-4" />
+                    Thu tiền
                 </Button>
             </div>
 
             {!receipts?.length ? (
-                <div className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground">
+                <div className="px-4 py-10 text-center text-sm text-muted-foreground">
                     Chưa có phiếu thu
                 </div>
             ) : (
-                <table className="w-full text-sm">
-                    <thead>
-                        <tr className="border-b bg-muted/30 text-left">
-                            <th className="px-3 py-2">Mã</th>
-                            <th>Ngày</th>
-                            <th className="">Số tiền</th>
-                            <th>Hình thức</th>
-                            <th>Trạng thái</th>
-                            <th>Ghi chú</th>
-                            <th className="w-[140px] text-right">Thao tác</th>
-                        </tr>
-                    </thead>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader className="bg-muted/40">
+                            <TableRow>
+                                <TableHead>Mã phiếu</TableHead>
+                                <TableHead className="w-[150px]">Ngày thu</TableHead>
+                                <TableHead className="w-[180px] text-right">Số tiền</TableHead>
+                                <TableHead className="w-[150px]">Hình thức</TableHead>
+                                <TableHead className="w-[140px]">Trạng thái</TableHead>
+                                <TableHead>Ghi chú</TableHead>
+                                <TableHead className="w-[110px] text-right">Thao tác</TableHead>
+                            </TableRow>
+                        </TableHeader>
 
-                    <tbody>
+                        <TableBody>
                         {receipts.map((r: any) => (
-                            <tr key={r.id} className="border-b last:border-0">
-                                <td className="px-3 py-2 font-medium">
-                                    {r.receipt_no ?? `RC-${r.id}`}
-                                </td>
-                                <td>{r.receipt_date}</td>
-                                <td className="font-semibold text-green-600">
+                            <TableRow key={r.id}>
+                                <TableCell>
+                                    <div className="font-semibold">{r.receipt_no ?? `RC-${r.id}`}</div>
+                                    <div className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                        <WalletCards className="h-3.5 w-3.5" />
+                                        {r.method || "-"}
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <span className="inline-flex items-center gap-1 text-sm">
+                                        <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                                        {formatDate(r.receipt_date)}
+                                    </span>
+                                </TableCell>
+                                <TableCell className="text-right font-bold text-emerald-600">
                                     {formatCurrency(r.amount)}
-                                </td>
-                                <td>{r.method}</td>
-                                <td>{r.status}</td>
-                                <td className="max-w-[220px] truncate" title={r.note}>
+                                </TableCell>
+                                <TableCell>{r.method || "-"}</TableCell>
+                                <TableCell>
+                                    <Badge variant="outline">{r.status || "-"}</Badge>
+                                </TableCell>
+                                <TableCell className="max-w-[260px] truncate" title={r.note}>
                                     {r.note || "-"}
-                                </td>
-                                <td className="text-right">
+                                </TableCell>
+                                <TableCell className="text-right">
                                     <div className="flex justify-end gap-1">
                                         <Button
                                             size="icon"
@@ -103,11 +125,12 @@ export function OrderReceipts({ order, receipts }: any) {
                                         </Button>
 
                                     </div>
-                                </td>
-                            </tr>
+                                </TableCell>
+                            </TableRow>
                         ))}
-                    </tbody>
-                </table>
+                        </TableBody>
+                    </Table>
+                </div>
             )}
 
             <CreateReceiptDialog
@@ -128,4 +151,16 @@ export function OrderReceipts({ order, receipts }: any) {
             )}
         </div>
     )
+}
+
+function formatDate(value?: string) {
+    if (!value) return "-"
+    const [date] = value.split("T")
+    const parts = date.split("-")
+    if (parts.length === 3) {
+        return parts[0].length === 4
+            ? `${parts[2]}/${parts[1]}/${parts[0]}`
+            : `${parts[0]}/${parts[1]}/${parts[2]}`
+    }
+    return date
 }

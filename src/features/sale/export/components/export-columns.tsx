@@ -2,13 +2,29 @@ import { useState } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
-import { buildBadgeColumn } from "@/components/crud/build-badge-column"
+import { buildActionsColumn } from "@/components/crud/build-actions-column"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { useUpdateStatus } from "@/hooks/use-update-status"
+import { updateExportStatus } from "@/api/sale/export"
 import type { Export } from "../data/schema"
 import { ExportDetailDialog } from "../components/export-detail-dialog" // 🔥 cần có
+import { ExportRowActions } from "./export-row-actions"
+import { EXPORT_STATUSES, exportStatusLabel } from "./export-status"
 
 export function useExportColumns() {
 
     const [selectedId, setSelectedId] = useState<number | null>(null)
+    const statusMutation = useUpdateStatus<Export>({
+        queryKey: ["exports"],
+        mutationFn: updateExportStatus,
+        getId: (x) => x.id,
+    })
 
     const columns: ColumnDef<Export>[] = [
 
@@ -18,12 +34,16 @@ export function useExportColumns() {
             accessorKey: "export_no",
             title: "Số PX",
             render: (row) => (
-                <span
-                    className="text-primary cursor-pointer hover:underline font-medium"
+                <button
+                    type="button"
+                    className="text-left font-medium text-primary hover:underline"
                     onClick={() => setSelectedId(row.id)}
                 >
                     {row.export_no}
-                </span>
+                    <div className="text-xs font-normal text-muted-foreground">
+                        {row.delivery?.delivery_no ? `Giao ${row.delivery.delivery_no}` : "Chưa có phiếu giao"}
+                    </div>
+                </button>
             ),
         }),
 
@@ -52,18 +72,45 @@ export function useExportColumns() {
             render: (row) => row.warehouse?.name,
         }),
 
-        buildBadgeColumn({
+        {
             accessorKey: "status",
-            title: "Trạng thái",
-            mapValueToLabel: (v) => {
-                switch (v) {
-                    case "DRAFT":
-                        return "Nháp"
-                    case "DONE":
-                        return "Hoàn tất"
-                    default:
-                        return "-"
-                }
+            header: "Trạng thái",
+            cell: ({ row }) => {
+                const status = row.original.status || "NEW"
+                const isLocked = status === "DONE"
+
+                return (
+                    <Select
+                        value={status}
+                        onValueChange={(value) =>
+                            statusMutation.mutate({
+                                id: row.original.id,
+                                status: value,
+                            })
+                        }
+                        disabled={statusMutation.isPending || isLocked}
+                    >
+                        <SelectTrigger className="w-[140px]">
+                            <SelectValue>
+                                {exportStatusLabel(status)}
+                            </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                            {EXPORT_STATUSES.map((s) => (
+                                <SelectItem key={s.value} value={s.value} disabled={isLocked}>
+                                    {s.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )
+            },
+        },
+
+        buildActionsColumn({
+            renderActions: (_, row) => {
+                if (row.original.status === "DONE") return null
+                return <ExportRowActions row={row} />
             },
         }),
     ]

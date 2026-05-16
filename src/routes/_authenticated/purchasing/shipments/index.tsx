@@ -18,24 +18,21 @@ export const Route = createFileRoute(
                 ? search.status
                 : undefined,
 
-        supplier_id:
-            search.supplier_id !== undefined &&
-                !isNaN(Number(search.supplier_id))
-                ? Number(search.supplier_id)
+        supplier_ids:
+            typeof search.supplier_ids === "string"
+                ? search.supplier_ids
                 : undefined,
 
         // ===== PRODUCT =====
-        product_id:
-            search.product_id !== undefined &&
-                !isNaN(Number(search.product_id))
-                ? Number(search.product_id)
+        product_ids:
+            typeof search.product_ids === "string"
+                ? search.product_ids
                 : undefined,
 
         // ===== PORT =====
-        port_id:
-            search.port_id !== undefined &&
-                !isNaN(Number(search.port_id))
-                ? Number(search.port_id)
+        port_ids:
+            typeof search.port_ids === "string"
+                ? search.port_ids
                 : undefined,
 
         // ===== ETA =====

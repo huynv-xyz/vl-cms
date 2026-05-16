@@ -1,8 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Boxes, CreditCard, PackageCheck } from "lucide-react"
+import type { Contract } from "../../data/schema"
+import { PaymentsTab } from "../../../payment/components/payments-tab"
 import { ContractItemsTab } from "./contract-items-tab"
 import { ShipmentsTab } from "./contract-shipments-tab"
-import { PaymentsTab } from "../../../payment/components/payments-tab"
-import { Contract } from "../../data/schema"
 
 type Props = {
     contract: Contract
@@ -10,74 +11,31 @@ type Props = {
 
 export function ContractTabs({ contract }: Props) {
     return (
-        <Tabs defaultValue="items" className="w-full space-y-2 mt-6">
-            <TabsList
-                className="
-            bg-muted/50
-            p-1.5
-            rounded-2xl
-            shadow-sm
-            inline-flex
-        "
-            >
-                <TabsTrigger
-                    value="items"
-                    className="
-                px-6 py-3 text-base font-semibold rounded-xl
-                transition-all
-                data-[state=active]:bg-background
-                data-[state=active]:shadow-md
-                data-[state=active]:text-foreground
-            "
-                >
+        <Tabs defaultValue="items" className="w-full space-y-4">
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-md bg-muted p-1.5">
+                <TabsTrigger value="items" className="gap-2 rounded-sm py-3 text-base font-semibold">
+                    <Boxes className="h-5 w-5" />
                     Hàng hóa
                 </TabsTrigger>
-
-                <TabsTrigger
-                    value="shipments"
-                    className="
-                px-6 py-3 text-base font-semibold rounded-xl
-                transition-all
-                data-[state=active]:bg-background
-                data-[state=active]:shadow-md
-                data-[state=active]:text-foreground
-            "
-                >
+                <TabsTrigger value="shipments" className="gap-2 rounded-sm py-3 text-base font-semibold">
+                    <PackageCheck className="h-5 w-5" />
                     Lô hàng
                 </TabsTrigger>
-
-                <TabsTrigger
-                    value="payments"
-                    className="
-                px-6 py-3 text-base font-semibold rounded-xl
-                transition-all
-                data-[state=active]:bg-background
-                data-[state=active]:shadow-md
-                data-[state=active]:text-foreground
-            "
-                >
+                <TabsTrigger value="payments" className="gap-2 rounded-sm py-3 text-base font-semibold">
+                    <CreditCard className="h-5 w-5" />
                     Thanh toán
                 </TabsTrigger>
             </TabsList>
 
-            <TabsContent
-                value="items"
-                className=""
-            >
+            <TabsContent value="items" className="mt-0">
                 <ContractItemsTab contract={contract} />
             </TabsContent>
 
-            <TabsContent
-                value="shipments"
-                className=""
-            >
+            <TabsContent value="shipments" className="mt-0">
                 <ShipmentsTab contract={contract} />
             </TabsContent>
 
-            <TabsContent
-                value="payments"
-                className=""
-            >
+            <TabsContent value="payments" className="mt-0">
                 <PaymentsTab contract={contract} />
             </TabsContent>
         </Tabs>

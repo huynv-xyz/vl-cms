@@ -145,7 +145,10 @@ export function BaseDataTable<TData>({
                         {table.getHeaderGroups().map((hg) => (
                             <TableRow key={hg.id}>
                                 {hg.headers.map((header) => (
-                                    <TableHead key={header.id}>
+                                    <TableHead
+                                        key={header.id}
+                                        className={header.column.columnDef.meta?.className}
+                                    >
                                         {header.isPlaceholder
                                             ? null
                                             : flexRender(
@@ -165,7 +168,10 @@ export function BaseDataTable<TData>({
                                     <Fragment key={row.id}>
                                         <TableRow>
                                             {row.getVisibleCells().map((cell) => (
-                                                <TableCell key={cell.id}>
+                                                <TableCell
+                                                    key={cell.id}
+                                                    className={cell.column.columnDef.meta?.tdClassName}
+                                                >
                                                     {flexRender(
                                                         cell.column.columnDef.cell,
                                                         cell.getContext()
@@ -191,7 +197,10 @@ export function BaseDataTable<TData>({
                                         {table.getVisibleLeafColumns().map((col) => {
                                             const footerFn = col.columnDef.meta?.footer
                                             return (
-                                                <TableCell key={col.id}>
+                                                <TableCell
+                                                    key={col.id}
+                                                    className={col.columnDef.meta?.tdClassName}
+                                                >
                                                     {footerFn ? footerFn(data) : null}
                                                 </TableCell>
                                             )

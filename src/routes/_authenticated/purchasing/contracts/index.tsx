@@ -16,16 +16,19 @@ export const Route = createFileRoute("/_authenticated/purchasing/contracts/")({
                 ? search.status
                 : undefined,
 
-        product_id:
-            search.product_id !== undefined &&
-                !isNaN(Number(search.product_id))
-                ? Number(search.product_id)
+        product_ids:
+            typeof search.product_ids === "string"
+                ? search.product_ids
                 : undefined,
 
-        supplier_id:
-            search.supplier_id !== undefined &&
-                !isNaN(Number(search.supplier_id))
-                ? Number(search.supplier_id)
+        supplier_ids:
+            typeof search.supplier_ids === "string"
+                ? search.supplier_ids
+                : undefined,
+
+        nation_ids:
+            typeof search.nation_ids === "string"
+                ? search.nation_ids
                 : undefined,
 
         signed_date_from:

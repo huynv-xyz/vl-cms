@@ -1,4 +1,5 @@
 import { CrudTable } from "@/components/crud/crud-table"
+import type React from "react"
 import type { Production } from "../data/schema"
 import { productionColumns } from "./production-columns"
 import { formatNumber } from "@/lib/utils"
@@ -31,7 +32,7 @@ type ProductionTableProps = {
     filters: {
         product_id?: number
         warehouse_id?: number
-        status?: string[]
+        status?: string
         from_date?: string
         to_date?: string
     }
@@ -39,7 +40,7 @@ type ProductionTableProps = {
     onFiltersChange: (filters: {
         product_id?: number
         warehouse_id?: number
-        status?: string[]
+        status?: string
         from_date?: string
         to_date?: string
     }) => void
@@ -56,25 +57,58 @@ export function ProductionTable({
     onFiltersChange,
 }: ProductionTableProps) {
 
-    const totalPlan = 0;
-
-    const totalDone = 0;
+    const totalPlan = data.reduce(
+        (sum, item) => sum + sumItems(item.items ?? [], "quantity_plan"),
+        0
+    )
+    const totalDone = data.reduce(
+        (sum, item) => sum + sumItems(item.items ?? [], "quantity_done"),
+        0
+    )
+    const materialGenerated = data.filter((item) =>
+        ["MATERIAL_GENERATED", "FIFO_ALLOCATED", "OUTPUT_RECEIVED", "DONE"].includes(
+            String(item.status ?? "").toUpperCase()
+        )
+    ).length
+    const shortageRows = data.reduce(
+        (sum, item) =>
+            sum +
+            (item.items ?? []).reduce(
+                (childSum, productionItem) =>
+                    childSum +
+                    (productionItem.materials ?? []).filter((m) => Number(m.shortage_quantity) > 0).length,
+                0
+            ),
+        0
+    )
 
     return (
-        <CrudTable<Production>
-            data={data}
-            columns={productionColumns}
-            entityName="lệnh sản xuất"
-            searchPlaceholder="Tìm theo mã lệnh..."
+        <div className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-4">
+                <SummaryCard label="Số lệnh" value={formatNumber(data.length)} />
+                <SummaryCard label="Tổng SL kế hoạch" value={formatNumber(totalPlan)} />
+                <SummaryCard label="Tổng SL nhập TP" value={formatNumber(totalDone)} />
+                <SummaryCard
+                    label="Dòng thiếu tồn"
+                    value={formatNumber(shortageRows)}
+                    tone={shortageRows > 0 ? "bad" : "ok"}
+                />
+            </div>
 
-            pagination={pagination}
-            onPaginationChange={onPaginationChange}
-            pageCount={pageCount}
+            <CrudTable<Production>
+                data={data}
+                columns={productionColumns}
+                entityName="lệnh sản xuất"
+                searchPlaceholder="Tìm theo mã lệnh..."
 
-            keyword={keyword}
-            onKeywordChange={onKeywordChange}
+                pagination={pagination}
+                onPaginationChange={onPaginationChange}
+                pageCount={pageCount}
 
-            filters={[
+                keyword={keyword}
+                onKeywordChange={onKeywordChange}
+
+                filters={[
                 // ===== PRODUCT =====
                 {
                     columnId: "product",
@@ -137,11 +171,11 @@ export function ProductionTable({
                     title: "",
                     render: () => (
                         <Select
-                            value={filters.status?.[0] ?? "ALL"}
+                            value={filters.status ?? "ALL"}
                             onValueChange={(v) =>
                                 onFiltersChange({
                                     ...filters,
-                                    status: v === "ALL" ? undefined : [v],
+                                    status: v === "ALL" ? undefined : v,
                                 })
                             }
                         >
@@ -151,9 +185,11 @@ export function ProductionTable({
 
                             <SelectContent>
                                 <SelectItem value="ALL">Trạng thái</SelectItem>
+                                <SelectItem value="DRAFT">Nháp</SelectItem>
                                 <SelectItem value="PLANNED">Kế hoạch</SelectItem>
-                                <SelectItem value="READY">Sẵn sàng</SelectItem>
-                                <SelectItem value="DONE">Hoàn tất</SelectItem>
+                                <SelectItem value="MATERIAL_GENERATED">Đã sinh vật tư</SelectItem>
+                                <SelectItem value="FIFO_ALLOCATED">Đã chạy FIFO</SelectItem>
+                                <SelectItem value="OUTPUT_RECEIVED">Đã nhập TP</SelectItem>
                                 <SelectItem value="CANCELLED">Huỷ</SelectItem>
                             </SelectContent>
                         </Select>
@@ -197,29 +233,72 @@ export function ProductionTable({
                         />
                     ),
                 },
-            ]}
+                ]}
 
-            footer={
-                <div className="flex justify-end w-full gap-6">
-                    <div>
+                footer={
+                    <div className="flex w-full flex-wrap justify-end gap-6">
+                        <div>
                         <span className="text-muted-foreground mr-2">
                             Tổng KH:
                         </span>
-                        <span className="font-bold">
-                            {formatNumber(totalPlan)}
-                        </span>
-                    </div>
+                            <span className="font-bold">
+                                {formatNumber(totalPlan)}
+                            </span>
+                        </div>
 
-                    <div>
+                        <div>
                         <span className="text-muted-foreground mr-2">
-                            Tổng TT:
+                            Tổng nhập TP:
                         </span>
-                        <span className="font-bold">
-                            {formatNumber(totalDone)}
-                        </span>
+                            <span className="font-bold">
+                                {formatNumber(totalDone)}
+                            </span>
+                        </div>
+
+                        <div>
+                            <span className="mr-2 text-muted-foreground">
+                                Đã sinh vật tư:
+                            </span>
+                            <span className="font-bold">
+                                {formatNumber(materialGenerated)}
+                            </span>
+                        </div>
                     </div>
-                </div>
-            }
-        />
+                }
+            />
+        </div>
     )
+}
+
+function SummaryCard({
+    label,
+    value,
+    tone,
+}: {
+    label: string
+    value: React.ReactNode
+    tone?: "ok" | "bad"
+}) {
+    return (
+        <div className="rounded-md border bg-background px-4 py-3">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {label}
+            </div>
+            <div
+                className={
+                    tone === "bad"
+                        ? "mt-1 text-xl font-semibold text-destructive"
+                        : tone === "ok"
+                            ? "mt-1 text-xl font-semibold text-emerald-600"
+                            : "mt-1 text-xl font-semibold"
+                }
+            >
+                {value}
+            </div>
+        </div>
+    )
+}
+
+function sumItems(items: Production["items"], key: keyof NonNullable<Production["items"]>[number]) {
+    return (items ?? []).reduce((sum, item) => sum + (Number(item[key]) || 0), 0)
 }

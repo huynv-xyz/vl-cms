@@ -27,6 +27,7 @@ export function CreateContractItemDialog({
             hideTrigger
             schema={contractItemSchema}
             uiSchema={buildContractItemUiSchema()}
+            dialogClassName="max-h-[86vh] !w-[calc(100vw-32px)] !max-w-[760px]"
 
             defaultValues={{
                 product_id: undefined,

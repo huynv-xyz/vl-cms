@@ -6,19 +6,11 @@ import { buildTextColumn } from "@/components/crud/build-text-column"
 import { DeliveryDetailDialog } from "../components/delivery-detail-dialog"
 import { buildActionsColumn } from "@/components/crud/build-actions-column"
 import { DeliveryRowActions } from "../components/delivery-row-actions"
-import { Badge } from "@/components/ui/badge"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { updateDeliveryStatus } from "@/api/sale/delivery"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-
-const statusOptions = [
-    { value: "NEW", label: "Mới" },
-    { value: "DELIVERING", label: "Đang giao" },
-    { value: "DONE", label: "Hoàn thành" },
-    { value: "CANCELLED", label: "Hủy" },
-]
+import { DELIVERY_STATUSES, getNextDeliveryStatuses } from "../components/delivery-status"
 
 export function useDeliveryColumns() {
 
@@ -32,20 +24,23 @@ export function useDeliveryColumns() {
             accessorKey: "delivery_no",
             title: "Mã giao",
             render: (row) => (
-                <span
-                    className="text-primary cursor-pointer hover:underline"
+                <button
+                    type="button"
+                    className="text-left font-medium text-primary hover:underline"
                     onClick={() => setSelectedId(row.id)}
                 >
                     {row.delivery_no}
-                </span>
+                    <div className="text-xs font-normal text-muted-foreground">
+                        {row.order?.order_no ? `Đơn ${row.order.order_no}` : "Chưa có đơn"}
+                    </div>
+                </button>
             ),
         }),
 
         {
             accessorKey: "order_id",
             header: "Đơn hàng",
-            cell: ({ row }) =>
-                row.original.order?.order_no
+            cell: ({ row }) => row.original.order?.order_no ?? "-",
         },
 
         {
@@ -73,78 +68,18 @@ export function useDeliveryColumns() {
 
         buildTextColumn({
             accessorKey: "delivery_address",
-            title: "Địa chỉ giao",
+            title: "Địa chỉ",
+            render: (row) => (
+                <span className="line-clamp-2 max-w-[320px] text-sm text-muted-foreground">
+                    {row.delivery_address || "-"}
+                </span>
+            ),
         }),
 
         {
             accessorKey: "status",
             header: "Trạng thái",
-            cell: ({ row }) => {
-
-                const queryClient = useQueryClient()
-
-                const mutation = useMutation({
-                    mutationFn: (value: string) =>
-                        updateDeliveryStatus(row.original.id, value),
-                    onMutate: async (value) => {
-
-                        await queryClient.cancelQueries({ queryKey: ["deliveries"] })
-
-                        const prev = queryClient.getQueryData(["deliveries"])
-
-                        queryClient.setQueryData(["deliveries"], (old: any) => {
-                            if (!old) return old
-
-                            return {
-                                ...old,
-                                items: old.items.map((x: any) =>
-                                    x.id === row.original.id
-                                        ? { ...x, status: value }
-                                        : x
-                                )
-                            }
-                        })
-
-                        return { prev }
-                    },
-
-                    onError: (_, __, context) => {
-                        queryClient.setQueryData(["deliveries"], context?.prev)
-                        toast.error("Cập nhật thất bại")
-                    },
-                    onSuccess: () => {
-                        toast.success("Cập nhật trạng thái thành công")
-                    },
-
-                    onSettled: () => {
-                        queryClient.invalidateQueries({ queryKey: ["deliveries"] })
-                    }
-                })
-
-                const isLocked = ["DONE"].includes(row.original.status)
-
-                return (
-                    <Select
-                        value={row.original.status}
-                        onValueChange={(v) => mutation.mutate(v)}
-                        disabled={mutation.isPending}
-                    >
-                        <SelectTrigger className="w-[140px]">
-                            <SelectValue>
-                                {statusOptions.find(s => s.value === row.original.status)?.label}
-                            </SelectValue>
-                        </SelectTrigger>
-
-                        <SelectContent>
-                            {statusOptions.map((s) => (
-                                <SelectItem key={s.value} value={s.value} disabled={isLocked}>
-                                    {s.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                )
-            }
+            cell: ({ row }) => <DeliveryStatusSelect delivery={row.original} />
         },
         buildActionsColumn({
             renderActions: (_, row) => {
@@ -167,4 +102,51 @@ export function useDeliveryColumns() {
             />
         )
     }
+}
+
+function DeliveryStatusSelect({ delivery }: { delivery: Delivery }) {
+    const queryClient = useQueryClient()
+    const allowedNextStatuses = getNextDeliveryStatuses(delivery.status)
+    const isLocked = allowedNextStatuses.length === 0
+
+    const mutation = useMutation({
+        mutationFn: (value: string) => updateDeliveryStatus(delivery.id, value),
+        onError: () => {
+            toast.error("Cập nhật trạng thái thất bại")
+        },
+        onSuccess: () => {
+            toast.success("Cập nhật trạng thái thành công")
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["deliveries"] })
+        },
+    })
+
+    return (
+        <Select
+            value={delivery.status}
+            onValueChange={(value) => mutation.mutate(value)}
+            disabled={mutation.isPending || isLocked}
+        >
+            <SelectTrigger className="h-9 w-[150px]">
+                <SelectValue>
+                    {DELIVERY_STATUSES.find((status) => status.value === delivery.status)?.label}
+                </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+                {DELIVERY_STATUSES.map((status) => (
+                    <SelectItem
+                        key={status.value}
+                        value={status.value}
+                        disabled={
+                            status.value !== delivery.status &&
+                            !allowedNextStatuses.includes(status.value)
+                        }
+                    >
+                        {status.label}
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+    )
 }

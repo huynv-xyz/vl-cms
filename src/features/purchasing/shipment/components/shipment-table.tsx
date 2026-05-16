@@ -1,7 +1,7 @@
 import { CrudTable } from "@/components/crud/crud-table"
 import { shipmentColumns } from "./shipment-columns"
 import { Shipment } from "../data/schema"
-import { formatNumber } from "@/lib/utils"
+import { formatCurrency, formatNumber } from "@/lib/utils"
 import { Contract } from "../../contract/data/schema"
 
 export function ShipmentTable(props: any) {
@@ -30,7 +30,7 @@ export function ShipmentTable(props: any) {
                             Tổng tiền:
                         </span>
                         <span className="font-bold">
-                            {formatNumber(totalAmount)}
+                            {formatCurrency(totalAmount)}
                         </span>
                     </div>
                 }
@@ -88,11 +88,11 @@ function ShipmentItemsInline({ items = [], contract }: { items: any[]; contract:
                                 </td>
 
                                 <td className="p-2">
-                                    {formatNumber(i.unit_price)}
+                                    {formatCurrency(i.unit_price)}
                                 </td>
 
                                 <td className="p-2 text-orange-500">
-                                    {formatNumber(i.discount_amount)}
+                                    {formatCurrency(i.discount_amount)}
                                 </td>
 
                                 <td className="p-2">
@@ -104,11 +104,11 @@ function ShipmentItemsInline({ items = [], contract }: { items: any[]; contract:
                                 </td>
 
                                 <td className="p-2 font-medium">
-                                    {formatNumber(i.final_price)}
+                                    {formatCurrency(i.final_price)}
                                 </td>
 
                                 <td className="p-2 font-bold">
-                                    {formatNumber(i.total_price)}
+                                    {formatCurrency(i.total_price)}
                                 </td>
                             </tr>
                         )

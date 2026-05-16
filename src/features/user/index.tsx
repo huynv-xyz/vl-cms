@@ -5,7 +5,7 @@ import { UserTable } from "./components/user-table"
 import { UserDialogs } from "./components/user-dialogs"
 import { UsersProvider } from "./components/users-provider"
 import { CreateUserButton } from "./components/create-user-button"
-import { Route } from "@/routes/_authenticated/user"
+import { Route } from "@/routes/_authenticated/access/users"
 import { useUrlPagination } from "@/hooks/use-url-pagination"
 import { useUrlListFilters } from "@/hooks/use-url-list-filters"
 

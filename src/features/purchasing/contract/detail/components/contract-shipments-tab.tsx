@@ -6,6 +6,7 @@ import { ShipmentItemTable } from "../../../shipment-item/components/shipment-it
 import { ShipmentDialogs } from "../../../shipment/components/shipment-dialogs"
 import { Contract } from "../../data/schema"
 import { CreateShipmentButton } from "@/features/purchasing/shipment/components/create-shipment-button"
+import { LoadingState } from "@/components/loading-state"
 
 type Props = {
     contract: Contract
@@ -33,11 +34,11 @@ export function ShipmentsTab({ contract }: Props) {
     )
 
     if (isLoading) {
-        return <div className="text-sm">Đang tải...</div>
+        return <LoadingState title="Đang tải hàng nhập" description="Đang lấy danh sách lô hàng của hợp đồng." />
     }
 
     if (error) {
-        return <div className="text-sm text-red-500">Lỗi tải dữ liệu.</div>
+        return <div className="text-base text-red-500">Lỗi tải dữ liệu.</div>
     }
 
     const pageData = (data as any)?.data ?? data
@@ -49,10 +50,10 @@ export function ShipmentsTab({ contract }: Props) {
 
                 <div className="flex items-center justify-between gap-2">
                     <div>
-                        <h3 className="text-2xl font-bold tracking-tight">
+                        <h3 className="text-3xl font-bold tracking-tight">
                             Hàng nhập
                         </h3>
-                        <p className="text-muted-foreground">
+                        <p className="text-base text-muted-foreground">
                             Danh sách hàng nhập theo hợp đồng
                         </p>
                     </div>

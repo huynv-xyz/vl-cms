@@ -12,7 +12,7 @@ export default function AsyncSelectWidget(props: any) {
     return (
         <AsyncSelect
             value={value}
-            onChange={onChange}
+            onChange={(nextValue: any) => onChange(nextValue)}
             disabled={disabled || readonly}
             required={required}
             {...raw}

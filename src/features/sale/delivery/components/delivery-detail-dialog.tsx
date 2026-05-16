@@ -1,11 +1,12 @@
-import { useQuery } from "@tanstack/react-query"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
 import { getDelivery } from "@/api/sale/delivery"
+import {
+    BaseDetailDialog,
+    DetailInfoGrid,
+    DetailInfoItem,
+    DetailItemsTable,
+    DetailSummary,
+} from "@/components/base-detail-dialog"
+import { deliveryStatusMeta } from "./delivery-status"
 
 export function DeliveryDetailDialog({
     open,
@@ -16,96 +17,35 @@ export function DeliveryDetailDialog({
     id?: number
     onClose: () => void
 }) {
-
-    const query: any = useQuery({
-        queryKey: ["delivery-detail", id],
-        queryFn: () => getDelivery(id!),
-        enabled: open && !!id,
-    })
-
-    const data = query.data?.data ?? query.data
-
     return (
-        <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="!max-w-3xl w-full">
-                <DialogHeader>
-                    <DialogTitle>
-                        Chi tiết phiếu giao
-                    </DialogTitle>
-                </DialogHeader>
+        <BaseDetailDialog
+            open={open}
+            id={id}
+            onClose={onClose}
+            queryKey={["delivery-detail"]}
+            queryFn={getDelivery}
+            title="Chi tiết phiếu giao"
+            description="Thông tin giao hàng và danh sách sản phẩm trên phiếu."
+            render={(data) => (
+                <div className="space-y-4">
+                    <DetailSummary
+                        title={data.delivery_no}
+                        subtitle={data.order?.order_no ? `Đơn hàng ${data.order.order_no}` : undefined}
+                        status={deliveryStatusMeta[data.status]?.label ?? data.status}
+                    />
 
-                {query.isLoading && (
-                    <div className="text-sm text-muted-foreground">
-                        Đang tải...
-                    </div>
-                )}
+                    <DetailInfoGrid>
+                        <DetailInfoItem label="Đơn hàng" value={data.order?.order_no} />
+                        <DetailInfoItem label="Kho" value={data.warehouse?.name} />
+                        <DetailInfoItem label="Công ty" value={data.company?.name} />
+                        <DetailInfoItem label="Ngày giao" value={data.delivery_date} />
+                        <DetailInfoItem label="Địa chỉ" value={data.delivery_address} className="lg:col-span-2" />
+                        <DetailInfoItem label="Ghi chú" value={data.note} className="lg:col-span-3" />
+                    </DetailInfoGrid>
 
-                {data && (
-                    <div className="space-y-3 text-sm">
-
-                        <div>
-                            <b>Mã giao:</b> {data.delivery_no}
-                        </div>
-
-                        <div>
-                            <b>Đơn hàng:</b> {data.order?.order_no}
-                        </div>
-
-                        <div>
-                            <b>Kho:</b> {data.warehouse?.name}
-                        </div>
-
-                        <div>
-                            <b>Ngày giao:</b> {data.delivery_date}
-                        </div>
-
-                        <div>
-                            <b>Địa chỉ:</b> {data.delivery_address}
-                        </div>
-
-                        <div>
-                            <b>Trạn thái:</b> {data.status}
-                        </div>
-
-
-                        <div>
-                            <b>Ghi chú:</b> {data.note}
-                        </div>
-
-                        {/* ITEMS */}
-                        <table className="w-full mt-3 text-sm border">
-                            <thead>
-                                <tr>
-                                    <th className="p-2 text-left">Mã sản phẩm</th>
-                                    <th className="p-2 text-left">Tên sản phẩm</th>
-                                    <th className="p-2 text-left">ĐVT</th>
-                                    <th className="p-2 text-left">SL</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.items?.map((i: any) => (
-                                    <tr key={i.id} className="border-t">
-                                        <td className="p-2">
-                                            {i.product?.code}
-                                        </td>
-                                        <td className="p-2">
-                                            {i.product?.name}
-                                        </td>
-                                        <td className="p-2">
-                                            {i.product?.unit}
-                                        </td>
-                                        <td className="p-2">
-                                            {i.quantity}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-
-                    </div>
-                )}
-
-            </DialogContent>
-        </Dialog>
+                    <DetailItemsTable items={data.items} />
+                </div>
+            )}
+        />
     )
 }

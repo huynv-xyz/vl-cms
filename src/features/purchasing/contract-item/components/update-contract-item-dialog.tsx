@@ -39,6 +39,7 @@ export function UpdateContractItemDialog({
                     }
                     : undefined
             )}
+            dialogClassName="max-h-[86vh] !w-[calc(100vw-32px)] !max-w-[760px]"
 
             defaultValues={{
                 product_id: item.product_id,

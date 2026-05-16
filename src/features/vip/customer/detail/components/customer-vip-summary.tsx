@@ -6,6 +6,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
+import { formatCurrency } from "@/lib/utils"
 
 type Props = {
     data: CustomerVipDetail
@@ -73,7 +74,7 @@ export function CustomerVipSummary({ data }: Props) {
 
                                 <LabelCell>Thưởng cuối</LabelCell>
                                 <ValueCell alignRight>
-                                    {formatNumber(data.final_bonus_amount)}
+                                    {formatCurrency(Number(data.final_bonus_amount ?? 0))}
                                 </ValueCell>
                             </TableRow>
 

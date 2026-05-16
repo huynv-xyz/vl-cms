@@ -1,1 +1,0 @@
-import{c as a}from"./crud-DBGnvSwc.js";import{l as t,ao as o,aq as d,ap as c}from"./index-qoqPsyHF.js";const r=a("/sales/orders"),l=r.list,m=r.create,n=r.update,O=e=>t(`/sales/orders/${e}`),u=(e,s)=>d(`/sales/orders/${e}/items`,s),$=(e,s)=>c(`/sales/orders/items/${e}`,s),I=e=>o(`/sales/orders/items/${e}`);export{u as a,$ as b,m as c,I as d,O as g,l,n as u};

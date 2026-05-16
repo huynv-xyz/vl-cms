@@ -6,6 +6,12 @@ export type ContractListParams = {
     page: number
     size: number
     keyword?: string
+    status?: string
+    product_ids?: string
+    supplier_ids?: string
+    nation_ids?: string
+    signed_date_from?: string
+    signed_date_to?: string
 }
 
 export type CreateContractRequest = Partial<Contract>

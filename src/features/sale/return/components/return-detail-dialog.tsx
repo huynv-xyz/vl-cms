@@ -1,5 +1,12 @@
 import { getReturn } from "@/api/sale/return"
-import { BaseDetailDialog } from "@/components/base-detail-dialog"
+import {
+    BaseDetailDialog,
+    DetailInfoGrid,
+    DetailInfoItem,
+    DetailItemsTable,
+    DetailSummary,
+} from "@/components/base-detail-dialog"
+import { returnStatusLabel } from "./return-status"
 
 export function ReturnDetailDialog({ open, id, onClose }: any) {
     return (
@@ -10,34 +17,23 @@ export function ReturnDetailDialog({ open, id, onClose }: any) {
             queryKey={["return-detail"]}
             queryFn={getReturn}
             title="Chi tiết phiếu trả"
+            description="Thông tin trả hàng và danh sách sản phẩm trả về."
             render={(data) => (
-                <div className="space-y-3 text-sm">
+                <div className="space-y-4">
+                    <DetailSummary
+                        title={data.return_no}
+                        subtitle={data.order?.order_no ? `Đơn hàng ${data.order.order_no}` : undefined}
+                        status={returnStatusLabel(data.status)}
+                    />
 
-                    <div><b>Mã trả:</b> {data.return_no}</div>
-                    <div><b>Lý do:</b> {data.reason}</div>
-                    <div><b>Trạng thái:</b> {data.status}</div>
+                    <DetailInfoGrid>
+                        <DetailInfoItem label="Đơn hàng" value={data.order?.order_no || data.order_id} />
+                        <DetailInfoItem label="Phiếu xuất" value={data.export?.export_no || data.export_id} />
+                        <DetailInfoItem label="Lý do" value={data.reason} />
+                        <DetailInfoItem label="Ghi chú" value={data.note} className="lg:col-span-3" />
+                    </DetailInfoGrid>
 
-                    <table className="w-full mt-3 text-sm border">
-                        <thead>
-                            <tr>
-                                <th className="p-2 text-left">Mã SP</th>
-                                <th className="p-2 text-left">Tên SP</th>
-                                <th className="p-2 text-left">ĐVT</th>
-                                <th className="p-2 text-right">SL</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.items?.map((i: any) => (
-                                <tr key={i.id} className="border-t">
-                                    <td className="p-2">{i.product?.code}</td>
-                                    <td className="p-2">{i.product?.name}</td>
-                                    <td className="p-2">{i.product?.unit}</td>
-                                    <td className="p-2 text-right">{i.quantity}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-
+                    <DetailItemsTable items={data.items} />
                 </div>
             )}
         />

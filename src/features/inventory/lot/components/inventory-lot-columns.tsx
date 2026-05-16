@@ -1,6 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
-import { formatNumber } from "@/lib/utils"
+import { formatCurrency, formatNumber } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
 import type { InventoryLot } from "../data/schema"
 
 export const inventoryLotColumns: ColumnDef<InventoryLot>[] = [
@@ -36,6 +37,18 @@ export const inventoryLotColumns: ColumnDef<InventoryLot>[] = [
     },
 
     {
+        accessorKey: "expiry_date",
+        header: "HSD",
+        cell: ({ row }) => row.original.expiry_date || "-",
+    },
+
+    {
+        id: "expiry_status",
+        header: "Cảnh báo HSD",
+        cell: ({ row }) => <ExpiryBadge lot={row.original} />,
+    },
+
+    {
         accessorKey: "source_type",
         header: "Nguồn",
     },
@@ -65,7 +78,7 @@ export const inventoryLotColumns: ColumnDef<InventoryLot>[] = [
         header: "Giá vốn",
         cell: ({ row }) => (
             <span>
-                {formatNumber(row.original.unit_cost ?? 0)}
+                {formatCurrency(row.original.unit_cost ?? 0)}
             </span>
         ),
     },
@@ -79,9 +92,32 @@ export const inventoryLotColumns: ColumnDef<InventoryLot>[] = [
 
             return (
                 <span className="font-semibold">
-                    {formatNumber(qty * cost)}
+                    {formatCurrency(qty * cost)}
                 </span>
             )
         },
     },
 ]
+
+function ExpiryBadge({ lot }: { lot: InventoryLot }) {
+    const status = lot.expiry_status
+    const days = lot.days_to_expiry
+
+    if (status === "EXPIRED") {
+        return <Badge variant="destructive">Hết hạn</Badge>
+    }
+
+    if (status === "NEAR_EXPIRY") {
+        return (
+            <Badge className="bg-amber-500 hover:bg-amber-500">
+                Cận date{typeof days === "number" ? ` · ${days} ngày` : ""}
+            </Badge>
+        )
+    }
+
+    if (status === "NO_EXPIRY") {
+        return <Badge variant="outline">Chưa có HSD</Badge>
+    }
+
+    return <Badge className="bg-emerald-600 hover:bg-emerald-600">Còn hạn</Badge>
+}

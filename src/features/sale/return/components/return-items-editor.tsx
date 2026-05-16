@@ -8,6 +8,7 @@ import {
 
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import {
     Table,
     TableBody,
@@ -159,18 +160,22 @@ export function ReturnItemsEditor({
         },
 
         {
-            header: "Mã",
-            cell: ({ row }) => row.original.product?.code,
-        },
-
-        {
-            header: "Tên",
-            cell: ({ row }) => row.original.product?.name,
+            header: "Sản phẩm",
+            cell: ({ row }) => (
+                <div className="min-w-[260px]">
+                    <div className="font-medium text-foreground">
+                        {row.original.product?.code ?? `#${row.original.product_id}`}
+                    </div>
+                    <div className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
+                        {row.original.product?.name ?? "-"}
+                    </div>
+                </div>
+            ),
         },
 
         {
             header: "ĐVT",
-            cell: ({ row }) => row.original.product?.unit,
+            cell: ({ row }) => row.original.product?.unit ?? "-",
         },
 
         {
@@ -215,37 +220,68 @@ export function ReturnItemsEditor({
         getCoreRowModel: getCoreRowModel(),
     })
 
-    return (
-        <Table>
-            <TableHeader>
-                {table.getHeaderGroups().map(hg => (
-                    <TableRow key={hg.id}>
-                        {hg.headers.map(h => (
-                            <TableHead key={h.id}>
-                                {flexRender(
-                                    h.column.columnDef.header,
-                                    h.getContext()
-                                )}
-                            </TableHead>
-                        ))}
-                    </TableRow>
-                ))}
-            </TableHeader>
+    const selectedRows = data.filter((row) => row.selected)
+    const totalQty = selectedRows.reduce(
+        (sum, row) => sum + Number(row.quantity_return || 0),
+        0
+    )
 
-            <TableBody>
-                {table.getRowModel().rows.map(row => (
-                    <TableRow key={row.id}>
-                        {row.getVisibleCells().map(cell => (
-                            <TableCell key={cell.id}>
-                                {flexRender(
-                                    cell.column.columnDef.cell,
-                                    cell.getContext()
-                                )}
-                            </TableCell>
+    return (
+        <div className="rounded-lg border bg-background">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+                <div>
+                    <div className="text-base font-semibold">Hàng trả</div>
+                    <div className="text-sm text-muted-foreground">
+                        Chỉ hiển thị các dòng còn có thể trả từ phiếu xuất.
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <Badge variant="secondary">{selectedRows.length} dòng chọn</Badge>
+                    <Badge variant="outline">Tổng SL {formatNumber(totalQty)}</Badge>
+                </div>
+            </div>
+
+            <div className="overflow-x-auto">
+                <Table>
+                    <TableHeader>
+                        {table.getHeaderGroups().map(hg => (
+                            <TableRow key={hg.id}>
+                                {hg.headers.map(h => (
+                                    <TableHead key={h.id} className="whitespace-nowrap">
+                                        {flexRender(
+                                            h.column.columnDef.header,
+                                            h.getContext()
+                                        )}
+                                    </TableHead>
+                                ))}
+                            </TableRow>
                         ))}
-                    </TableRow>
-                ))}
-            </TableBody>
-        </Table>
+                    </TableHeader>
+
+                    <TableBody>
+                        {table.getRowModel().rows.length ? (
+                            table.getRowModel().rows.map(row => (
+                                <TableRow key={row.id}>
+                                    {row.getVisibleCells().map(cell => (
+                                        <TableCell key={cell.id} className="align-middle">
+                                            {flexRender(
+                                                cell.column.columnDef.cell,
+                                                cell.getContext()
+                                            )}
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={columns.length} className="h-28 text-center text-muted-foreground">
+                                    Chọn phiếu xuất để hiển thị hàng có thể trả.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+        </div>
     )
 }

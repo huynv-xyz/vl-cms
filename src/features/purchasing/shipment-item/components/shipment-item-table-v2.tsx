@@ -1,20 +1,14 @@
 import { CrudTable } from "@/components/crud/crud-table"
 import { shipmentItemColumns } from "./shipment-item-columns"
-import { formatNumber } from "@/lib/utils"
+import { formatCurrency, formatNumber } from "@/lib/utils"
 import type { PaginationState, OnChangeFn } from "@tanstack/react-table"
 import { ShipmentItem } from "../data/schema"
 import { DatePicker } from "@/components/date-picker"
-import { AsyncSelect } from "@/components/rjsf/async-select"
+import { AsyncMultiSelect } from "@/components/rjsf/async-multi-select"
 import { listSuppliers, getSupplier } from "@/api/purchasing/supplier"
 import { getPort, listPorts } from "@/api/purchasing/port"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import { getProduct, listProducts } from "@/api/product"
+import { productOption, supplierOption } from "@/lib/option-mapper"
 
 type Props = {
     data: ShipmentItem[]
@@ -29,10 +23,10 @@ type Props = {
     filters: {
         eta_from?: string
         eta_to?: string
-        supplier_id?: number
-        product_id?: number
+        supplier_ids?: string[]
+        product_ids?: string[]
         status?: string[]
-        port_id?: number
+        port_ids?: string[]
     }
 
     onFiltersChange: (f: Props["filters"]) => void
@@ -83,13 +77,13 @@ export function ShipmentItemTableV2({
                     columnId: "product",
                     title: "",
                     render: () => (
-                        <AsyncSelect
+                        <AsyncMultiSelect
                             className="w-[220px]"
-                            value={filters.product_id}
+                            value={filters.product_ids}
                             onChange={(v: any) =>
                                 onFiltersChange({
                                     ...filters,
-                                    product_id: v || undefined,
+                                    product_ids: v,
                                 })
                             }
                             placeholder="Sản phẩm"
@@ -98,10 +92,7 @@ export function ShipmentItemTableV2({
                                 getById: getProduct,
                                 params: { page: 1, size: 20 },
                             }}
-                            mapOption={(x: any) => ({
-                                value: x.id,
-                                label: `${x.code} - ${x.name}`,
-                            })}
+                            mapOption={productOption}
                         />
                     ),
                 },
@@ -111,13 +102,13 @@ export function ShipmentItemTableV2({
                     columnId: "supplier",
                     title: "",
                     render: () => (
-                        <AsyncSelect
+                        <AsyncMultiSelect
                             className="w-[220px]"
-                            value={filters.supplier_id}
+                            value={filters.supplier_ids}
                             onChange={(v: any) =>
                                 onFiltersChange({
                                     ...filters,
-                                    supplier_id: v || undefined,
+                                    supplier_ids: v,
                                 })
                             }
                             placeholder="Nhà cung cấp"
@@ -126,10 +117,7 @@ export function ShipmentItemTableV2({
                                 getById: getSupplier,
                                 params: { page: 1, size: 20 },
                             }}
-                            mapOption={(x: any) => ({
-                                value: x.id,
-                                label: x.name,
-                            })}
+                            mapOption={supplierOption}
                         />
                     ),
                 },
@@ -139,13 +127,13 @@ export function ShipmentItemTableV2({
                     columnId: "port",
                     title: "",
                     render: () => (
-                        <AsyncSelect
+                        <AsyncMultiSelect
                             className="w-[200px]"
-                            value={filters.port_id}
+                            value={filters.port_ids}
                             onChange={(v: any) =>
                                 onFiltersChange({
                                     ...filters,
-                                    port_id: v || undefined,
+                                    port_ids: v,
                                 })
                             }
                             placeholder="Cảng đến"
@@ -166,28 +154,18 @@ export function ShipmentItemTableV2({
                 {
                     columnId: "status",
                     title: "",
-                    render: () => (
-                        <Select
-                            value={filters.status?.[0] ?? ""}
-                            onValueChange={(v) =>
-                                onFiltersChange({
-                                    ...filters,
-                                    status: v ? [v] : undefined,
-                                })
-                            }
-                        >
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Trạng thái" />
-                            </SelectTrigger>
-
-                            <SelectContent>
-                                <SelectItem value="PLANNED">Kế hoạch</SelectItem>
-                                <SelectItem value="IN_TRANSIT">Đang vận chuyển</SelectItem>
-                                <SelectItem value="DONE">Hoàn tất</SelectItem>
-                                <SelectItem value="CANCELLED">Đã hủy</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    ),
+                    options: [
+                        { value: "PLANNED", label: "Kế hoạch" },
+                        { value: "IN_TRANSIT", label: "Đang vận chuyển" },
+                        { value: "DONE", label: "Hoàn tất" },
+                        { value: "CANCELLED", label: "Đã hủy" },
+                    ],
+                    values: filters.status ?? [],
+                    onChange: (status) =>
+                        onFiltersChange({
+                            ...filters,
+                            status,
+                        }),
                 },
 
                 // ===== ETA FROM =====
@@ -232,7 +210,7 @@ export function ShipmentItemTableV2({
                         Tổng tiền:
                     </span>
                     <span className="font-bold">
-                        {formatNumber(totalAmount)}
+                        {formatCurrency(totalAmount)}
                     </span>
                 </div>
             }

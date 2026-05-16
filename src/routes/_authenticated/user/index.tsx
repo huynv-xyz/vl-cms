@@ -1,12 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router"
-import UserPage from "@/features/user"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 
+// Route /user đã được chuyển sang /access/users.
+// Giữ file này như một redirect để không gãy bookmark cũ.
 export const Route = createFileRoute("/_authenticated/user/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    page: Number(search.page ?? 1),
-    size: Number(search.size ?? 20),
-    keyword: typeof search.keyword === "string" ? search.keyword : "",
-    status: typeof search.status === "string" ? search.status : undefined,
-  }),
-  component: UserPage,
+    beforeLoad: () => {
+        throw redirect({ to: "/access/users", search: { page: 1, size: 20, keyword: "", status: undefined } })
+    },
 })

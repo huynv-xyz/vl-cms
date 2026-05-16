@@ -16,5 +16,6 @@ export type DeliveryFormItem = {
 
     selected: boolean
     quantity: number
+    remain_quantity?: number
     note?: string
 }

@@ -12,6 +12,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { formatCurrency } from "@/lib/utils"
 
 import { updateOrderItem } from "@/api/sale/order"
 
@@ -27,12 +28,14 @@ export function UpdateOrderItemDialog({ item, open, onOpenChange }: Props) {
 
     const [quantity, setQuantity] = useState(1)
     const [unitPrice, setUnitPrice] = useState(0)
+    const [discount, setDiscount] = useState(0)
 
     // load data khi mở dialog
     useEffect(() => {
         if (item) {
             setQuantity(item.quantity || 1)
             setUnitPrice(item.unit_price || 0)
+            setDiscount(item.discount || 0)
         }
     }, [item])
 
@@ -41,6 +44,7 @@ export function UpdateOrderItemDialog({ item, open, onOpenChange }: Props) {
             updateOrderItem(item.id, {
                 quantity,
                 unit_price: unitPrice,
+                discount,
             }),
 
         onSuccess: async () => {
@@ -75,16 +79,15 @@ export function UpdateOrderItemDialog({ item, open, onOpenChange }: Props) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="p-0 sm:max-w-[720px]">
 
-                <DialogHeader>
-                    <DialogTitle>Cập nhật sản phẩm</DialogTitle>
+                <DialogHeader className="border-b px-6 py-5">
+                    <DialogTitle>Cập nhật hàng bán</DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-4">
+                <div className="grid gap-5 px-6 py-5 md:grid-cols-2">
 
-                    {/* PRODUCT INFO */}
-                    <div>
+                    <div className="rounded-md border bg-muted/20 px-4 py-3 md:col-span-2">
                         <label className="text-sm font-medium">Sản phẩm</label>
                         <div className="text-sm font-medium">
                             {item?.product?.name}
@@ -94,10 +97,11 @@ export function UpdateOrderItemDialog({ item, open, onOpenChange }: Props) {
                         </div>
                     </div>
 
-                    {/* QUANTITY */}
                     <div>
                         <label className="text-sm font-medium">Số lượng</label>
                         <Input
+                            type="number"
+                            min={0}
                             value={quantity}
                             onChange={(e) =>
                                 setQuantity(Number(e.target.value))
@@ -105,10 +109,11 @@ export function UpdateOrderItemDialog({ item, open, onOpenChange }: Props) {
                         />
                     </div>
 
-                    {/* PRICE */}
                     <div>
                         <label className="text-sm font-medium">Đơn giá</label>
                         <Input
+                            type="number"
+                            min={0}
                             value={unitPrice}
                             onChange={(e) =>
                                 setUnitPrice(Number(e.target.value))
@@ -116,19 +121,26 @@ export function UpdateOrderItemDialog({ item, open, onOpenChange }: Props) {
                         />
                     </div>
 
-                    {/* PREVIEW */}
-                    <div className="text-right text-sm">
-                        <span className="text-muted-foreground mr-2">
-                            Thành tiền:
-                        </span>
-                        <span className="font-semibold text-primary">
-                            {(quantity * unitPrice).toLocaleString()}
-                        </span>
+                    <div>
+                        <label className="text-sm font-medium">Chiết khấu</label>
+                        <Input
+                            type="number"
+                            min={0}
+                            value={discount}
+                            onChange={(e) => setDiscount(Number(e.target.value))}
+                        />
+                    </div>
+
+                    <div className="rounded-md border bg-muted/20 px-4 py-3">
+                        <div className="text-sm text-muted-foreground">Thành tiền</div>
+                        <div className="mt-1 text-xl font-bold">
+                            {formatCurrency(Math.max(quantity * unitPrice - discount, 0))}
+                        </div>
                     </div>
 
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="border-t px-6 py-4">
                     <Button
                         variant="ghost"
                         onClick={() => onOpenChange(false)}

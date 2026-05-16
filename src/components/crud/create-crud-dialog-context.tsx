@@ -2,7 +2,7 @@ import { createContext, useContext, useMemo, useState, useEffect } from "react"
 import type { ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 
-export type CrudDialogType = "create" | "edit" | "delete" | null
+export type CrudDialogType = "create" | "edit" | "delete" | "detail" | null
 
 export type CrudDialogContextType<T, ID = number | string> = {
     open: CrudDialogType
@@ -18,6 +18,7 @@ export type CrudDialogContextType<T, ID = number | string> = {
     openCreate: () => void
     openEdit: (row: T) => void
     openEditById: (id: ID) => void
+    openDetail: (row: T) => void
     openDelete: (row: T) => void
     close: () => void
 }
@@ -75,6 +76,12 @@ export function createCrudDialogContext<
             setOpen("edit")
         }
 
+        const openDetail = (row: T) => {
+            setCurrentRow(row)
+            setCurrentId(row?.id ?? null)
+            setOpen("detail")
+        }
+
         const openDelete = (row: T) => {
             setCurrentRow(row)
             setCurrentId(row?.id ?? null)
@@ -99,6 +106,7 @@ export function createCrudDialogContext<
                 openCreate,
                 openEdit,
                 openEditById,
+                openDetail,
                 openDelete,
                 close,
             }),

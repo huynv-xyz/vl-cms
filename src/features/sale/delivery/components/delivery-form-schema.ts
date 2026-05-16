@@ -94,6 +94,8 @@ export const deliveryUiSchema = (isLocked: boolean): UiSchema => ({
 
     delivery_address: {
         "ui:widget": "textarea",
+        "ui:classNames": "md:col-span-2",
+        "ui:options": { rows: 3 },
     },
 
     status: {
@@ -102,5 +104,7 @@ export const deliveryUiSchema = (isLocked: boolean): UiSchema => ({
 
     note: {
         "ui:widget": "textarea",
+        "ui:classNames": "md:col-span-2",
+        "ui:options": { rows: 3 },
     },
 })

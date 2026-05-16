@@ -18,6 +18,7 @@ type Props = {
         product_id?: number
         warehouse_id?: number
         source_type?: string
+        expiry_status?: string
         from_date?: string
         to_date?: string
     }
@@ -114,6 +115,28 @@ export function InventoryLotTable({
                             <option value="PURCHASE">Mua hàng</option>
                             <option value="PRODUCTION">Sản xuất</option>
                             <option value="ADJUSTMENT">Điều chỉnh</option>
+                        </select>
+                    ),
+                },
+                {
+                    columnId: "expiry_status",
+                    title: "",
+                    render: () => (
+                        <select
+                            className="h-9 rounded-md border px-2 text-sm"
+                            value={filters.expiry_status ?? ""}
+                            onChange={(e) =>
+                                onFiltersChange({
+                                    ...filters,
+                                    expiry_status: e.target.value || undefined,
+                                })
+                            }
+                        >
+                            <option value="">Cảnh báo HSD</option>
+                            <option value="EXPIRED">Hết hạn</option>
+                            <option value="NEAR_EXPIRY">Cận date 180 ngày</option>
+                            <option value="VALID">Còn hạn</option>
+                            <option value="NO_EXPIRY">Chưa có HSD</option>
                         </select>
                     ),
                 },

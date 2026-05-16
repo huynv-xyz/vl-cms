@@ -1,26 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import Form from "@rjsf/shadcn"
 import { toast } from "sonner"
 
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-
-import { widgets } from "@/components/rjsf/widgets"
-import { ShadcnFieldTemplate } from "@/components/rjsf/shadcn-templates"
-import { rjsfValidator } from "@/components/rjsf/rjsf-validator"
+import { Save } from "lucide-react"
 
 import { createDelivery } from "@/api/sale/delivery"
 import { getOrder } from "@/api/sale/order"
 
-import { deliverySchema, deliveryUiSchema } from "./delivery-form-schema"
 import { DeliveryItemsEditor } from "./delivery-items-editor"
 import type { DeliveryFormItem } from "./types"
+import { DeliveryHeaderFields } from "./delivery-header-fields"
 
 export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
     const queryClient = useQueryClient()
@@ -51,6 +49,7 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
             product: i.product,
             selected: false,
             quantity: 0,
+            remain_quantity: i.remain_quantity ?? i.quantity,
             note: "",
         }))
     }, [orderDetail])
@@ -61,6 +60,13 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
         if (!open) {
             initializedRef.current = false
             return
+        }
+
+        if (order?.id) {
+            setFormData((current: any) => ({
+                ...current,
+                order_id: order.id,
+            }))
         }
     }, [open])
 
@@ -74,10 +80,20 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
     const { mutate, isPending } = useMutation({
         mutationFn: async () => {
 
+            if (!formData.order_id) throw new Error("Vui lòng chọn đơn hàng")
+            if (!formData.delivery_date) throw new Error("Vui lòng chọn ngày giao")
+            if (!formData.warehouse_id) throw new Error("Vui lòng chọn kho xuất")
+
             const selectedItems = items.filter(x => x.selected)
 
             if (!selectedItems.length) {
                 throw new Error("Phải chọn ít nhất 1 sản phẩm")
+            }
+
+            for (const item of selectedItems) {
+                if ((item.quantity ?? 0) <= 0) {
+                    throw new Error("Số lượng giao phải > 0")
+                }
             }
 
             return createDelivery({
@@ -104,30 +120,52 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex h-[90vh] flex-col sm:max-w-6xl">
-                <DialogHeader>
+            <DialogContent className="flex max-h-[92vh] flex-col p-0 sm:max-w-5xl">
+                <DialogHeader className="border-b px-8 py-6">
                     <DialogTitle>Tạo phiếu giao</DialogTitle>
+                    <DialogDescription>
+                        Chọn kho, ngày giao và các sản phẩm cần giao từ đơn hàng.
+                    </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto">
-
-                    <Form
-                        validator={rjsfValidator}
-                        schema={deliverySchema}
-                        uiSchema={deliveryUiSchema(!!order?.id)}
-                        formData={formData}
-                        widgets={widgets}
-                        templates={{ FieldTemplate: ShadcnFieldTemplate }}
-                        onChange={({ formData }) => {
-                            setFormData(formData)
-                            initializedRef.current = false
+                <div className="flex-1 overflow-y-auto px-8 py-6">
+                    <form
+                        id="delivery-create-form"
+                        className="space-y-6"
+                        onSubmit={(event) => {
+                            event.preventDefault()
+                            mutate()
                         }}
-                        onSubmit={() => mutate()}
                     >
+                        <div className="rounded-lg border bg-muted/20 p-4">
+                            <div className="mb-4">
+                                <div className="text-base font-semibold">Thông tin giao hàng</div>
+                                <div className="text-sm text-muted-foreground">
+                                    Chọn đơn hàng, kho xuất và thông tin giao cho phiếu.
+                                </div>
+                            </div>
+                            <DeliveryHeaderFields
+                                value={formData}
+                                lockedOrder={!!order?.id}
+                                onChange={(next) => {
+                                    const orderChanged = next.order_id !== formData.order_id
+                                    setFormData(next)
+                                    if (orderChanged) {
+                                        initializedRef.current = false
+                                        setItems([])
+                                    }
+                                }}
+                            />
+                        </div>
+
                         {!orderId ? (
-                            <div>Chọn đơn hàng để hiển thị sản phẩm</div>
+                            <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+                                Chọn đơn hàng để hiển thị sản phẩm cần giao.
+                            </div>
                         ) : isLoading ? (
-                            <div>Đang tải sản phẩm...</div>
+                            <div className="rounded-lg border p-8 text-center text-muted-foreground">
+                                Đang tải sản phẩm...
+                            </div>
                         ) : (
                             <DeliveryItemsEditor
                                 orderItems={orderDetail?.items ?? []}
@@ -136,17 +174,19 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
                                 onChange={setItems}
                             />
                         )}
-
-                        <Button
-                            type="submit"
-                            className="w-full mt-4"
-                            disabled={isPending}
-                        >
-                            {isPending ? "Đang tạo..." : "Tạo phiếu giao"}
-                        </Button>
-                    </Form>
+                    </form>
 
                 </div>
+
+                <DialogFooter className="border-t px-8 py-4">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Hủy
+                    </Button>
+                    <Button type="submit" form="delivery-create-form" disabled={isPending}>
+                        <Save className="mr-2 h-4 w-4" />
+                        {isPending ? "Đang tạo..." : "Tạo phiếu giao"}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     )

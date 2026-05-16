@@ -1,6 +1,6 @@
 import { createCrudApi } from "@/api/crud"
 import type { InventoryLot } from "@/features/inventory/lot/data/schema"
-import { apiGet } from "../client"
+import { apiGet, apiPostMultipart } from "../client"
 
 export type InventoryLotListParams = {
     page: number
@@ -10,6 +10,7 @@ export type InventoryLotListParams = {
     warehouse_id?: number
     lot_no?: string
     source_type?: string
+    expiry_status?: string
     from_date?: string
     to_date?: string
     only_remaining?: boolean
@@ -39,6 +40,15 @@ export type StockRow = {
     quantity: number
 }
 
+export type OpeningStockImportResult = {
+    success: number
+    failed: number
+    errors: {
+        row: number
+        message: string
+    }[]
+}
+
 const inventoryLotApi = createCrudApi<
     InventoryLot,
     CreateInventoryLotRequest,
@@ -62,4 +72,24 @@ export async function getStockLots(params: {
     })
 
     return apiGet<StockRow[]>(`/inventory/lots/stock?${query}`)
+}
+
+export async function importOpeningStock(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<OpeningStockImportResult>(
+        "/inventory/lots/opening/import-csv",
+        formData
+    )
+}
+
+export async function importPurchaseStock(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<OpeningStockImportResult>(
+        "/inventory/lots/purchase/import-csv",
+        formData
+    )
 }

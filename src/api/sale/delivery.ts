@@ -9,7 +9,12 @@ export type DeliveryListParams = {
     page: number
     size: number
     keyword?: string
+    status?: string
     order_id?: number
+    warehouse_id?: number
+    company_id?: number
+    from_date?: string
+    to_date?: string
 }
 
 // ========================

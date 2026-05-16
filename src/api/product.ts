@@ -7,6 +7,10 @@ export type ProductListParams = {
     size: number
     keyword?: string
     status?: string
+    nature?: string
+    group_code?: string
+    default_warehouse_id?: number
+    inventory_account_code?: string
 }
 
 export type CreateProductRequest = Partial<Product>

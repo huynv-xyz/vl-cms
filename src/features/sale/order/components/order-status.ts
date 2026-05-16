@@ -7,9 +7,8 @@ export type BadgeVariant =
 
 export const ORDER_STATUSES = [
     { value: "NEW", label: "Mới" },
-    { value: "APPROVED", label: "Đã duyệt" },
-    { value: "REJECTED", label: "Từ chối" },
-    { value: "COMPLETED", label: "Hoàn thành" },
+    { value: "CONFIRMED", label: "Đã xác nhận" },
+    { value: "DONE", label: "Hoàn thành" },
     { value: "CANCELLED", label: "Hủy" },
 ] as const
 
@@ -22,17 +21,12 @@ export const orderStatusMeta: Record<
         variant: "secondary",
     },
 
-    APPROVED: {
-        label: "Đã duyệt",
+    CONFIRMED: {
+        label: "Đã xác nhận",
         variant: "default",
     },
 
-    REJECTED: {
-        label: "Từ chối",
-        variant: "destructive",
-    },
-
-    COMPLETED: {
+    DONE: {
         label: "Hoàn thành",
         variant: "outline",
     },
@@ -46,12 +40,19 @@ export const orderStatusMeta: Record<
 export const getNextStatuses = (current?: string): string[] => {
     switch (current) {
         case "NEW":
-            return ["APPROVED", "CANCELLED"]
+            return ["CONFIRMED", "CANCELLED"]
 
-        case "APPROVED":
-            return ["COMPLETED", "REJECTED"]
+        case "CONFIRMED":
+            return ["DONE", "CANCELLED"]
 
         default:
             return []
+    }
+}
+
+export function getOrderStatusMeta(status?: string) {
+    return orderStatusMeta[String(status ?? "").toUpperCase()] ?? {
+        label: status || "-",
+        variant: "outline" as BadgeVariant,
     }
 }

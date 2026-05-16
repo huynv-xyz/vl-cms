@@ -27,11 +27,6 @@ export const shipmentSchema: RJSFSchema = {
             title: "Ngày đến",
         },
 
-        ata: {
-            type: "string",
-            title: "Ngày đến thực tế",
-        },
-
         warehouse_at: {
             type: "string",
             title: "Ngày về kho",
@@ -72,10 +67,18 @@ export const shipmentSchema: RJSFSchema = {
 } as any
 
 export const shipmentUiSchema: UiSchema = {
-    etd: { "ui:widget": "date" },
-    eta: { "ui:widget": "date" },
-    ata: { "ui:widget": "date" },
-    warehouse_at: { "ui:widget": "date" },
+    etd: {
+        "ui:widget": "datePicker",
+        "ui:options": { placeholder: "Chọn ngày đi" },
+    },
+    eta: {
+        "ui:widget": "datePicker",
+        "ui:options": { placeholder: "Chọn ngày đến" },
+    },
+    warehouse_at: {
+        "ui:widget": "datePicker",
+        "ui:options": { placeholder: "Chọn ngày về kho" },
+    },
 
     exchange_rate: {
         "ui:widget": "text",

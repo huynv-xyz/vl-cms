@@ -1,10 +1,18 @@
-import { CrudTable } from "@/components/crud/crud-table"
-import { arLedgerColumns } from "./ar-ledger-columns"
-import type { ArLedger } from "../data/schema"
-import type { PaginationState, OnChangeFn } from "@tanstack/react-table"
-import { DatePicker } from "@/components/date-picker"
-import { AsyncSelect } from "@/components/rjsf/async-select"
+import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
+
 import { listCustomers, getCustomer } from "@/api/customer"
+import { DatePicker } from "@/components/date-picker"
+import { CrudTable } from "@/components/crud/crud-table"
+import { AsyncSelect } from "@/components/rjsf/async-select"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import type { ArLedger } from "../data/schema"
+import { arLedgerColumns, AR_SOURCE_TYPES } from "./ar-ledger-columns"
 
 type Props = {
     data: ArLedger[]
@@ -36,104 +44,98 @@ export function ArLedgerTable({
     filters,
     onFiltersChange,
 }: Props) {
-
     return (
         <CrudTable<ArLedger>
             data={data}
             columns={arLedgerColumns}
-            entityName="công nợ"
-            searchPlaceholder="Tìm chứng từ..."
-
+            entityName="dòng công nợ"
+            searchPlaceholder="Tìm mã chứng từ, khách hàng, diễn giải..."
+            searchInputClassName="min-w-[320px]"
             pagination={pagination}
             onPaginationChange={onPaginationChange}
             pageCount={pageCount}
-
             keyword={keyword}
             onKeywordChange={onKeywordChange}
-
             filters={[
-                // ===== CUSTOMER =====
                 {
                     columnId: "customer",
                     title: "",
                     render: () => (
                         <AsyncSelect
-                            className="w-[300px]"
+                            className="w-[280px]"
                             value={filters.customer_id}
-                            onChange={(v: any) =>
+                            onChange={(value: any) =>
                                 onFiltersChange({
                                     ...filters,
-                                    customer_id: v || undefined,
+                                    customer_id: value || undefined,
                                 })
                             }
-                            placeholder="Khách hàng"
+                            placeholder="Chọn khách hàng"
                             dataSource={{
                                 getList: listCustomers,
                                 getById: getCustomer,
                                 params: { page: 1, size: 20 },
                             }}
-                            mapOption={(x: any) => ({
-                                value: x.id,
-                                label: x.name,
+                            mapOption={(customer: any) => ({
+                                value: customer.id,
+                                label: `${customer.code ? `${customer.code} - ` : ""}${customer.name}`,
                             })}
                         />
                     ),
                 },
-
-                // ===== TYPE =====
                 {
-                    columnId: "type",
+                    columnId: "source_type",
                     title: "",
                     render: () => (
-                        <select
-                            className="border rounded px-2 py-1 text-sm"
-                            value={filters.source_type?.[0] ?? ""}
-                            onChange={(e) =>
+                        <Select
+                            value={filters.source_type?.[0] ?? "ALL"}
+                            onValueChange={(value) =>
                                 onFiltersChange({
                                     ...filters,
-                                    source_type: e.target.value
-                                        ? [e.target.value]
-                                        : undefined,
+                                    source_type: value === "ALL" ? undefined : [value],
                                 })
                             }
                         >
-                            <option value="">Loại</option>
-                            <option value="EXPORT">Bán hàng</option>
-                            <option value="RECEIPT">Thu tiền</option>
-                            <option value="IMPORT">Import</option>
-                        </select>
+                            <SelectTrigger className="w-[170px]">
+                                <SelectValue placeholder="Loại nghiệp vụ" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Tất cả nghiệp vụ</SelectItem>
+                                {AR_SOURCE_TYPES.map((type) => (
+                                    <SelectItem key={type.value} value={type.value}>
+                                        {type.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     ),
                 },
-
-                // ===== FROM DATE =====
                 {
-                    columnId: "from",
+                    columnId: "from_date",
                     title: "",
                     render: () => (
                         <DatePicker
                             value={filters.from_date}
-                            onChange={(v) =>
+                            onChange={(value) =>
                                 onFiltersChange({
                                     ...filters,
-                                    from_date: v,
+                                    from_date: value,
                                 })
                             }
                             placeholder="Từ ngày"
                         />
                     ),
                 },
-
-                // ===== TO DATE =====
                 {
-                    columnId: "to",
+                    columnId: "to_date",
                     title: "",
                     render: () => (
                         <DatePicker
                             value={filters.to_date}
-                            onChange={(v) =>
+                            onChange={(value) =>
                                 onFiltersChange({
                                     ...filters,
-                                    to_date: v,
+                                    to_date: value,
                                 })
                             }
                             placeholder="Đến ngày"

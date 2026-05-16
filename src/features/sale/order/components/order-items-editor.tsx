@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { listProducts, getProduct } from "@/api/product"
-import { formatNumber } from "@/lib/utils"
+import { formatCurrency, formatNumber } from "@/lib/utils"
+import { Plus, Trash2 } from "lucide-react"
 
 type OrderItem = {
     product_id?: number
@@ -10,6 +11,8 @@ type OrderItem = {
     quantity: number
     unit_price: number
     unit?: string
+    discount?: number
+    line_type?: string
 }
 
 type Props = {
@@ -43,42 +46,47 @@ export function OrderItemsEditor({ items, setItems }: Props) {
         setItems(newItems)
     }
 
-    const total = items.reduce(
-        (sum, i) => sum + (i.quantity || 0) * (i.unit_price || 0),
-        0
-    )
+    const totalQty = items.reduce((sum, i) => sum + Number(i.quantity || 0), 0)
+    const total = items.reduce((sum, i) => {
+        const lineTotal = Number(i.quantity || 0) * Number(i.unit_price || 0)
+        return sum + Math.max(lineTotal - Number(i.discount || 0), 0)
+    }, 0)
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-4">
 
-            {/* HEADER */}
-            <div className="flex justify-between items-center">
-                <h3 className="font-semibold text-base">Sản phẩm</h3>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h3 className="text-lg font-semibold">Hàng bán</h3>
+                    <p className="text-sm text-muted-foreground">
+                        Chọn sản phẩm, nhập số lượng và đơn giá cho từng dòng hàng.
+                    </p>
+                </div>
 
-                <Button type="button" size="sm" onClick={addRow}>
-                    + Thêm
+                <Button type="button" variant="outline" onClick={addRow}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Thêm dòng
                 </Button>
             </div>
 
-            {/* TABLE */}
-            <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead className="bg-muted text-xs uppercase">
+            <div className="overflow-hidden rounded-md border bg-background">
+                <table className="w-full min-w-[880px] text-sm">
+                    <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
                         <tr>
-                            <th className="p-2 text-left">Sản phẩm</th>
-                            <th className="p-2 w-[100px] text-right">SL</th>
-                            <th className="p-2 w-[150px] text-right">Đơn giá</th>
-                            <th className="p-2 w-[160px] text-right">Thành tiền</th>
-                            <th className="p-2 w-[50px]" />
+                            <th className="px-4 py-3 text-left">Sản phẩm</th>
+                            <th className="w-[128px] px-3 py-3 text-left">Số lượng</th>
+                            <th className="w-[160px] px-3 py-3 text-left">Đơn giá</th>
+                            <th className="w-[140px] px-3 py-3 text-left">Chiết khấu</th>
+                            <th className="w-[168px] px-3 py-3 text-right">Thành tiền</th>
+                            <th className="w-[56px] px-2 py-3" />
                         </tr>
                     </thead>
 
                     <tbody>
                         {items.map((row, i) => (
-                            <tr key={i} className="border-t hover:bg-muted/40">
+                            <tr key={i} className="border-t hover:bg-muted/30">
 
-                                {/* PRODUCT */}
-                                <td className="p-2">
+                                <td className="px-4 py-3">
                                     <AsyncSelect
                                         value={row.product_id}
                                         onChange={(value: any, option: any) => {
@@ -90,6 +98,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                                 product_id: value,
                                                 product: option?.raw,
                                                 unit_price: option?.raw?.price ?? 0,
+                                                unit: option?.raw?.unit,
                                             })
                                         }}
                                         dataSource={{
@@ -103,13 +112,17 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                             raw: x,
                                         })}
                                     />
+                                    {row.product && (
+                                        <div className="mt-1 text-xs text-muted-foreground">
+                                            ĐVT: {row.product.unit || row.unit || "-"}
+                                        </div>
+                                    )}
                                 </td>
 
-                                {/* QUANTITY */}
-                                <td className="p-2">
+                                <td className="px-3 py-3">
                                     <Input
                                         type="number"
-                                        className="text-right"
+                                        min={0}
                                         value={row.quantity}
                                         onChange={(e) =>
                                             updateRow(i, {
@@ -119,11 +132,10 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                     />
                                 </td>
 
-                                {/* PRICE */}
-                                <td className="p-2">
+                                <td className="px-3 py-3">
                                     <Input
                                         type="number"
-                                        className="text-right"
+                                        min={0}
                                         value={row.unit_price}
                                         onChange={(e) =>
                                             updateRow(i, {
@@ -133,21 +145,31 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                     />
                                 </td>
 
-
-                                {/* TOTAL */}
-                                <td className="p-2 text-right font-semibold">
-                                    {formatNumber((row.quantity || 0) * (row.unit_price || 0))}
+                                <td className="px-3 py-3">
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        value={row.discount ?? 0}
+                                        onChange={(e) =>
+                                            updateRow(i, {
+                                                discount: Number(e.target.value),
+                                            })
+                                        }
+                                    />
                                 </td>
 
-                                {/* REMOVE */}
-                                <td className="p-2 text-center">
+                                <td className="px-3 py-3 text-right font-semibold">
+                                    {formatNumber(Math.max((row.quantity || 0) * (row.unit_price || 0) - Number(row.discount || 0), 0))}
+                                </td>
+
+                                <td className="px-2 py-3 text-center">
                                     <Button
                                         size="icon"
                                         variant="ghost"
                                         className="text-muted-foreground hover:text-red-500"
                                         onClick={() => removeRow(i)}
                                     >
-                                        ✕
+                                        <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </td>
                             </tr>
@@ -156,8 +178,8 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                         {/* EMPTY */}
                         {!items.length && (
                             <tr>
-                                <td colSpan={5} className="p-4 text-center text-muted-foreground">
-                                    Chưa có sản phẩm
+                                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                                    Chưa có sản phẩm trong đơn. Bấm “Thêm dòng” để bắt đầu.
                                 </td>
                             </tr>
                         )}
@@ -165,13 +187,14 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                 </table>
             </div>
 
-            {/* TOTAL */}
-            <div className="flex justify-end">
-                <div className="text-right">
-                    <span className="text-muted-foreground mr-2">Tổng:</span>
-                    <span className="font-bold text-lg">
-                        {formatNumber(total)}
-                    </span>
+            <div className="flex flex-wrap items-center justify-end gap-3">
+                <div className="rounded-md border bg-muted/20 px-4 py-3 text-right">
+                    <div className="text-xs text-muted-foreground">Tổng số lượng</div>
+                    <div className="text-base font-semibold">{formatNumber(totalQty)}</div>
+                </div>
+                <div className="rounded-md border bg-muted/20 px-4 py-3 text-right">
+                    <div className="text-xs text-muted-foreground">Tổng tiền hàng</div>
+                    <div className="text-lg font-bold">{formatCurrency(total)}</div>
                 </div>
             </div>
         </div>

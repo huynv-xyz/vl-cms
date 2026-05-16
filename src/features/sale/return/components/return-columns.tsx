@@ -17,6 +17,7 @@ import {
 import { useUpdateStatus } from "@/hooks/use-update-status"
 import { updateReturnStatus } from "@/api/sale/return"
 import { ReturnDetailDialog } from "../components/return-detail-dialog" // 🔥 thêm
+import { RETURN_STATUSES, returnStatusLabel } from "./return-status"
 
 export function useReturnColumns() {
 
@@ -28,12 +29,6 @@ export function useReturnColumns() {
         getId: (x) => x.id,
     })
 
-    const statusOptions = [
-        { value: "NEW", label: "Mới" },
-        { value: "DONE", label: "Hoàn thành" },
-        { value: "CANCELLED", label: "Hủy" },
-    ]
-
     const columns: ColumnDef<Return>[] = [
 
         buildIndexColumn(),
@@ -42,12 +37,16 @@ export function useReturnColumns() {
             accessorKey: "return_no",
             title: "Mã trả",
             render: (row) => (
-                <span
-                    className="text-primary cursor-pointer hover:underline"
+                <button
+                    type="button"
+                    className="text-left font-medium text-primary hover:underline"
                     onClick={() => setSelectedId(row.id)}
                 >
                     {row.return_no}
-                </span>
+                    <div className="text-xs font-normal text-muted-foreground">
+                        {row.export?.export_no ? `Xuất ${row.export.export_no}` : "Chưa có phiếu xuất"}
+                    </div>
+                </button>
             ),
         }),
 
@@ -93,12 +92,12 @@ export function useReturnColumns() {
                     >
                         <SelectTrigger className="w-[140px]">
                             <SelectValue>
-                                {statusOptions.find(s => s.value === status)?.label}
+                                {returnStatusLabel(status)}
                             </SelectValue>
                         </SelectTrigger>
 
                         <SelectContent>
-                            {statusOptions.map((s) => (
+                            {RETURN_STATUSES.map((s) => (
                                 <SelectItem
                                     key={s.value}
                                     value={s.value}

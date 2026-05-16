@@ -1,23 +1,17 @@
-import { createCrudApi } from "@/api/crud"
-import { Warehouse } from "@/features/warehouse/data/schema"
 
+import { createCrudApi } from "@/api/crud"
+import type { Warehouse } from "@/features/warehouse/data/schema"
 
 export type WarehouseListParams = {
     page: number
     size: number
     keyword?: string
+    status?: string
 }
 
-export type CreateWarehouseRequest = {
-    name: string
-    address?: string
-}
+export type CreateWarehouseRequest = Partial<Warehouse>
 
-export type UpdateWarehouseRequest = {
-    id: number
-    name?: string
-    address?: string
-}
+export type UpdateWarehouseRequest = Warehouse
 
 const warehouseApi = createCrudApi<
     Warehouse,

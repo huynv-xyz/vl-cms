@@ -44,6 +44,7 @@ export const returnUiSchema = {
 
     reason: {
         "ui:widget": "textarea",
+        "ui:classNames": "md:col-span-2",
         "ui:options": { rows: 3 },
     },
 }

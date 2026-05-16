@@ -17,9 +17,11 @@ export type Contract = {
     supplier?: Supplier
 
     signed_date?: string
+    status?: string
 
     currency_id?: number
     currency?: Currency
+    exchange_rate?: number
 
     payment_method?: PaymentMethod
     term?: string
@@ -29,18 +31,22 @@ export type Contract = {
     deposit_date?: string
     vat_rate?: number
     import_tax_rate?: number
+    handling_fee?: number
 
     // ===== PLAN =====
     total_quantity?: number
     total_amount?: number
+    total_amount_vnd?: number
 
     // ===== DEFECT =====
     total_defect_quantity?: number
     total_defect_amount?: number
+    total_defect_amount_vnd?: number
 
     // ===== REAL =====
     real_quantity?: number
     real_amount?: number
+    real_amount_vnd?: number
 
     // ===== PAYMENT =====
     total_paid_amount?: number

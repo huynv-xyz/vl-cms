@@ -1,10 +1,19 @@
-import { CrudTable } from "@/components/crud/crud-table"
-import { AsyncSelect } from "@/components/rjsf/async-select"
-import { DatePicker } from "@/components/date-picker"
+import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
+
 import { listProducts, getProduct } from "@/api/product"
 import { listWarehouses, getWarehouse } from "@/api/warehouse"
-import type { PaginationState, OnChangeFn } from "@tanstack/react-table"
+import { DatePicker } from "@/components/date-picker"
+import { CrudTable } from "@/components/crud/crud-table"
+import { AsyncSelect } from "@/components/rjsf/async-select"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import type { InventoryLedgerReportRow } from "../data/schema"
+import { INVENTORY_DOC_TYPES } from "../data/schema"
 import { inventoryLedgerColumns } from "./ledger-columns"
 
 type Props = {
@@ -24,15 +33,23 @@ type Props = {
     onFiltersChange: (f: Props["filters"]) => void
 }
 
-export function InventoryLedgerTable(props: Props) {
-    const { data, pagination, onPaginationChange, pageCount, keyword, onKeywordChange, filters, onFiltersChange } = props
-
+export function InventoryLedgerTable({
+    data,
+    pagination,
+    onPaginationChange,
+    pageCount,
+    keyword,
+    onKeywordChange,
+    filters,
+    onFiltersChange,
+}: Props) {
     return (
         <CrudTable<InventoryLedgerReportRow>
             data={data || []}
             columns={inventoryLedgerColumns}
             entityName="dòng sổ kho"
-            searchPlaceholder="Tìm số chứng từ..."
+            searchPlaceholder="Tìm chứng từ, mã hàng, tên hàng..."
+            searchInputClassName="min-w-[320px]"
             pagination={pagination}
             onPaginationChange={onPaginationChange}
             pageCount={pageCount}
@@ -44,12 +61,24 @@ export function InventoryLedgerTable(props: Props) {
                     title: "",
                     render: () => (
                         <AsyncSelect
-                            className="w-[280px]"
+                            className="w-[300px]"
                             value={filters.product_id}
-                            onChange={(v: any) => onFiltersChange({ ...filters, product_id: v || undefined })}
-                            placeholder="Sản phẩm"
-                            dataSource={{ getList: listProducts, getById: getProduct, params: { page: 1, size: 20 } }}
-                            mapOption={(x: any) => ({ value: x.id, label: `${x.code} - ${x.name}` })}
+                            onChange={(value: any) =>
+                                onFiltersChange({
+                                    ...filters,
+                                    product_id: value || undefined,
+                                })
+                            }
+                            placeholder="Chọn sản phẩm"
+                            dataSource={{
+                                getList: listProducts,
+                                getById: getProduct,
+                                params: { page: 1, size: 20 },
+                            }}
+                            mapOption={(product: any) => ({
+                                value: product.id,
+                                label: `${product.code} - ${product.name}`,
+                            })}
                         />
                     ),
                 },
@@ -60,10 +89,22 @@ export function InventoryLedgerTable(props: Props) {
                         <AsyncSelect
                             className="w-[220px]"
                             value={filters.warehouse_id}
-                            onChange={(v: any) => onFiltersChange({ ...filters, warehouse_id: v || undefined })}
-                            placeholder="Kho"
-                            dataSource={{ getList: listWarehouses, getById: getWarehouse, params: { page: 1, size: 20 } }}
-                            mapOption={(x: any) => ({ value: x.id, label: x.name })}
+                            onChange={(value: any) =>
+                                onFiltersChange({
+                                    ...filters,
+                                    warehouse_id: value || undefined,
+                                })
+                            }
+                            placeholder="Chọn kho"
+                            dataSource={{
+                                getList: listWarehouses,
+                                getById: getWarehouse,
+                                params: { page: 1, size: 20 },
+                            }}
+                            mapOption={(warehouse: any) => ({
+                                value: warehouse.id,
+                                label: warehouse.name,
+                            })}
                         />
                     ),
                 },
@@ -71,38 +112,51 @@ export function InventoryLedgerTable(props: Props) {
                     columnId: "doc_type",
                     title: "",
                     render: () => (
-                        <select
-                            className="h-9 rounded-md border px-2 text-sm"
-                            value={filters.doc_type ?? ""}
-                            onChange={(e) => onFiltersChange({ ...filters, doc_type: e.target.value || undefined })}
+                        <Select
+                            value={filters.doc_type ?? "ALL"}
+                            onValueChange={(value) =>
+                                onFiltersChange({
+                                    ...filters,
+                                    doc_type: value === "ALL" ? undefined : value,
+                                })
+                            }
                         >
-                            <option value="">Loại chứng từ</option>
-                            <option value="OPENING">Tồn đầu kỳ</option>
-                            <option value="PURCHASE">Nhập mua</option>
-                            <option value="PRODUCTION">Nhập sản xuất</option>
-                            <option value="ADJUSTMENT">Điều chỉnh</option>
-                            <option value="EXPORT">Xuất kho</option>
-                        </select>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Loại chứng từ" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Tất cả chứng từ</SelectItem>
+                                {INVENTORY_DOC_TYPES.map((type) => (
+                                    <SelectItem key={type.value} value={type.value}>
+                                        {type.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     ),
                 },
                 {
-                    columnId: "from",
+                    columnId: "from_date",
                     title: "",
                     render: () => (
                         <DatePicker
                             value={filters.from_date}
-                            onChange={(v) => onFiltersChange({ ...filters, from_date: v })}
+                            onChange={(value) =>
+                                onFiltersChange({ ...filters, from_date: value })
+                            }
                             placeholder="Từ ngày"
                         />
                     ),
                 },
                 {
-                    columnId: "to",
+                    columnId: "to_date",
                     title: "",
                     render: () => (
                         <DatePicker
                             value={filters.to_date}
-                            onChange={(v) => onFiltersChange({ ...filters, to_date: v })}
+                            onChange={(value) =>
+                                onFiltersChange({ ...filters, to_date: value })
+                            }
                             placeholder="Đến ngày"
                         />
                     ),

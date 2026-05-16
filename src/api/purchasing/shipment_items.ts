@@ -9,7 +9,12 @@ export type ShipmentItemListParams = {
     keyword?: string
     shipment_id?: number
     contract_id?: number
-    product_id?: number
+    product_ids?: string
+    supplier_ids?: string
+    port_ids?: string
+    status?: string
+    eta_from?: string
+    eta_to?: string
 }
 
 export type ShipmentItemPayload = {

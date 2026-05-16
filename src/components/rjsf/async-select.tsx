@@ -136,7 +136,7 @@ export const AsyncSelect = React.memo(function AsyncSelect({
                             <CommandItem
                                 onSelect={() => {
                                     setSelected(null)
-                                    onChange(undefined)
+                                    onChange(undefined, null)
                                     setOpen(false)
                                 }}
                             >
@@ -151,7 +151,7 @@ export const AsyncSelect = React.memo(function AsyncSelect({
                                 key={item.value}
                                 onSelect={() => {
                                     setSelected(item)
-                                    onChange(item.value)
+                                    onChange(item.value, item)
                                     setOpen(false)
                                 }}
                             >

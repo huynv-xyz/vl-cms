@@ -5,6 +5,10 @@ import { apiPostMultipart } from "@/api/client"
 export type ArLedgerListParams = {
     page: number
     size: number
+    keyword?: string
+    source_type?: string
+    from_date?: string
+    to_date?: string
     customer_id?: number
     order_id?: number
     export_id?: number

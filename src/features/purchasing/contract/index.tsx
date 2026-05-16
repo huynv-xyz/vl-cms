@@ -26,8 +26,8 @@ export default function ContractPage() {
     } = useUrlListFilters(
         search,
         navigate,
-        ['status'],
-        ['product_id', 'supplier_id', 'signed_date_from', 'signed_date_to']
+        ['status', 'product_ids', 'supplier_ids', 'nation_ids'],
+        ['signed_date_from', 'signed_date_to']
     )
     const { data, isLoading, error } = usePaginatedList(
         [
@@ -36,8 +36,9 @@ export default function ContractPage() {
             search.size,
             keyword,
             multiFilters.status,
-            singleFilters.product_id,
-            singleFilters.supplier_id,
+            multiFilters.product_ids,
+            multiFilters.supplier_ids,
+            multiFilters.nation_ids,
             singleFilters.signed_date_from,
             singleFilters.signed_date_to,
         ],
@@ -47,8 +48,9 @@ export default function ContractPage() {
             size: search.size,
             keyword,
             status: requestFilters.status,
-            product_id: requestFilters.product_id,
-            supplier_id: requestFilters.supplier_id,
+            product_ids: requestFilters.product_ids,
+            supplier_ids: requestFilters.supplier_ids,
+            nation_ids: requestFilters.nation_ids,
             signed_date_from: requestFilters.signed_date_from,
             signed_date_to: requestFilters.signed_date_to,
         },
@@ -77,12 +79,9 @@ export default function ContractPage() {
 
                             filters={{
                                 status: multiFilters.status,
-                                product_id: singleFilters.product_id
-                                    ? Number(singleFilters.product_id)
-                                    : undefined,
-                                supplier_id: singleFilters.supplier_id
-                                    ? Number(singleFilters.supplier_id)
-                                    : undefined,
+                                product_ids: multiFilters.product_ids,
+                                supplier_ids: multiFilters.supplier_ids,
+                                nation_ids: multiFilters.nation_ids,
                                 signed_date_from: singleFilters.signed_date_from,
                                 signed_date_to: singleFilters.signed_date_to,
                             }}
@@ -90,17 +89,12 @@ export default function ContractPage() {
                             onFiltersChange={(next) => {
                                 setMultiFilters({
                                     status: next.status,
+                                    product_ids: next.product_ids,
+                                    supplier_ids: next.supplier_ids,
+                                    nation_ids: next.nation_ids,
                                 })
 
                                 setSingleFilters({
-                                    product_id: next.product_id
-                                        ? String(next.product_id)
-                                        : undefined,
-
-                                    supplier_id: next.supplier_id
-                                        ? String(next.supplier_id)
-                                        : undefined,
-
                                     signed_date_from: next.signed_date_from,
                                     signed_date_to: next.signed_date_to,
                                 })

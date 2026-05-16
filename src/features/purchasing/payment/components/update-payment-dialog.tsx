@@ -41,6 +41,7 @@ export function UpdatePaymentDialog({
             hideTrigger
             schema={paymentSchema}
             uiSchema={buildPaymentUiSchema(payment.shipment?.contract_id, initialShipment)}
+            dialogClassName="max-h-[82vh] !w-[calc(100vw-32px)] !max-w-[760px]"
             defaultValues={{
                 shipment_id: payment.shipment_id,
                 paid_at: payment.paid_at || "",

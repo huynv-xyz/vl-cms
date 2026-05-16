@@ -4,6 +4,12 @@ export type InventoryLotSourceType =
     | "PRODUCTION"
     | "ADJUSTMENT"
 
+export type InventoryLotExpiryStatus =
+    | "VALID"
+    | "NEAR_EXPIRY"
+    | "EXPIRED"
+    | "NO_EXPIRY"
+
 // ===== ENTITY (response từ API) =====
 export type InventoryLot = {
     id: number
@@ -22,6 +28,10 @@ export type InventoryLot = {
     quantity_remaining: number
 
     unit_cost: number
+    expiry_date?: string | null
+    expiry_status?: InventoryLotExpiryStatus
+    days_to_expiry?: number | null
+    expiry_message?: string
 
     created_at?: string
     updated_at?: string

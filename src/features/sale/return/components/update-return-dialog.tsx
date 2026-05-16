@@ -1,26 +1,24 @@
 import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import Form from "@rjsf/shadcn"
 import { toast } from "sonner"
 
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
 
 import { Button } from "@/components/ui/button"
-
-import { widgets } from "@/components/rjsf/widgets"
-import { ShadcnFieldTemplate } from "@/components/rjsf/shadcn-templates"
-import { rjsfValidator } from "@/components/rjsf/rjsf-validator"
+import { Save } from "lucide-react"
 
 import { updateReturn, getReturn } from "@/api/sale/return"
 import { getExport } from "@/api/sale/export"
 
-import { returnSchema, returnUiSchema } from "./return-form-schema"
 import { ReturnItemsEditor } from "./return-items-editor"
+import { ReturnHeaderFields } from "./return-header-fields"
 
 type Props = {
     returnData: any
@@ -118,6 +116,7 @@ export function UpdateReturnDialog({
     const { mutate, isPending } = useMutation({
 
         mutationFn: async () => {
+            if (!formData.export_id) throw new Error("Vui lòng chọn phiếu xuất")
 
             const selected = items.filter(x => x.selected)
 
@@ -161,40 +160,51 @@ export function UpdateReturnDialog({
     // ========================
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex h-[90vh] flex-col sm:max-w-6xl">
+            <DialogContent className="flex max-h-[92vh] flex-col p-0 sm:max-w-5xl">
 
-                <DialogHeader>
+                <DialogHeader className="border-b px-8 py-6">
                     <DialogTitle>Cập nhật phiếu trả</DialogTitle>
+                    <DialogDescription>
+                        Điều chỉnh lý do và số lượng hàng trả.
+                    </DialogDescription>
                 </DialogHeader>
 
                 {isLoading ? (
-                    <div className="p-4 text-sm">Đang tải...</div>
+                    <div className="flex-1 p-8 text-sm text-muted-foreground">Đang tải...</div>
                 ) : (
-                    <div className="flex-1 overflow-y-auto">
+                    <>
+                    <div className="flex-1 overflow-y-auto px-8 py-6">
 
-                        {/* 👇 HIỂN THỊ ORDER */}
-                        {exportDetail?.order_id && (
-                            <div className="mb-3 text-sm text-muted-foreground">
-                                Đơn hàng: <b>#{exportDetail.order_id}</b>
-                            </div>
-                        )}
-
-                        <Form
-                            validator={rjsfValidator}
-                            schema={returnSchema}
-                            uiSchema={{
-                                ...returnUiSchema,
-                                export_id: {
-                                    ...returnUiSchema.export_id,
-                                    "ui:disabled": true, // 👈 khóa export
-                                },
+                        <form
+                            id="return-update-form"
+                            className="space-y-6"
+                            onSubmit={(event) => {
+                                event.preventDefault()
+                                mutate()
                             }}
-                            formData={formData}
-                            widgets={widgets}
-                            templates={{ FieldTemplate: ShadcnFieldTemplate }}
-                            onChange={({ formData }) => setFormData(formData)}
-                            onSubmit={() => mutate()}
                         >
+                            <div className="rounded-lg border bg-muted/20 p-4">
+                                <div className="mb-4">
+                                    <div className="text-base font-semibold">Thông tin trả hàng</div>
+                                    <div className="text-sm text-muted-foreground">
+                                        Cập nhật lý do và trạng thái phiếu trả.
+                                    </div>
+                                </div>
+                                <ReturnHeaderFields
+                                    value={formData}
+                                    lockedExport
+                                    showStatus
+                                    onChange={setFormData}
+                                />
+                                {exportDetail?.order_id && (
+                                    <div className="mt-3 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+                                        Đơn hàng:{" "}
+                                        <span className="font-medium text-foreground">
+                                            {exportDetail.order?.order_no ?? `#${exportDetail.order_id}`}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
 
                             <ReturnItemsEditor
                                 exportItems={exportItems}
@@ -202,17 +212,19 @@ export function UpdateReturnDialog({
                                 onChange={setItems}
                             />
 
-                            <Button
-                                type="submit"
-                                className="w-full mt-4"
-                                disabled={isPending}
-                            >
-                                {isPending ? "Đang lưu..." : "Lưu"}
-                            </Button>
-
-                        </Form>
+                        </form>
 
                     </div>
+                    <DialogFooter className="border-t px-8 py-4">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                            Hủy
+                        </Button>
+                        <Button type="submit" form="return-update-form" disabled={isPending}>
+                            <Save className="mr-2 h-4 w-4" />
+                            {isPending ? "Đang lưu..." : "Lưu thay đổi"}
+                        </Button>
+                    </DialogFooter>
+                    </>
                 )}
             </DialogContent>
         </Dialog>

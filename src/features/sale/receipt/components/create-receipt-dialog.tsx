@@ -6,10 +6,13 @@ import { toast } from "sonner"
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Save } from "lucide-react"
 
 import { widgets } from "@/components/rjsf/widgets"
 import { ShadcnFieldTemplate } from "@/components/rjsf/shadcn-templates"
@@ -126,12 +129,15 @@ export function CreateReceiptDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-2xl">
-                <DialogHeader>
+            <DialogContent className="flex max-h-[88vh] flex-col p-0 sm:max-w-[820px]">
+                <DialogHeader className="border-b px-6 py-5">
                     <DialogTitle>Tạo phiếu thu</DialogTitle>
+                    <DialogDescription>
+                        Ghi nhận khoản thanh toán cho đơn hàng.
+                    </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto px-6 py-5">
 
                     {/* ===== LEDGER INFO */}
                     {selectedLedger && (
@@ -160,6 +166,7 @@ export function CreateReceiptDialog({
                     )}
 
                     <Form
+                        id="receipt-create-form"
                         validator={rjsfValidator}
                         schema={receiptSchema}
                         uiSchema={{
@@ -199,16 +206,21 @@ export function CreateReceiptDialog({
                             }))
                         }}
                         onSubmit={() => mutate()}
+                        className="[&>div:first-child]:grid [&>div:first-child]:gap-x-5 md:[&>div:first-child]:grid-cols-2"
                     >
-                        <Button
-                            type="submit"
-                            className="w-full mt-4"
-                            disabled={isPending}
-                        >
-                            {isPending ? "Đang tạo..." : "Tạo phiếu thu"}
-                        </Button>
+                        <></>
                     </Form>
                 </div>
+
+                <DialogFooter className="border-t px-6 py-4">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Hủy
+                    </Button>
+                    <Button type="submit" form="receipt-create-form" disabled={isPending}>
+                        <Save className="mr-2 h-4 w-4" />
+                        {isPending ? "Đang tạo..." : "Tạo phiếu thu"}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     )

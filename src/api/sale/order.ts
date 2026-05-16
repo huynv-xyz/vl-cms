@@ -19,6 +19,8 @@ export type CreateOrderItemRequest = {
     product_id: number
     quantity: number
     unit_price: number
+    discount?: number
+    line_type?: string
 }
 
 const orderApi = createCrudApi<
@@ -47,6 +49,8 @@ export const updateOrderItem = (
     data: {
         quantity: number
         unit_price: number
+        discount?: number
+        line_type?: string
     }
 ) =>
     apiPut(`/sales/orders/items/${id}`, data)

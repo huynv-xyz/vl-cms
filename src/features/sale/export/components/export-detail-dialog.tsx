@@ -1,11 +1,12 @@
-import { useQuery } from "@tanstack/react-query"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
 import { getExport } from "@/api/sale/export"
+import {
+    BaseDetailDialog,
+    DetailInfoGrid,
+    DetailInfoItem,
+    DetailItemsTable,
+    DetailSummary,
+} from "@/components/base-detail-dialog"
+import { exportStatusLabel } from "./export-status"
 
 export function ExportDetailDialog({
     open,
@@ -16,59 +17,34 @@ export function ExportDetailDialog({
     id?: number
     onClose: () => void
 }) {
-    const query: any = useQuery({
-        queryKey: ["export-detail", id],
-        queryFn: () => getExport(id!),
-        enabled: open && !!id,
-    })
-
-    const data = query.data?.data ?? query.data
-
     return (
-        <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="!max-w-3xl w-full">
-                <DialogHeader>
-                    <DialogTitle>Chi tiết phiếu xuất</DialogTitle>
-                </DialogHeader>
+        <BaseDetailDialog
+            open={open}
+            id={id}
+            onClose={onClose}
+            queryKey={["export-detail"]}
+            queryFn={getExport}
+            title="Chi tiết phiếu xuất"
+            description="Thông tin xuất kho và danh sách sản phẩm cần xuất."
+            render={(data) => (
+                <div className="space-y-4">
+                    <DetailSummary
+                        title={data.export_no}
+                        subtitle={data.order?.order_no ? `Đơn hàng ${data.order.order_no}` : undefined}
+                        status={exportStatusLabel(data.status)}
+                    />
 
-                {query.isLoading && (
-                    <div className="text-sm text-muted-foreground">
-                        Đang tải...
-                    </div>
-                )}
+                    <DetailInfoGrid>
+                        <DetailInfoItem label="Đơn hàng" value={data.order?.order_no || data.order_id} />
+                        <DetailInfoItem label="Phiếu giao" value={data.delivery?.delivery_no || data.delivery_id} />
+                        <DetailInfoItem label="Kho xuất" value={data.warehouse?.name} />
+                        <DetailInfoItem label="Ngày xuất" value={data.export_date} />
+                        <DetailInfoItem label="Ghi chú" value={data.note} className="lg:col-span-2" />
+                    </DetailInfoGrid>
 
-                {data && (
-                    <div className="space-y-3 text-sm">
-
-                        <div><b>Mã xuất:</b> {data.export_no}</div>
-                        <div><b>Kho:</b> {data.warehouse?.name}</div>
-                        <div><b>Ngày:</b> {data.export_date}</div>
-                        <div><b>Trạng thái:</b> {data.status}</div>
-
-                        <table className="w-full mt-3 text-sm border">
-                            <thead>
-                                <tr>
-                                    <th className="p-2 text-left">Mã SP</th>
-                                    <th className="p-2 text-left">Tên SP</th>
-                                    <th className="p-2 text-left">ĐVT</th>
-                                    <th className="p-2 text-right">SL</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.items?.map((i: any) => (
-                                    <tr key={i.id} className="border-t">
-                                        <td className="p-2">{i.product?.code}</td>
-                                        <td className="p-2">{i.product?.name}</td>
-                                        <td className="p-2">{i.product?.unit}</td>
-                                        <td className="p-2 text-right">{i.quantity}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-
-                    </div>
-                )}
-            </DialogContent>
-        </Dialog>
+                    <DetailItemsTable items={data.items} />
+                </div>
+            )}
+        />
     )
 }

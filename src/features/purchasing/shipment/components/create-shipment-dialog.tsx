@@ -19,6 +19,7 @@ import { listContractItems } from "@/api/purchasing/contract-item"
 
 import { shipmentSchema, shipmentUiSchema } from "./shipment-form-schema"
 import { ShipmentItemsEditor } from "./shipment-items-editor"
+import { DialogLoadingState } from "@/components/loading-state"
 
 import type {
     ShipmentFormItem,
@@ -124,6 +125,13 @@ export function CreateShipmentDialog({
 
     const { mutate, isPending } = useMutation({
         mutationFn: async () => {
+            const warehouseAt = headerFormData.warehouse_at || (
+                headerFormData.status === "DONE" ? todayInputValue() : ""
+            )
+            if (headerFormData.status === "DONE" && !warehouseAt) {
+                throw new Error("Chọn ngày về kho trước khi hoàn tất lô hàng")
+            }
+
             const selectedItems = items.filter((x) => x.selected)
 
             if (!selectedItems.length) {
@@ -144,7 +152,7 @@ export function CreateShipmentDialog({
                 code: headerFormData.code,
                 etd: headerFormData.etd,
                 eta: headerFormData.eta,
-                warehouse_at: headerFormData.warehouse_at,
+                warehouse_at: warehouseAt || undefined,
                 warehouse_id: headerFormData.warehouse_id,
                 container_no: headerFormData.container_no,
                 destination_port_id: headerFormData.destination_port_id,
@@ -166,8 +174,10 @@ export function CreateShipmentDialog({
 
         onSuccess: async () => {
             await queryClient.invalidateQueries({
-                queryKey: ["shipments", contractId],
+                queryKey: ["shipment-items"],
+                refetchType: "active",
             })
+            await queryClient.invalidateQueries({ queryKey: ["contracts"], refetchType: "active" })
             toast.success("Tạo lô hàng thành công")
             onOpenChange(false)
         },
@@ -183,13 +193,17 @@ export function CreateShipmentDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex h-[90vh] max-h-[90vh] flex-col overflow-hidden sm:max-w-6xl">
-                <DialogHeader>
-                    <DialogTitle>Tạo lô hàng</DialogTitle>
+            <DialogContent className="flex max-h-[88vh] !w-[calc(100vw-32px)] !max-w-[820px] flex-col overflow-hidden p-0">
+                <DialogHeader className="border-b px-6 py-5">
+                    <DialogTitle className="text-2xl font-semibold tracking-tight">Tạo lô hàng</DialogTitle>
+                    <p className="text-sm text-muted-foreground">
+                        Nhập thông tin lô hàng và chọn các sản phẩm sẽ đi trong lô này.
+                    </p>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto">
+                <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
                     <Form
+                        className="space-y-4"
                         validator={rjsfValidator}
                         schema={shipmentSchema}
                         uiSchema={shipmentUiSchema}
@@ -198,25 +212,31 @@ export function CreateShipmentDialog({
                         templates={{
                             FieldTemplate: ShadcnFieldTemplate,
                         }}
-                        onChange={({ formData }) =>
-                            setHeaderFormData(
-                                formData as ShipmentHeaderFormValues
-                            )
-                        }
+                            onChange={({ formData }) => {
+                                const next = formData as ShipmentHeaderFormValues
+                                if (next.status === "DONE" && !next.warehouse_at) {
+                                    next.warehouse_at = todayInputValue()
+                                }
+                                setHeaderFormData(next)
+                            }}
                         onSubmit={() => mutate()}
                     >
                         {isLoading ? (
-                            <div>Đang tải hàng hóa...</div>
+                            <div className="col-span-full">
+                                <DialogLoadingState title="Đang tải hàng hóa" />
+                            </div>
                         ) : (
-                            <ShipmentItemsEditor
-                                items={items}
-                                onChange={setItems}
-                            />
+                            <div className="col-span-full">
+                                <ShipmentItemsEditor
+                                    items={items}
+                                    onChange={setItems}
+                                />
+                            </div>
                         )}
 
                         <Button
                             type="submit"
-                            className="w-full mt-4"
+                            className="col-span-full mt-2 w-full"
                             disabled={isPending}
                         >
                             {isPending ? "Đang tạo..." : "Tạo"}
@@ -226,4 +246,8 @@ export function CreateShipmentDialog({
             </DialogContent>
         </Dialog>
     )
+}
+
+function todayInputValue() {
+    return new Date().toISOString().slice(0, 10)
 }

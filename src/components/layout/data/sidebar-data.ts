@@ -21,7 +21,11 @@ import {
     TrendingUp,
     Target,
     FileText,
-    Ship
+    Ship,
+    ShieldCheck,
+    UserCog,
+    UsersRound,
+    SlidersHorizontal
 } from 'lucide-react'
 import { SidebarData } from '../types'
 import { Logo } from '@/assets/logo'
@@ -41,7 +45,7 @@ export const sidebarData: SidebarData = {
                 /*{
                     title: 'Nhân viên',
                     url: '/employees',
-                    icon: UserCircle, // 👤 rõ hơn Users
+                    icon: UserCircle, 
                 },*/
                 {
                     title: 'Khách hàng',
@@ -54,9 +58,19 @@ export const sidebarData: SidebarData = {
                     icon: Package, // 📦 chuẩn domain
                 },
                 {
+                    title: 'Nhóm sản phẩm',
+                    url: '/product-groups',
+                    icon: Layers3,
+                },
+                {
+                    title: 'Kho hàng',
+                    url: '/warehouses',
+                    icon: Warehouse,
+                },
+                {
                     title: 'Bán hàng',
                     url: '/transactions',
-                    icon: ShoppingCart, // 🛒 hợp lý hơn Receipt
+                    icon: ShoppingCart,
                 },
                 {
                     title: 'Khu vực',
@@ -67,6 +81,16 @@ export const sidebarData: SidebarData = {
                     title: 'Vùng',
                     url: '/regions',
                     icon: Globe, // 🌍 better than Map
+                },
+                {
+                    title: 'Quốc gia',
+                    url: '/nations',
+                    icon: Globe,
+                },
+                {
+                    title: 'Tiền tệ',
+                    url: '/currencies',
+                    icon: DollarSign,
                 },
             ],
         },
@@ -204,11 +228,40 @@ export const sidebarData: SidebarData = {
                     url: '/production/boms',
                     icon: Layers3,
                 },
-
+            ],
+        },
+        {
+            title: 'Giá thành',
+            items: [
                 {
-                    title: 'Phát sinh vật tư',
-                    url: '/production/extras',
-                    icon: Boxes,
+                    title: 'Tính giá bán',
+                    url: '/pricing',
+                    icon: Calculator,
+                },
+            ],
+        },
+        {
+            title: 'Quản trị hệ thống',
+            items: [
+                {
+                    title: 'Tài khoản',
+                    url: '/access/users',
+                    icon: UsersRound,
+                },
+                {
+                    title: 'Vai trò',
+                    url: '/access/roles',
+                    icon: ShieldCheck,
+                },
+                {
+                    title: 'Phân quyền',
+                    url: '/access/user-roles',
+                    icon: UserCog,
+                },
+                {
+                    title: 'Danh mục quyền',
+                    url: '/access/permissions',
+                    icon: SlidersHorizontal,
                 },
             ],
         },

@@ -32,6 +32,7 @@ type CrudFormDialogProps<TFormValues, TRequest, TResponse> = {
     mapFormToRequest: (values: TFormValues) => TRequest
     dialogClassName?: string
     formWrapperClassName?: string
+    formClassName?: string
     onSuccess?: (response: TResponse) => void
     successMessage?: string
     errorMessage?: string
@@ -56,6 +57,7 @@ export function CrudFormDialog<TFormValues, TRequest, TResponse>({
     mapFormToRequest,
     dialogClassName = "sm:max-w-2xl",
     formWrapperClassName,
+    formClassName,
     onSuccess,
     successMessage = "Thao tác thành công",
     errorMessage = "Thao tác thất bại",
@@ -109,7 +111,7 @@ export function CrudFormDialog<TFormValues, TRequest, TResponse>({
 
                 <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${formWrapperClassName ?? ""}`}>
                     <Form
-                        className="space-y-4"
+                        className={formClassName ?? "space-y-4"}
                         validator={rjsfValidator}
                         schema={schema}
                         uiSchema={uiSchema}
@@ -133,7 +135,7 @@ export function CrudFormDialog<TFormValues, TRequest, TResponse>({
 
                         onSubmit={({ formData }) => mutate(formData as TFormValues)}
                     >
-                        <div className="sticky bottom-0 bg-background pt-4">
+                        <div className="sticky bottom-0 col-span-full bg-background pt-4">
                             <Button
                                 type="submit"
                                 className="w-full"

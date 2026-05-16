@@ -28,6 +28,11 @@ export const Route = createFileRoute("/_authenticated/inventory/lots/")({
                 ? search.source_type
                 : undefined,
 
+        expiry_status:
+            typeof search.expiry_status === "string"
+                ? search.expiry_status
+                : undefined,
+
         from_date:
             typeof search.from_date === "string"
                 ? search.from_date

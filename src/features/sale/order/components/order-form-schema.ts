@@ -15,7 +15,7 @@ const employeeDataSource = {
 
 export const orderSchema: RJSFSchema = {
     type: "object",
-    required: ["customer_id", "order_date"],
+    required: ["customer_id", "employee_id", "order_date"],
     properties: {
         customer_id: {
             type: "integer",

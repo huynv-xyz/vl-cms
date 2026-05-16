@@ -29,6 +29,7 @@ export function CreatePaymentDialog({
             onOpenChange={onOpenChange}
             hideTrigger
             schema={paymentSchema}
+            dialogClassName="max-h-[82vh] !w-[calc(100vw-32px)] !max-w-[760px]"
 
             uiSchema={buildPaymentUiSchema(contract.id)}
 
@@ -36,7 +37,7 @@ export function CreatePaymentDialog({
                 shipment_id: undefined,
                 paid_at: "",
                 amount: 0,
-                exchange_rate: contract.currency?.exchange_rate || 1,
+                exchange_rate: contract.exchange_rate ?? contract.currency?.exchange_rate ?? 1,
                 type: "DEPOSIT",
                 note: "",
             }}

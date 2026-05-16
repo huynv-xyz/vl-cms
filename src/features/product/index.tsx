@@ -15,18 +15,43 @@ export default function ProductPage() {
     const navigate = Route.useNavigate()
 
     const { pagination, setPagination } = useUrlPagination(search, navigate)
-    const filters = useUrlListFilters(search, navigate, ['status'] as const)
-
-    const status = filters.getMulti('status')
+    const {
+        keyword,
+        setKeyword,
+        singleFilters,
+        setSingleFilters,
+        requestFilters,
+    } = useUrlListFilters(
+        search,
+        navigate,
+        [],
+        ["status", "nature", "group_code", "default_warehouse_id", "inventory_account_code"]
+    )
 
     const { data, isLoading, error } = usePaginatedList(
-        ['product', search.page, search.size, filters.keyword, status],
+        [
+            'product',
+            search.page,
+            search.size,
+            keyword,
+            singleFilters.status,
+            singleFilters.nature,
+            singleFilters.group_code,
+            singleFilters.default_warehouse_id,
+            singleFilters.inventory_account_code,
+        ],
         listProducts,
         {
             page: search.page,
             size: search.size,
-            keyword: filters.keyword,
-            status: filters.requestFilters.status,
+            keyword,
+            status: requestFilters.status,
+            nature: requestFilters.nature,
+            group_code: requestFilters.group_code,
+            default_warehouse_id: requestFilters.default_warehouse_id
+                ? Number(requestFilters.default_warehouse_id)
+                : undefined,
+            inventory_account_code: requestFilters.inventory_account_code,
         },
     )
 
@@ -36,6 +61,7 @@ export default function ProductPage() {
                 isLoading={isLoading}
                 error={error}
                 title="Sản phẩm"
+                description="Quản lý danh mục hàng hóa, VTHH, kho ngầm định và tài khoản kho."
                 actions={
                     <div className="flex items-center gap-2">
                         <ImportProductButton />
@@ -51,10 +77,28 @@ export default function ProductPage() {
                             pagination={pagination}
                             onPaginationChange={setPagination}
                             pageCount={data.total_page}
-                            keyword={filters.keyword}
-                            onKeywordChange={filters.setKeyword}
-                            status={status}
-                            onStatusChange={(value: any) => filters.setMulti('status', value)}
+                            keyword={keyword}
+                            onKeywordChange={setKeyword}
+                            filters={{
+                                status: singleFilters.status,
+                                nature: singleFilters.nature,
+                                group_code: singleFilters.group_code,
+                                default_warehouse_id: singleFilters.default_warehouse_id
+                                    ? Number(singleFilters.default_warehouse_id)
+                                    : undefined,
+                                inventory_account_code: singleFilters.inventory_account_code,
+                            }}
+                            onFiltersChange={(next) =>
+                                setSingleFilters({
+                                    status: next.status,
+                                    nature: next.nature,
+                                    group_code: next.group_code,
+                                    default_warehouse_id: next.default_warehouse_id
+                                        ? String(next.default_warehouse_id)
+                                        : undefined,
+                                    inventory_account_code: next.inventory_account_code,
+                                })
+                            }
                         />
                         <ProductDialogs />
                     </div>

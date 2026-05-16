@@ -17,22 +17,42 @@ export default function ExportPage() {
         setKeyword,
         multiFilters,
         setMultiFilters,
-    } = useUrlListFilters(search, navigate, ['keyword', 'status'])
-
-    const status = multiFilters.status?.[0] ?? ""
-
-    const setStatus = (v: string) => {
-        setMultiFilters({ status: v ? [v] : [] })
-    }
+        singleFilters,
+        setSingleFilters,
+        requestFilters,
+    } = useUrlListFilters(
+        search,
+        navigate,
+        ['status'],
+        ['order_id', 'delivery_id', 'warehouse_id']
+    )
 
     const { data, isLoading, error } = usePaginatedList(
-        ['exports', search.page, search.size, keyword, status],
+        [
+            'exports',
+            search.page,
+            search.size,
+            keyword,
+            multiFilters.status,
+            singleFilters.order_id,
+            singleFilters.delivery_id,
+            singleFilters.warehouse_id,
+        ],
         listExports,
         {
             page: search.page,
             size: search.size,
             keyword,
-            status,
+            status: requestFilters.status,
+            order_id: requestFilters.order_id
+                ? Number(requestFilters.order_id)
+                : undefined,
+            delivery_id: requestFilters.delivery_id
+                ? Number(requestFilters.delivery_id)
+                : undefined,
+            warehouse_id: requestFilters.warehouse_id
+                ? Number(requestFilters.warehouse_id)
+                : undefined,
         },
     )
 
@@ -51,8 +71,29 @@ export default function ExportPage() {
                     pageCount={data.total_page}
                     keyword={keyword}
                     onKeywordChange={setKeyword}
-                    status={status}
-                    onStatusChange={setStatus}
+                    filters={{
+                        status: multiFilters.status,
+                        order_id: singleFilters.order_id
+                            ? Number(singleFilters.order_id)
+                            : undefined,
+                        delivery_id: singleFilters.delivery_id
+                            ? Number(singleFilters.delivery_id)
+                            : undefined,
+                        warehouse_id: singleFilters.warehouse_id
+                            ? Number(singleFilters.warehouse_id)
+                            : undefined,
+                    }}
+                    onFiltersChange={(next) => {
+                        setMultiFilters({
+                            status: next.status,
+                        })
+
+                        setSingleFilters({
+                            order_id: next.order_id ? String(next.order_id) : undefined,
+                            delivery_id: next.delivery_id ? String(next.delivery_id) : undefined,
+                            warehouse_id: next.warehouse_id ? String(next.warehouse_id) : undefined,
+                        })
+                    }}
                 />
             )}
         </PageSection>

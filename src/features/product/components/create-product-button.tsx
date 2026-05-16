@@ -6,7 +6,7 @@ export function CreateProductButton() {
 
     return (
         <CrudCreateButton
-            label="Tạo mới"
+            label="Tạo sản phẩm"
             onClick={openCreate}
         />
     )

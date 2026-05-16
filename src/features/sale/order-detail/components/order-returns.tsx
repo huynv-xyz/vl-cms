@@ -4,7 +4,22 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import {
+    Select,
+    SelectTrigger,
+    SelectValue,
+    SelectContent,
+    SelectItem,
+} from "@/components/ui/select"
+
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
 
 import { CreateReturnDialog } from "../../return/components/create-return-dialog"
 import { deleteReturn, updateReturnStatus } from "@/api/sale/return"
@@ -39,7 +54,7 @@ export function OrderReturns({ order, returns }: any) {
     })
 
     return (
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
+        <div className="">
 
             {/* HEADER */}
             <div className="mb-3 flex items-center justify-between">
@@ -58,148 +73,171 @@ export function OrderReturns({ order, returns }: any) {
                     Chưa có phiếu trả
                 </div>
             ) : (
-                <table className="w-full text-sm border rounded-lg overflow-hidden">
+                <div className="border rounded-lg overflow-hidden">
 
-                    <thead className="bg-muted text-xs uppercase">
-                        <tr>
-                            <th className="w-[70px] text-center">#</th>
-                            <th className="p-2 text-left">Mã trả</th>
-                            <th className="p-2 text-left">Lý do</th>
-                            <th className="p-2 text-left">Trạng thái</th>
-                            <th className="p-2 w-[140px]" />
-                        </tr>
-                    </thead>
+                    <Table>
 
-                    <tbody>
-                        {returns.map((r: any, idx: number) => {
+                        {/* HEADER */}
+                        <TableHeader className="bg-muted text-xs uppercase">
+                            <TableRow>
+                                <TableHead className="w-[70px] text-center">#</TableHead>
+                                <TableHead>Mã trả</TableHead>
+                                <TableHead>Lý do</TableHead>
+                                <TableHead>Trạng thái</TableHead>
+                                <TableHead className="w-[140px]" />
+                            </TableRow>
+                        </TableHeader>
 
-                            const isRowLocked = !isEditable || r.status === "DONE"
+                        <TableBody>
+                            {returns.map((r: any, idx: number) => {
 
-                            return (
-                                <Fragment key={r.id}>
+                                const isRowLocked =
+                                    !isEditable || r.status === "DONE"
 
-                                    <tr className="border-t bg-muted/20">
+                                return (
+                                    <Fragment key={r.id}>
 
-                                        <td className="text-center font-bold text-primary">
-                                            <span className="text-2xl font-bold text-primary">
-                                                #{idx + 1}
-                                            </span>
-                                        </td>
+                                        {/* HEADER ROW */}
+                                        <TableRow className="bg-muted/20">
 
-                                        <td className="p-2 font-medium">
-                                            <span
-                                                className="text-primary cursor-pointer hover:underline"
-                                                onClick={() => setSelectedId(r.id)}
-                                            >
-                                                {r.return_no}
-                                            </span>
-                                        </td>
+                                            <TableCell className="text-center font-bold text-primary">
+                                                <span className="text-2xl font-bold text-primary">
+                                                    #{idx + 1}
+                                                </span>
+                                            </TableCell>
 
-                                        <td className="p-2 text-muted-foreground">
-                                            {r.reason || "-"}
-                                        </td>
+                                            <TableCell className="font-medium">
+                                                <span
+                                                    className="text-primary cursor-pointer hover:underline"
+                                                    onClick={() => setSelectedId(r.id)}
+                                                >
+                                                    {r.return_no}
+                                                </span>
+                                            </TableCell>
 
-                                        {/* STATUS */}
-                                        <td className="p-2">
-                                            <Select
-                                                value={r.status}
-                                                onValueChange={(v) =>
-                                                    updateReturnStatus(r.id, v)
-                                                }
-                                                disabled={isRowLocked}
-                                            >
-                                                <SelectTrigger className="w-[140px]">
-                                                    <SelectValue>
-                                                        {statusOptions.find(s => s.value === r.status)?.label}
-                                                    </SelectValue>
-                                                </SelectTrigger>
+                                            <TableCell className="text-muted-foreground">
+                                                {r.reason || "-"}
+                                            </TableCell>
 
-                                                <SelectContent>
-                                                    {statusOptions.map(s => (
-                                                        <SelectItem
-                                                            key={s.value}
-                                                            value={s.value}
-                                                            disabled={isRowLocked}
-                                                        >
-                                                            {s.label}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </td>
-
-                                        {/* ACTION */}
-                                        <td className="p-2 text-right space-x-1">
-
-                                            {!isRowLocked && (
-                                                <>
-                                                    <Button
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        onClick={() => setEditRow(r)}
-                                                    >
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-
-                                                    <Button
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        className="text-red-500"
-                                                        disabled={isPending}
-                                                        onClick={() => {
-                                                            if (confirm("Xoá phiếu trả này?")) {
-                                                                removeReturn(r.id)
+                                            {/* STATUS */}
+                                            <TableCell>
+                                                <Select
+                                                    value={r.status}
+                                                    onValueChange={(v) =>
+                                                        updateReturnStatus(r.id, v)
+                                                    }
+                                                    disabled={isRowLocked}
+                                                >
+                                                    <SelectTrigger className="w-[140px]">
+                                                        <SelectValue>
+                                                            {
+                                                                statusOptions.find(
+                                                                    s => s.value === r.status
+                                                                )?.label
                                                             }
-                                                        }}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </td>
-                                    </tr>
+                                                        </SelectValue>
+                                                    </SelectTrigger>
 
-                                    {/* ITEMS */}
-                                    <tr>
-                                        <td />
-                                        <td colSpan={4}>
-                                            <table className="w-full text-sm">
-                                                <thead className="bg-muted/30">
-                                                    <tr>
-                                                        <th className="p-2 text-left">Mã SP</th>
-                                                        <th className="p-2 text-left">Tên SP</th>
-                                                        <th className="p-2 text-right">SL</th>
-                                                        <th className="p-2 text-right">ĐVT</th>
-                                                    </tr>
-                                                </thead>
+                                                    <SelectContent>
+                                                        {statusOptions.map(s => (
+                                                            <SelectItem
+                                                                key={s.value}
+                                                                value={s.value}
+                                                                disabled={isRowLocked}
+                                                            >
+                                                                {s.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </TableCell>
 
-                                                <tbody>
-                                                    {r.items?.map((i: any) => (
-                                                        <tr key={i.product_id} className="border-t">
-                                                            <td className="p-2 text-xs text-muted-foreground">
-                                                                {i.product?.code}
-                                                            </td>
-                                                            <td className="p-2">
-                                                                {i.product?.name}
-                                                            </td>
-                                                            <td className="p-2 text-right font-medium">
-                                                                {i.quantity}
-                                                            </td>
-                                                            <td className="p-2 text-right text-muted-foreground">
-                                                                {i.product?.unit}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </td>
-                                    </tr>
+                                            {/* ACTION */}
+                                            <TableCell className="text-right space-x-1">
 
-                                </Fragment>
-                            )
-                        })}
-                    </tbody>
-                </table>
+                                                {!isRowLocked && (
+                                                    <>
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            onClick={() => setEditRow(r)}
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="text-red-500"
+                                                            disabled={isPending}
+                                                            onClick={() => {
+                                                                if (confirm("Xoá phiếu trả này?")) {
+                                                                    removeReturn(r.id)
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </>
+                                                )}
+
+                                            </TableCell>
+
+                                        </TableRow>
+
+                                        {/* ITEMS */}
+                                        <TableRow>
+                                            <TableCell />
+                                            <TableCell colSpan={4} className="p-0">
+
+                                                <div className="p-2">
+                                                    <Table>
+
+                                                        <TableHeader className="bg-muted/30">
+                                                            <TableRow>
+                                                                <TableHead>Mã SP</TableHead>
+                                                                <TableHead>Tên SP</TableHead>
+                                                                <TableHead className="text-right">SL</TableHead>
+                                                                <TableHead className="text-right">ĐVT</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+
+                                                        <TableBody>
+                                                            {r.items?.map((i: any) => (
+                                                                <TableRow key={i.product_id}>
+                                                                    <TableCell className="text-xs text-muted-foreground">
+                                                                        {i.product?.code}
+                                                                    </TableCell>
+
+                                                                    <TableCell>
+                                                                        {i.product?.name}
+                                                                    </TableCell>
+
+                                                                    <TableCell className="text-right font-medium">
+                                                                        {i.quantity}
+                                                                    </TableCell>
+
+                                                                    <TableCell className="text-right text-muted-foreground">
+                                                                        {i.product?.unit}
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+
+                                                    </Table>
+                                                </div>
+
+                                            </TableCell>
+                                        </TableRow>
+
+                                    </Fragment>
+                                )
+                            })}
+                        </TableBody>
+
+                    </Table>
+
+                </div>
             )}
 
             {/* CREATE */}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react"
+import { useMemo } from "react"
 import {
     flexRender,
     getCoreRowModel,
@@ -13,6 +13,7 @@ import { formatNumber } from "@/lib/utils"
 import { useQuery } from "@tanstack/react-query"
 import { getStockLots } from "@/api/inventory/lot"
 import { QuantityInputCell } from "./delivery-quantity-input-cell"
+import { Badge } from "@/components/ui/badge"
 
 type Props = {
     orderItems: any[]
@@ -67,7 +68,8 @@ export function DeliveryItemsEditor({
         if (order) {
             const stock = stockMap.get(productId) ?? 0
 
-            const limit = Math.min(order.quantity, stock)
+            const remain = Number(order.remain_quantity ?? order.quantity ?? 0)
+            const limit = Math.min(remain, stock)
 
             if (next.quantity > limit) next.quantity = limit
             if (next.quantity < 0) next.quantity = 0
@@ -99,32 +101,37 @@ export function DeliveryItemsEditor({
                     onCheckedChange={(checked) =>
                         updateRow(row.original.product_id, {
                             selected: !!checked,
-                            quantity: checked ? row.original.quantity : 0,
+                            quantity: checked ? row.original.max_quantity : 0,
                         })
                     }
                 />
             ),
         },
         {
-            header: "Mã",
-            cell: ({ row }) => row.original.product?.code,
-        },
-        {
-            header: "Tên",
-            cell: ({ row }) => row.original.product?.name,
+            header: "Sản phẩm",
+            cell: ({ row }) => (
+                <div className="min-w-[260px]">
+                    <div className="font-medium text-foreground">
+                        {row.original.product?.code ?? `#${row.original.product_id}`}
+                    </div>
+                    <div className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
+                        {row.original.product?.name ?? "-"}
+                    </div>
+                </div>
+            ),
         },
         {
             header: "ĐVT",
-            cell: ({ row }) => row.original.product?.unit,
+            cell: ({ row }) => row.original.product?.unit ?? "-",
         },
         {
-            header: "SL đặt còn lại",
-            cell: ({ row }) => formatNumber(row.original.remain_quantity),
+            header: "Còn phải giao",
+            cell: ({ row }) => formatNumber(row.original.max_quantity),
         },
         {
             header: "Tồn kho",
             cell: ({ row }) => (
-                <span className="text-blue-600 font-medium">
+                <span className={row.original.stock_quantity > 0 ? "font-medium text-blue-600" : "font-medium text-destructive"}>
                     {formatNumber(row.original.stock_quantity)}
                 </span>
             ),
@@ -133,17 +140,12 @@ export function DeliveryItemsEditor({
             header: "SL giao",
             cell: ({ row }) => {
 
-                const max = Math.min(
-                    row.original.quantity,
-                    row.original.stock_quantity
-                )
-
                 return (
                     <QuantityInputCell
                         productId={row.original.product_id}
                         value={row.original.quantity_delivery}
                         disabled={!row.original.selected}
-                        max={row.original.quantity}
+                        max={row.original.max_quantity}
                         stock={row.original.stock_quantity ?? 0}
                         onCommit={(productId, quantity) =>
                             updateRow(productId, { quantity })
@@ -154,37 +156,75 @@ export function DeliveryItemsEditor({
         },
     ]
 
+    const normalizedData = useMemo(() => {
+        return data.map((row) => ({
+            ...row,
+            max_quantity: Number(row.remain_quantity ?? row.quantity ?? 0),
+        }))
+    }, [data])
+
+    const selectedRows = normalizedData.filter((row) => row.selected)
+    const totalQty = selectedRows.reduce(
+        (sum, row) => sum + Number(row.quantity_delivery || 0),
+        0
+    )
+
     const table = useReactTable({
-        data,
+        data: normalizedData,
         columns,
         getCoreRowModel: getCoreRowModel(),
     })
 
     return (
-        <Table>
-            <TableHeader>
-                {table.getHeaderGroups().map(hg => (
-                    <TableRow key={hg.id}>
-                        {hg.headers.map(h => (
-                            <TableHead key={h.id}>
-                                {flexRender(h.column.columnDef.header, h.getContext())}
-                            </TableHead>
-                        ))}
-                    </TableRow>
-                ))}
-            </TableHeader>
+        <div className="rounded-lg border bg-background">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+                <div>
+                    <div className="text-base font-semibold">Hàng giao</div>
+                    <div className="text-sm text-muted-foreground">
+                        Chọn sản phẩm và nhập số lượng giao theo tồn kho hiện có.
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <Badge variant="secondary">{selectedRows.length} dòng chọn</Badge>
+                    <Badge variant="outline">Tổng SL {formatNumber(totalQty)}</Badge>
+                </div>
+            </div>
 
-            <TableBody>
-                {table.getRowModel().rows.map(row => (
-                    <TableRow key={row.id}>
-                        {row.getVisibleCells().map(cell => (
-                            <TableCell key={cell.id}>
-                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
+            <div className="overflow-x-auto">
+                <Table>
+                    <TableHeader>
+                        {table.getHeaderGroups().map(hg => (
+                            <TableRow key={hg.id}>
+                                {hg.headers.map(h => (
+                                    <TableHead key={h.id} className="whitespace-nowrap">
+                                        {flexRender(h.column.columnDef.header, h.getContext())}
+                                    </TableHead>
+                                ))}
+                            </TableRow>
                         ))}
-                    </TableRow>
-                ))}
-            </TableBody>
-        </Table>
+                    </TableHeader>
+
+                    <TableBody>
+                        {table.getRowModel().rows.length ? (
+                            table.getRowModel().rows.map(row => (
+                                <TableRow key={row.id}>
+                                    {row.getVisibleCells().map(cell => (
+                                        <TableCell key={cell.id} className="align-middle">
+                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={columns.length} className="h-28 text-center text-muted-foreground">
+                                    Chọn đơn hàng để hiển thị sản phẩm cần giao.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+        </div>
     )
 }

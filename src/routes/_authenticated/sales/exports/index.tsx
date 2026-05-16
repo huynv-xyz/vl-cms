@@ -12,6 +12,9 @@ export const Route = createFileRoute("/_authenticated/sales/exports/")({
             size: Number.isNaN(size) ? 20 : size,
             keyword: typeof search.keyword === "string" ? search.keyword : "",
             status: typeof search.status === "string" ? search.status : "",
+            order_id: search.order_id ? Number(search.order_id) : undefined,
+            delivery_id: search.delivery_id ? Number(search.delivery_id) : undefined,
+            warehouse_id: search.warehouse_id ? Number(search.warehouse_id) : undefined,
         }
     },
 

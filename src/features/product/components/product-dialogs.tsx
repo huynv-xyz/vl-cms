@@ -1,4 +1,5 @@
 import { CreateProductDialog } from "./create-product-dialog"
+import { ProductDetailDialog } from "./product-detail-dialog"
 import { UpdateProductDialog } from "./update-product-dialog"
 import { useProducts } from "./products-provider"
 
@@ -13,11 +14,18 @@ export function ProductDialogs() {
             />
 
             {currentRow && (
-                <UpdateProductDialog
-                    product={currentRow}
-                    open={open === "edit"}
-                    onOpenChange={(o: any) => !o && close()}
-                />
+                <>
+                    <UpdateProductDialog
+                        product={currentRow}
+                        open={open === "edit"}
+                        onOpenChange={(o: any) => !o && close()}
+                    />
+                    <ProductDetailDialog
+                        product={currentRow}
+                        open={open === "detail"}
+                        onOpenChange={(o) => !o && close()}
+                    />
+                </>
             )}
         </>
     )

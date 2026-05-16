@@ -2,7 +2,8 @@ import { Main } from "@/components/layout/main"
 import { cn } from "@/lib/utils"
 import { useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, type LucideIcon } from "lucide-react"
+import { LoadingState } from "@/components/loading-state"
 
 type PageSectionProps<T> = {
     isLoading: boolean
@@ -10,6 +11,7 @@ type PageSectionProps<T> = {
 
     title?: string
     description?: string
+    icon?: LucideIcon
 
     data?: T
     actions?: React.ReactNode
@@ -28,6 +30,7 @@ export function PageSection<T>({
     error,
     title,
     description,
+    icon: Icon,
     data,
     actions,
 
@@ -44,7 +47,11 @@ export function PageSection<T>({
     if (isLoading) {
         return (
             <Main>
-                <div className="p-4 text-sm">Đang tải...</div>
+                <LoadingState
+                    variant="page"
+                    title={title ? `Đang tải ${title.toLowerCase()}` : "Đang tải dữ liệu"}
+                    description="Hệ thống đang lấy dữ liệu mới nhất."
+                />
             </Main>
         )
     }
@@ -70,39 +77,49 @@ export function PageSection<T>({
             {header ? (
                 header
             ) : (
-                <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-
-                        {showBack && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() =>
-                                    backTo
-                                        ? navigate({ to: backTo })
-                                        : navigate({ to: ".." })
-                                }
-                            >
-                                <ArrowLeft className="w-5 h-5" />
-                            </Button>
-                        )}
-
-                        <div className="min-w-0">
-                            {title && (
-                                <h2 className="text-2xl font-bold tracking-tight">
-                                    {title}
-                                </h2>
+                <div className="space-y-4 border-b pb-4">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                            {showBack && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="mt-1 shrink-0"
+                                    onClick={() =>
+                                        backTo
+                                            ? navigate({ to: backTo })
+                                            : navigate({ to: ".." })
+                                    }
+                                >
+                                    <ArrowLeft className="w-5 h-5" />
+                                </Button>
                             )}
 
-                            {description && (
-                                <p className="text-muted-foreground">
-                                    {description}
-                                </p>
+                            {Icon && (
+                                <div className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+                                    <Icon className="h-5 w-5" />
+                                </div>
                             )}
+
+                            <div className="min-w-0">
+                                {title && (
+                                    <h2 className="text-2xl font-bold tracking-tight">
+                                        {title}
+                                    </h2>
+                                )}
+
+                                {description && (
+                                    <p className="text-muted-foreground text-sm mt-0.5">
+                                        {description}
+                                    </p>
+                                )}
+                            </div>
                         </div>
-                    </div>
 
-                    {actions}
+                        {actions && (
+                            <div className="shrink-0">{actions}</div>
+                        )}
+                    </div>
                 </div>
             )}
 

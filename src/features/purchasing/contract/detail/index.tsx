@@ -27,7 +27,7 @@ export function ContractDetailPage() {
             showBack
         >
             {(contract) => (
-                <div className="space-y-4">
+                <div className="space-y-5 text-base">
                     <ContractInfoTable contract={contract} />
                     <ContractTabs contract={contract} />
                 </div>

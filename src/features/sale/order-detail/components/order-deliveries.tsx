@@ -1,284 +1,205 @@
-import { useState, Fragment } from "react"
+import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Pencil, Trash2, Plus } from "lucide-react"
+import { CalendarDays, Eye, MapPin, Pencil, Plus, Trash2, Warehouse } from "lucide-react"
 
+import { deleteDelivery, updateDeliveryStatus } from "@/api/sale/delivery"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
     Select,
-    SelectTrigger,
-    SelectValue,
     SelectContent,
     SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select"
-
-import { deleteDelivery, updateDeliveryStatus } from "@/api/sale/delivery"
-import { UpdateDeliveryDialog } from "../../delivery/components/update-delivery-dialog"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
 import { CreateDeliveryDialog } from "../../delivery/components/create-delivery-dialog"
 import { DeliveryDetailDialog } from "../../delivery/components/delivery-detail-dialog"
-
-const statusOptions = [
-    { value: "NEW", label: "Mới" },
-    { value: "DELIVERING", label: "Đang giao" },
-    { value: "DONE", label: "Hoàn thành" },
-    { value: "CANCELLED", label: "Hủy" },
-]
+import { UpdateDeliveryDialog } from "../../delivery/components/update-delivery-dialog"
+import { deliveryStatusMeta, DELIVERY_STATUSES } from "../../delivery/components/delivery-status"
 
 export function OrderDeliveries({ order, deliveries }: any) {
-
     const queryClient = useQueryClient()
 
     const [createOpen, setCreateOpen] = useState(false)
     const [editRow, setEditRow] = useState<any>(null)
     const [selectedId, setSelectedId] = useState<number | null>(null)
 
-    // 🔥 RULE CHÍNH
     const isEditable = order?.status === "CONFIRMED"
 
-    // ========================
-    // DELETE
-    // ========================
     const { mutate: removeDelivery, isPending } = useMutation({
         mutationFn: deleteDelivery,
         onSuccess: async () => {
-            await queryClient.invalidateQueries({
-                queryKey: ["order-detail", order.id],
-            })
+            await queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] })
             toast.success("Đã xoá phiếu giao hàng")
         },
         onError: (e: any) => toast.error(e.message || "Lỗi"),
     })
 
-    // ========================
-    // UPDATE STATUS
-    // ========================
     const { mutate: changeStatus, isPending: isUpdating } = useMutation({
-        mutationFn: ({ id, status }: any) =>
-            updateDeliveryStatus(id, status),
-
+        mutationFn: ({ id, status }: any) => updateDeliveryStatus(id, status),
         onMutate: async ({ id, status }) => {
-            await queryClient.cancelQueries({
-                queryKey: ["order-detail", order.id],
-            })
+            await queryClient.cancelQueries({ queryKey: ["order-detail", order.id] })
+            const prev = queryClient.getQueryData(["order-detail", order.id])
 
-            const prev = queryClient.getQueryData([
-                "order-detail",
-                order.id,
-            ])
-
-            queryClient.setQueryData(
-                ["order-detail", order.id],
-                (old: any) => {
-                    if (!old) return old
-
-                    return {
-                        ...old,
-                        deliveries: old.deliveries.map((x: any) =>
-                            x.id === id
-                                ? { ...x, status }
-                                : x
-                        ),
-                    }
+            queryClient.setQueryData(["order-detail", order.id], (old: any) => {
+                if (!old) return old
+                return {
+                    ...old,
+                    deliveries: old.deliveries.map((x: any) =>
+                        x.id === id ? { ...x, status } : x
+                    ),
                 }
-            )
+            })
 
             return { prev }
         },
-
         onError: (_, __, context) => {
-            queryClient.setQueryData(
-                ["order-detail", order.id],
-                context?.prev
-            )
+            queryClient.setQueryData(["order-detail", order.id], context?.prev)
             toast.error("Cập nhật thất bại")
         },
-
-        onSuccess: () => {
-            toast.success("Cập nhật trạng thái thành công")
-        },
-
+        onSuccess: () => toast.success("Cập nhật trạng thái thành công"),
         onSettled: () => {
-            queryClient.invalidateQueries({
-                queryKey: ["order-detail", order.id],
-            })
+            void queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] })
         },
     })
 
     return (
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-
-            {/* HEADER */}
-            <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-semibold">Giao hàng</h2>
+        <div className="rounded-md border bg-background">
+            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+                <div>
+                    <h2 className="font-semibold">Phiếu giao hàng</h2>
+                    <p className="text-sm text-muted-foreground">
+                        Theo dõi lịch giao, kho giao và danh sách hàng trên từng phiếu.
+                    </p>
+                </div>
 
                 {isEditable && (
                     <Button size="sm" onClick={() => setCreateOpen(true)}>
-                        <Plus className="mr-1 h-4 w-4" />
-                        Tạo mới
+                        <Plus className="mr-2 h-4 w-4" />
+                        Tạo phiếu giao
                     </Button>
                 )}
             </div>
 
             {!deliveries?.length ? (
-                <div className="text-sm text-muted-foreground">
-                    Chưa có giao hàng
-                </div>
+                <EmptyState text="Chưa có phiếu giao hàng cho đơn này." />
             ) : (
-                <table className="w-full text-sm border rounded-lg overflow-hidden">
+                <div className="space-y-3 p-4">
+                    {deliveries.map((delivery: any) => {
+                        const meta = getDeliveryStatusMeta(delivery.status)
+                        const isRowLocked = !isEditable || delivery.status === "DONE"
+                        const totalQty = sumBy(delivery.items ?? [], (item: any) => item.quantity)
 
-                    <thead className="bg-muted text-xs uppercase">
-                        <tr>
-                            <th className="w-[70px] text-center">#</th>
-                            <th className="p-2 text-left">Mã giao</th>
-                            <th className="p-2 text-left">Ngày</th>
-                            <th className="p-2 text-left">Kho</th>
-                            <th className="p-2 text-left">Trạng thái</th>
-                            <th className="p-2 w-[120px]" />
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {deliveries.map((d: any, idx: number) => {
-                            const isRowLocked =
-                                !isEditable || d.status === "DONE"
-
-                            return (
-                                <Fragment key={d.id}>
-
-                                    {/* HEADER */}
-                                    <tr className="border-t bg-muted/20">
-
-                                        <td className="text-center font-bold text-primary">
-                                            <span className="text-2xl font-bold text-primary">
-                                                #{idx + 1}
+                        return (
+                            <div key={delivery.id} className="rounded-md border">
+                                <div className="flex flex-wrap items-start justify-between gap-3 border-b bg-muted/20 px-4 py-3">
+                                    <div className="min-w-0">
+                                        <button
+                                            type="button"
+                                            className="text-left font-semibold text-primary hover:underline"
+                                            onClick={() => setSelectedId(delivery.id)}
+                                        >
+                                            {delivery.delivery_no}
+                                        </button>
+                                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                                            <span className="inline-flex items-center gap-1">
+                                                <CalendarDays className="h-4 w-4" />
+                                                {formatDate(delivery.delivery_date)}
                                             </span>
-                                        </td>
-
-                                        <td className="p-2 font-medium">
-                                            <span
-                                                className="text-primary cursor-pointer hover:underline"
-                                                onClick={() => setSelectedId(d.id)}
-                                            >
-                                                {d.delivery_no}
+                                            <span className="inline-flex items-center gap-1">
+                                                <Warehouse className="h-4 w-4" />
+                                                {delivery.warehouse?.name || "-"}
                                             </span>
-                                        </td>
-
-                                        <td className="p-2 text-muted-foreground">
-                                            {d.delivery_date}
-                                        </td>
-
-                                        <td className="p-2 text-muted-foreground">
-                                            {d.warehouse?.name}
-                                        </td>
-
-                                        {/* STATUS */}
-                                        <td className="p-2">
-                                            <Select
-                                                value={d.status}
-                                                onValueChange={(v) =>
-                                                    changeStatus({ id: d.id, status: v })
-                                                }
-                                                disabled={isUpdating || isRowLocked}
-                                            >
-                                                <SelectTrigger className="w-[140px]">
-                                                    <SelectValue>
-                                                        {
-                                                            statusOptions.find(
-                                                                s => s.value === d.status
-                                                            )?.label
-                                                        }
-                                                    </SelectValue>
-                                                </SelectTrigger>
-
-                                                <SelectContent>
-                                                    {statusOptions.map(s => (
-                                                        <SelectItem
-                                                            key={s.value}
-                                                            value={s.value}
-                                                            disabled={isRowLocked}
-                                                        >
-                                                            {s.label}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </td>
-
-                                        {/* ACTION */}
-                                        <td className="p-2 text-right space-x-1">
-
-                                            {!isRowLocked && (
-                                                <>
-                                                    <Button
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        onClick={() => setEditRow(d)}
-                                                    >
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-
-                                                    <Button
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        className="text-red-500"
-                                                        disabled={isPending}
-                                                        onClick={() => {
-                                                            if (confirm("Xoá phiếu giao hàng này?")) {
-                                                                removeDelivery(d.id)
-                                                            }
-                                                        }}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </>
+                                            {delivery.delivery_address && (
+                                                <span className="inline-flex items-center gap-1">
+                                                    <MapPin className="h-4 w-4" />
+                                                    {delivery.delivery_address}
+                                                </span>
                                             )}
-                                        </td>
-                                    </tr>
+                                        </div>
+                                    </div>
 
-                                    {/* ITEMS */}
-                                    <tr>
-                                        <td />
-                                        <td colSpan={5}>
-                                            <table className="w-full text-sm">
-                                                <thead className="bg-muted/30">
-                                                    <tr>
-                                                        <th className="p-2 text-left">Mã sản phẩm</th>
-                                                        <th className="p-2 text-left">Tên sản phẩm</th>
-                                                        <th className="p-2 text-left">SL</th>
-                                                        <th className="p-2 text-left">ĐVT</th>
-                                                    </tr>
-                                                </thead>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant="outline">
+                                            {formatNumber(delivery.items?.length || 0)} dòng
+                                        </Badge>
+                                        <Badge variant="secondary">
+                                            {formatNumber(totalQty)} SL
+                                        </Badge>
+                                        <Select
+                                            value={delivery.status || "NEW"}
+                                            onValueChange={(status) =>
+                                                changeStatus({ id: delivery.id, status })
+                                            }
+                                            disabled={isUpdating || isRowLocked}
+                                        >
+                                            <SelectTrigger className="h-9 w-[150px]">
+                                                <SelectValue>
+                                                    <Badge variant={meta.variant}>{meta.label}</Badge>
+                                                </SelectValue>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {DELIVERY_STATUSES.map((status) => (
+                                                    <SelectItem
+                                                        key={status.value}
+                                                        value={status.value}
+                                                        disabled={isRowLocked}
+                                                    >
+                                                        {status.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => setSelectedId(delivery.id)}
+                                        >
+                                            <Eye className="h-4 w-4" />
+                                        </Button>
+                                        {!isRowLocked && (
+                                            <>
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    onClick={() => setEditRow(delivery)}
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="text-destructive"
+                                                    disabled={isPending}
+                                                    onClick={() => {
+                                                        if (confirm("Xoá phiếu giao hàng này?")) {
+                                                            removeDelivery(delivery.id)
+                                                        }
+                                                    }}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
 
-                                                <tbody>
-                                                    {d.items?.map((i: any) => (
-                                                        <tr key={i.product_id} className="border-t">
-                                                            <td className="p-2 text-xs text-muted-foreground">
-                                                                {i.product?.code}
-                                                            </td>
-                                                            <td className="p-2">
-                                                                {i.product?.name}
-                                                            </td>
-                                                            <td className="p-2 text-left font-medium">
-                                                                {i.quantity}
-                                                            </td>
-                                                            <td className="p-2 text-left text-muted-foreground">
-                                                                {i.product?.unit}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </td>
-                                    </tr>
-
-                                </Fragment>
-                            )
-                        })}
-                    </tbody>
-                </table>
+                                <ItemsTable items={delivery.items ?? []} />
+                            </div>
+                        )
+                    })}
+                </div>
             )}
 
-            {/* CREATE */}
             {isEditable && (
                 <CreateDeliveryDialog
                     order={order}
@@ -287,7 +208,6 @@ export function OrderDeliveries({ order, deliveries }: any) {
                 />
             )}
 
-            {/* EDIT */}
             {editRow && (
                 <UpdateDeliveryDialog
                     delivery={editRow}
@@ -298,7 +218,6 @@ export function OrderDeliveries({ order, deliveries }: any) {
                 />
             )}
 
-            {/* DETAIL */}
             <DeliveryDetailDialog
                 open={!!selectedId}
                 id={selectedId ?? undefined}
@@ -306,4 +225,70 @@ export function OrderDeliveries({ order, deliveries }: any) {
             />
         </div>
     )
+}
+
+function ItemsTable({ items }: { items: any[] }) {
+    if (!items.length) {
+        return <div className="px-4 py-6 text-sm text-muted-foreground">Phiếu chưa có hàng.</div>
+    }
+
+    return (
+        <div className="overflow-x-auto">
+            <Table>
+                <TableHeader className="bg-muted/40">
+                    <TableRow>
+                        <TableHead>Sản phẩm</TableHead>
+                        <TableHead className="w-[140px] text-right">Số lượng</TableHead>
+                        <TableHead className="w-[120px] text-right">Đơn vị</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {items.map((item) => (
+                        <TableRow key={`${item.product_id}-${item.id ?? ""}`}>
+                            <TableCell>
+                                <div className="font-medium">{item.product?.code || "-"}</div>
+                                <div className="mt-1 text-sm text-muted-foreground">
+                                    {item.product?.name || "-"}
+                                </div>
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                                {formatNumber(item.quantity)}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                                {item.product?.unit || "-"}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+    )
+}
+
+function EmptyState({ text }: { text: string }) {
+    return (
+        <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+            {text}
+        </div>
+    )
+}
+
+function getDeliveryStatusMeta(status?: string) {
+    return deliveryStatusMeta[String(status ?? "").toUpperCase()] ?? {
+        label: status || "-",
+        variant: "outline" as const,
+    }
+}
+
+function sumBy(items: any[], fn: (item: any) => unknown) {
+    return items.reduce((sum, item) => sum + Number(fn(item) || 0), 0)
+}
+
+function formatNumber(value: unknown) {
+    return new Intl.NumberFormat("vi-VN").format(Number(value || 0))
+}
+
+function formatDate(value?: string) {
+    if (!value) return "-"
+    return value.split("T")[0]
 }

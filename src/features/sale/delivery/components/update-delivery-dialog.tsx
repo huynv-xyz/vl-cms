@@ -1,30 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import Form from "@rjsf/shadcn"
 import { toast } from "sonner"
 
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-
-import { widgets } from "@/components/rjsf/widgets"
-import { ShadcnFieldTemplate } from "@/components/rjsf/shadcn-templates"
-import { rjsfValidator } from "@/components/rjsf/rjsf-validator"
+import { Save } from "lucide-react"
 
 import { updateDelivery, getDelivery } from "@/api/sale/delivery"
 import { getOrder } from "@/api/sale/order"
 
-import { deliverySchema, deliveryUiSchema } from "./delivery-form-schema"
 import { DeliveryItemsEditor } from "./delivery-items-editor"
 
 import type { Delivery } from "../data/schema"
 import type { DeliveryFormItem, DeliveryFormValues } from "./types"
 import type { Order } from "../../order/data/schema"
 import { normalizeDate } from "@/lib/utils"
+import { DeliveryHeaderFields } from "./delivery-header-fields"
 
 type Props = {
     order?: Order
@@ -108,6 +106,7 @@ export function UpdateDeliveryDialog({
                 product: o.product,
                 selected: !!existing,
                 quantity: existing?.quantity ?? 0,
+                remain_quantity: o.remain_quantity ?? o.quantity,
                 note: existing?.note ?? "",
             }
         })
@@ -126,6 +125,10 @@ export function UpdateDeliveryDialog({
     const { mutate, isPending } = useMutation({
         mutationFn: async () => {
             const selectedItems = items.filter((x) => x.selected)
+
+            if (!headerFormData.order_id) throw new Error("Vui lòng chọn đơn hàng")
+            if (!headerFormData.delivery_date) throw new Error("Vui lòng chọn ngày giao")
+            if (!headerFormData.warehouse_id) throw new Error("Vui lòng chọn kho xuất")
 
             if (!selectedItems.length) {
                 throw new Error("Phải chọn ít nhất 1 sản phẩm")
@@ -168,44 +171,63 @@ export function UpdateDeliveryDialog({
     // ========================
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex h-[90vh] max-h-[90vh] flex-col sm:max-w-6xl">
-                <DialogHeader>
+            <DialogContent className="flex max-h-[92vh] flex-col p-0 sm:max-w-5xl">
+                <DialogHeader className="border-b px-8 py-6">
                     <DialogTitle>Cập nhật phiếu giao</DialogTitle>
+                    <DialogDescription>
+                        Điều chỉnh thông tin giao hàng và số lượng trên phiếu.
+                    </DialogDescription>
                 </DialogHeader>
 
                 {isLoading ? (
-                    <div className="p-4 text-sm">Đang tải dữ liệu...</div>
+                    <div className="flex-1 p-8 text-sm text-muted-foreground">Đang tải dữ liệu...</div>
                 ) : (
-                    <div className="flex-1 overflow-y-auto">
-                        <Form
-                            validator={rjsfValidator}
-                            schema={deliverySchema}
-                            uiSchema={deliveryUiSchema(!!order?.id)}
-                            formData={headerFormData}
-                            widgets={widgets}
-                            templates={{
-                                FieldTemplate: ShadcnFieldTemplate,
+                    <>
+                    <div className="flex-1 overflow-y-auto px-8 py-6">
+                        <form
+                            id="delivery-update-form"
+                            className="space-y-6"
+                            onSubmit={(event) => {
+                                event.preventDefault()
+                                mutate()
                             }}
-                            onChange={({ formData }) =>
-                                setHeaderFormData(formData as DeliveryFormValues)
-                            }
-                            onSubmit={() => mutate()}
                         >
+                            <div className="rounded-lg border bg-muted/20 p-4">
+                                <div className="mb-4">
+                                    <div className="text-base font-semibold">Thông tin giao hàng</div>
+                                    <div className="text-sm text-muted-foreground">
+                                        Cập nhật kho xuất, ngày giao và thông tin liên quan.
+                                    </div>
+                                </div>
+                                <DeliveryHeaderFields
+                                    value={headerFormData}
+                                    lockedOrder={!!order?.id}
+                                    showStatus
+                                    onChange={(next) =>
+                                        setHeaderFormData(next as DeliveryFormValues)
+                                    }
+                                />
+                            </div>
+
                             <DeliveryItemsEditor
                                 orderItems={orderItems}
                                 items={items}
+                                warehouseId={headerFormData.warehouse_id}
                                 onChange={setItems}
                             />
 
-                            <Button
-                                type="submit"
-                                className="w-full mt-4"
-                                disabled={isPending}
-                            >
-                                {isPending ? "Đang lưu..." : "Lưu"}
-                            </Button>
-                        </Form>
+                        </form>
                     </div>
+                    <DialogFooter className="border-t px-8 py-4">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                            Hủy
+                        </Button>
+                        <Button type="submit" form="delivery-update-form" disabled={isPending}>
+                            <Save className="mr-2 h-4 w-4" />
+                            {isPending ? "Đang lưu..." : "Lưu thay đổi"}
+                        </Button>
+                    </DialogFooter>
+                    </>
                 )}
             </DialogContent>
         </Dialog>

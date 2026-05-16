@@ -6,10 +6,13 @@ import { toast } from "sonner"
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Save } from "lucide-react"
 
 import { widgets } from "@/components/rjsf/widgets"
 import { ShadcnFieldTemplate } from "@/components/rjsf/shadcn-templates"
@@ -100,12 +103,15 @@ export function UpdateReceiptDialog({ receipt, open, onOpenChange }: any) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-2xl">
-                <DialogHeader>
+            <DialogContent className="flex max-h-[88vh] flex-col p-0 sm:max-w-[820px]">
+                <DialogHeader className="border-b px-6 py-5">
                     <DialogTitle>Cập nhật phiếu thu</DialogTitle>
+                    <DialogDescription>
+                        Điều chỉnh thông tin thanh toán đã ghi nhận.
+                    </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto px-6 py-5">
 
                     {/* ===== SHOW CUSTOMER NAME */}
                     {orderDetail?.customer && (
@@ -119,6 +125,7 @@ export function UpdateReceiptDialog({ receipt, open, onOpenChange }: any) {
                         <div>Đang tải...</div>
                     ) : (
                         <Form
+                            id="receipt-update-form"
                             validator={rjsfValidator}
                             schema={receiptSchema}
                             uiSchema={receiptUiSchema}
@@ -140,17 +147,22 @@ export function UpdateReceiptDialog({ receipt, open, onOpenChange }: any) {
                             }}
 
                             onSubmit={() => mutate()}
+                            className="[&>div:first-child]:grid [&>div:first-child]:gap-x-5 md:[&>div:first-child]:grid-cols-2"
                         >
-                            <Button
-                                type="submit"
-                                className="w-full mt-4"
-                                disabled={isPending}
-                            >
-                                {isPending ? "Đang lưu..." : "Lưu"}
-                            </Button>
+                            <></>
                         </Form>
                     )}
                 </div>
+
+                <DialogFooter className="border-t px-6 py-4">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Hủy
+                    </Button>
+                    <Button type="submit" form="receipt-update-form" disabled={isPending || isLoading}>
+                        <Save className="mr-2 h-4 w-4" />
+                        {isPending ? "Đang lưu..." : "Lưu thay đổi"}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     )

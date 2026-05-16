@@ -24,7 +24,7 @@ export function DatePicker({
     placeholder = "Chọn ngày",
     className,
 }: Props) {
-    const date = value ? new Date(value) : undefined
+    const date = parseDateValue(value)
 
     return (
         <Popover>
@@ -80,4 +80,28 @@ export function DatePicker({
             </PopoverContent>
         </Popover>
     )
+}
+
+function parseDateValue(value?: string) {
+    if (!value) return undefined
+
+    const normalized = normalizeDateValue(value)
+    if (normalized) {
+        const parsed = new Date(normalized)
+        return Number.isNaN(parsed.getTime()) ? undefined : parsed
+    }
+
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed
+}
+
+function normalizeDateValue(value: string) {
+    const [datePart] = value.trim().split("T")
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart
+
+    const match = datePart.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+    if (!match) return ""
+
+    const [, day, month, year] = match
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`
 }

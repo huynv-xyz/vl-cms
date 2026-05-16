@@ -2,6 +2,7 @@ import { CreateShipmentDialog } from "./create-shipment-dialog"
 import { UpdateShipmentDialog } from "./update-shipment-dialog"
 import { useShipments } from "./shipments-provider"
 import { Contract } from "../../contract/data/schema"
+import { DialogLoadingState } from "@/components/loading-state"
 
 export function ShipmentDialogs({ contract }: { contract: Contract }) {
     const { open, currentRow, close, isFetching } = useShipments()
@@ -24,8 +25,8 @@ export function ShipmentDialogs({ contract }: { contract: Contract }) {
             )}
 
             {open === "edit" && isFetching && (
-                <div className="p-4 text-sm text-muted-foreground">
-                    Đang tải dữ liệu...
+                <div className="p-4">
+                    <DialogLoadingState />
                 </div>
             )}
         </>

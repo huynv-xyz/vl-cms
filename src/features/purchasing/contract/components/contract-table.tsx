@@ -1,38 +1,33 @@
 import { CrudTable } from "@/components/crud/crud-table"
+import { DatePicker } from "@/components/date-picker"
+import { AsyncMultiSelect } from "@/components/rjsf/async-multi-select"
+import { getProduct, listProducts } from "@/api/product"
+import { getNation, listNations } from "@/api/purchasing/nation"
+import { getSupplier, listSuppliers } from "@/api/purchasing/supplier"
+import { nationOption, productOption, supplierOption } from "@/lib/option-mapper"
+import { formatCurrency, formatNumber } from "@/lib/utils"
+import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import type { Contract } from "../data/schema"
 import { contractColumns } from "./contract-columns"
-import { formatNumber } from "@/lib/utils"
-import type { PaginationState, OnChangeFn } from "@tanstack/react-table"
-import { listProducts, getProduct } from "@/api/product"
-import { AsyncSelect } from "@/components/rjsf/async-select"
-import { getSupplier, listSuppliers } from "@/api/purchasing/supplier"
-import { DatePicker } from "@/components/date-picker"
+
+type ContractFilters = {
+    status?: string[]
+    product_ids?: string[]
+    supplier_ids?: string[]
+    nation_ids?: string[]
+    signed_date_from?: string
+    signed_date_to?: string
+}
 
 type ContractTableProps = {
     data: Contract[]
-
     pagination: PaginationState
     onPaginationChange: OnChangeFn<PaginationState>
     pageCount: number
-
     keyword: string
     onKeywordChange: (value: string) => void
-
-    filters: {
-        status?: string[]
-        product_id?: number
-        supplier_id?: number
-        signed_date_from?: string
-        signed_date_to?: string
-    }
-
-    onFiltersChange: (filters: {
-        status?: string[]
-        product_id?: number
-        supplier_id?: number
-        signed_date_from?: string
-        signed_date_to?: string
-    }) => void
+    filters: ContractFilters
+    onFiltersChange: (filters: ContractFilters) => void
 }
 
 export function ContractTable({
@@ -45,249 +40,166 @@ export function ContractTable({
     filters,
     onFiltersChange,
 }: ContractTableProps) {
-
-    const totalAmount =
-        data?.reduce((sum, c) => sum + (c.total_amount ?? 0), 0) ?? 0
+    const totalAmount = data.reduce((sum, c) => sum + getTotalAmount(c), 0)
+    const totalAmountVnd = data.reduce((sum, c) => sum + getTotalAmountVnd(c), 0)
+    const totalQuantity = data.reduce((sum, c) => sum + (c.total_quantity ?? 0), 0)
+    const supplierCount = new Set(data.map((c) => c.supplier_id).filter(Boolean)).size
 
     return (
-        <CrudTable<Contract>
-            data={data}
-            columns={contractColumns}
-            entityName="hợp đồng"
-            searchPlaceholder="Tìm theo mã hợp đồng..."
+        <div className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-3">
+                <SummaryCard label="Hợp đồng đang xem" value={formatNumber(data.length)} />
+                <SummaryCard label="Nhà cung cấp" value={formatNumber(supplierCount)} />
+                <SummaryCard label="Tổng SL hợp đồng" value={formatNumber(totalQuantity)} />
+            </div>
 
-            pagination={pagination}
-            onPaginationChange={onPaginationChange}
-            pageCount={pageCount}
-
-            keyword={keyword}
-            onKeywordChange={onKeywordChange}
-
-            filters={[
-                {
-                    columnId: "product",
-                    title: "",
-                    render: () => (
-                        <AsyncSelect
-                            className="w-[300px]"
-                            value={filters.product_id}
-                            onChange={(v: any) =>
-                                onFiltersChange({
-                                    ...filters,
-                                    product_id: v || undefined,
-                                })
-                            }
-                            placeholder="Sản phẩm"
-                            dataSource={{
-                                getList: listProducts,
-                                getById: getProduct,
-                                params: { page: 1, size: 20 },
-                            }}
-                            mapOption={(x: any) => ({
-                                value: x.id,
-                                label: `${x.code} - ${x.name}`,
-                            })}
-                        />
-                    ),
-                },
-
-                {
-                    columnId: "supplier",
-                    title: "",
-                    render: () => (
-                        <AsyncSelect
-                            className="w-[300px]"
-                            value={filters.supplier_id}
-                            onChange={(v: any) =>
-                                onFiltersChange({
-                                    ...filters,
-                                    supplier_id: v || undefined,
-                                })
-                            }
-                            placeholder="Nhà cung cấp"
-                            dataSource={{
-                                getList: listSuppliers,
-                                getById: getSupplier,
-                                params: { page: 1, size: 20 },
-                            }}
-                            mapOption={(x: any) => ({
-                                value: x.id,
-                                label: x.name,
-                            })}
-                        />
-                    ),
-                },
-
-                /*
-                {
-                    columnId: "status",
-                    title: "",
-                    render: () => (
-                        <Select
-                            value={filters.status?.[0] ?? "ALL"}
-                            onValueChange={(v) =>
-                                onFiltersChange({
-                                    ...filters,
-                                    status: v === "ALL" ? undefined : [v],
-                                })
-                            }
-                        >
-                            <SelectTrigger className="w-[160px]">
-                                <SelectValue placeholder="Trạng thái" />
-                            </SelectTrigger>
-
-                            <SelectContent>
-                                <SelectItem value="ALL">Trạng thái</SelectItem>
-                                <SelectItem value="DRAFT">Nháp</SelectItem>
-                                <SelectItem value="SIGNED">Đã ký</SelectItem>
-                                <SelectItem value="DONE">Hoàn tất</SelectItem>
-                                <SelectItem value="CANCELLED">Đã hủy</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    ),
-                },*/
-
-                {
-                    columnId: "from",
-                    title: "",
-                    render: () => (
-                        <DatePicker
-                            value={filters.signed_date_from}
-                            onChange={(v) =>
-                                onFiltersChange({
-                                    ...filters,
-                                    signed_date_from: v,
-                                })
-                            }
-                            placeholder="Từ ngày ký HĐ"
-                        />
-                    ),
-                },
-
-                {
-                    columnId: "to",
-                    title: "",
-                    render: () => (
-                        <DatePicker
-                            value={filters.signed_date_to}
-                            onChange={(v) =>
-                                onFiltersChange({
-                                    ...filters,
-                                    signed_date_to: v,
-                                })
-                            }
-                            placeholder="Đến ngày ký HĐ"
-                        />
-                    ),
-                },
-            ]}
-
-            enableExpand
-            //defaultExpandAll
-
-            renderExpanded={(row: any) => (
-                <ContractItemsInline
-                    contract={row}
-                    items={row.items || []}
-                    product_id={filters.product_id}
-                />
-            )}
-
-            footer={
-                <div className="flex justify-end w-full">
-                    <span className="text-muted-foreground mr-2">
-                        Tổng giá trị:
-                    </span>
-                    <span className="font-bold">
-                        {formatNumber(totalAmount)}
-                    </span>
-                </div>
-            }
-        />
+            <CrudTable<Contract>
+                data={data}
+                columns={contractColumns}
+                entityName="hợp đồng"
+                searchPlaceholder="Tìm theo mã hợp đồng, nhà cung cấp..."
+                pagination={pagination}
+                onPaginationChange={onPaginationChange}
+                pageCount={pageCount}
+                keyword={keyword}
+                onKeywordChange={onKeywordChange}
+                filters={[
+                    {
+                        columnId: "product",
+                        title: "",
+                        render: () => (
+                            <AsyncMultiSelect
+                                className="w-[300px]"
+                                value={filters.product_ids}
+                                onChange={(v: any) =>
+                                    onFiltersChange({
+                                        ...filters,
+                                        product_ids: v,
+                                    })
+                                }
+                                placeholder="Sản phẩm"
+                                dataSource={{
+                                    getList: listProducts,
+                                    getById: getProduct,
+                                    params: { page: 1, size: 20 },
+                                }}
+                                mapOption={productOption}
+                            />
+                        ),
+                    },
+                    {
+                        columnId: "supplier",
+                        title: "",
+                        render: () => (
+                            <AsyncMultiSelect
+                                className="w-[300px]"
+                                value={filters.supplier_ids}
+                                onChange={(v: any) =>
+                                    onFiltersChange({
+                                        ...filters,
+                                        supplier_ids: v,
+                                    })
+                                }
+                                placeholder="Nhà cung cấp"
+                                dataSource={{
+                                    getList: listSuppliers,
+                                    getById: getSupplier,
+                                    params: { page: 1, size: 20 },
+                                }}
+                                mapOption={supplierOption}
+                            />
+                        ),
+                    },
+                    {
+                        columnId: "nation",
+                        title: "",
+                        render: () => (
+                            <AsyncMultiSelect
+                                className="w-[220px]"
+                                value={filters.nation_ids}
+                                onChange={(v: any) =>
+                                    onFiltersChange({
+                                        ...filters,
+                                        nation_ids: v,
+                                    })
+                                }
+                                placeholder="Quốc gia"
+                                dataSource={{
+                                    getList: listNations,
+                                    getById: getNation,
+                                    params: { page: 1, size: 20 },
+                                }}
+                                mapOption={nationOption}
+                            />
+                        ),
+                    },
+                    {
+                        columnId: "from",
+                        title: "",
+                        render: () => (
+                            <DatePicker
+                                value={filters.signed_date_from}
+                                onChange={(v) =>
+                                    onFiltersChange({
+                                        ...filters,
+                                        signed_date_from: v,
+                                    })
+                                }
+                                placeholder="Từ ngày ký HĐ"
+                            />
+                        ),
+                    },
+                    {
+                        columnId: "to",
+                        title: "",
+                        render: () => (
+                            <DatePicker
+                                value={filters.signed_date_to}
+                                onChange={(v) =>
+                                    onFiltersChange({
+                                        ...filters,
+                                        signed_date_to: v,
+                                    })
+                                }
+                                placeholder="Đến ngày ký HĐ"
+                            />
+                        ),
+                    },
+                ]}
+                footer={
+                    <div className="flex w-full flex-wrap justify-end gap-4">
+                        <div>
+                            <span className="mr-2 text-muted-foreground">Tổng tiền:</span>
+                            <span className="font-bold">{formatCurrency(totalAmount)}</span>
+                        </div>
+                        <div>
+                            <span className="mr-2 text-muted-foreground">Tổng VNĐ:</span>
+                            <span className="font-bold">{formatCurrency(totalAmountVnd)}</span>
+                        </div>
+                    </div>
+                }
+            />
+        </div>
     )
 }
 
-function ContractItemsInline({
-    contract,
-    items = [],
-    product_id,
-}: {
-    contract: Contract
-    items: any[]
-    product_id?: number
-}) {
-    const filteredItems = product_id
-        ? items.filter((i) => i.product_id === product_id)
-        : items
+function getTotalAmount(contract: Contract) {
+    return contract.total_amount ?? 0
+}
 
-    if (!filteredItems.length) {
-        return (
-            <div className="text-sm text-muted-foreground">
-                Không có hàng
-            </div>
-        )
+function getTotalAmountVnd(contract: Contract) {
+    if (contract.total_amount_vnd != null && contract.total_amount_vnd > 0) {
+        return contract.total_amount_vnd
     }
 
-    const totalRow = filteredItems.reduce(
-        (acc, i) => {
-            const q = i.quantity ?? 0
-            const unit = i.unit_price ?? 0
+    return getTotalAmount(contract) * (contract.exchange_rate ?? contract.currency?.exchange_rate ?? 1)
+}
 
-            acc.quantity += q
-            acc.total += q * unit
-
-            return acc
-        },
-        {
-            quantity: 0,
-            total: 0,
-        }
-    )
-
-
+function SummaryCard({ label, value }: { label: string; value: string }) {
     return (
-        <div className="p-3 border rounded bg-muted/30">
-            <table className="w-full text-sm">
-                <thead>
-                    <tr>
-                        <th className="p-2 text-left">Mã sản phẩm</th>
-                        <th className="p-2 text-left">Tên sản phẩm</th>
-                        <th className="p-2 text-left">SL HĐ</th>
-                        <th className="p-2 text-left">Đơn vị</th>
-                        <th className="p-2 text-left">Đơn giá</th>
-                        <th className="p-2 text-left">Thành tiền</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    {filteredItems.map((i: any) => (
-                        <tr key={i.id} className="border-t">
-                            <td className="p-2">{i.product?.code}</td>
-                            <td className="p-2">{i.product?.name}</td>
-                            <td className="p-2">{formatNumber(i.quantity)}</td>
-                            <td className="p-2">{i.product?.unit}</td>
-                            <td className="p-2">{formatNumber(i.unit_price)}</td>
-                            <td className="p-2 font-bold">
-                                {formatNumber(
-                                    (i.quantity ?? 0) * (i.unit_price ?? 0)
-                                )}
-                            </td>
-                        </tr>
-                    ))}
-                    <tr className="border-t bg-muted font-bold">
-                        <td colSpan={2} className="p-2"></td>
-
-                        <td className="p-2">
-                        </td>
-
-                        <td colSpan={2}></td>
-
-                        <td className="p-2">
-                            {formatNumber(totalRow.total)}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        <div className="rounded-md border bg-background px-4 py-3">
+            <div className="text-sm font-medium text-muted-foreground">{label}</div>
+            <div className="mt-1 text-2xl font-semibold tracking-tight">{value}</div>
         </div>
     )
 }

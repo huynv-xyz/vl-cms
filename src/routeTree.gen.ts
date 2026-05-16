@@ -17,14 +17,19 @@ import { Route as errors404RouteImport } from './routes/(errors)/404'
 import { Route as errors403RouteImport } from './routes/(errors)/403'
 import { Route as errors401RouteImport } from './routes/(errors)/401'
 import { Route as authSignInRouteImport } from './routes/(auth)/sign-in'
+import { Route as AuthenticatedWarehousesIndexRouteImport } from './routes/_authenticated/warehouses/index'
 import { Route as AuthenticatedUserIndexRouteImport } from './routes/_authenticated/user/index'
 import { Route as AuthenticatedTransactionsIndexRouteImport } from './routes/_authenticated/transactions/index'
 import { Route as AuthenticatedRegionsIndexRouteImport } from './routes/_authenticated/regions/index'
 import { Route as AuthenticatedPurchasingIndexRouteImport } from './routes/_authenticated/purchasing/index'
 import { Route as AuthenticatedProvincesIndexRouteImport } from './routes/_authenticated/provinces/index'
 import { Route as AuthenticatedProductsIndexRouteImport } from './routes/_authenticated/products/index'
+import { Route as AuthenticatedProductGroupsIndexRouteImport } from './routes/_authenticated/product-groups/index'
+import { Route as AuthenticatedPricingIndexRouteImport } from './routes/_authenticated/pricing/index'
+import { Route as AuthenticatedNationsIndexRouteImport } from './routes/_authenticated/nations/index'
 import { Route as AuthenticatedEmployeesIndexRouteImport } from './routes/_authenticated/employees/index'
 import { Route as AuthenticatedCustomersIndexRouteImport } from './routes/_authenticated/customers/index'
+import { Route as AuthenticatedCurrenciesIndexRouteImport } from './routes/_authenticated/currencies/index'
 import { Route as AuthenticatedVipTierIndexRouteImport } from './routes/_authenticated/vip/tier/index'
 import { Route as AuthenticatedVipPrivateRuleIndexRouteImport } from './routes/_authenticated/vip/private-rule/index'
 import { Route as AuthenticatedVipPointRuleIndexRouteImport } from './routes/_authenticated/vip/point-rule/index'
@@ -43,16 +48,22 @@ import { Route as AuthenticatedPurchasingShipmentsIndexRouteImport } from './rou
 import { Route as AuthenticatedPurchasingPortsIndexRouteImport } from './routes/_authenticated/purchasing/ports/index'
 import { Route as AuthenticatedPurchasingContractsIndexRouteImport } from './routes/_authenticated/purchasing/contracts/index'
 import { Route as AuthenticatedProductionOrdersIndexRouteImport } from './routes/_authenticated/production/orders/index'
+import { Route as AuthenticatedProductionBomsIndexRouteImport } from './routes/_authenticated/production/boms/index'
 import { Route as AuthenticatedInventorySummaryIndexRouteImport } from './routes/_authenticated/inventory/summary/index'
 import { Route as AuthenticatedInventoryProductionsIndexRouteImport } from './routes/_authenticated/inventory/productions/index'
 import { Route as AuthenticatedInventoryLotsIndexRouteImport } from './routes/_authenticated/inventory/lots/index'
 import { Route as AuthenticatedInventoryLedgersIndexRouteImport } from './routes/_authenticated/inventory/ledgers/index'
 import { Route as AuthenticatedInventoryInboundsIndexRouteImport } from './routes/_authenticated/inventory/inbounds/index'
+import { Route as AuthenticatedAccessUsersIndexRouteImport } from './routes/_authenticated/access/users/index'
+import { Route as AuthenticatedAccessUserRolesIndexRouteImport } from './routes/_authenticated/access/user-roles/index'
+import { Route as AuthenticatedAccessRolesIndexRouteImport } from './routes/_authenticated/access/roles/index'
+import { Route as AuthenticatedAccessPermissionsIndexRouteImport } from './routes/_authenticated/access/permissions/index'
 import { Route as AuthenticatedVipCustomerIdRouteImport } from './routes/_authenticated/vip/customer/$id'
 import { Route as AuthenticatedSalesOrdersIdIndexRouteImport } from './routes/_authenticated/sales/orders/$id/index'
 import { Route as AuthenticatedSalesExportsIdIndexRouteImport } from './routes/_authenticated/sales/exports/$id/index'
 import { Route as AuthenticatedSalesDeliveriesIdIndexRouteImport } from './routes/_authenticated/sales/deliveries/$id/index'
 import { Route as AuthenticatedPurchasingContractsIdIndexRouteImport } from './routes/_authenticated/purchasing/contracts/$id/index'
+import { Route as AuthenticatedProductionOrdersIdIndexRouteImport } from './routes/_authenticated/production/orders/$id/index'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -93,6 +104,12 @@ const authSignInRoute = authSignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedWarehousesIndexRoute =
+  AuthenticatedWarehousesIndexRouteImport.update({
+    id: '/warehouses/',
+    path: '/warehouses/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedUserIndexRoute = AuthenticatedUserIndexRouteImport.update({
   id: '/user/',
   path: '/user/',
@@ -128,6 +145,24 @@ const AuthenticatedProductsIndexRoute =
     path: '/products/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedProductGroupsIndexRoute =
+  AuthenticatedProductGroupsIndexRouteImport.update({
+    id: '/product-groups/',
+    path: '/product-groups/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPricingIndexRoute =
+  AuthenticatedPricingIndexRouteImport.update({
+    id: '/pricing/',
+    path: '/pricing/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedNationsIndexRoute =
+  AuthenticatedNationsIndexRouteImport.update({
+    id: '/nations/',
+    path: '/nations/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEmployeesIndexRoute =
   AuthenticatedEmployeesIndexRouteImport.update({
     id: '/employees/',
@@ -138,6 +173,12 @@ const AuthenticatedCustomersIndexRoute =
   AuthenticatedCustomersIndexRouteImport.update({
     id: '/customers/',
     path: '/customers/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCurrenciesIndexRoute =
+  AuthenticatedCurrenciesIndexRouteImport.update({
+    id: '/currencies/',
+    path: '/currencies/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedVipTierIndexRoute =
@@ -248,6 +289,12 @@ const AuthenticatedProductionOrdersIndexRoute =
     path: '/production/orders/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedProductionBomsIndexRoute =
+  AuthenticatedProductionBomsIndexRouteImport.update({
+    id: '/production/boms/',
+    path: '/production/boms/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInventorySummaryIndexRoute =
   AuthenticatedInventorySummaryIndexRouteImport.update({
     id: '/inventory/summary/',
@@ -276,6 +323,30 @@ const AuthenticatedInventoryInboundsIndexRoute =
   AuthenticatedInventoryInboundsIndexRouteImport.update({
     id: '/inventory/inbounds/',
     path: '/inventory/inbounds/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAccessUsersIndexRoute =
+  AuthenticatedAccessUsersIndexRouteImport.update({
+    id: '/access/users/',
+    path: '/access/users/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAccessUserRolesIndexRoute =
+  AuthenticatedAccessUserRolesIndexRouteImport.update({
+    id: '/access/user-roles/',
+    path: '/access/user-roles/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAccessRolesIndexRoute =
+  AuthenticatedAccessRolesIndexRouteImport.update({
+    id: '/access/roles/',
+    path: '/access/roles/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAccessPermissionsIndexRoute =
+  AuthenticatedAccessPermissionsIndexRouteImport.update({
+    id: '/access/permissions/',
+    path: '/access/permissions/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedVipCustomerIdRoute =
@@ -308,6 +379,12 @@ const AuthenticatedPurchasingContractsIdIndexRoute =
     path: '/purchasing/contracts/$id/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedProductionOrdersIdIndexRoute =
+  AuthenticatedProductionOrdersIdIndexRouteImport.update({
+    id: '/production/orders/$id/',
+    path: '/production/orders/$id/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -317,20 +394,30 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/currencies/': typeof AuthenticatedCurrenciesIndexRoute
   '/customers/': typeof AuthenticatedCustomersIndexRoute
   '/employees/': typeof AuthenticatedEmployeesIndexRoute
+  '/nations/': typeof AuthenticatedNationsIndexRoute
+  '/pricing/': typeof AuthenticatedPricingIndexRoute
+  '/product-groups/': typeof AuthenticatedProductGroupsIndexRoute
   '/products/': typeof AuthenticatedProductsIndexRoute
   '/provinces/': typeof AuthenticatedProvincesIndexRoute
   '/purchasing/': typeof AuthenticatedPurchasingIndexRoute
   '/regions/': typeof AuthenticatedRegionsIndexRoute
   '/transactions/': typeof AuthenticatedTransactionsIndexRoute
   '/user/': typeof AuthenticatedUserIndexRoute
+  '/warehouses/': typeof AuthenticatedWarehousesIndexRoute
   '/vip/customer/$id': typeof AuthenticatedVipCustomerIdRoute
+  '/access/permissions/': typeof AuthenticatedAccessPermissionsIndexRoute
+  '/access/roles/': typeof AuthenticatedAccessRolesIndexRoute
+  '/access/user-roles/': typeof AuthenticatedAccessUserRolesIndexRoute
+  '/access/users/': typeof AuthenticatedAccessUsersIndexRoute
   '/inventory/inbounds/': typeof AuthenticatedInventoryInboundsIndexRoute
   '/inventory/ledgers/': typeof AuthenticatedInventoryLedgersIndexRoute
   '/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
   '/inventory/productions/': typeof AuthenticatedInventoryProductionsIndexRoute
   '/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
+  '/production/boms/': typeof AuthenticatedProductionBomsIndexRoute
   '/production/orders/': typeof AuthenticatedProductionOrdersIndexRoute
   '/purchasing/contracts/': typeof AuthenticatedPurchasingContractsIndexRoute
   '/purchasing/ports/': typeof AuthenticatedPurchasingPortsIndexRoute
@@ -349,6 +436,7 @@ export interface FileRoutesByFullPath {
   '/vip/point-rule/': typeof AuthenticatedVipPointRuleIndexRoute
   '/vip/private-rule/': typeof AuthenticatedVipPrivateRuleIndexRoute
   '/vip/tier/': typeof AuthenticatedVipTierIndexRoute
+  '/production/orders/$id/': typeof AuthenticatedProductionOrdersIdIndexRoute
   '/purchasing/contracts/$id/': typeof AuthenticatedPurchasingContractsIdIndexRoute
   '/sales/deliveries/$id/': typeof AuthenticatedSalesDeliveriesIdIndexRoute
   '/sales/exports/$id/': typeof AuthenticatedSalesExportsIdIndexRoute
@@ -362,20 +450,30 @@ export interface FileRoutesByTo {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/': typeof AuthenticatedIndexRoute
+  '/currencies': typeof AuthenticatedCurrenciesIndexRoute
   '/customers': typeof AuthenticatedCustomersIndexRoute
   '/employees': typeof AuthenticatedEmployeesIndexRoute
+  '/nations': typeof AuthenticatedNationsIndexRoute
+  '/pricing': typeof AuthenticatedPricingIndexRoute
+  '/product-groups': typeof AuthenticatedProductGroupsIndexRoute
   '/products': typeof AuthenticatedProductsIndexRoute
   '/provinces': typeof AuthenticatedProvincesIndexRoute
   '/purchasing': typeof AuthenticatedPurchasingIndexRoute
   '/regions': typeof AuthenticatedRegionsIndexRoute
   '/transactions': typeof AuthenticatedTransactionsIndexRoute
   '/user': typeof AuthenticatedUserIndexRoute
+  '/warehouses': typeof AuthenticatedWarehousesIndexRoute
   '/vip/customer/$id': typeof AuthenticatedVipCustomerIdRoute
+  '/access/permissions': typeof AuthenticatedAccessPermissionsIndexRoute
+  '/access/roles': typeof AuthenticatedAccessRolesIndexRoute
+  '/access/user-roles': typeof AuthenticatedAccessUserRolesIndexRoute
+  '/access/users': typeof AuthenticatedAccessUsersIndexRoute
   '/inventory/inbounds': typeof AuthenticatedInventoryInboundsIndexRoute
   '/inventory/ledgers': typeof AuthenticatedInventoryLedgersIndexRoute
   '/inventory/lots': typeof AuthenticatedInventoryLotsIndexRoute
   '/inventory/productions': typeof AuthenticatedInventoryProductionsIndexRoute
   '/inventory/summary': typeof AuthenticatedInventorySummaryIndexRoute
+  '/production/boms': typeof AuthenticatedProductionBomsIndexRoute
   '/production/orders': typeof AuthenticatedProductionOrdersIndexRoute
   '/purchasing/contracts': typeof AuthenticatedPurchasingContractsIndexRoute
   '/purchasing/ports': typeof AuthenticatedPurchasingPortsIndexRoute
@@ -394,6 +492,7 @@ export interface FileRoutesByTo {
   '/vip/point-rule': typeof AuthenticatedVipPointRuleIndexRoute
   '/vip/private-rule': typeof AuthenticatedVipPrivateRuleIndexRoute
   '/vip/tier': typeof AuthenticatedVipTierIndexRoute
+  '/production/orders/$id': typeof AuthenticatedProductionOrdersIdIndexRoute
   '/purchasing/contracts/$id': typeof AuthenticatedPurchasingContractsIdIndexRoute
   '/sales/deliveries/$id': typeof AuthenticatedSalesDeliveriesIdIndexRoute
   '/sales/exports/$id': typeof AuthenticatedSalesExportsIdIndexRoute
@@ -409,20 +508,30 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/currencies/': typeof AuthenticatedCurrenciesIndexRoute
   '/_authenticated/customers/': typeof AuthenticatedCustomersIndexRoute
   '/_authenticated/employees/': typeof AuthenticatedEmployeesIndexRoute
+  '/_authenticated/nations/': typeof AuthenticatedNationsIndexRoute
+  '/_authenticated/pricing/': typeof AuthenticatedPricingIndexRoute
+  '/_authenticated/product-groups/': typeof AuthenticatedProductGroupsIndexRoute
   '/_authenticated/products/': typeof AuthenticatedProductsIndexRoute
   '/_authenticated/provinces/': typeof AuthenticatedProvincesIndexRoute
   '/_authenticated/purchasing/': typeof AuthenticatedPurchasingIndexRoute
   '/_authenticated/regions/': typeof AuthenticatedRegionsIndexRoute
   '/_authenticated/transactions/': typeof AuthenticatedTransactionsIndexRoute
   '/_authenticated/user/': typeof AuthenticatedUserIndexRoute
+  '/_authenticated/warehouses/': typeof AuthenticatedWarehousesIndexRoute
   '/_authenticated/vip/customer/$id': typeof AuthenticatedVipCustomerIdRoute
+  '/_authenticated/access/permissions/': typeof AuthenticatedAccessPermissionsIndexRoute
+  '/_authenticated/access/roles/': typeof AuthenticatedAccessRolesIndexRoute
+  '/_authenticated/access/user-roles/': typeof AuthenticatedAccessUserRolesIndexRoute
+  '/_authenticated/access/users/': typeof AuthenticatedAccessUsersIndexRoute
   '/_authenticated/inventory/inbounds/': typeof AuthenticatedInventoryInboundsIndexRoute
   '/_authenticated/inventory/ledgers/': typeof AuthenticatedInventoryLedgersIndexRoute
   '/_authenticated/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
   '/_authenticated/inventory/productions/': typeof AuthenticatedInventoryProductionsIndexRoute
   '/_authenticated/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
+  '/_authenticated/production/boms/': typeof AuthenticatedProductionBomsIndexRoute
   '/_authenticated/production/orders/': typeof AuthenticatedProductionOrdersIndexRoute
   '/_authenticated/purchasing/contracts/': typeof AuthenticatedPurchasingContractsIndexRoute
   '/_authenticated/purchasing/ports/': typeof AuthenticatedPurchasingPortsIndexRoute
@@ -441,6 +550,7 @@ export interface FileRoutesById {
   '/_authenticated/vip/point-rule/': typeof AuthenticatedVipPointRuleIndexRoute
   '/_authenticated/vip/private-rule/': typeof AuthenticatedVipPrivateRuleIndexRoute
   '/_authenticated/vip/tier/': typeof AuthenticatedVipTierIndexRoute
+  '/_authenticated/production/orders/$id/': typeof AuthenticatedProductionOrdersIdIndexRoute
   '/_authenticated/purchasing/contracts/$id/': typeof AuthenticatedPurchasingContractsIdIndexRoute
   '/_authenticated/sales/deliveries/$id/': typeof AuthenticatedSalesDeliveriesIdIndexRoute
   '/_authenticated/sales/exports/$id/': typeof AuthenticatedSalesExportsIdIndexRoute
@@ -456,20 +566,30 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/currencies/'
     | '/customers/'
     | '/employees/'
+    | '/nations/'
+    | '/pricing/'
+    | '/product-groups/'
     | '/products/'
     | '/provinces/'
     | '/purchasing/'
     | '/regions/'
     | '/transactions/'
     | '/user/'
+    | '/warehouses/'
     | '/vip/customer/$id'
+    | '/access/permissions/'
+    | '/access/roles/'
+    | '/access/user-roles/'
+    | '/access/users/'
     | '/inventory/inbounds/'
     | '/inventory/ledgers/'
     | '/inventory/lots/'
     | '/inventory/productions/'
     | '/inventory/summary/'
+    | '/production/boms/'
     | '/production/orders/'
     | '/purchasing/contracts/'
     | '/purchasing/ports/'
@@ -488,6 +608,7 @@ export interface FileRouteTypes {
     | '/vip/point-rule/'
     | '/vip/private-rule/'
     | '/vip/tier/'
+    | '/production/orders/$id/'
     | '/purchasing/contracts/$id/'
     | '/sales/deliveries/$id/'
     | '/sales/exports/$id/'
@@ -501,20 +622,30 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/'
+    | '/currencies'
     | '/customers'
     | '/employees'
+    | '/nations'
+    | '/pricing'
+    | '/product-groups'
     | '/products'
     | '/provinces'
     | '/purchasing'
     | '/regions'
     | '/transactions'
     | '/user'
+    | '/warehouses'
     | '/vip/customer/$id'
+    | '/access/permissions'
+    | '/access/roles'
+    | '/access/user-roles'
+    | '/access/users'
     | '/inventory/inbounds'
     | '/inventory/ledgers'
     | '/inventory/lots'
     | '/inventory/productions'
     | '/inventory/summary'
+    | '/production/boms'
     | '/production/orders'
     | '/purchasing/contracts'
     | '/purchasing/ports'
@@ -533,6 +664,7 @@ export interface FileRouteTypes {
     | '/vip/point-rule'
     | '/vip/private-rule'
     | '/vip/tier'
+    | '/production/orders/$id'
     | '/purchasing/contracts/$id'
     | '/sales/deliveries/$id'
     | '/sales/exports/$id'
@@ -547,20 +679,30 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/_authenticated/'
+    | '/_authenticated/currencies/'
     | '/_authenticated/customers/'
     | '/_authenticated/employees/'
+    | '/_authenticated/nations/'
+    | '/_authenticated/pricing/'
+    | '/_authenticated/product-groups/'
     | '/_authenticated/products/'
     | '/_authenticated/provinces/'
     | '/_authenticated/purchasing/'
     | '/_authenticated/regions/'
     | '/_authenticated/transactions/'
     | '/_authenticated/user/'
+    | '/_authenticated/warehouses/'
     | '/_authenticated/vip/customer/$id'
+    | '/_authenticated/access/permissions/'
+    | '/_authenticated/access/roles/'
+    | '/_authenticated/access/user-roles/'
+    | '/_authenticated/access/users/'
     | '/_authenticated/inventory/inbounds/'
     | '/_authenticated/inventory/ledgers/'
     | '/_authenticated/inventory/lots/'
     | '/_authenticated/inventory/productions/'
     | '/_authenticated/inventory/summary/'
+    | '/_authenticated/production/boms/'
     | '/_authenticated/production/orders/'
     | '/_authenticated/purchasing/contracts/'
     | '/_authenticated/purchasing/ports/'
@@ -579,6 +721,7 @@ export interface FileRouteTypes {
     | '/_authenticated/vip/point-rule/'
     | '/_authenticated/vip/private-rule/'
     | '/_authenticated/vip/tier/'
+    | '/_authenticated/production/orders/$id/'
     | '/_authenticated/purchasing/contracts/$id/'
     | '/_authenticated/sales/deliveries/$id/'
     | '/_authenticated/sales/exports/$id/'
@@ -653,6 +796,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authSignInRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/warehouses/': {
+      id: '/_authenticated/warehouses/'
+      path: '/warehouses'
+      fullPath: '/warehouses/'
+      preLoaderRoute: typeof AuthenticatedWarehousesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/user/': {
       id: '/_authenticated/user/'
       path: '/user'
@@ -695,6 +845,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProductsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/product-groups/': {
+      id: '/_authenticated/product-groups/'
+      path: '/product-groups'
+      fullPath: '/product-groups/'
+      preLoaderRoute: typeof AuthenticatedProductGroupsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/pricing/': {
+      id: '/_authenticated/pricing/'
+      path: '/pricing'
+      fullPath: '/pricing/'
+      preLoaderRoute: typeof AuthenticatedPricingIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/nations/': {
+      id: '/_authenticated/nations/'
+      path: '/nations'
+      fullPath: '/nations/'
+      preLoaderRoute: typeof AuthenticatedNationsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/employees/': {
       id: '/_authenticated/employees/'
       path: '/employees'
@@ -707,6 +878,13 @@ declare module '@tanstack/react-router' {
       path: '/customers'
       fullPath: '/customers/'
       preLoaderRoute: typeof AuthenticatedCustomersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/currencies/': {
+      id: '/_authenticated/currencies/'
+      path: '/currencies'
+      fullPath: '/currencies/'
+      preLoaderRoute: typeof AuthenticatedCurrenciesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/vip/tier/': {
@@ -835,6 +1013,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProductionOrdersIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/production/boms/': {
+      id: '/_authenticated/production/boms/'
+      path: '/production/boms'
+      fullPath: '/production/boms/'
+      preLoaderRoute: typeof AuthenticatedProductionBomsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/inventory/summary/': {
       id: '/_authenticated/inventory/summary/'
       path: '/inventory/summary'
@@ -868,6 +1053,34 @@ declare module '@tanstack/react-router' {
       path: '/inventory/inbounds'
       fullPath: '/inventory/inbounds/'
       preLoaderRoute: typeof AuthenticatedInventoryInboundsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/access/users/': {
+      id: '/_authenticated/access/users/'
+      path: '/access/users'
+      fullPath: '/access/users/'
+      preLoaderRoute: typeof AuthenticatedAccessUsersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/access/user-roles/': {
+      id: '/_authenticated/access/user-roles/'
+      path: '/access/user-roles'
+      fullPath: '/access/user-roles/'
+      preLoaderRoute: typeof AuthenticatedAccessUserRolesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/access/roles/': {
+      id: '/_authenticated/access/roles/'
+      path: '/access/roles'
+      fullPath: '/access/roles/'
+      preLoaderRoute: typeof AuthenticatedAccessRolesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/access/permissions/': {
+      id: '/_authenticated/access/permissions/'
+      path: '/access/permissions'
+      fullPath: '/access/permissions/'
+      preLoaderRoute: typeof AuthenticatedAccessPermissionsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/vip/customer/$id': {
@@ -905,25 +1118,42 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPurchasingContractsIdIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/production/orders/$id/': {
+      id: '/_authenticated/production/orders/$id/'
+      path: '/production/orders/$id'
+      fullPath: '/production/orders/$id/'
+      preLoaderRoute: typeof AuthenticatedProductionOrdersIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedCurrenciesIndexRoute: typeof AuthenticatedCurrenciesIndexRoute
   AuthenticatedCustomersIndexRoute: typeof AuthenticatedCustomersIndexRoute
   AuthenticatedEmployeesIndexRoute: typeof AuthenticatedEmployeesIndexRoute
+  AuthenticatedNationsIndexRoute: typeof AuthenticatedNationsIndexRoute
+  AuthenticatedPricingIndexRoute: typeof AuthenticatedPricingIndexRoute
+  AuthenticatedProductGroupsIndexRoute: typeof AuthenticatedProductGroupsIndexRoute
   AuthenticatedProductsIndexRoute: typeof AuthenticatedProductsIndexRoute
   AuthenticatedProvincesIndexRoute: typeof AuthenticatedProvincesIndexRoute
   AuthenticatedPurchasingIndexRoute: typeof AuthenticatedPurchasingIndexRoute
   AuthenticatedRegionsIndexRoute: typeof AuthenticatedRegionsIndexRoute
   AuthenticatedTransactionsIndexRoute: typeof AuthenticatedTransactionsIndexRoute
   AuthenticatedUserIndexRoute: typeof AuthenticatedUserIndexRoute
+  AuthenticatedWarehousesIndexRoute: typeof AuthenticatedWarehousesIndexRoute
   AuthenticatedVipCustomerIdRoute: typeof AuthenticatedVipCustomerIdRoute
+  AuthenticatedAccessPermissionsIndexRoute: typeof AuthenticatedAccessPermissionsIndexRoute
+  AuthenticatedAccessRolesIndexRoute: typeof AuthenticatedAccessRolesIndexRoute
+  AuthenticatedAccessUserRolesIndexRoute: typeof AuthenticatedAccessUserRolesIndexRoute
+  AuthenticatedAccessUsersIndexRoute: typeof AuthenticatedAccessUsersIndexRoute
   AuthenticatedInventoryInboundsIndexRoute: typeof AuthenticatedInventoryInboundsIndexRoute
   AuthenticatedInventoryLedgersIndexRoute: typeof AuthenticatedInventoryLedgersIndexRoute
   AuthenticatedInventoryLotsIndexRoute: typeof AuthenticatedInventoryLotsIndexRoute
   AuthenticatedInventoryProductionsIndexRoute: typeof AuthenticatedInventoryProductionsIndexRoute
   AuthenticatedInventorySummaryIndexRoute: typeof AuthenticatedInventorySummaryIndexRoute
+  AuthenticatedProductionBomsIndexRoute: typeof AuthenticatedProductionBomsIndexRoute
   AuthenticatedProductionOrdersIndexRoute: typeof AuthenticatedProductionOrdersIndexRoute
   AuthenticatedPurchasingContractsIndexRoute: typeof AuthenticatedPurchasingContractsIndexRoute
   AuthenticatedPurchasingPortsIndexRoute: typeof AuthenticatedPurchasingPortsIndexRoute
@@ -942,6 +1172,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedVipPointRuleIndexRoute: typeof AuthenticatedVipPointRuleIndexRoute
   AuthenticatedVipPrivateRuleIndexRoute: typeof AuthenticatedVipPrivateRuleIndexRoute
   AuthenticatedVipTierIndexRoute: typeof AuthenticatedVipTierIndexRoute
+  AuthenticatedProductionOrdersIdIndexRoute: typeof AuthenticatedProductionOrdersIdIndexRoute
   AuthenticatedPurchasingContractsIdIndexRoute: typeof AuthenticatedPurchasingContractsIdIndexRoute
   AuthenticatedSalesDeliveriesIdIndexRoute: typeof AuthenticatedSalesDeliveriesIdIndexRoute
   AuthenticatedSalesExportsIdIndexRoute: typeof AuthenticatedSalesExportsIdIndexRoute
@@ -950,15 +1181,26 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedCurrenciesIndexRoute: AuthenticatedCurrenciesIndexRoute,
   AuthenticatedCustomersIndexRoute: AuthenticatedCustomersIndexRoute,
   AuthenticatedEmployeesIndexRoute: AuthenticatedEmployeesIndexRoute,
+  AuthenticatedNationsIndexRoute: AuthenticatedNationsIndexRoute,
+  AuthenticatedPricingIndexRoute: AuthenticatedPricingIndexRoute,
+  AuthenticatedProductGroupsIndexRoute: AuthenticatedProductGroupsIndexRoute,
   AuthenticatedProductsIndexRoute: AuthenticatedProductsIndexRoute,
   AuthenticatedProvincesIndexRoute: AuthenticatedProvincesIndexRoute,
   AuthenticatedPurchasingIndexRoute: AuthenticatedPurchasingIndexRoute,
   AuthenticatedRegionsIndexRoute: AuthenticatedRegionsIndexRoute,
   AuthenticatedTransactionsIndexRoute: AuthenticatedTransactionsIndexRoute,
   AuthenticatedUserIndexRoute: AuthenticatedUserIndexRoute,
+  AuthenticatedWarehousesIndexRoute: AuthenticatedWarehousesIndexRoute,
   AuthenticatedVipCustomerIdRoute: AuthenticatedVipCustomerIdRoute,
+  AuthenticatedAccessPermissionsIndexRoute:
+    AuthenticatedAccessPermissionsIndexRoute,
+  AuthenticatedAccessRolesIndexRoute: AuthenticatedAccessRolesIndexRoute,
+  AuthenticatedAccessUserRolesIndexRoute:
+    AuthenticatedAccessUserRolesIndexRoute,
+  AuthenticatedAccessUsersIndexRoute: AuthenticatedAccessUsersIndexRoute,
   AuthenticatedInventoryInboundsIndexRoute:
     AuthenticatedInventoryInboundsIndexRoute,
   AuthenticatedInventoryLedgersIndexRoute:
@@ -968,6 +1210,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedInventoryProductionsIndexRoute,
   AuthenticatedInventorySummaryIndexRoute:
     AuthenticatedInventorySummaryIndexRoute,
+  AuthenticatedProductionBomsIndexRoute: AuthenticatedProductionBomsIndexRoute,
   AuthenticatedProductionOrdersIndexRoute:
     AuthenticatedProductionOrdersIndexRoute,
   AuthenticatedPurchasingContractsIndexRoute:
@@ -995,6 +1238,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedVipPointRuleIndexRoute: AuthenticatedVipPointRuleIndexRoute,
   AuthenticatedVipPrivateRuleIndexRoute: AuthenticatedVipPrivateRuleIndexRoute,
   AuthenticatedVipTierIndexRoute: AuthenticatedVipTierIndexRoute,
+  AuthenticatedProductionOrdersIdIndexRoute:
+    AuthenticatedProductionOrdersIdIndexRoute,
   AuthenticatedPurchasingContractsIdIndexRoute:
     AuthenticatedPurchasingContractsIdIndexRoute,
   AuthenticatedSalesDeliveriesIdIndexRoute:

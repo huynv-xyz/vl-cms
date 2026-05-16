@@ -5,6 +5,7 @@ import { buildBadgeColumn } from "@/components/crud/build-badge-column"
 import { buildActionsColumn } from "@/components/crud/build-actions-column"
 import { ShipmentRowActions } from "./shipment-row-actions"
 import { Shipment } from "../data/schema"
+import { formatNumber } from "@/lib/utils"
 
 export const shipmentColumns: ColumnDef<Shipment>[] = [
     buildIndexColumn(),
@@ -47,6 +48,12 @@ export const shipmentColumns: ColumnDef<Shipment>[] = [
             row.destination_port
                 ? `${row.destination_port.name}`
                 : "-",
+    }),
+
+    buildTextColumn({
+        accessorKey: "exchange_rate",
+        title: "Tỷ giá",
+        render: (row) => formatNumber(row.exchange_rate ?? 1),
     }),
 
     buildBadgeColumn({

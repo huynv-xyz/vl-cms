@@ -24,8 +24,8 @@ export default function ShipmentPage() {
     } = useUrlListFilters(
         search,
         navigate,
-        ["status"],
-        ["eta_from", "eta_to", "supplier_id", "product_id", "port_id"]
+        ["status", "supplier_ids", "product_ids", "port_ids"],
+        ["eta_from", "eta_to"]
     )
 
     const { data, isLoading, error } = usePaginatedList(
@@ -36,12 +36,12 @@ export default function ShipmentPage() {
             keyword,
 
             multiFilters.status,
+            multiFilters.supplier_ids,
+            multiFilters.product_ids,
+            multiFilters.port_ids,
 
             singleFilters.eta_from,
             singleFilters.eta_to,
-            singleFilters.supplier_id,
-            singleFilters.product_id,
-            singleFilters.port_id,
         ],
         listShipmentItems,
         {
@@ -54,17 +54,9 @@ export default function ShipmentPage() {
             eta_from: requestFilters.eta_from,
             eta_to: requestFilters.eta_to,
 
-            supplier_id: requestFilters.supplier_id
-                ? Number(requestFilters.supplier_id)
-                : undefined,
-
-            product_id: requestFilters.product_id
-                ? Number(requestFilters.product_id)
-                : undefined,
-
-            port_id: requestFilters.port_id
-                ? Number(requestFilters.port_id)
-                : undefined,
+            supplier_ids: requestFilters.supplier_ids,
+            product_ids: requestFilters.product_ids,
+            port_ids: requestFilters.port_ids,
         }
     )
 
@@ -94,23 +86,9 @@ export default function ShipmentPage() {
 
                             eta_to: singleFilters.eta_to,
 
-                            supplier_id: singleFilters.supplier_id
-
-                                ? Number(singleFilters.supplier_id)
-
-                                : undefined,
-
-                            product_id: singleFilters.product_id
-
-                                ? Number(singleFilters.product_id)
-
-                                : undefined,
-
-                            port_id: singleFilters.port_id
-
-                                ? Number(singleFilters.port_id)
-
-                                : undefined,
+                            supplier_ids: multiFilters.supplier_ids,
+                            product_ids: multiFilters.product_ids,
+                            port_ids: multiFilters.port_ids,
 
                         }}
 
@@ -123,6 +101,9 @@ export default function ShipmentPage() {
                             setMultiFilters({
 
                                 status: next.status,
+                                supplier_ids: next.supplier_ids,
+                                product_ids: next.product_ids,
+                                port_ids: next.port_ids,
 
                             })
 
@@ -131,24 +112,6 @@ export default function ShipmentPage() {
                                 eta_from: next.eta_from,
 
                                 eta_to: next.eta_to,
-
-                                supplier_id: next.supplier_id
-
-                                    ? String(next.supplier_id)
-
-                                    : undefined,
-
-                                product_id: next.product_id
-
-                                    ? String(next.product_id)
-
-                                    : undefined,
-
-                                port_id: next.port_id
-
-                                    ? String(next.port_id)
-
-                                    : undefined,
 
                             })
                         }}

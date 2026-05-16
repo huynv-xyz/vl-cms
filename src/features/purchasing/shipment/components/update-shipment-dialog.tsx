@@ -22,6 +22,7 @@ import { listContractItems } from "@/api/purchasing/contract-item"
 
 import { shipmentSchema, shipmentUiSchema } from "./shipment-form-schema"
 import { ShipmentItemsEditor } from "./shipment-items-editor"
+import { DialogLoadingState } from "@/components/loading-state"
 
 import type {
     ShipmentFormItem,
@@ -107,6 +108,10 @@ export function UpdateShipmentDialog({
         setHeaderFormData({
             ...defaultHeader,
             ...detail,
+            etd: toDateInputValue(detail.etd),
+            eta: toDateInputValue(detail.eta),
+            ata: toDateInputValue(detail.ata),
+            warehouse_at: toDateInputValue(detail.warehouse_at),
         })
 
         const detailItems = detail.items ?? []
@@ -139,16 +144,22 @@ export function UpdateShipmentDialog({
 
     const { mutate, isPending } = useMutation({
         mutationFn: async () => {
+            const warehouseAt = headerFormData.warehouse_at || (
+                headerFormData.status === "DONE" ? todayInputValue() : ""
+            )
+            if (headerFormData.status === "DONE" && !warehouseAt) {
+                throw new Error("Chọn ngày về kho trước khi hoàn tất lô hàng")
+            }
+
             const selectedItems: any = items.filter((x) => x.selected)
 
             return updateShipment({
                 id: shipment.id,
                 contract_id: shipment.contract_id,
-                warehouse_id: shipment.warehouse_id,
-                warehouse_at: headerFormData.warehouse_at,
-                container_no: headerFormData.container_no,
-
                 ...headerFormData,
+                warehouse_id: headerFormData.warehouse_id ? Number(headerFormData.warehouse_id) : undefined,
+                warehouse_at: warehouseAt || undefined,
+                container_no: headerFormData.container_no,
                 destination_port_id: headerFormData.destination_port_id
                     ? Number(headerFormData.destination_port_id)
                     : undefined,
@@ -168,8 +179,13 @@ export function UpdateShipmentDialog({
 
         onSuccess: async () => {
             await queryClient.invalidateQueries({
-                queryKey: ["shipments", shipment.contract_id],
+                queryKey: ["shipment-items"],
+                refetchType: "active",
             })
+            await queryClient.invalidateQueries({
+                queryKey: ["shipment-detail", shipment.id],
+            })
+            await queryClient.invalidateQueries({ queryKey: ["contracts"], refetchType: "active" })
             toast.success("Cập nhật thành công")
             onOpenChange(false)
         },
@@ -177,16 +193,22 @@ export function UpdateShipmentDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex h-[90vh] max-h-[90vh] flex-col sm:max-w-6xl">
-                <DialogHeader>
-                    <DialogTitle>Cập nhật lô hàng</DialogTitle>
+            <DialogContent className="flex max-h-[88vh] !w-[calc(100vw-32px)] !max-w-[820px] flex-col overflow-hidden p-0">
+                <DialogHeader className="border-b px-6 py-5">
+                    <DialogTitle className="text-2xl font-semibold tracking-tight">Cập nhật lô hàng</DialogTitle>
+                    <p className="text-sm text-muted-foreground">
+                        Cập nhật thông tin lô hàng và danh sách sản phẩm trong lô.
+                    </p>
                 </DialogHeader>
 
                 {isLoading ? (
-                    <div className="p-4 text-sm">Đang tải dữ liệu...</div>
+                    <div className="px-6 py-5">
+                        <DialogLoadingState />
+                    </div>
                 ) : (
-                    <div className="flex-1 overflow-y-auto">
+                    <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
                         <Form
+                            className="space-y-4"
                             validator={rjsfValidator}
                             schema={shipmentSchema}
                             uiSchema={shipmentUiSchema}
@@ -195,21 +217,25 @@ export function UpdateShipmentDialog({
                             templates={{
                                 FieldTemplate: ShadcnFieldTemplate,
                             }}
-                            onChange={({ formData }) =>
-                                setHeaderFormData(
-                                    formData as ShipmentHeaderFormValues
-                                )
-                            }
+                            onChange={({ formData }) => {
+                                const next = formData as ShipmentHeaderFormValues
+                                if (next.status === "DONE" && !next.warehouse_at) {
+                                    next.warehouse_at = todayInputValue()
+                                }
+                                setHeaderFormData(next)
+                            }}
                             onSubmit={() => mutate()}
                         >
-                            <ShipmentItemsEditor
-                                items={items}
-                                onChange={setItems}
-                            />
+                            <div className="col-span-full">
+                                <ShipmentItemsEditor
+                                    items={items}
+                                    onChange={setItems}
+                                />
+                            </div>
 
                             <Button
                                 type="submit"
-                                className="w-full mt-4"
+                                className="col-span-full mt-2 w-full"
                                 disabled={isPending}
                             >
                                 {isPending ? "Đang lưu..." : "Lưu"}
@@ -220,4 +246,23 @@ export function UpdateShipmentDialog({
             </DialogContent>
         </Dialog>
     )
+}
+
+function toDateInputValue(value?: string) {
+    if (!value) return ""
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return value
+    }
+
+    const match = value.match(/^(\d{2})-(\d{2})-(\d{4})$/)
+    if (match) {
+        return `${match[3]}-${match[2]}-${match[1]}`
+    }
+
+    return value
+}
+
+function todayInputValue() {
+    return new Date().toISOString().slice(0, 10)
 }

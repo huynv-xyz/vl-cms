@@ -221,8 +221,26 @@ export function ShipmentItemsEditor({ items, onChange, contract }: Props) {
         getCoreRowModel: getCoreRowModel(),
     })
 
+    if (!items.length) {
+        return (
+            <div className="rounded-md border bg-background px-4 py-8 text-center">
+                <h3 className="font-semibold">Chưa có hàng hóa để tạo lô</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Vui lòng thêm hàng hóa ở tab Hàng hóa của hợp đồng trước khi tạo lô hàng.
+                </p>
+            </div>
+        )
+    }
+
     return (
-        <div>
+        <div className="rounded-md border bg-background">
+            <div className="border-b px-4 py-3">
+                <h3 className="font-semibold">Hàng hóa trong lô</h3>
+                <p className="text-sm text-muted-foreground">
+                    Chọn sản phẩm và nhập số lượng thực đi theo lô hàng.
+                </p>
+            </div>
+            <div className="overflow-x-auto">
             <Table>
                 <TableHeader>
                     {table.getHeaderGroups().map((hg) => (
@@ -248,6 +266,7 @@ export function ShipmentItemsEditor({ items, onChange, contract }: Props) {
                     ))}
                 </TableBody>
             </Table>
+            </div>
         </div>
     )
 }

@@ -1,4 +1,5 @@
 import { createCrudApi } from "@/api/crud"
+import { apiPut } from "@/api/client"
 import type { Export } from "@/features/sale/export/data/schema"
 
 export type ExportListParams = {
@@ -6,6 +7,9 @@ export type ExportListParams = {
     size: number
     keyword?: string
     order_id?: number
+    delivery_id?: number
+    warehouse_id?: number
+    status?: string
 }
 
 const exportApi = createCrudApi<
@@ -20,3 +24,7 @@ export const getExport = exportApi.detail
 export const createExport = exportApi.create
 export const updateExport = exportApi.update
 export const deleteExport = exportApi.delete
+
+export function updateExportStatus(id: number, status: string) {
+    return apiPut(`/sales/exports/${id}/status`, { status })
+}
