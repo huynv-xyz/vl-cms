@@ -16,6 +16,7 @@ type Props = {
     onChange: (v?: string) => void
     placeholder?: string
     className?: string
+    displayFormat?: string
 }
 
 export function DatePicker({
@@ -23,6 +24,7 @@ export function DatePicker({
     onChange,
     placeholder = "Chọn ngày",
     className,
+    displayFormat = "dd/MM/yyyy",
 }: Props) {
     const date = parseDateValue(value)
 
@@ -45,7 +47,7 @@ export function DatePicker({
 
                             <span className="truncate">
                                 {date
-                                    ? format(date, "dd/MM/yyyy")
+                                    ? format(date, displayFormat)
                                     : placeholder}
                             </span>
                         </div>

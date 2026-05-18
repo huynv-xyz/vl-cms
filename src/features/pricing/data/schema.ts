@@ -54,6 +54,12 @@ export type PricingSnapshot = {
     pricing_month: string
     pricing_date: string
     region_id?: number
+    region?: {
+        id: number
+        code?: string
+        name?: string
+    }
+    group_id?: number
     price_method?: PricingPriceMethod
     status?: string
     note?: string

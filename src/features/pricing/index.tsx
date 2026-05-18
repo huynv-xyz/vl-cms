@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Calculator, Edit, Eye, Plus, RefreshCw, Save, Trash2 } from "lucide-react"
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Calculator, CalendarIcon, Check, ChevronLeft, ChevronRight, ChevronsUpDown, Edit, Eye, Plus, RefreshCw, Save, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import { listProducts } from "@/api/product"
 import { listProductGroups } from "@/api/product-group"
@@ -16,9 +16,11 @@ import {
 import { Main } from "@/components/layout/main"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -37,9 +39,11 @@ import type {
 } from "./data/schema"
 
 type Option = { id: number; label: string; sub?: string }
+type SnapshotTableItem = PricingSnapshotItem & { snapshot?: PricingSnapshot }
 
 const today = new Date().toISOString().slice(0, 10)
 const currentMonth = today.slice(0, 7)
+const controlClass = "!h-11 !min-h-11 !max-h-11 box-border text-base leading-none"
 
 export default function PricingPage() {
     const [tab, setTab] = useState("calculate")
@@ -55,7 +59,7 @@ export default function PricingPage() {
                     </p>
                 </div>
                 <div className="rounded-md border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-                    Luồng dùng: <span className="font-semibold text-foreground">Hợp đồng mua</span> → Cấu hình giá → Tính bảng giá
+                    <span className="font-semibold text-foreground">Hợp đồng mua</span> → Cấu hình giá → Tính bảng giá
                 </div>
             </div>
 
@@ -81,10 +85,11 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
     const queryClient = useQueryClient()
     const [form, setForm] = useState<CalculatePricingRequest>({
         pricing_month: currentMonth,
-        pricing_date: today,
         price_method: "WAVG",
     })
     const [selectedSnapshot, setSelectedSnapshot] = useState<PricingSnapshot | null>(null)
+    const [itemProductId, setItemProductId] = useState<number | undefined>()
+    const [itemGroupId, setItemGroupId] = useState<number | undefined>()
 
     const snapshotsQuery = useQuery({
         queryKey: ["pricing-snapshots", form.pricing_month],
@@ -93,9 +98,9 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
 
     const calculateMutation = useMutation({
         mutationFn: calculatePricing,
-        onSuccess: async (snapshot) => {
-            toast.success("Đã tính bảng giá")
-            setSelectedSnapshot(snapshot)
+        onSuccess: async (snapshots) => {
+            toast.success(snapshots.length > 1 ? `Đã tính ${snapshots.length} bảng giá theo vùng` : "Đã tính bảng giá")
+            setSelectedSnapshot(snapshots[0] ?? null)
             await queryClient.invalidateQueries({ queryKey: ["pricing-snapshots"] })
         },
         onError: showError("Tính bảng giá thất bại"),
@@ -109,9 +114,50 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
 
     const latestSnapshots = snapshotsQuery.data?.items ?? []
     const items = itemsQuery.data ?? []
+    const allItemsQueries = useQueries({
+        queries: latestSnapshots.map((snapshot) => ({
+            queryKey: ["pricing-snapshot-items", snapshot.id],
+            queryFn: () => listPricingSnapshotItems(snapshot.id),
+            enabled: !!snapshot.id,
+        })),
+    })
+    const allSnapshotItems = useMemo<SnapshotTableItem[]>(() => {
+        return allItemsQueries.flatMap((query, index) => {
+            const snapshot = latestSnapshots[index]
+            return (query.data ?? []).map((item) => ({ ...item, snapshot }))
+        })
+    }, [allItemsQueries, latestSnapshots])
+    const currentSnapshotItems = useMemo<SnapshotTableItem[]>(() => {
+        return items.map((item) => ({ ...item, snapshot: selectedSnapshot ?? undefined }))
+    }, [items, selectedSnapshot])
+    const isCrossRegionFilter = Boolean(itemProductId || itemGroupId)
+    const baseItems = isCrossRegionFilter ? allSnapshotItems : currentSnapshotItems
+    const productFilterOptions = useMemo(() => {
+        const map = new Map<number, Option>()
+        lookups.products.forEach((option) => map.set(option.id, option))
+        allSnapshotItems.forEach((item) => {
+            if (!item.product_id) return
+            map.set(item.product_id, {
+                id: item.product_id,
+                label: item.product_name || `Sản phẩm #${item.product_id}`,
+                sub: item.product_code,
+            })
+        })
+        return Array.from(map.values()).sort((a, b) => formatOptionLabel(a).localeCompare(formatOptionLabel(b), "vi"))
+    }, [allSnapshotItems, lookups.products])
+    const filteredItems = useMemo(() => {
+        return baseItems.filter((item) => {
+            if (itemProductId && item.product_id !== itemProductId) return false
+            if (itemGroupId && item.group_id !== itemGroupId) return false
+            return true
+        })
+    }, [baseItems, itemProductId, itemGroupId])
+    const tableLoading = isCrossRegionFilter
+        ? allItemsQueries.some((query) => query.isLoading)
+        : itemsQuery.isLoading
 
     const totals = useMemo(() => {
-        return items.reduce(
+        return filteredItems.reduce(
             (acc, item) => {
                 acc.purchase += item.purchase_price_vnd ?? 0
                 acc.warehouse += item.warehouse_price_vnd ?? 0
@@ -121,39 +167,40 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
             },
             { purchase: 0, warehouse: 0, cash: 0, warning: 0 }
         )
-    }, [items])
+    }, [filteredItems])
 
     const submit = () => {
         if (!form.pricing_month) return toast.error("Chọn tháng áp dụng")
-        if (!form.pricing_date) return toast.error("Chọn ngày tính")
         calculateMutation.mutate({
             ...form,
+            pricing_date: today,
             code: form.code?.trim() || undefined,
             note: form.note?.trim() || undefined,
         })
     }
 
     return (
-        <div className="grid gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
+        <div className="space-y-5">
             <section className="rounded-md border bg-background p-5">
                 <div className="mb-5 flex items-start gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
                         <Calculator className="h-5 w-5" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-semibold">Tính bảng giá mới</h2>
-                        <p className="text-sm text-muted-foreground">Không nhập giá mua ở đây. Giá mua lấy từ hợp đồng mua hàng.</p>
+                        <h2 className="text-xl font-semibold">Tính bảng giá</h2>
+                        <p className="text-sm text-muted-foreground">Giá mua lấy từ hợp đồng mua hàng.</p>
                     </div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <Field label="Tháng áp dụng">
-                        <Input type="month" value={form.pricing_month ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, pricing_month: event.target.value }))} />
+                        <MonthPicker
+                            value={form.pricing_month}
+                            placeholder="Chọn tháng áp dụng"
+                            onChange={(value) => setForm((prev) => ({ ...prev, pricing_month: value }))}
+                        />
                     </Field>
-                    <Field label="Ngày tính">
-                        <Input type="date" value={form.pricing_date ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, pricing_date: event.target.value }))} />
-                    </Field>
-                    <Field label="Vùng bán">
+                    <Field label="Vùng">
                         <OptionSelect
                             value={form.region_id}
                             options={lookups.regions}
@@ -171,7 +218,7 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
                     </Field>
                     <Field label="Cách lấy giá mua">
                         <Select value={form.price_method ?? "WAVG"} onValueChange={(value) => setForm((prev) => ({ ...prev, price_method: value as PricingPriceMethod }))}>
-                            <SelectTrigger className="w-full">
+                            <SelectTrigger className={cn(controlClass, "w-full !py-0")}>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -181,17 +228,15 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
                             </SelectContent>
                         </Select>
                     </Field>
-                    <Field label="Mã bảng giá">
-                        <Input value={form.code ?? ""} placeholder="Để trống hệ thống tự tạo" onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))} />
+                    <Field label="Ghi chú" className="md:col-span-2 xl:col-span-3">
+                        <Textarea className={cn(controlClass, "resize-none py-2")} value={form.note ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, note: event.target.value }))} />
                     </Field>
-                    <Field label="Ghi chú">
-                        <Textarea value={form.note ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, note: event.target.value }))} />
-                    </Field>
-
-                    <Button className="h-11 w-full text-base" onClick={submit} disabled={calculateMutation.isPending}>
-                        {calculateMutation.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Calculator className="mr-2 h-4 w-4" />}
-                        Tính bảng giá
-                    </Button>
+                    <div className="flex items-end">
+                        <Button className={cn(controlClass, "w-full")} onClick={submit} disabled={calculateMutation.isPending}>
+                            {calculateMutation.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Calculator className="mr-2 h-4 w-4" />}
+                            Tính bảng giá
+                        </Button>
+                    </div>
                 </div>
             </section>
 
@@ -204,33 +249,60 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
                 </div>
 
                 <div className="rounded-md border bg-background">
-                    <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div>
-                            <h2 className="text-xl font-semibold">Bảng giá đã tính</h2>
-                            <p className="text-sm text-muted-foreground">Chọn một lần tính để xem kết quả chi tiết.</p>
+                    <div className="space-y-4 border-b p-4">
+                        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(260px,420px)] xl:items-end">
+                            <div className="min-w-0">
+                                <h2 className="text-xl font-semibold">Bảng giá đã tính</h2>
+                                <p className="text-sm text-muted-foreground">Chọn một lần tính để xem kết quả chi tiết.</p>
+                            </div>
+                            <Field label="Bảng giá">
+                                <Select value={selectedSnapshot?.id ? String(selectedSnapshot.id) : ""} onValueChange={(value) => {
+                                    const snapshot = latestSnapshots.find((item) => String(item.id) === value)
+                                    setSelectedSnapshot(snapshot ?? null)
+                                }}>
+                                    <SelectTrigger className={cn(controlClass, "w-full !py-0")}>
+                                        <SelectValue placeholder="Chọn bảng giá" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {latestSnapshots.map((snapshot) => (
+                                            <SelectItem key={snapshot.id} value={String(snapshot.id)}>
+                                                {snapshotLabel(snapshot, lookups.regions)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </Field>
                         </div>
-                        <Select value={selectedSnapshot?.id ? String(selectedSnapshot.id) : ""} onValueChange={(value) => {
-                            const snapshot = latestSnapshots.find((item) => String(item.id) === value)
-                            setSelectedSnapshot(snapshot ?? null)
-                        }}>
-                            <SelectTrigger className="w-full lg:w-[360px]">
-                                <SelectValue placeholder="Chọn bảng giá" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {latestSnapshots.map((snapshot) => (
-                                    <SelectItem key={snapshot.id} value={String(snapshot.id)}>
-                                        {snapshot.code} - {snapshot.pricing_month}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="grid min-w-0 gap-3 md:grid-cols-2">
+                            <Field label="Lọc sản phẩm" className="min-w-0">
+                                <OptionCombobox
+                                    value={itemProductId}
+                                    options={productFilterOptions}
+                                    placeholder="Tất cả sản phẩm"
+                                    searchPlaceholder="Tìm mã hoặc tên sản phẩm..."
+                                    emptyText="Không tìm thấy sản phẩm"
+                                    onChange={setItemProductId}
+                                />
+                            </Field>
+                            <Field label="Lọc nhóm" className="min-w-0">
+                                <OptionCombobox
+                                    value={itemGroupId}
+                                    options={lookups.groups}
+                                    placeholder="Tất cả nhóm"
+                                    searchPlaceholder="Tìm mã hoặc tên nhóm..."
+                                    emptyText="Không tìm thấy nhóm"
+                                    onChange={setItemGroupId}
+                                />
+                            </Field>
+                        </div>
                     </div>
 
                     {selectedSnapshot ? (
                         <SnapshotItemsTable
                             snapshot={selectedSnapshot}
-                            items={items}
-                            isLoading={itemsQuery.isLoading}
+                            items={filteredItems}
+                            isLoading={tableLoading}
+                            isCrossRegionFilter={isCrossRegionFilter}
                         />
                     ) : (
                         <div className="p-8 text-center text-muted-foreground">Chưa chọn bảng giá để xem.</div>
@@ -372,19 +444,32 @@ function TransportRulesPanel({ lookups }: { lookups: ReturnType<typeof usePricin
     )
 }
 
-function SnapshotItemsTable({ snapshot, items, isLoading }: { snapshot: PricingSnapshot; items: PricingSnapshotItem[]; isLoading: boolean }) {
+function SnapshotItemsTable({
+    snapshot,
+    items,
+    isLoading,
+    isCrossRegionFilter,
+}: {
+    snapshot: PricingSnapshot
+    items: SnapshotTableItem[]
+    isLoading: boolean
+    isCrossRegionFilter?: boolean
+}) {
     const [sourceItem, setSourceItem] = useState<PricingSnapshotItem | null>(null)
 
     return (
         <>
             <div className="border-b bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                {snapshot.code} · {snapshot.pricing_month} · {priceMethodLabel(snapshot.price_method)}
+                {isCrossRegionFilter
+                    ? `${snapshot.pricing_month} · Đang xem gộp các vùng theo bộ lọc · ${priceMethodLabel(snapshot.price_method)}`
+                    : `${snapshot.code} · ${snapshot.pricing_month} · ${snapshotRegionLabel(snapshot)} · ${priceMethodLabel(snapshot.price_method)}`}
             </div>
             <div className="overflow-x-auto">
                 <Table>
                     <TableHeader>
                         <TableRow>
                             <TableHead className="min-w-[260px]">Sản phẩm</TableHead>
+                            <TableHead>Vùng miền</TableHead>
                             <TableHead className="text-right">Giá mua</TableHead>
                             <TableHead className="text-right">LN</TableHead>
                             <TableHead className="text-right">Tại kho</TableHead>
@@ -396,13 +481,16 @@ function SnapshotItemsTable({ snapshot, items, isLoading }: { snapshot: PricingS
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {items.map((item) => (
-                            <TableRow key={item.id}>
+                        {items.map((item) => {
+                            const rowSnapshot = item.snapshot ?? snapshot
+                            return (
+                            <TableRow key={`${rowSnapshot.id}-${item.id}`}>
                                 <TableCell>
                                     <div className="font-semibold">{item.product_code}</div>
                                     <div className="text-sm text-muted-foreground">{item.product_name}</div>
                                     <div className="text-xs text-muted-foreground">ĐVT: {item.sale_unit_name || item.sale_unit_code || item.base_unit_code || "-"}</div>
                                 </TableCell>
+                                <TableCell className="min-w-[140px] font-medium">{snapshotRegionLabel(rowSnapshot)}</TableCell>
                                 <MoneyCell value={item.purchase_price_vnd} />
                                 <MoneyCell value={item.margin_amount_vnd} />
                                 <MoneyCell value={item.warehouse_price_vnd} strong />
@@ -418,8 +506,9 @@ function SnapshotItemsTable({ snapshot, items, isLoading }: { snapshot: PricingS
                                 </TableCell>
                                 <TableCell>{item.warning_text ? <Badge variant="destructive">{item.warning_text}</Badge> : <Badge variant="outline">OK</Badge>}</TableCell>
                             </TableRow>
-                        ))}
-                        {!items.length && <EmptyRow colSpan={9} text={isLoading ? "Đang tải..." : "Bảng giá này chưa có dòng"} />}
+                            )
+                        })}
+                        {!items.length && <EmptyRow colSpan={10} text={isLoading ? "Đang tải..." : "Bảng giá này chưa có dòng"} />}
                     </TableBody>
                 </Table>
             </div>
@@ -660,7 +749,7 @@ function usePricingLookups() {
 function OptionSelect({ value, options, placeholder, required, onChange }: { value?: number; options: Option[]; placeholder: string; required?: boolean; onChange: (value: number | undefined) => void }) {
     return (
         <Select value={value ? String(value) : ""} onValueChange={(next) => onChange(next === "__empty" ? undefined : Number(next))}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className={cn(controlClass, "w-full !py-0")}>
                 <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>
@@ -675,9 +764,109 @@ function OptionSelect({ value, options, placeholder, required, onChange }: { val
     )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function OptionCombobox({
+    value,
+    options,
+    placeholder,
+    searchPlaceholder,
+    emptyText,
+    onChange,
+}: {
+    value?: number
+    options: Option[]
+    placeholder: string
+    searchPlaceholder: string
+    emptyText: string
+    onChange: (value: number | undefined) => void
+}) {
+    const [open, setOpen] = useState(false)
+    const [keyword, setKeyword] = useState("")
+    const selected = options.find((option) => option.id === value)
+    const filteredOptions = useMemo(() => {
+        const q = normalizeKeyword(keyword)
+        if (!q) return options.slice(0, 80)
+        return options
+            .filter((option) => normalizeKeyword([option.sub, option.label].filter(Boolean).join(" ")).includes(q))
+            .slice(0, 80)
+    }, [keyword, options])
+    const selectedLabel = selected ? formatOptionLabel(selected) : placeholder
+
     return (
-        <div className="grid gap-2">
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                        controlClass,
+                        "min-w-0 w-full justify-between px-3 text-left font-normal",
+                        !selected && "text-muted-foreground"
+                    )}
+                >
+                    <span className="min-w-0 flex-1 truncate">{selectedLabel}</span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                <Command shouldFilter={false}>
+                    <CommandInput placeholder={searchPlaceholder} value={keyword} onValueChange={setKeyword} />
+                    <CommandList className="max-h-80 overflow-y-auto">
+                        <CommandEmpty>{emptyText}</CommandEmpty>
+                        <CommandItem
+                            onSelect={() => {
+                                onChange(undefined)
+                                setKeyword("")
+                                setOpen(false)
+                            }}
+                        >
+                            <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
+                            <span className="truncate text-muted-foreground">{placeholder}</span>
+                        </CommandItem>
+                        {filteredOptions.map((option) => (
+                            <CommandItem
+                                key={option.id}
+                                value={formatOptionLabel(option)}
+                                className="min-w-0"
+                                onSelect={() => {
+                                    onChange(option.id)
+                                    setKeyword("")
+                                    setOpen(false)
+                                }}
+                            >
+                                <Check className={cn("mr-2 h-4 w-4 shrink-0", value === option.id ? "opacity-100" : "opacity-0")} />
+                                <span className="min-w-0 truncate">
+                                    {option.sub && <span className="font-medium">{option.sub}</span>}
+                                    {option.sub ? " - " : ""}
+                                    {option.label}
+                                </span>
+                            </CommandItem>
+                        ))}
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    )
+}
+
+function formatOptionLabel(option: Option) {
+    return option.sub ? `${option.sub} - ${option.label}` : option.label
+}
+
+function snapshotLabel(snapshot: PricingSnapshot, regions: Option[]) {
+    return `${snapshot.code} - ${snapshot.pricing_month} - ${snapshotRegionLabel(snapshot, regions)}`
+}
+
+function snapshotRegionLabel(snapshot: PricingSnapshot, regions?: Option[]) {
+    if (snapshot.region?.name) {
+        return snapshot.region.code ? `${snapshot.region.code} - ${snapshot.region.name}` : snapshot.region.name
+    }
+    if (snapshot.region_id && regions) return labelOf(regions, snapshot.region_id)
+    return "Tất cả vùng"
+}
+
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+    return (
+        <div className={cn("grid gap-2", className)}>
             <Label className="text-base font-semibold">{label}</Label>
             {children}
         </div>
@@ -686,6 +875,102 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function NumberInput({ value, onChange }: { value?: number; onChange: (value: number) => void }) {
     return <Input type="number" value={value ?? 0} onChange={(event) => onChange(Number(event.target.value || 0))} />
+}
+
+function MonthPicker({
+    value,
+    onChange,
+    placeholder = "Chọn tháng",
+}: {
+    value?: string
+    onChange: (value?: string) => void
+    placeholder?: string
+}) {
+    const parsedYear = value?.match(/^(\d{4})-\d{2}$/)?.[1]
+    const [open, setOpen] = useState(false)
+    const [year, setYear] = useState(Number(parsedYear || new Date().getFullYear()))
+    const selectedMonth = value?.match(/^\d{4}-(\d{2})$/)?.[1]
+    const label = value ? `${value.slice(5, 7)}/${value.slice(0, 4)}` : placeholder
+    const months = [
+        "Tháng 1",
+        "Tháng 2",
+        "Tháng 3",
+        "Tháng 4",
+        "Tháng 5",
+        "Tháng 6",
+        "Tháng 7",
+        "Tháng 8",
+        "Tháng 9",
+        "Tháng 10",
+        "Tháng 11",
+        "Tháng 12",
+    ]
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <div className="relative">
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className={cn(
+                            controlClass,
+                            "border-input focus-visible:border-ring focus-visible:ring-ring/50 flex w-full items-center justify-between gap-2 rounded-md border bg-transparent px-3 pr-9 text-left whitespace-nowrap shadow-xs outline-none transition-[color,box-shadow] focus-visible:ring-[3px]",
+                            !value && "text-muted-foreground"
+                        )}
+                    >
+                        <span className="flex min-w-0 items-center gap-2">
+                            <CalendarIcon className="h-4 w-4 shrink-0" />
+                            <span className="truncate">{label}</span>
+                        </span>
+                    </button>
+                </PopoverTrigger>
+                {value && (
+                    <button
+                        type="button"
+                        className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground hover:text-destructive"
+                        onClick={(event) => {
+                            event.stopPropagation()
+                            onChange(undefined)
+                        }}
+                    >
+                        <X className="h-4 w-4" />
+                    </button>
+                )}
+            </div>
+            <PopoverContent className="w-[320px] p-3" align="start">
+                <div className="mb-3 flex items-center justify-between">
+                    <Button type="button" variant="ghost" size="icon" onClick={() => setYear((prev) => prev - 1)}>
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="text-base font-semibold">{year}</div>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => setYear((prev) => prev + 1)}>
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                    {months.map((month, index) => {
+                        const monthValue = String(index + 1).padStart(2, "0")
+                        const optionValue = `${year}-${monthValue}`
+                        const selected = value === optionValue || (String(year) === parsedYear && selectedMonth === monthValue)
+                        return (
+                            <Button
+                                key={month}
+                                type="button"
+                                variant={selected ? "default" : "outline"}
+                                className="h-10"
+                                onClick={() => {
+                                    onChange(optionValue)
+                                    setOpen(false)
+                                }}
+                            >
+                                {month}
+                            </Button>
+                        )
+                    })}
+                </div>
+            </PopoverContent>
+        </Popover>
+    )
 }
 
 function PanelHeader({ title, description, action }: { title: string; description: string; action: React.ReactNode }) {
@@ -736,6 +1021,14 @@ function EmptyRow({ colSpan, text }: { colSpan: number; text: string }) {
             <TableCell colSpan={colSpan} className="h-28 text-center text-muted-foreground">{text}</TableCell>
         </TableRow>
     )
+}
+
+function normalizeKeyword(value?: string) {
+    return (value ?? "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
 }
 
 function labelOf(options: Option[], id?: number) {

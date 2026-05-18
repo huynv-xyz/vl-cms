@@ -20,7 +20,7 @@ export const pricingSnapshotsApi = createCrudApi<PricingSnapshot, Create<Pricing
 export const pricingSnapshotItemSourcesApi = createCrudApi<PricingSnapshotItemSource, Create<PricingSnapshotItemSource>, Update<PricingSnapshotItemSource>, PricingListParams>("/pricing/snapshot-item-sources")
 
 export function calculatePricing(body: CalculatePricingRequest) {
-    return apiPost<PricingSnapshot>("/pricing/snapshots/calculate", body)
+    return apiPost<PricingSnapshot[]>("/pricing/snapshots/calculate", body)
 }
 
 export function listPricingSnapshotItems(snapshotId: number) {

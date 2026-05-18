@@ -84,7 +84,7 @@ export function ShipmentItemTableV2({
         onFiltersChange({ ...filters, [key]: value })
 
     return (
-        <div className="max-w-[1120px] space-y-3">
+        <div className="space-y-3">
             {/* TOOLBAR */}
             <div className="space-y-2">
                 <div className="flex w-full flex-wrap items-center gap-2">

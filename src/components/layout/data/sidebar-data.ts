@@ -162,7 +162,16 @@ export const sidebarData: SidebarData = {
                 }
             ],
         },
-
+        {
+            title: 'Giá thành',
+            items: [
+                {
+                    title: 'Tính giá bán',
+                    url: '/pricing',
+                    icon: Calculator,
+                },
+            ],
+        },
         {
             title: 'Bán hàng & Công nợ',
             items: [
@@ -227,16 +236,6 @@ export const sidebarData: SidebarData = {
                     title: 'Định mức BOM',
                     url: '/production/boms',
                     icon: Layers3,
-                },
-            ],
-        },
-        {
-            title: 'Giá thành',
-            items: [
-                {
-                    title: 'Tính giá bán',
-                    url: '/pricing',
-                    icon: Calculator,
                 },
             ],
         },
