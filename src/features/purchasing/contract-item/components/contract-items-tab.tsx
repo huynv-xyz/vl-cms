@@ -1,5 +1,4 @@
 import { usePaginatedList } from "@/hooks/use-paginated-list"
-import { useUrlPagination } from "@/hooks/use-url-pagination"
 import { useUrlListFilters } from "@/hooks/use-url-list-filters"
 import { listContractItems } from "@/api/purchasing/contract-item"
 import { ContractItemsProvider } from "./contract-items-provider"
@@ -15,16 +14,14 @@ type Props = {
 }
 
 export function ContractItemsTab({ contract, search, navigate }: Props) {
-    const { pagination, setPagination } = useUrlPagination(search, navigate)
-
     const { keyword, setKeyword } = useUrlListFilters(search, navigate, ["keyword"])
 
     const { data, isLoading, error } = usePaginatedList(
-        ["contract-items", contract.id, search.page, search.size, keyword],
+        ["contract-items", contract.id, keyword],
         listContractItems,
         {
-            page: search.page,
-            size: search.size,
+            page: 1,
+            size: 200,
             keyword,
             contract_id: contract.id,
         }
@@ -43,9 +40,6 @@ export function ContractItemsTab({ contract, search, navigate }: Props) {
                     <div className="space-y-4">
                         <ContractItemTable
                             data={data.items}
-                            pagination={pagination}
-                            onPaginationChange={setPagination}
-                            pageCount={data.total_page}
                             keyword={keyword}
                             onKeywordChange={setKeyword}
                         />

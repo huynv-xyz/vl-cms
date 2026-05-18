@@ -5,6 +5,8 @@ import { Link } from "@tanstack/react-router"
 import { ArrowUpRight, Building2, CalendarDays, CreditCard, FileText, ReceiptText } from "lucide-react"
 import type { Contract } from "../../data/schema"
 
+type MetricTone = "success" | "warning" | "default"
+
 type Props = {
     contract: Contract
 }
@@ -19,36 +21,36 @@ export function ContractInfoTable({ contract }: Props) {
             : totalAmount * exchangeRate
 
     return (
-        <div className="space-y-4">
-            <div className="rounded-md border bg-background p-5">
+        <div className="space-y-3">
+            <div className="rounded-xl border bg-background p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <FileText className="h-6 w-6 text-muted-foreground" />
-                            <h2 className="text-3xl font-semibold tracking-tight">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <FileText className="h-5 w-5 text-muted-foreground" />
+                            <h2 className="text-2xl font-semibold tracking-tight">
                                 {contract.code || `Hợp đồng #${contract.id}`}
                             </h2>
-                            <StatusBadge status={contract.status} />
+                            <TypeBadge />
                         </div>
 
-                        <div className="flex flex-wrap gap-x-5 gap-y-2 text-base text-muted-foreground">
+                        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
                             <span className="inline-flex items-center gap-2">
-                                <Building2 className="h-5 w-5" />
+                                <Building2 className="h-4 w-4" />
                                 {contract.supplier?.name ?? "-"}
                                 {contract.supplier?.nation?.name ? ` · ${contract.supplier.nation.name}` : ""}
                             </span>
                             <span className="inline-flex items-center gap-2">
-                                <CalendarDays className="h-5 w-5" />
+                                <CalendarDays className="h-4 w-4" />
                                 Ngày ký {formatDate(contract.signed_date)}
                             </span>
                             <span className="inline-flex items-center gap-2">
-                                <CreditCard className="h-5 w-5" />
+                                <CreditCard className="h-4 w-4" />
                                 {formatPaymentMethod(contract.payment_method)} · {contract.currency?.code ?? "-"} · TG {formatNumber(exchangeRate)}
                             </span>
                         </div>
                     </div>
 
-                    <Button variant="outline" asChild>
+                    <Button variant="outline" asChild className="shrink-0">
                         <Link
                             to="/purchasing/contracts"
                             search={{
@@ -63,37 +65,51 @@ export function ContractInfoTable({ contract }: Props) {
                                 signed_date_to: undefined,
                             }}
                         >
-                            Danh sách HĐ
                             <ArrowUpRight className="h-4 w-4" />
+                            Danh sách HĐ
                         </Link>
                     </Button>
                 </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                <Metric label="Tổng tiền" value={formatCurrency(totalAmount)} sub={contract.currency?.code ?? "-"} />
-                <Metric label="Thành tiền VNĐ" value={formatCurrency(totalAmountVnd)} sub={`TG ${formatNumber(exchangeRate)}`} />
-                <Metric label="Đã thanh toán" value={formatCurrency(contract.total_paid_amount ?? 0)} sub={`${paidPercent}% giá trị`} tone="success" />
-                <Metric label="Còn phải trả" value={formatCurrency(contract.remaining_amount ?? 0)} sub={contract.currency?.code ?? "-"} tone="warning" />
-                <Metric label="Tổng SL hàng" value={formatNumber(contract.total_quantity ?? 0)} sub={`Lỗi: ${formatNumber(contract.total_defect_quantity ?? 0)}`} />
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <Metric label="TỔNG TIỀN" value={formatCurrency(totalAmount)} sub={contract.currency?.code ?? "-"} />
+                <Metric label="THÀNH TIỀN VNĐ" value={formatCurrency(totalAmountVnd)} sub={`TG ${formatNumber(exchangeRate)}`} />
+                <Metric label="ĐÃ THANH TOÁN" value={formatCurrency(contract.total_paid_amount ?? 0)} sub={`${paidPercent}% giá trị`} tone="success" />
+                <Metric label="CÒN PHẢI TRẢ" value={formatCurrency(contract.remaining_amount ?? 0)} sub={contract.currency?.code ?? "-"} tone="warning" />
             </div>
 
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <InfoBox label="Nhà cung cấp" value={contract.supplier?.name} sub={contract.supplier?.code} />
-                <InfoBox label="Quốc gia" value={contract.supplier?.nation?.name} sub={contract.supplier?.nation?.code} />
-                <InfoBox label="Điều kiện mua" value={contract.term} sub={`Cọc ${formatNumber(contract.deposit_rate ?? 0)}%`} />
-                <InfoBox label="Loại tiền" value={contract.currency?.code} sub={`Tỷ giá ${formatNumber(exchangeRate)}`} />
+                <InfoBox label="NHÀ CUNG CẤP" value={contract.supplier?.name} sub={contract.supplier?.code} />
+                <InfoBox label="QUỐC GIA" value={contract.supplier?.nation?.name} sub={contract.supplier?.nation?.code} />
+                <InfoBox label="ĐIỀU KIỆN MUA" value={contract.term} sub={`Cọc ${formatNumber(contract.deposit_rate ?? 0)}%`} />
+                <InfoBox label="LOẠI TIỀN" value={contract.currency?.code} sub={`Tỷ giá ${formatNumber(exchangeRate)}`} />
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <InfoBox
-                    label="Phí làm hàng"
+                    label="PHÍ LÀM HÀNG"
                     value={formatCurrency(contract.handling_fee ?? 0)}
                     sub="TTHQ, nâng hạ và phí liên quan/ĐV"
                     icon={ReceiptText}
+                    muted
                 />
-                <InfoBox label="Ngày cọc" value={formatDate(contract.deposit_date)} />
-                <InfoBox label="Thuế nhập khẩu" value={`${formatNumber(contract.import_tax_rate ?? 0)}%`} />
-                <InfoBox label="VAT" value={`${formatNumber(contract.vat_rate ?? 0)}%`} />
+                <InfoBox label="NGÀY CỌC" value={formatDate(contract.deposit_date)} muted />
+                <InfoBox label="THUẾ NHẬP KHẨU" value={`${formatNumber(contract.import_tax_rate ?? 0)}%`} muted />
+                <InfoBox label="VAT" value={`${formatNumber(contract.vat_rate ?? 0)}%`} muted />
             </div>
         </div>
+    )
+}
+
+function TypeBadge() {
+    return (
+        <Badge
+            variant="outline"
+            className="border-teal-200 bg-teal-50 text-teal-700"
+        >
+            Nhập
+        </Badge>
     )
 }
 
@@ -106,20 +122,20 @@ function Metric({
     label: string
     value: string
     sub?: string
-    tone?: "success" | "warning"
+    tone?: MetricTone
 }) {
     const valueClass =
         tone === "success"
-            ? "text-emerald-700"
+            ? "text-emerald-600"
             : tone === "warning"
-                ? "text-amber-700"
+                ? "text-orange-600"
                 : "text-foreground"
 
     return (
-        <div className="flex min-h-[132px] flex-col justify-between rounded-md border bg-background px-5 py-4">
-            <div className="text-base font-medium text-muted-foreground">{label}</div>
-            <div className={`mt-2 break-words text-2xl font-semibold tracking-tight tabular-nums 2xl:text-3xl ${valueClass}`}>{value}</div>
-            {sub ? <div className="mt-1 text-sm text-muted-foreground">{sub}</div> : null}
+        <div className="flex min-h-[120px] flex-col justify-between rounded-xl border bg-background px-5 py-4 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+            <div className={`mt-2 break-words text-2xl font-bold tracking-tight tabular-nums 2xl:text-3xl ${valueClass}`}>{value}</div>
+            {sub ? <div className="mt-1 text-xs text-muted-foreground">{sub}</div> : null}
         </div>
     )
 }
@@ -129,59 +145,34 @@ function InfoBox({
     value,
     sub,
     icon: Icon,
+    muted = false,
 }: {
     label: string
     value?: string | number | null
     sub?: string | number | null
     icon?: React.ComponentType<{ className?: string }>
+    muted?: boolean
 }) {
     return (
-        <div className="flex min-h-[118px] flex-col justify-between rounded-md border bg-background px-5 py-4">
-            <div className="flex items-center gap-2 text-base font-medium text-muted-foreground">
-                {Icon ? <Icon className="h-5 w-5" /> : null}
+        <div
+            className={`flex min-h-[96px] flex-col justify-between rounded-xl border px-5 py-4 shadow-sm ${muted ? "bg-muted/30" : "bg-background"
+                }`}
+        >
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {Icon ? <Icon className="h-4 w-4" /> : null}
                 {label}
             </div>
-            <div className="mt-2 break-words text-lg font-semibold">{value || "-"}</div>
-            {sub ? <div className="mt-1 text-sm text-muted-foreground">{sub}</div> : null}
+            <div className={`mt-2 break-words font-semibold ${muted ? "text-base" : "text-lg"}`}>
+                {value || "—"}
+            </div>
+            {sub ? <div className="mt-1 text-xs text-muted-foreground">{sub}</div> : null}
         </div>
-    )
-}
-
-function StatusBadge({ status }: { status?: string }) {
-    const className =
-        status === "DONE"
-            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-            : status === "SIGNED"
-                ? "border-sky-200 bg-sky-50 text-sky-700"
-                : status === "CANCELLED"
-                    ? "border-red-200 bg-red-50 text-red-700"
-                    : "border-slate-200 bg-slate-50 text-slate-700"
-
-    return (
-        <Badge variant="outline" className={className}>
-            {formatStatus(status)}
-        </Badge>
     )
 }
 
 function calcPercent(paid?: number, total?: number) {
     if (!paid || !total) return 0
     return Math.round((paid / total) * 100)
-}
-
-function formatStatus(status?: string) {
-    switch (status) {
-        case "DRAFT":
-            return "Nháp"
-        case "SIGNED":
-            return "Đã ký"
-        case "DONE":
-            return "Hoàn tất"
-        case "CANCELLED":
-            return "Đã hủy"
-        default:
-            return status || "-"
-    }
 }
 
 function formatPaymentMethod(method?: string) {

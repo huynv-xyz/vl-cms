@@ -21,7 +21,11 @@ import type { ProductGroup } from "./data/schema"
 const fields = [
     { key: "code", title: "Mã nhóm", type: "string", required: true },
     { key: "name", title: "Tên nhóm", type: "string", required: true },
-    { key: "vat_rate", title: "VAT %", type: "number" },
+    { key: "standard_unit", title: "Đơn vị chuẩn", type: "string" },
+    { key: "default_price_method", title: "Cách lấy giá mặc định", type: "string" },
+    { key: "default_margin_type", title: "Kiểu lợi nhuận", type: "string" },
+    { key: "default_margin_value", title: "Lợi nhuận", type: "number" },
+    { key: "default_vat_rate", title: "VAT %", type: "number" },
     { key: "active", title: "Đang dùng", type: "boolean" },
 ] as const
 
@@ -44,10 +48,16 @@ export default function ProductGroupPage() {
         buildIndexColumn<ProductGroup>(),
         { accessorKey: "code", header: "Mã nhóm" },
         { accessorKey: "name", header: "Tên nhóm" },
+        { accessorKey: "standard_unit", header: "Đơn vị chuẩn" },
         {
-            accessorKey: "vat_rate",
+            accessorKey: "default_margin_value",
+            header: "LN",
+            cell: ({ row }) => `${formatNumber(row.original.default_margin_value ?? 0)}${row.original.default_margin_type === "AMOUNT" ? " đ" : "%"}`,
+        },
+        {
+            accessorKey: "default_vat_rate",
             header: "VAT %",
-            cell: ({ row }) => formatNumber(row.original.vat_rate ?? 0),
+            cell: ({ row }) => formatNumber(row.original.default_vat_rate ?? 0),
         },
         {
             accessorKey: "active",
@@ -132,7 +142,12 @@ function ProductGroupDialog({
             defaultValues={{
                 code: entity?.code ?? "",
                 name: entity?.name ?? "",
-                vat_rate: entity?.vat_rate ?? 5,
+                description: entity?.description ?? "",
+                standard_unit: entity?.standard_unit ?? "KG",
+                default_price_method: entity?.default_price_method ?? "LATEST",
+                default_margin_type: entity?.default_margin_type ?? "PERCENT",
+                default_margin_value: entity?.default_margin_value ?? 0,
+                default_vat_rate: entity?.default_vat_rate ?? 5,
                 active: entity?.active ?? true,
             }}
             submitText="Lưu"
@@ -142,24 +157,35 @@ function ProductGroupDialog({
             mapFormToRequest={(values) => ({
                 code: String(values.code ?? "").trim(),
                 name: String(values.name ?? "").trim(),
-                vat_rate: Number(values.vat_rate ?? 5),
+                description: String(values.description ?? "").trim(),
+                standard_unit: String(values.standard_unit ?? "KG"),
+                default_price_method: String(values.default_price_method ?? "LATEST"),
+                default_margin_type: String(values.default_margin_type ?? "PERCENT"),
+                default_margin_value: Number(values.default_margin_value ?? 0),
+                default_vat_rate: Number(values.default_vat_rate ?? 5),
                 active: Boolean(values.active ?? true),
             })}
         />
     )
 }
 
-const schema: RJSFSchema = {
+const schema = {
     type: "object",
     required: ["code", "name"],
     properties: {
         code: { type: "string", title: "Mã nhóm" },
         name: { type: "string", title: "Tên nhóm" },
-        vat_rate: { type: "number", title: "VAT %" },
+        description: { type: "string", title: "Ghi chú" },
+        standard_unit: { type: "string", title: "Đơn vị chuẩn", enum: ["TON", "KG", "LIT"], enumNames: ["Tấn", "Kg", "Lít"] },
+        default_price_method: { type: "string", title: "Cách lấy giá mặc định", enum: ["LATEST", "FIFO", "MONTHLY_AVERAGE"], enumNames: ["Giá gần nhất", "Giá cũ nhất (FIFO)", "Bình quân tháng"] },
+        default_margin_type: { type: "string", title: "Kiểu lợi nhuận", enum: ["PERCENT", "AMOUNT"], enumNames: ["Theo %", "Số tiền"] },
+        default_margin_value: { type: "number", title: "Lợi nhuận mặc định" },
+        default_vat_rate: { type: "number", title: "VAT %" },
         active: { type: "boolean", title: "Đang dùng" },
     },
-}
+} as any as RJSFSchema
 
 const uiSchema: UiSchema = {
     active: { "ui:widget": "checkbox" },
+    description: { "ui:widget": "textarea" },
 }

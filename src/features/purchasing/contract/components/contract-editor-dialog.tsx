@@ -47,6 +47,13 @@ const paymentOptions: Array<{ value: PaymentMethod; label: string }> = [
     { value: "DP", label: "D/P" },
 ]
 
+const statusOptions = [
+    { value: "DRAFT", label: "Nháp" },
+    { value: "SIGNED", label: "Đã ký" },
+    { value: "DONE", label: "Hoàn tất" },
+    { value: "CANCELLED", label: "Đã hủy" },
+]
+
 export function ContractEditorDialog<TRequest, TResponse>({
     title,
     open,
@@ -174,6 +181,25 @@ export function ContractEditorDialog<TRequest, TResponse>({
                                         onChange={(v) => setField("signed_date", v || "")}
                                         placeholder="Chọn ngày ký"
                                     />
+                                </Field>
+
+                                <Field label="Trạng thái">
+                                    <Select
+                                        value={form.status || "DRAFT"}
+                                        onValueChange={(v) => setField("status", v)}
+                                        disabled={isPending}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Chọn trạng thái" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {statusOptions.map((option) => (
+                                                <SelectItem key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </Field>
                             </div>
                         </section>

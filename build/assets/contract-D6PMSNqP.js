@@ -1,1 +1,0 @@
-import{c}from"./createLucideIcon-iDweHgDk.js";import{c as e}from"./crud-c0IBcDR1.js";const a=[["rect",{width:"20",height:"14",x:"2",y:"5",rx:"2",key:"ynyp8z"}],["line",{x1:"2",x2:"22",y1:"10",y2:"10",key:"1b3vmo"}]],s=c("credit-card",a),t=e("/purchasing/contracts"),n=t.list,i=t.detail,d=t.create,p=t.update,C=t.delete;export{s as C,d as c,C as d,i as g,n as l,p as u};

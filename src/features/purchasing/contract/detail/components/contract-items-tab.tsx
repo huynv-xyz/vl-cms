@@ -12,21 +12,14 @@ type Props = {
 }
 
 export function ContractItemsTab({ contract }: Props) {
-    const [pagination, setPagination] = useState({
-        pageIndex: 0,
-        pageSize: 20,
-    })
     const [keyword, setKeyword] = useState("")
 
-    const page = pagination.pageIndex + 1
-    const size = pagination.pageSize
-
     const { data, isLoading, error } = usePaginatedList(
-        ["contract-items", contract.id, page, size, keyword],
+        ["contract-items", contract.id, keyword],
         listContractItems,
         {
-            page,
-            size,
+            page: 1,
+            size: 200,
             keyword,
             contract_id: contract.id,
         }
@@ -46,9 +39,6 @@ export function ContractItemsTab({ contract }: Props) {
                     <div className="space-y-4">
                         <ContractItemTable
                             data={data.items}
-                            pagination={pagination}
-                            onPaginationChange={setPagination}
-                            pageCount={data.total_page}
                             keyword={keyword}
                             onKeywordChange={setKeyword}
                         />

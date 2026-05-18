@@ -13,21 +13,14 @@ type Props = {
 }
 
 export function PaymentsTab({ contract }: Props) {
-    const [pagination, setPagination] = useState({
-        pageIndex: 0,
-        pageSize: 20,
-    })
     const [keyword, setKeyword] = useState("")
 
-    const page = pagination.pageIndex + 1
-    const size = pagination.pageSize
-
     const { data, isLoading, error } = usePaginatedList(
-        ["payments", contract.id, page, size, keyword],
+        ["payments", contract.id, keyword],
         listPayments,
         {
-            page,
-            size,
+            page: 1,
+            size: 200,
             keyword,
             contract_id: contract.id,
         }
@@ -47,9 +40,6 @@ export function PaymentsTab({ contract }: Props) {
                     <div className="space-y-4">
                         <PaymentTable
                             data={data.items}
-                            pagination={pagination}
-                            onPaginationChange={setPagination}
-                            pageCount={data.total_page}
                             keyword={keyword}
                             onKeywordChange={setKeyword}
                         />

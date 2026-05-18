@@ -27,24 +27,14 @@ export const contractItemColumns: ColumnDef<ContractItem>[] = [
             )
         },
     },
-    {
-        id: "quantity",
-        header: "Số lượng",
-        cell: ({ row }) => {
-            const item = row.original
-            const shipped = item.shipped_quantity ?? 0
-            const quantity = item.quantity ?? 0
-            const remaining = item.remaining_quantity ?? Math.max(quantity - shipped, 0)
-
-            return (
-                <div className="min-w-[150px] space-y-1 text-base">
-                    <QuantityLine label="HĐ" value={quantity} strong />
-                    <QuantityLine label="Đã đi" value={shipped} />
-                    <QuantityLine label="Còn lại" value={remaining} tone={remaining > 0 ? "warning" : "success"} />
-                </div>
-            )
-        },
-    },
+    quantityColumn("quantity", "SL hợp đồng", (item) => item.quantity, "font-semibold"),
+    quantityColumn("shipped_quantity", "Đã đi", (item) => item.shipped_quantity),
+    quantityColumn(
+        "remaining_quantity",
+        "Còn lại",
+        (item) => item.remaining_quantity ?? Math.max((item.quantity ?? 0) - (item.shipped_quantity ?? 0), 0),
+        "font-semibold text-amber-700"
+    ),
     {
         id: "price",
         header: "Đơn giá",
@@ -119,32 +109,28 @@ export const contractItemColumns: ColumnDef<ContractItem>[] = [
     }),
 ]
 
-function QuantityLine({
-    label,
-    value,
-    strong,
-    tone,
-}: {
-    label: string
-    value?: number
-    strong?: boolean
-    tone?: "success" | "warning"
-}) {
-    const valueClass =
-        tone === "success"
-            ? "text-emerald-700"
-            : tone === "warning"
-                ? "text-amber-700"
-                : "text-foreground"
-
-    return (
-        <div className="flex justify-between gap-3">
-            <span className="text-muted-foreground">{label}</span>
-            <span className={`${strong ? "font-semibold" : "font-medium"} ${valueClass}`}>
-                {formatNumber(value ?? 0)}
-            </span>
-        </div>
-    )
+function quantityColumn(
+    id: string,
+    header: string,
+    getValue: (item: ContractItem) => number | undefined,
+    className = "font-medium"
+): ColumnDef<ContractItem> {
+    return {
+        id,
+        header,
+        cell: ({ row }) => (
+            <div className={`min-w-[110px] text-right text-base tabular-nums ${className}`}>
+                {formatNumber(getValue(row.original) ?? 0)}
+                <div className="text-xs font-normal text-muted-foreground">
+                    {row.original.product?.unit ?? ""}
+                </div>
+            </div>
+        ),
+        meta: {
+            className: "text-right",
+            tdClassName: "text-right",
+        },
+    }
 }
 
 function MoneyLine({ label, value, strong }: { label: string; value?: number; strong?: boolean }) {

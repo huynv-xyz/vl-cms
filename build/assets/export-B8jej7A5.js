@@ -1,1 +1,0 @@
-import{c as a}from"./crud-c0IBcDR1.js";import{aj as r}from"./index-AGPXhVrQ.js";const t=a("/sales/exports"),i=t.list,u=t.detail;t.create;t.update;t.delete;function c(s,e){return r(`/sales/exports/${s}/status`,{status:e})}export{u as g,i as l,c as u};

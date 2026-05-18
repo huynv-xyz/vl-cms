@@ -35,6 +35,8 @@ export type Contract = {
 
     // ===== PLAN =====
     total_quantity?: number
+    total_shipped_quantity?: number
+    total_remaining_quantity?: number
     total_amount?: number
     total_amount_vnd?: number
 
