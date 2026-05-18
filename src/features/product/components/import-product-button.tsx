@@ -43,7 +43,7 @@ export function ImportProductButton() {
             <input
                 ref={inputRef}
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 className="hidden"
                 onChange={handleFileChange}
             />
@@ -59,7 +59,7 @@ export function ImportProductButton() {
                 ) : (
                     <Upload className="mr-2 h-4 w-4" />
                 )}
-                Import CSV
+                Import VTHH
             </Button>
         </>
     )

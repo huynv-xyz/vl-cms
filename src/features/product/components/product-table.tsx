@@ -55,7 +55,7 @@ export function ProductTable({
     onFiltersChange,
 }: ProductTableProps) {
     const activeCount = data.filter((x) => Number(x.status) === 1).length
-    const groupCount = new Set(data.map((x) => x.group_code).filter(Boolean)).size
+    const groupCount = new Set(data.map((x) => x.group?.id ?? x.group_id).filter(Boolean)).size
     const warehouseCount = new Set(data.map((x) => x.default_warehouse_id).filter(Boolean)).size
 
     return (

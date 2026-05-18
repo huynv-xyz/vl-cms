@@ -28,10 +28,10 @@ export const productColumns: ColumnDef<Product>[] = [
         width: 220,
         render: (product) => (
             <div className="min-w-[180px]">
-                <div className="font-medium">{product.group_code || "-"}</div>
-                {product.group_name && (
-                    <div className="truncate text-xs text-muted-foreground">
-                        {product.group_name}
+                <div className="font-medium">{product.group?.name || product.group_name || "-"}</div>
+                {(product.group?.code || product.group_code) && (
+                    <div className="text-xs text-muted-foreground">
+                        {product.group?.code || product.group_code}
                     </div>
                 )}
             </div>

@@ -78,7 +78,7 @@ function PaymentCard({ item, index }: { item: Payment; index: number }) {
                         <PaymentTypeBadge type={item.type} />
                         <span className="inline-flex items-center gap-1 text-sm text-slate-700">
                             <CalendarDays className="h-3.5 w-3.5" />
-                            Ngày TT {formatDate(item.paid_at)}
+                            Ngày TT {item.paid_at}
                         </span>
                         {item.shipment?.code ? (
                             <span className="inline-flex items-center gap-1 text-sm text-slate-700">
@@ -151,13 +151,6 @@ function formatPaymentType(type?: string) {
         default:
             return type || "—"
     }
-}
-
-function formatDate(value?: string) {
-    if (!value) return "—"
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) return value
-    return date.toLocaleDateString("vi-VN")
 }
 
 function Summary({

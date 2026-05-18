@@ -144,9 +144,9 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
             <div className="grid bg-white md:grid-cols-[1fr_1fr_1.25fr]">
                 {/* LỊCH HÀNG */}
                 <DetailBox label="LỊCH HÀNG" icon={CalendarDays}>
-                    <DetailRow label="Ngày đi" value={formatDate(shipment?.etd)} />
-                    <DetailRow label="Ngày đến" value={formatDate(shipment?.eta)} />
-                    <DetailRow label="Về kho" value={formatDate(shipment?.warehouse_at)} />
+                    <DetailRow label="Ngày đi" value={shipment?.etd || ''} />
+                    <DetailRow label="Ngày đến" value={shipment?.eta || ''} />
+                    <DetailRow label="Về kho" value={shipment?.warehouse_at || ''} />
                 </DetailBox>
 
                 {/* KHO/CẢNG */}
@@ -222,13 +222,6 @@ function formatStatus(status?: string) {
         default:
             return status || "—"
     }
-}
-
-function formatDate(value?: string) {
-    if (!value) return "—"
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) return value
-    return date.toLocaleDateString("vi-VN")
 }
 
 function Summary({

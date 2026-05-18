@@ -306,7 +306,7 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
                     )}
                     <div className="mt-1 text-xs text-muted-foreground">
                         {arrivedAtPort
-                            ? formatDate(shipment?.ata ?? shipment?.eta)
+                            ? shipment?.ata ?? shipment?.eta
                             : shipment?.eta
                                 ? `Dự kiến ${shipment?.eta || ''}`
                                 : "—"}

@@ -3,8 +3,16 @@ export type ProductFormValues = {
     name: string
     unit?: string
     nature?: string
-    group_code?: string
-    group_name?: string
+    group_id?: number
+    base_unit_code?: string
+    sale_unit_code?: string
+    sale_unit_name?: string
+    sale_unit_factor?: number
+    size_value?: number
+    size_unit_code?: string
+    rounding_mode?: string
+    rounding_unit?: number
+    vat_rate?: number
     description?: string
     default_warehouse_id?: number
     inventory_account_code?: string

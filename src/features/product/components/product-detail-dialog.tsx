@@ -50,8 +50,8 @@ export function ProductDetailDialog({
                     <InfoCard
                         icon={<Building2 className="h-4 w-4" />}
                         label="Nhóm sản phẩm"
-                        value={product.group_code || "-"}
-                        subValue={product.group_name}
+                        value={product.group?.name || product.group_name || "-"}
+                        subValue={product.group?.code || product.group_code}
                     />
                     <InfoCard
                         icon={<Warehouse className="h-4 w-4" />}
