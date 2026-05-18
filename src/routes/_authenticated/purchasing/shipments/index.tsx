@@ -18,11 +18,6 @@ export const Route = createFileRoute(
                 ? search.status
                 : undefined,
 
-        supplier_ids:
-            typeof search.supplier_ids === "string"
-                ? search.supplier_ids
-                : undefined,
-
         // ===== PRODUCT =====
         product_ids:
             typeof search.product_ids === "string"

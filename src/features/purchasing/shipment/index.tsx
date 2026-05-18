@@ -24,7 +24,7 @@ export default function ShipmentPage() {
     } = useUrlListFilters(
         search,
         navigate,
-        ["status", "supplier_ids", "product_ids", "port_ids"],
+        ["status", "product_ids", "port_ids"],
         ["eta_from", "eta_to"]
     )
 
@@ -36,7 +36,6 @@ export default function ShipmentPage() {
             keyword,
 
             multiFilters.status,
-            multiFilters.supplier_ids,
             multiFilters.product_ids,
             multiFilters.port_ids,
 
@@ -54,7 +53,6 @@ export default function ShipmentPage() {
             eta_from: requestFilters.eta_from,
             eta_to: requestFilters.eta_to,
 
-            supplier_ids: requestFilters.supplier_ids,
             product_ids: requestFilters.product_ids,
             port_ids: requestFilters.port_ids,
         }
@@ -86,7 +84,6 @@ export default function ShipmentPage() {
 
                             eta_to: singleFilters.eta_to,
 
-                            supplier_ids: multiFilters.supplier_ids,
                             product_ids: multiFilters.product_ids,
                             port_ids: multiFilters.port_ids,
 
@@ -101,7 +98,6 @@ export default function ShipmentPage() {
                             setMultiFilters({
 
                                 status: next.status,
-                                supplier_ids: next.supplier_ids,
                                 product_ids: next.product_ids,
                                 port_ids: next.port_ids,
 
