@@ -14,13 +14,12 @@ import { CrudRowActions } from "@/components/crud/crud-row-actions"
 import { DatePicker } from "@/components/date-picker"
 import { AsyncMultiSelect } from "@/components/rjsf/async-multi-select"
 import { useCrudDelete } from "@/hooks/use-crud-delete"
-import { listSuppliers, getSupplier } from "@/api/purchasing/supplier"
 import { getPort, listPorts } from "@/api/purchasing/port"
 import { getProduct, listProducts } from "@/api/product"
-import { productOption, supplierOption } from "@/lib/option-mapper"
+import { productOption } from "@/lib/option-mapper"
 import { deleteShipmentItem } from "@/api/purchasing/shipment_items"
 import { useShipments } from "../../shipment/components/shipments-provider"
-import { formatCurrency, formatNumber, getPageNumbers } from "@/lib/utils"
+import { formatNumber, getPageNumbers } from "@/lib/utils"
 import {
     Anchor,
     CheckCircle2,
@@ -38,7 +37,6 @@ import type { ShipmentItem } from "../data/schema"
 type Filters = {
     eta_from?: string
     eta_to?: string
-    supplier_ids?: string[]
     product_ids?: string[]
     status?: string[]
     port_ids?: string[]
@@ -55,8 +53,6 @@ const STATUS_OPTIONS = [
     { value: "IN_TRANSIT", label: "Đang vận chuyển" },
     { value: "ARRIVED_PORT", label: "Đến cảng" },
     { value: "IN_WAREHOUSE", label: "Về kho" },
-    { value: "DONE", label: "Hoàn tất" },
-    { value: "CANCELLED", label: "Đã hủy" },
 ]
 
 type Props = {
@@ -84,18 +80,6 @@ export function ShipmentItemTableV2({
     filters,
     onFiltersChange,
 }: Props) {
-    const totalAmount =
-        data?.reduce((sum, i) => {
-            const q = i.quantity ?? 0
-            const d = i.defect_quantity ?? 0
-            const real = Math.max(q - d, 0)
-            const price =
-                (i.unit_price ?? 0) +
-                (i.packaging_price ?? 0) +
-                (i.freight_price ?? 0)
-            return sum + real * price
-        }, 0) ?? 0
-
     const setFilter = <K extends keyof Filters>(key: K, value: Filters[K]) =>
         onFiltersChange({ ...filters, [key]: value })
 
@@ -127,19 +111,6 @@ export function ShipmentItemTableV2({
                 </div>
 
                 <div className="flex w-full flex-wrap items-center gap-2">
-                    <AsyncMultiSelect
-                        className="h-10 min-w-[190px] flex-1 border-slate-300 bg-white shadow-xs"
-                        value={filters.supplier_ids}
-                        onChange={(v: FilterIdList) => setFilter("supplier_ids", v)}
-                        placeholder="Nhà cung cấp"
-                        dataSource={{
-                            getList: listSuppliers,
-                            getById: getSupplier,
-                            params: { page: 1, size: 20 },
-                        }}
-                        mapOption={supplierOption}
-                    />
-
                     <AsyncMultiSelect
                         className="h-10 min-w-[170px] flex-1 border-slate-300 bg-white shadow-xs"
                         value={filters.port_ids}
@@ -192,13 +163,7 @@ export function ShipmentItemTableV2({
             </div>
 
             {/* FOOTER */}
-            <div className="flex flex-col items-stretch gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-sm">
-                    <span className="text-muted-foreground">Tổng tiền: </span>
-                    <span className="font-semibold tabular-nums">
-                        {formatCurrency(totalAmount)}
-                    </span>
-                </div>
+            <div className="flex flex-col items-stretch gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-end">
                 <SimplePagination
                     pageIndex={pagination.pageIndex}
                     pageCount={pageCount}
