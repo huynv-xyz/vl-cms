@@ -75,7 +75,13 @@ export default function ContractPage() {
                             pageCount={data.total_page}
 
                             keyword={keyword}
-                            onKeywordChange={setKeyword}
+                            onKeywordChange={(value) => {
+                                setPagination((p) => ({
+                                    ...p,
+                                    pageIndex: 0,
+                                }))
+                                setKeyword(value)
+                            }}
 
                             filters={{
                                 status: multiFilters.status,
@@ -87,6 +93,11 @@ export default function ContractPage() {
                             }}
 
                             onFiltersChange={(next) => {
+                                setPagination((p) => ({
+                                    ...p,
+                                    pageIndex: 0,
+                                }))
+
                                 setMultiFilters({
                                     status: next.status,
                                     product_ids: next.product_ids,

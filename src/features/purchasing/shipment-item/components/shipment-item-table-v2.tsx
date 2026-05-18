@@ -1,7 +1,7 @@
 import type { PaginationState, OnChangeFn } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -30,7 +30,6 @@ import {
     ChevronsRight,
     Clock,
     Container,
-    Search,
     StickyNote,
     Warehouse,
 } from "lucide-react"
@@ -105,15 +104,13 @@ export function ShipmentItemTableV2({
             {/* TOOLBAR */}
             <div className="space-y-2">
                 <div className="flex w-full flex-wrap items-center gap-2">
-                    <div className="relative h-10 min-w-[280px] flex-[1.2_1_0]">
-                        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                        <Input
-                            value={keyword ?? ""}
-                            onChange={(e) => onKeywordChange(e.target.value)}
-                            placeholder="Tìm theo mã SP, tên SP..."
-                            className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
-                        />
-                    </div>
+                    <SearchOnBlurInput
+                        value={keyword}
+                        onChange={onKeywordChange}
+                        placeholder="Tìm theo mã SP, tên SP..."
+                        wrapperClassName="relative h-10 min-w-[280px] flex-[1.2_1_0]"
+                        className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
+                    />
 
                     <AsyncMultiSelect
                         className="h-10 min-w-[280px] flex-[1.8_1_0] border-slate-300 bg-white shadow-xs"

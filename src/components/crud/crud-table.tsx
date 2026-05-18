@@ -22,7 +22,7 @@ type CrudFilterConfig =
 
 type CrudTableProps<T> = {
     data: T[]
-    columns: ColumnDef<T, any>[]
+    columns: ColumnDef<T, unknown>[]
     entityName: string
     searchPlaceholder?: string
     pagination: PaginationState
@@ -37,6 +37,7 @@ type CrudTableProps<T> = {
     defaultExpandAll?: boolean
     renderExpanded?: (row: T) => React.ReactNode
     footer?: React.ReactNode
+    showToolbar?: boolean
 }
 
 export function CrudTable<T>({
@@ -55,7 +56,8 @@ export function CrudTable<T>({
     enableExpand,
     defaultExpandAll,
     renderExpanded,
-    footer
+    footer,
+    showToolbar
 }: CrudTableProps<T>) {
     return (
         <BaseDataTable<T>
@@ -75,6 +77,7 @@ export function CrudTable<T>({
             defaultExpandAll={defaultExpandAll}
             renderExpanded={renderExpanded}
             footer={footer}
+            showToolbar={showToolbar}
         />
     )
 }

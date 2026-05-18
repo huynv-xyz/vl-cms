@@ -5,6 +5,8 @@ import {
     type VisibilityState,
     type PaginationState,
     type OnChangeFn,
+    type ExpandedState,
+    type Row,
     flexRender,
     getCoreRowModel,
     useReactTable,
@@ -19,7 +21,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import { DataTableToolbar } from './toolbar'
+import { DataTableToolbar, type ToolbarFilter } from './toolbar'
 import { DataTablePagination } from './pagination'
 import {
     BaseBulkActions,
@@ -28,8 +30,8 @@ import {
 
 export type BaseDataTableProps<TData> = {
     data: TData[]
-    columns: ColumnDef<TData, any>[]
-    filters?: any[]
+    columns: ColumnDef<TData, unknown>[]
+    filters?: ToolbarFilter[]
     searchPlaceholder?: string
     keyword?: string
     searchInputClassName?: string
@@ -44,6 +46,7 @@ export type BaseDataTableProps<TData> = {
     renderExpanded?: (row: TData) => React.ReactNode
     defaultExpandAll?: boolean
     footer?: React.ReactNode
+    showToolbar?: boolean
 }
 
 export function BaseDataTable<TData>({
@@ -63,13 +66,14 @@ export function BaseDataTable<TData>({
     enableExpand = false,
     renderExpanded,
     defaultExpandAll = false,
-    footer
+    footer,
+    showToolbar = true
 }: BaseDataTableProps<TData>) {
 
     const [rowSelection, setRowSelection] = useState({})
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
-    const [expanded, setExpanded] = useState<any>({})
+    const [expanded, setExpanded] = useState<ExpandedState>({})
     const [initialized, setInitialized] = useState(false)
 
     useEffect(() => {
@@ -79,6 +83,7 @@ export function BaseDataTable<TData>({
         }
     }, [defaultExpandAll, initialized])
 
+    // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data,
 
@@ -87,7 +92,7 @@ export function BaseDataTable<TData>({
                 {
                     id: "expand",
                     header: "",
-                    cell: ({ row }: any) => (
+                    cell: ({ row }: { row: Row<TData> }) => (
                         <button
                             onClick={() => row.toggleExpanded()}
                             className="text-xs"
@@ -130,14 +135,16 @@ export function BaseDataTable<TData>({
             className
         )}>
 
-            <DataTableToolbar
-                table={table}
-                searchPlaceholder={searchPlaceholder}
-                keyword={keyword}
-                searchInputClassName={searchInputClassName}
-                onKeywordChange={onKeywordChange}
-                filters={filters}
-            />
+            {showToolbar && (
+                <DataTableToolbar
+                    table={table}
+                    searchPlaceholder={searchPlaceholder}
+                    keyword={keyword}
+                    searchInputClassName={searchInputClassName}
+                    onKeywordChange={onKeywordChange}
+                    filters={filters}
+                />
+            )}
 
             <div className='w-full overflow-x-auto rounded-md border'>
                 <Table className='w-max min-w-full table-auto'>

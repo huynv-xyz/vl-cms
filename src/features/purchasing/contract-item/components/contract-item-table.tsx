@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
+import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { formatCurrency, formatNumber } from "@/lib/utils"
-import { CheckCircle2, Search } from "lucide-react"
+import { CheckCircle2 } from "lucide-react"
 import { CrudRowActions } from "@/components/crud/crud-row-actions"
 import { useCrudDelete } from "@/hooks/use-crud-delete"
 import { deleteContractItem } from "@/api/purchasing/contract-item"
@@ -37,15 +37,13 @@ export function ContractItemTable(props: Props) {
                 <Summary label="TỔNG TIỀN" value={formatCurrency(totalAmount)} />
             </div>
 
-            <div className="relative w-full max-w-[240px]">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <Input
-                    value={props.keyword ?? ""}
-                    onChange={(e) => props.onKeywordChange?.(e.target.value)}
-                    placeholder="Tìm theo mã hoặc tên"
-                    className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
-                />
-            </div>
+            <SearchOnBlurInput
+                value={props.keyword}
+                onChange={(value) => props.onKeywordChange?.(value)}
+                placeholder="Tìm theo mã hoặc tên"
+                wrapperClassName="relative w-full max-w-[240px]"
+                className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
+            />
 
             <div className="space-y-2">
                 {data.length === 0 ? (

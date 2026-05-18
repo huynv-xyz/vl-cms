@@ -1,10 +1,10 @@
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
+import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CrudRowActions } from "@/components/crud/crud-row-actions"
 import { formatCurrency, formatNumber } from "@/lib/utils"
 import { useCrudDelete } from "@/hooks/use-crud-delete"
 import { deleteShipmentItem } from "@/api/purchasing/shipment_items"
-import { CalendarDays, MapPin, Package, Search, Truck } from "lucide-react"
+import { CalendarDays, MapPin, Package, Truck } from "lucide-react"
 import { useShipments } from "../../shipment/components/shipments-provider"
 import type { ShipmentItem } from "../data/schema"
 
@@ -43,15 +43,13 @@ export function ShipmentItemTable({ data, keyword, onKeywordChange }: Props) {
                 <Summary label="TỔNG TIỀN" value={formatCurrency(totalAmount)} />
             </div>
 
-            <div className="relative w-full max-w-[240px]">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <Input
-                    value={keyword ?? ""}
-                    onChange={(e) => onKeywordChange?.(e.target.value)}
-                    placeholder="Tìm theo mã SP, tên SP..."
-                    className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
-                />
-            </div>
+            <SearchOnBlurInput
+                value={keyword}
+                onChange={onKeywordChange}
+                placeholder="Tìm theo mã SP, tên SP..."
+                wrapperClassName="relative w-full max-w-[240px]"
+                className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
+            />
 
             <div className="space-y-2">
                 {data.length === 0 ? (

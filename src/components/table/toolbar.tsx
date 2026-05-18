@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 // ========================
 // 🔥 TYPE
 // ========================
-type SelectFilter = {
+export type SelectFilter = {
     columnId: string
     title: string
     values?: string[]
@@ -21,13 +21,13 @@ type SelectFilter = {
     }[]
 }
 
-type CustomFilter = {
+export type CustomFilter = {
     columnId: string
     title: string
     render: () => React.ReactNode
 }
 
-type ToolbarFilter = SelectFilter | CustomFilter
+export type ToolbarFilter = SelectFilter | CustomFilter
 
 type DataTableToolbarProps<TData> = {
     table: Table<TData>
@@ -39,7 +39,7 @@ type DataTableToolbarProps<TData> = {
 }
 
 export function DataTableToolbar<TData>({
-    table,
+    table: _table,
     searchPlaceholder = 'Filter...',
     keyword = '',
     searchInputClassName,
