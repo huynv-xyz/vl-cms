@@ -26,7 +26,7 @@ export function PaymentTable(props: Props) {
 
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2.5 md:grid-cols-5">
                 <Summary label="LƯỢT THANH TOÁN" value={formatNumber(data.length)} />
                 <Summary label="LẦN CỌC" value={formatNumber(depositCount)} />
                 <Summary label="LẦN TT" value={formatNumber(paymentCount)} tone="success" />
@@ -34,17 +34,17 @@ export function PaymentTable(props: Props) {
                 <Summary label="TỔNG QUY ĐỔI VNĐ" value={formatCurrency(totalVnd)} />
             </div>
 
-            <div className="relative max-w-md">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="relative w-full max-w-[240px]">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                 <Input
                     value={props.keyword ?? ""}
                     onChange={(e) => props.onKeywordChange?.(e.target.value)}
                     placeholder="Tìm theo mã lô hoặc ghi chú..."
-                    className="h-11 rounded-full pl-10"
+                    className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
                 />
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
                 {data.length === 0 ? (
                     <div className="rounded-xl border border-dashed bg-muted/30 px-6 py-12 text-center text-sm text-muted-foreground">
                         Chưa có thanh toán nào trong hợp đồng.
@@ -69,42 +69,44 @@ function PaymentCard({ item, index }: { item: Payment; index: number }) {
     const currency = item.contract?.currency?.code ?? "—"
 
     return (
-        <div className="overflow-hidden rounded-xl border bg-background shadow-sm">
+        <div className="overflow-hidden rounded-lg border border-[#d8d5c9] bg-[#fbfaf2] shadow-xs">
             {/* HEADER */}
-            <div className="flex items-start gap-3 border-b px-5 py-4">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-sm font-semibold text-emerald-700">
+            <div className="grid min-h-[76px] grid-cols-[44px_minmax(260px,1fr)_58px] border-b border-[#d8d5c9]">
+                <div className="flex items-start justify-center border-r border-[#d8d5c9] pt-4 text-sm text-slate-600">
                     {index}
                 </div>
-                <div className="min-w-0 flex-1 space-y-1">
+                <div className="min-w-0 px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">
                         <PaymentTypeBadge type={item.type} />
-                        <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                        <span className="inline-flex items-center gap-1 text-sm text-slate-700">
                             <CalendarDays className="h-3.5 w-3.5" />
                             Ngày TT {formatDate(item.paid_at)}
                         </span>
                         {item.shipment?.code ? (
-                            <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                            <span className="inline-flex items-center gap-1 text-sm text-slate-700">
                                 <PackageCheck className="h-3.5 w-3.5" />
                                 Lô {item.shipment.code}
                             </span>
                         ) : null}
                     </div>
                     {item.note ? (
-                        <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                        <div className="flex items-start gap-1.5 text-xs text-slate-600">
                             <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                             <span className="line-clamp-2">{item.note}</span>
                         </div>
                     ) : null}
                 </div>
-                <CrudRowActions
-                    row={item}
-                    onEdit={() => openEdit(item)}
-                    onDelete={(r) => deleteById(r.id)}
-                />
+                <div className="flex items-center justify-center border-l border-[#d8d5c9]">
+                    <CrudRowActions
+                        row={item}
+                        onEdit={() => openEdit(item)}
+                        onDelete={(r) => deleteById(r.id)}
+                    />
+                </div>
             </div>
 
             {/* AMOUNT GRID */}
-            <div className="grid gap-3 px-5 py-4 md:grid-cols-3">
+            <div className="grid bg-white md:grid-cols-3">
                 <AmountBox
                     label="SỐ TIỀN (NGOẠI TỆ)"
                     value={formatCurrency(amount)}
@@ -134,7 +136,7 @@ function PaymentTypeBadge({ type }: { type?: string }) {
                 : "border-sky-200 bg-sky-50 text-sky-700"
 
     return (
-        <Badge variant="outline" className={`${className} text-xs`}>
+        <Badge variant="outline" className={`${className} h-5 rounded-sm px-2 text-[11px]`}>
             {formatPaymentType(type)}
         </Badge>
     )
@@ -177,11 +179,11 @@ function Summary({
                 : "text-foreground"
 
     return (
-        <div className="min-w-0 rounded-xl border bg-background px-4 py-3 shadow-sm">
-            <div className="truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="min-w-0 rounded-md bg-[#f4f3ec] px-4 py-3">
+            <div className="truncate text-[11px] font-bold uppercase tracking-wide text-slate-500">
                 {label}
             </div>
-            <div className={`mt-1 truncate text-xl font-bold tabular-nums ${valueClass}`}>
+            <div className={`mt-1 truncate text-lg font-bold leading-tight tabular-nums ${valueClass}`}>
                 {value}
             </div>
         </div>
@@ -207,15 +209,15 @@ function AmountBox({
                 : "text-foreground"
 
     return (
-        <div className="rounded-lg border bg-background px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="border-r border-[#d8d5c9] px-4 py-3 last:border-r-0">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 {label}
             </div>
-            <div className={`mt-1 text-xl font-bold tabular-nums ${valueClass}`}>
+            <div className={`mt-1 text-xl font-bold leading-tight tabular-nums ${valueClass}`}>
                 {value}
             </div>
             {sub ? (
-                <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>
+                <div className="mt-0.5 text-xs text-slate-600">{sub}</div>
             ) : null}
         </div>
     )

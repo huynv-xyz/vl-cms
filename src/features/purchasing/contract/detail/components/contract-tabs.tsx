@@ -12,17 +12,17 @@ type Props = {
 export function ContractTabs({ contract }: Props) {
     return (
         <Tabs defaultValue="items" className="w-full space-y-4">
-            <TabsList className="grid h-auto w-full grid-cols-3 rounded-md bg-muted p-1.5">
-                <TabsTrigger value="items" className="gap-2 rounded-sm py-3 text-base font-semibold">
-                    <Boxes className="h-5 w-5" />
+            <TabsList className="grid h-11 w-full grid-cols-3 rounded-md border border-slate-300 bg-[#f4f3ec] p-0.5">
+                <TabsTrigger value="items" className="gap-2 rounded-sm border border-transparent py-2.5 text-sm font-semibold data-[state=active]:border-slate-300 data-[state=active]:bg-[#fbfaf2] data-[state=active]:shadow-none">
+                    <Boxes className="h-4 w-4" />
                     Hàng hóa
                 </TabsTrigger>
-                <TabsTrigger value="shipments" className="gap-2 rounded-sm py-3 text-base font-semibold">
-                    <PackageCheck className="h-5 w-5" />
+                <TabsTrigger value="shipments" className="gap-2 rounded-sm border border-transparent py-2.5 text-sm font-semibold data-[state=active]:border-slate-300 data-[state=active]:bg-[#fbfaf2] data-[state=active]:shadow-none">
+                    <PackageCheck className="h-4 w-4" />
                     Lô hàng
                 </TabsTrigger>
-                <TabsTrigger value="payments" className="gap-2 rounded-sm py-3 text-base font-semibold">
-                    <CreditCard className="h-5 w-5" />
+                <TabsTrigger value="payments" className="gap-2 rounded-sm border border-transparent py-2.5 text-sm font-semibold data-[state=active]:border-slate-300 data-[state=active]:bg-[#fbfaf2] data-[state=active]:shadow-none">
+                    <CreditCard className="h-4 w-4" />
                     Thanh toán
                 </TabsTrigger>
             </TabsList>

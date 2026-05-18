@@ -1,0 +1,1 @@
+import{c as a}from"./crud-mTdQI89J.js";import{ai as i}from"./index-DWDaF2-A.js";const e=a("/sales/deliveries"),c=e.list,o=e.detail,d=e.create,p=e.update,u=e.delete,v=(t,s)=>i(`/sales/deliveries/${t}/status`,{status:s});export{p as a,d as c,u as d,o as g,c as l,v as u};

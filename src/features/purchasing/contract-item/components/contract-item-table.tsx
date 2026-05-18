@@ -29,7 +29,7 @@ export function ContractItemTable(props: Props) {
 
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2.5 md:grid-cols-5">
                 <Summary label="DÒNG" value={formatNumber(data.length)} />
                 <Summary label="SL HỢP ĐỒNG" value={formatNumber(totalQuantity)} />
                 <Summary label="ĐÃ ĐI" value={formatNumber(totalShipped)} tone="success" />
@@ -37,17 +37,17 @@ export function ContractItemTable(props: Props) {
                 <Summary label="TỔNG TIỀN" value={formatCurrency(totalAmount)} />
             </div>
 
-            <div className="relative max-w-md">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="relative w-full max-w-[240px]">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                 <Input
                     value={props.keyword ?? ""}
                     onChange={(e) => props.onKeywordChange?.(e.target.value)}
-                    placeholder="Tìm theo mã hoặc tên hàng..."
-                    className="h-11 rounded-full pl-10"
+                    placeholder="Tìm theo mã hoặc tên"
+                    className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
                 />
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
                 {data.length === 0 ? (
                     <div className="rounded-xl border border-dashed bg-muted/30 px-6 py-12 text-center text-sm text-muted-foreground">
                         Chưa có hàng hóa nào trong hợp đồng.
@@ -76,32 +76,36 @@ function ContractItemCard({ item, index }: { item: ContractItem; index: number }
     const currency = "EUR"
 
     return (
-        <div className="overflow-hidden rounded-xl border bg-background shadow-sm">
+        <div className="overflow-hidden rounded-lg border border-[#d8d5c9] bg-[#fbfaf2] shadow-xs">
             {/* HEADER */}
-            <div className="flex items-start gap-3 border-b px-5 py-4">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-sm font-semibold text-emerald-700">
-                    {index}
+            <div className="grid min-h-[72px] grid-cols-[44px_minmax(260px,1fr)_58px] border-b border-[#d8d5c9]">
+                <div className="flex items-start justify-center border-r border-[#d8d5c9] pt-4">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-sm bg-cyan-50 text-xs font-bold text-cyan-700">
+                        {index}
+                    </span>
                 </div>
-                <div className="min-w-0 flex-1 space-y-0.5">
-                    <div className="text-base font-semibold tracking-tight">
+                <div className="min-w-0 px-4 py-3">
+                    <div className="truncate text-sm font-semibold text-sky-700">
                         {item.product?.code ?? "-"}
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="line-clamp-2 text-sm font-semibold leading-snug text-slate-950">
                         {item.product?.name ?? "-"}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-slate-600">
                         Đơn vị tính: {item.product?.unit ?? "-"}
                     </div>
                 </div>
-                <CrudRowActions
-                    row={item}
-                    onEdit={() => openEdit(item)}
-                    onDelete={(r) => deleteById(r.id)}
-                />
+                <div className="flex items-center justify-center border-l border-[#d8d5c9]">
+                    <CrudRowActions
+                        row={item}
+                        onEdit={() => openEdit(item)}
+                        onDelete={(r) => deleteById(r.id)}
+                    />
+                </div>
             </div>
 
             {/* QUANTITY GRID */}
-            <div className="grid gap-3 px-5 py-4 md:grid-cols-3">
+            <div className="grid border-b border-[#d8d5c9] bg-white md:grid-cols-3">
                 <QtyBox
                     label="SỐ LƯỢNG HĐ"
                     value={formatNumber(item.quantity ?? 0)}
@@ -130,7 +134,7 @@ function ContractItemCard({ item, index }: { item: ContractItem; index: number }
             </div>
 
             {/* DETAIL GRID */}
-            <div className="grid gap-3 border-t bg-muted/20 px-5 py-4 md:grid-cols-3">
+            <div className="grid bg-white md:grid-cols-[1fr_1fr_1.25fr]">
                 {/* ĐƠN GIÁ */}
                 <DetailBox label="ĐƠN GIÁ">
                     <MoneyRow label="Giá gốc" value={item.unit_price} />
@@ -160,14 +164,14 @@ function ContractItemCard({ item, index }: { item: ContractItem; index: number }
                 </DetailBox>
 
                 {/* THÀNH TIỀN */}
-                <div className="rounded-lg border bg-background px-4 py-3">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="bg-[#f4f3ec] px-4 py-3">
+                    <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
                         THÀNH TIỀN (NGOẠI TỆ)
                     </div>
-                    <div className="mt-1 text-xl font-bold tracking-tight tabular-nums">
+                    <div className="mt-1 text-xl font-bold tracking-tight text-slate-950 tabular-nums">
                         {formatCurrency(totalAmount)}
                     </div>
-                    <div className="mt-3 space-y-1 text-xs">
+                    <div className="mt-3 space-y-1 text-xs text-slate-700">
                         <SummaryRow
                             label="Đầu vào NT/ĐV"
                             value={`${formatCurrency(item.input_price ?? item.price_before_tax ?? 0)} ${currency}`}
@@ -180,7 +184,7 @@ function ContractItemCard({ item, index }: { item: ContractItem; index: number }
                             label="Tỷ giá"
                             value={formatNumber(item.exchange_rate ?? 1)}
                         />
-                        <div className="border-t pt-1.5">
+                        <div className="border-t border-[#d8d5c9] pt-1.5">
                             <SummaryRow
                                 label="Tổng VNĐ"
                                 value={`${formatCurrency(totalAmountVnd)} ₫`}
@@ -211,11 +215,11 @@ function Summary({
                 : "text-foreground"
 
     return (
-        <div className="min-w-0 rounded-xl border bg-background px-4 py-3 shadow-sm">
-            <div className="truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="min-w-0 rounded-md bg-[#f4f3ec] px-4 py-3">
+            <div className="truncate text-[11px] font-bold uppercase tracking-wide text-slate-500">
                 {label}
             </div>
-            <div className={`mt-1 truncate text-xl font-bold tabular-nums ${valueClass}`}>
+            <div className={`mt-1 truncate text-lg font-bold leading-tight tabular-nums ${valueClass}`}>
                 {value}
             </div>
         </div>
@@ -243,17 +247,20 @@ function QtyBox({
                 : "text-foreground"
 
     return (
-        <div className="rounded-lg border bg-background px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="border-r border-[#d8d5c9] px-4 py-3 last:border-r-0">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 {label}
             </div>
             <div className="mt-1 flex items-baseline gap-2">
-                <div className={`text-xl font-bold tabular-nums ${valueClass}`}>{value}</div>
+                <div className={`text-xl font-bold leading-tight tabular-nums ${valueClass}`}>{value}</div>
                 {suffix}
             </div>
             {unit ? (
-                <div className="mt-0.5 text-xs text-muted-foreground">{unit}</div>
+                <div className="mt-0.5 text-xs text-slate-600">{unit}</div>
             ) : null}
+            <div className="mt-2 h-1 rounded-full bg-slate-100">
+                <div className={`h-full rounded-full ${tone === "warning" ? "bg-orange-500" : "bg-emerald-600"}`} />
+            </div>
         </div>
     )
 }
@@ -266,8 +273,8 @@ function DetailBox({
     children: React.ReactNode
 }) {
     return (
-        <div className="rounded-lg border bg-background px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="border-r border-[#d8d5c9] px-4 py-3 last:border-r-0">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 {label}
             </div>
             <div className="mt-2 space-y-1 text-sm">{children}</div>
@@ -286,9 +293,9 @@ function MoneyRow({
 }) {
     return (
         <div className="flex items-baseline justify-between gap-3">
-            <span className="text-muted-foreground">{label}</span>
+            <span className="text-slate-700">{label}</span>
             <span
-                className={`tabular-nums ${strong ? "font-semibold" : "font-medium"}`}
+                className={`tabular-nums text-slate-950 ${strong ? "font-bold" : "font-semibold"}`}
             >
                 {formatCurrency(value ?? 0)}
             </span>
@@ -307,9 +314,9 @@ function SummaryRow({
 }) {
     return (
         <div className="flex items-baseline justify-between gap-3">
-            <span className="text-muted-foreground">{label}</span>
+            <span className="text-slate-600">{label}</span>
             <span
-                className={`tabular-nums ${strong ? "text-sm font-semibold text-foreground" : "font-medium"}`}
+                className={`tabular-nums ${strong ? "text-sm font-bold text-sky-700" : "font-semibold text-slate-700"}`}
             >
                 {value}
             </span>

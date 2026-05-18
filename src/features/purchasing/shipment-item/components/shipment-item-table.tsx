@@ -35,7 +35,7 @@ export function ShipmentItemTable({ data, keyword, onKeywordChange }: Props) {
 
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2.5 md:grid-cols-5">
                 <Summary label="DÒNG" value={formatNumber(data.length)} />
                 <Summary label="TỔNG SL NHẬP" value={formatNumber(totalQuantity)} />
                 <Summary label="LỖI" value={formatNumber(totalDefect)} tone="warning" />
@@ -43,17 +43,17 @@ export function ShipmentItemTable({ data, keyword, onKeywordChange }: Props) {
                 <Summary label="TỔNG TIỀN" value={formatCurrency(totalAmount)} />
             </div>
 
-            <div className="relative max-w-md">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="relative w-full max-w-[240px]">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                 <Input
                     value={keyword ?? ""}
                     onChange={(e) => onKeywordChange?.(e.target.value)}
                     placeholder="Tìm theo mã SP, tên SP..."
-                    className="h-11 rounded-full pl-10"
+                    className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
                 />
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
                 {data.length === 0 ? (
                     <div className="rounded-xl border border-dashed bg-muted/30 px-6 py-12 text-center text-sm text-muted-foreground">
                         Chưa có lô hàng nào trong hợp đồng.
@@ -83,24 +83,24 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
     const totalAmount = real * unitPrice
 
     return (
-        <div className="overflow-hidden rounded-xl border bg-background shadow-sm">
+        <div className="overflow-hidden rounded-lg border border-[#d8d5c9] bg-[#fbfaf2] shadow-xs">
             {/* HEADER */}
-            <div className="flex items-start gap-3 border-b px-5 py-4">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-sm font-semibold text-emerald-700">
+            <div className="grid min-h-[76px] grid-cols-[44px_minmax(260px,1fr)_58px] border-b border-[#d8d5c9]">
+                <div className="flex items-start justify-center border-r border-[#d8d5c9] pt-4 text-sm text-slate-600">
                     {index}
                 </div>
-                <div className="min-w-0 flex-1 space-y-1">
+                <div className="min-w-0 px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-base font-semibold tracking-tight">
+                        <span className="truncate text-sm font-semibold text-sky-700">
                             {shipment?.code ?? `#${item.shipment_id ?? "-"}`}
                         </span>
                         <ShipmentStatusBadge status={shipment?.status} />
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="line-clamp-2 text-sm text-slate-700 font-semibold">
                         {item.product?.code ? `${item.product.code} · ` : ""}
                         {item.product?.name ?? "-"}
                     </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
                         <span className="inline-flex items-center gap-1">
                             <Truck className="h-3.5 w-3.5" />
                             Container: {shipment?.container_no || "—"}
@@ -111,16 +111,18 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
                         </span>
                     </div>
                 </div>
-                <CrudRowActions
-                    row={item}
-                    getId={(r) => r.shipment?.id || 0}
-                    onEditById={(id) => openEditById(id as number)}
-                    onDelete={(r) => deleteById(r.id)}
-                />
+                <div className="flex items-center justify-center border-l border-[#d8d5c9]">
+                    <CrudRowActions
+                        row={item}
+                        getId={(r) => r.shipment?.id || 0}
+                        onEditById={(id) => openEditById(id as number)}
+                        onDelete={(r) => deleteById(r.id)}
+                    />
+                </div>
             </div>
 
             {/* QUANTITY GRID */}
-            <div className="grid gap-3 px-5 py-4 md:grid-cols-3">
+            <div className="grid border-b border-[#d8d5c9] bg-white md:grid-cols-3">
                 <QtyBox
                     label="NHẬP"
                     value={formatNumber(quantity)}
@@ -141,7 +143,7 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
             </div>
 
             {/* DETAIL GRID */}
-            <div className="grid gap-3 border-t bg-muted/20 px-5 py-4 md:grid-cols-3">
+            <div className="grid bg-white md:grid-cols-[1fr_1fr_1.25fr]">
                 {/* LỊCH HÀNG */}
                 <DetailBox label="LỊCH HÀNG" icon={CalendarDays}>
                     <DetailRow label="Ngày đi" value={formatDate(shipment?.etd)} />
@@ -159,14 +161,14 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
                 </DetailBox>
 
                 {/* THÀNH TIỀN */}
-                <div className="rounded-lg border bg-background px-4 py-3">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="bg-[#f4f3ec] px-4 py-3">
+                    <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
                         THÀNH TIỀN
                     </div>
-                    <div className="mt-1 text-xl font-bold tracking-tight tabular-nums">
+                    <div className="mt-1 text-xl font-bold tracking-tight text-slate-950 tabular-nums">
                         {formatCurrency(totalAmount)}
                     </div>
-                    <div className="mt-3 space-y-1 text-xs">
+                    <div className="mt-3 space-y-1 text-xs text-slate-700">
                         <DetailRow
                             label="Đơn giá"
                             value={formatCurrency(item.unit_price ?? 0)}
@@ -201,7 +203,7 @@ function ShipmentStatusBadge({ status }: { status?: string }) {
                             : "border-slate-200 bg-slate-50 text-slate-700"
 
     return (
-        <Badge variant="outline" className={`${className} text-xs`}>
+        <Badge variant="outline" className={`${className} h-5 rounded-sm px-2 text-[11px]`}>
             {formatStatus(status)}
         </Badge>
     )
@@ -248,11 +250,11 @@ function Summary({
                 : "text-foreground"
 
     return (
-        <div className="min-w-0 rounded-xl border bg-background px-4 py-3 shadow-sm">
-            <div className="truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="min-w-0 rounded-md bg-[#f4f3ec] px-4 py-3">
+            <div className="truncate text-[11px] font-bold uppercase tracking-wide text-slate-500">
                 {label}
             </div>
-            <div className={`mt-1 truncate text-xl font-bold tabular-nums ${valueClass}`}>
+            <div className={`mt-1 truncate text-lg font-bold leading-tight tabular-nums ${valueClass}`}>
                 {value}
             </div>
         </div>
@@ -278,16 +280,19 @@ function QtyBox({
                 : "text-foreground"
 
     return (
-        <div className="rounded-lg border bg-background px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="border-r border-[#d8d5c9] px-4 py-3 last:border-r-0">
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 {label}
             </div>
-            <div className={`mt-1 text-xl font-bold tabular-nums ${valueClass}`}>
+            <div className={`mt-1 text-xl font-bold leading-tight tabular-nums ${valueClass}`}>
                 {value}
             </div>
             {unit ? (
-                <div className="mt-0.5 text-xs text-muted-foreground">{unit}</div>
+                <div className="mt-0.5 text-xs text-slate-600">{unit}</div>
             ) : null}
+            <div className="mt-2 h-1 rounded-full bg-slate-100">
+                <div className={`h-full rounded-full ${tone === "warning" ? "bg-orange-500" : "bg-emerald-600"}`} />
+            </div>
         </div>
     )
 }
@@ -302,8 +307,8 @@ function DetailBox({
     children: React.ReactNode
 }) {
     return (
-        <div className="rounded-lg border bg-background px-4 py-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="border-r border-[#d8d5c9] px-4 py-3 last:border-r-0">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
                 {Icon ? <Icon className="h-4 w-4" /> : null}
                 {label}
             </div>
@@ -315,8 +320,8 @@ function DetailBox({
 function DetailRow({ label, value }: { label: string; value: string }) {
     return (
         <div className="flex items-baseline justify-between gap-3">
-            <span className="text-muted-foreground">{label}</span>
-            <span className="font-medium tabular-nums">{value}</span>
+            <span className="text-slate-600">{label}</span>
+            <span className="font-semibold tabular-nums text-slate-950">{value}</span>
         </div>
     )
 }

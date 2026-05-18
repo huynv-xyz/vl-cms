@@ -22,6 +22,7 @@ import {
     ChevronsRight,
     Clock,
     Container,
+    Plus,
     Search,
     StickyNote,
     Warehouse,
@@ -85,75 +86,89 @@ export function ShipmentItemTableV2({
         onFiltersChange({ ...filters, [key]: value })
 
     return (
-        <div className="space-y-4">
+        <div className="max-w-[1120px] space-y-3">
             {/* TOOLBAR */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(280px,1fr)_minmax(420px,1.4fr)_minmax(260px,.95fr)_minmax(240px,.85fr)]">
-                <div className="relative min-w-0 sm:col-span-2 xl:col-span-1">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        value={keyword ?? ""}
-                        onChange={(e) => onKeywordChange(e.target.value)}
-                        placeholder="Tìm theo mã SP, tên SP..."
-                        className="h-10 rounded-full pl-10"
+            <div className="space-y-2">
+                <div className="flex w-full flex-wrap items-center gap-2">
+                    <div className="relative h-10 min-w-[280px] flex-[1.2_1_0]">
+                        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                        <Input
+                            value={keyword ?? ""}
+                            onChange={(e) => onKeywordChange(e.target.value)}
+                            placeholder="Tìm theo mã SP, tên SP..."
+                            className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
+                        />
+                    </div>
+
+                    <AsyncMultiSelect
+                        className="h-10 min-w-[280px] flex-[1.8_1_0] border-slate-300 bg-white shadow-xs"
+                        value={filters.product_ids}
+                        onChange={(v: FilterIdList) => setFilter("product_ids", v)}
+                        placeholder="Sản phẩm"
+                        dataSource={{
+                            getList: listProducts,
+                            getById: getProduct,
+                            params: { page: 1, size: 20 },
+                        }}
+                        mapOption={productOption}
                     />
                 </div>
 
-                <AsyncMultiSelect
-                    className="min-w-0"
-                    value={filters.product_ids}
-                    onChange={(v: FilterIdList) => setFilter("product_ids", v)}
-                    placeholder="Sản phẩm"
-                    dataSource={{
-                        getList: listProducts,
-                        getById: getProduct,
-                        params: { page: 1, size: 20 },
-                    }}
-                    mapOption={productOption}
-                />
+                <div className="flex w-full flex-wrap items-center gap-2">
+                    <AsyncMultiSelect
+                        className="h-10 min-w-[190px] flex-1 border-slate-300 bg-white shadow-xs"
+                        value={filters.supplier_ids}
+                        onChange={(v: FilterIdList) => setFilter("supplier_ids", v)}
+                        placeholder="Nhà cung cấp"
+                        dataSource={{
+                            getList: listSuppliers,
+                            getById: getSupplier,
+                            params: { page: 1, size: 20 },
+                        }}
+                        mapOption={supplierOption}
+                    />
 
-                <AsyncMultiSelect
-                    className="min-w-0"
-                    value={filters.supplier_ids}
-                    onChange={(v: FilterIdList) => setFilter("supplier_ids", v)}
-                    placeholder="Nhà cung cấp"
-                    dataSource={{
-                        getList: listSuppliers,
-                        getById: getSupplier,
-                        params: { page: 1, size: 20 },
-                    }}
-                    mapOption={supplierOption}
-                />
+                    <AsyncMultiSelect
+                        className="h-10 min-w-[170px] flex-1 border-slate-300 bg-white shadow-xs"
+                        value={filters.port_ids}
+                        onChange={(v: FilterIdList) => setFilter("port_ids", v)}
+                        placeholder="Cảng đến"
+                        dataSource={{
+                            getList: listPorts,
+                            getById: getPort,
+                            params: { page: 1, size: 20 },
+                        }}
+                        mapOption={(x: PortOptionSource) => ({ value: x.id, label: x.name })}
+                    />
 
-                <AsyncMultiSelect
-                    className="min-w-0"
-                    value={filters.port_ids}
-                    onChange={(v: FilterIdList) => setFilter("port_ids", v)}
-                    placeholder="Cảng đến"
-                    dataSource={{
-                        getList: listPorts,
-                        getById: getPort,
-                        params: { page: 1, size: 20 },
-                    }}
-                    mapOption={(x: PortOptionSource) => ({ value: x.id, label: x.name })}
-                />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10 rounded-md border-slate-300 bg-white shadow-xs"
+                        disabled
+                    >
+                        <Plus className="h-4 w-4" />
+                    </Button>
 
-                <DatePicker
-                    className="min-w-0"
-                    value={filters.eta_from}
-                    onChange={(v) => setFilter("eta_from", v)}
-                    placeholder="Ngày đi"
-                />
+                    <DatePicker
+                        className="min-w-[145px] flex-1 [&_button]:h-10"
+                        value={filters.eta_from}
+                        onChange={(v) => setFilter("eta_from", v)}
+                        placeholder="Ngày đi"
+                    />
 
-                <DatePicker
-                    className="min-w-0"
-                    value={filters.eta_to}
-                    onChange={(v) => setFilter("eta_to", v)}
-                    placeholder="Ngày đến"
-                />
+                    <DatePicker
+                        className="min-w-[145px] flex-1 [&_button]:h-10"
+                        value={filters.eta_to}
+                        onChange={(v) => setFilter("eta_to", v)}
+                        placeholder="Ngày đến"
+                    />
+                </div>
             </div>
 
             {/* CARD LIST */}
-            <div className="space-y-3">
+            <div className="space-y-2">
                 {data.length === 0 ? (
                     <div className="rounded-xl border border-dashed bg-muted/30 px-6 py-12 text-center text-sm text-muted-foreground">
                         Không có lô hàng nào.
@@ -212,53 +227,55 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
         shipment?.status === "DONE"
 
     return (
-        <div className="overflow-hidden rounded-xl border bg-background shadow-sm">
+        <div className="overflow-hidden rounded-lg border border-[#d8d5c9] shadow-xs">
             {/* HEADER */}
-            <div className="flex items-start gap-4 px-5 py-4">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold">
+            <div className="grid min-h-[108px] grid-cols-[48px_minmax(120px,180px)_minmax(260px,1fr)_56px] bg-[#fbfaf2] border-b border-[#d8d5c9]">
+                <div className="flex items-center justify-center border-r border-[#d8d5c9] text-sm text-slate-600">
                     {index}
                 </div>
 
                 {/* shipment block */}
-                <div className="w-[180px] shrink-0 space-y-1">
+                <div className="space-y-1 border-r border-[#d8d5c9] px-5 py-4">
                     <ShipmentStatusBadge status={shipment?.status} />
-                    <div className="text-xl font-bold tracking-tight">
+                    <div className="text-lg font-bold leading-tight tracking-tight text-slate-900">
                         {shipment?.code ?? `#${item.shipment_id ?? "-"}`}
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1 text-xs text-slate-500">
                         <Container className="h-3.5 w-3.5" />
                         {shipment?.container_no ? `${shipment.container_no}` : "— container"}
                     </div>
                 </div>
 
                 {/* product block */}
-                <div className="min-w-0 flex-1 space-y-1">
-                    <div className="text-base font-semibold text-sky-600">
+                <div className="min-w-0 space-y-1 px-5 py-4">
+                    <div className="truncate text-sm font-semibold text-sky-700">
                         {item.product?.code ?? "—"}
                     </div>
-                    <div className="text-sm">
+                    <div className="line-clamp-2 text-base font-semibold leading-snug text-slate-900">
                         {item.product?.name ?? "—"}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-slate-600">
                         ĐVT: {item.product?.unit ?? "—"}
                     </div>
                 </div>
 
-                <CrudRowActions
-                    row={item}
-                    getId={(r) => r.shipment?.id || 0}
-                    onEditById={(id) => openEditById(id as number)}
-                    onDelete={(r) => deleteById(r.id)}
-                />
+                <div className="flex items-center justify-center border-l border-[#d8d5c9]">
+                    <CrudRowActions
+                        row={item}
+                        getId={(r) => r.shipment?.id || 0}
+                        onEditById={(id) => openEditById(id as number)}
+                        onDelete={(r) => deleteById(r.id)}
+                    />
+                </div>
             </div>
 
             {/* DETAIL GRID */}
-            <div className="grid gap-x-6 gap-y-3 border-t bg-muted/10 px-5 py-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4">
                 {/* LỊCH HÀNG */}
                 <Cell label="LỊCH HÀNG">
-                    <DotRow color="sky" label="Ngày đi" value={formatDate(shipment?.etd)} />
-                    <DotRow color="emerald" label="Ngày đến" value={formatDate(shipment?.eta)} />
-                    <DotRow color="amber" label="Về kho" value={formatDate(shipment?.warehouse_at)} />
+                    <DotRow color="sky" label="Ngày đi" value={shipment?.etd || ''} />
+                    <DotRow color="emerald" label="Ngày đến" value={shipment?.eta || ''} />
+                    <DotRow color="amber" label="Về kho" value={shipment?.warehouse_at || ''} />
                 </Cell>
 
                 {/* KHO / CẢNG */}
@@ -290,7 +307,7 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
                         {arrivedAtPort
                             ? formatDate(shipment?.ata ?? shipment?.eta)
                             : shipment?.eta
-                                ? `Dự kiến ${formatDate(shipment?.eta)}`
+                                ? `Dự kiến ${shipment?.eta || ''}`
                                 : "—"}
                     </div>
                 </Cell>
@@ -303,24 +320,24 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
                 </Cell>
 
                 {/* GIÁ TRỊ */}
-                <Cell label="GIÁ TRỊ" align="right">
-                    <div className="text-right text-xl font-bold tabular-nums">
+                {/*<Cell label="GIÁ TRỊ" align="right">
+                    <div className="text-right text-xl font-bold leading-tight tabular-nums text-slate-900">
                         {formatCurrency(totalAmount)}
                     </div>
-                    <div className="text-right text-xs text-muted-foreground">
+                    <div className="text-right text-xs text-slate-500">
                         ĐG: {formatCurrency(item.unit_price ?? 0)}
                     </div>
-                </Cell>
+                </Cell>*/}
             </div>
 
             {/* NOTE */}
-            <div className="flex items-start gap-2 border-t px-5 py-3 text-xs">
-                <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="flex items-center gap-2 bg-[#fbfaf2] border-t border-[#d8d5c9] px-5 py-2 text-xs">
+                <StickyNote className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                <span className="font-semibold uppercase tracking-wide text-slate-600">
                     Ghi chú
                 </span>
-                <span className="text-muted-foreground">|</span>
-                <span className="text-muted-foreground">
+                <span className="text-slate-400">|</span>
+                <span className="italic text-slate-500">
                     {item.note || "Chưa có ghi chú"}
                 </span>
             </div>
@@ -338,11 +355,13 @@ function Cell({
     children: React.ReactNode
 }) {
     return (
-        <div className={align === "right" ? "text-right" : ""}>
-            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div
+            className={`min-h-[118px] border-b border-r border-[#d8d5c9] px-4 py-3 last:border-r-0 lg:border-b-0 ${align === "right" ? "text-right" : ""}`}
+        >
+            <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
                 {label}
             </div>
-            <div className="space-y-1 text-sm">{children}</div>
+            <div className="space-y-1.5 text-sm">{children}</div>
         </div>
     )
 }
@@ -364,10 +383,10 @@ function DotRow({
                 : "bg-sky-500"
 
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 text-xs">
             <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
-            <span className="text-muted-foreground">{label}</span>
-            <span className="ml-auto font-medium tabular-nums">{value}</span>
+            <span className="text-slate-600">{label}</span>
+            <span className="ml-auto font-bold tabular-nums text-slate-900">{value}</span>
         </div>
     )
 }
@@ -380,9 +399,9 @@ function IconRow({
     value: string
 }) {
     return (
-        <div className="flex items-center gap-2">
-            <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="truncate">{value}</span>
+        <div className="flex items-center gap-2 text-sm">
+            <Icon className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+            <span className="truncate text-slate-800">{value}</span>
         </div>
     )
 }
@@ -406,10 +425,10 @@ function QtyRow({
                 : ""
 
     return (
-        <div className="flex items-baseline justify-between gap-3">
-            <span className="text-muted-foreground">{label}</span>
+        <div className="flex items-baseline justify-between gap-3 text-sm">
+            <span className="text-slate-600">{label}</span>
             <span
-                className={`tabular-nums ${strong ? "font-semibold" : "font-medium"} ${valueClass}`}
+                className={`tabular-nums ${strong ? "font-bold" : "font-semibold"} ${valueClass || "text-slate-900"}`}
             >
                 {value}
             </span>
@@ -432,7 +451,7 @@ function ShipmentStatusBadge({ status }: { status?: string }) {
                             : "border-slate-200 bg-slate-50 text-slate-700"
 
     return (
-        <Badge variant="outline" className={`${className} text-xs`}>
+        <Badge variant="outline" className={`${className} h-5 rounded-sm px-2 text-[11px]`}>
             {formatStatus(status)}
         </Badge>
     )

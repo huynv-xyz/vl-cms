@@ -7,9 +7,10 @@ import { PaymentsProvider } from "./payment-provider"
 import { PaymentTable } from "./payment-table"
 import { PaymentDialogs } from "./payment-dialogs"
 import { CreatePaymentButton } from "./create-payment-button"
+import type { Contract } from "../../contract/data/schema"
 
 type Props = {
-    contract: any
+    contract: Contract
 }
 
 export function PaymentsTab({ contract }: Props) {

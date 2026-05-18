@@ -6,9 +6,10 @@ import { ContractItemsProvider } from "@/features/purchasing/contract-item/compo
 import { CreateContractItemButton } from "@/features/purchasing/contract-item/components/create-contract-item-button"
 import { ContractItemTable } from "@/features/purchasing/contract-item/components/contract-item-table"
 import { ContractItemDialogs } from "@/features/purchasing/contract-item/components/contract-item-dialogs"
+import type { Contract } from "../../data/schema"
 
 type Props = {
-    contract: any
+    contract: Contract
 }
 
 export function ContractItemsTab({ contract }: Props) {

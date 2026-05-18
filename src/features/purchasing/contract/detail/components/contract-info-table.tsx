@@ -22,18 +22,18 @@ export function ContractInfoTable({ contract }: Props) {
 
     return (
         <div className="space-y-3">
-            <div className="rounded-xl border bg-background p-5 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-3">
-                            <FileText className="h-5 w-5 text-muted-foreground" />
-                            <h2 className="text-2xl font-semibold tracking-tight">
+            <div className="rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-xs">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-2.5">
+                        <div className="flex flex-wrap items-center gap-2.5">
+                            <FileText className="h-5 w-5 text-slate-600" />
+                            <h2 className="text-2xl font-semibold leading-tight tracking-tight text-slate-950">
                                 {contract.code || `Hợp đồng #${contract.id}`}
                             </h2>
                             <TypeBadge />
                         </div>
 
-                        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-700">
                             <span className="inline-flex items-center gap-2">
                                 <Building2 className="h-4 w-4" />
                                 {contract.supplier?.name ?? "-"}
@@ -50,7 +50,7 @@ export function ContractInfoTable({ contract }: Props) {
                         </div>
                     </div>
 
-                    <Button variant="outline" asChild className="shrink-0">
+                    <Button variant="outline" asChild className="h-10 shrink-0 rounded-md border-slate-300 bg-white px-4 font-semibold shadow-xs">
                         <Link
                             to="/purchasing/contracts"
                             search={{
@@ -79,20 +79,18 @@ export function ContractInfoTable({ contract }: Props) {
                 <Metric label="CÒN PHẢI TRẢ" value={formatCurrency(contract.remaining_amount ?? 0)} sub={contract.currency?.code ?? "-"} tone="warning" />
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
                 <InfoBox label="NHÀ CUNG CẤP" value={contract.supplier?.name} sub={contract.supplier?.code} />
                 <InfoBox label="QUỐC GIA" value={contract.supplier?.nation?.name} sub={contract.supplier?.nation?.code} />
                 <InfoBox label="ĐIỀU KIỆN MUA" value={contract.term} sub={`Cọc ${formatNumber(contract.deposit_rate ?? 0)}%`} />
                 <InfoBox label="LOẠI TIỀN" value={contract.currency?.code} sub={`Tỷ giá ${formatNumber(exchangeRate)}`} />
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <InfoBox
                     label="PHÍ LÀM HÀNG"
                     value={formatCurrency(contract.handling_fee ?? 0)}
                     sub="TTHQ, nâng hạ và phí liên quan/ĐV"
                     icon={ReceiptText}
                     muted
+                    className="lg:col-span-2"
                 />
                 <InfoBox label="NGÀY CỌC" value={formatDate(contract.deposit_date)} muted />
                 <InfoBox label="THUẾ NHẬP KHẨU" value={`${formatNumber(contract.import_tax_rate ?? 0)}%`} muted />
@@ -106,7 +104,7 @@ function TypeBadge() {
     return (
         <Badge
             variant="outline"
-            className="border-teal-200 bg-teal-50 text-teal-700"
+            className="h-5 rounded-sm border-sky-100 bg-sky-50 px-2 text-[11px] font-semibold text-sky-700"
         >
             Nhập
         </Badge>
@@ -132,10 +130,10 @@ function Metric({
                 : "text-foreground"
 
     return (
-        <div className="flex min-h-[120px] flex-col justify-between rounded-xl border bg-background px-5 py-4 shadow-sm">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
-            <div className={`mt-2 break-words text-2xl font-bold tracking-tight tabular-nums 2xl:text-3xl ${valueClass}`}>{value}</div>
-            {sub ? <div className="mt-1 text-xs text-muted-foreground">{sub}</div> : null}
+        <div className="flex min-h-[92px] flex-col rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-xs">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+            <div className={`mt-2 break-words text-xl font-bold leading-tight tracking-tight tabular-nums ${valueClass}`}>{value}</div>
+            {sub ? <div className="mt-1 text-xs text-slate-600">{sub}</div> : null}
         </div>
     )
 }
@@ -146,26 +144,27 @@ function InfoBox({
     sub,
     icon: Icon,
     muted = false,
+    className,
 }: {
     label: string
     value?: string | number | null
     sub?: string | number | null
     icon?: React.ComponentType<{ className?: string }>
     muted?: boolean
+    className?: string
 }) {
     return (
         <div
-            className={`flex min-h-[96px] flex-col justify-between rounded-xl border px-5 py-4 shadow-sm ${muted ? "bg-muted/30" : "bg-background"
-                }`}
+            className={`flex min-h-[76px] flex-col rounded-md px-4 py-3 ${muted ? "bg-[#f4f3ec]" : "bg-[#f4f3ec]"} ${className ?? ""}`}
         >
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 {Icon ? <Icon className="h-4 w-4" /> : null}
                 {label}
             </div>
-            <div className={`mt-2 break-words font-semibold ${muted ? "text-base" : "text-lg"}`}>
+            <div className="mt-1.5 break-words text-sm font-bold leading-snug text-slate-950">
                 {value || "—"}
             </div>
-            {sub ? <div className="mt-1 text-xs text-muted-foreground">{sub}</div> : null}
+            {sub ? <div className="mt-1 text-xs text-slate-600">{sub}</div> : null}
         </div>
     )
 }
@@ -193,9 +192,11 @@ function formatPaymentMethod(method?: string) {
 }
 
 function formatDate(value?: string) {
-    if (!value) return "-"
+    if (!value) return "—"
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return value
 
-    return date.toLocaleDateString("vi-VN")
+    const day = String(date.getDate()).padStart(2, "0")
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    return `${day}-${month}-${date.getFullYear()}`
 }
