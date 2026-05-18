@@ -1,1 +1,0 @@
-import{I as e}from"./index-DWDaF2-A.js";import{c as i}from"./crud-mTdQI89J.js";function r(){return e("/auth/me/permissions")}const s=i("/auth/permissions"),a=s.list;s.detail;const n=s.create,m=s.update,c=s.delete;export{n as c,c as d,r as g,a as l,m as u};

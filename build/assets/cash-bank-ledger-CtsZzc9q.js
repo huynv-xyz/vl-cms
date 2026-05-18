@@ -1,1 +1,0 @@
-import{c as s}from"./crud-mTdQI89J.js";import{I as t}from"./index-DWDaF2-A.js";const e=s("/sales/cash-bank-ledger"),c=e.list;e.create;e.update;e.delete;const d=a=>t(`/sales/cash-bank-ledger/${a}`);export{d as g,c as l};

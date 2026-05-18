@@ -2,6 +2,14 @@ import type { PaginationState, OnChangeFn } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { CrudRowActions } from "@/components/crud/crud-row-actions"
 import { DatePicker } from "@/components/date-picker"
 import { AsyncMultiSelect } from "@/components/rjsf/async-multi-select"
@@ -22,7 +30,6 @@ import {
     ChevronsRight,
     Clock,
     Container,
-    Plus,
     Search,
     StickyNote,
     Warehouse,
@@ -44,6 +51,14 @@ type PortOptionSource = {
     id: string | number
     name: string
 }
+
+const STATUS_OPTIONS = [
+    { value: "IN_TRANSIT", label: "Đang vận chuyển" },
+    { value: "ARRIVED_PORT", label: "Đến cảng" },
+    { value: "IN_WAREHOUSE", label: "Về kho" },
+    { value: "DONE", label: "Hoàn tất" },
+    { value: "CANCELLED", label: "Đã hủy" },
+]
 
 type Props = {
     data: ShipmentItem[]
@@ -141,15 +156,10 @@ export function ShipmentItemTableV2({
                         mapOption={(x: PortOptionSource) => ({ value: x.id, label: x.name })}
                     />
 
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-10 w-10 rounded-md border-slate-300 bg-white shadow-xs"
-                        disabled
-                    >
-                        <Plus className="h-4 w-4" />
-                    </Button>
+                    <StatusFilter
+                        value={filters.status}
+                        onChange={(v) => setFilter("status", v)}
+                    />
 
                     <DatePicker
                         className="min-w-[145px] flex-1 [&_button]:h-10"
@@ -214,12 +224,6 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
     const quantity = item.quantity ?? 0
     const defect = item.defect_quantity ?? 0
     const real = Math.max(quantity - defect, 0)
-    const unitPrice =
-        (item.unit_price ?? 0) +
-        (item.packaging_price ?? 0) +
-        (item.freight_price ?? 0)
-    const totalAmount = real * unitPrice
-
     const arrivedAtPort =
         !!shipment?.ata ||
         shipment?.status === "ARRIVED_PORT" ||
@@ -342,6 +346,62 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
                 </span>
             </div>
         </div>
+    )
+}
+
+function StatusFilter({
+    value,
+    onChange,
+}: {
+    value?: string[]
+    onChange: (value?: string[]) => void
+}) {
+    const selected = value ?? []
+
+    const toggleStatus = (status: string) => {
+        const next = selected.includes(status)
+            ? selected.filter((item) => item !== status)
+            : [...selected, status]
+
+        onChange(next.length ? next : undefined)
+    }
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 min-w-[145px] flex-1 justify-between rounded-md border-slate-300 bg-white px-3 shadow-xs"
+                >
+                    <span className="inline-flex min-w-0 items-center gap-2">
+                        <Clock className="h-4 w-4 text-slate-500" />
+                        <span className="truncate">
+                            {selected.length ? `Trạng thái (${selected.length})` : "Trạng thái"}
+                        </span>
+                    </span>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-[220px]">
+                {STATUS_OPTIONS.map((option) => (
+                    <DropdownMenuCheckboxItem
+                        key={option.value}
+                        checked={selected.includes(option.value)}
+                        onCheckedChange={() => toggleStatus(option.value)}
+                    >
+                        {option.label}
+                    </DropdownMenuCheckboxItem>
+                ))}
+                {selected.length > 0 ? (
+                    <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onChange(undefined)}>
+                            Xóa bộ lọc trạng thái
+                        </DropdownMenuItem>
+                    </>
+                ) : null}
+            </DropdownMenuContent>
+        </DropdownMenu>
     )
 }
 

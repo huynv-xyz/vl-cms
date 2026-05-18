@@ -93,7 +93,7 @@ export default function ShipmentPage() {
                         }}
 
                         onFiltersChange={(next) => {
-                            setPagination((p: any) => ({
+                            setPagination((p) => ({
                                 ...p,
                                 pageIndex: 0,
                             }))
