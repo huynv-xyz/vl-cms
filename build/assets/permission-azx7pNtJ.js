@@ -1,1 +1,0 @@
-import{Q as e}from"./index-Dox1MUzD.js";import{c as i}from"./crud-DvEAh8kS.js";function r(){return e("/auth/me/permissions")}const s=i("/auth/permissions"),n=s.list,a=s.create,m=s.update,c=s.delete;export{a as c,c as d,r as g,n as l,m as u};

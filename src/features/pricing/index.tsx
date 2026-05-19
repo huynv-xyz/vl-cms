@@ -3,13 +3,16 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import { Calculator, CalendarIcon, Check, ChevronLeft, ChevronRight, ChevronsUpDown, Edit, Eye, Plus, RefreshCw, Save, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import { listProducts } from "@/api/product"
-import { listProductGroups } from "@/api/product-group"
 import { listRegions } from "@/api/region"
 import {
     calculatePricing,
     listPricingSnapshotItemSources,
     listPricingSnapshotItems,
+    pricingAlertConfigsApi,
+    pricingGroupsApi,
     pricingMarginRulesApi,
+    pricingPackagingCostsApi,
+    pricingPromotionsApi,
     pricingSnapshotsApi,
     pricingTransportRulesApi,
 } from "@/api/pricing"
@@ -28,9 +31,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import type {
     CalculatePricingRequest,
+    PricingAlertConfig,
+    PricingGroup,
     PricingMarginRule,
     PricingMarginType,
+    PricingPackagingCost,
     PricingPriceMethod,
+    PricingPromotion,
     PricingSnapshot,
     PricingSnapshotItem,
     PricingSnapshotItemSource,
@@ -89,7 +96,7 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
     })
     const [selectedSnapshot, setSelectedSnapshot] = useState<PricingSnapshot | null>(null)
     const [itemProductId, setItemProductId] = useState<number | undefined>()
-    const [itemGroupId, setItemGroupId] = useState<number | undefined>()
+    const [itemPricingGroupId, setItemPricingGroupId] = useState<number | undefined>()
 
     const snapshotsQuery = useQuery({
         queryKey: ["pricing-snapshots", form.pricing_month],
@@ -130,7 +137,7 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
     const currentSnapshotItems = useMemo<SnapshotTableItem[]>(() => {
         return items.map((item) => ({ ...item, snapshot: selectedSnapshot ?? undefined }))
     }, [items, selectedSnapshot])
-    const isCrossRegionFilter = Boolean(itemProductId || itemGroupId)
+    const isCrossRegionFilter = Boolean(itemProductId || itemPricingGroupId)
     const baseItems = isCrossRegionFilter ? allSnapshotItems : currentSnapshotItems
     const productFilterOptions = useMemo(() => {
         const map = new Map<number, Option>()
@@ -148,10 +155,10 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
     const filteredItems = useMemo(() => {
         return baseItems.filter((item) => {
             if (itemProductId && item.product_id !== itemProductId) return false
-            if (itemGroupId && item.group_id !== itemGroupId) return false
+            if (itemPricingGroupId && item.pricing_group_id !== itemPricingGroupId) return false
             return true
         })
-    }, [baseItems, itemProductId, itemGroupId])
+    }, [baseItems, itemProductId, itemPricingGroupId])
     const tableLoading = isCrossRegionFilter
         ? allItemsQueries.some((query) => query.isLoading)
         : itemsQuery.isLoading
@@ -192,7 +199,7 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
                     </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     <Field label="Tháng áp dụng">
                         <MonthPicker
                             value={form.pricing_month}
@@ -208,14 +215,6 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
                             onChange={(value) => setForm((prev) => ({ ...prev, region_id: value }))}
                         />
                     </Field>
-                    <Field label="Nhóm sản phẩm">
-                        <OptionSelect
-                            value={form.group_id}
-                            options={lookups.groups}
-                            placeholder="Tất cả nhóm"
-                            onChange={(value) => setForm((prev) => ({ ...prev, group_id: value }))}
-                        />
-                    </Field>
                     <Field label="Cách lấy giá mua">
                         <Select value={form.price_method ?? "WAVG"} onValueChange={(value) => setForm((prev) => ({ ...prev, price_method: value as PricingPriceMethod }))}>
                             <SelectTrigger className={cn(controlClass, "w-full !py-0")}>
@@ -228,7 +227,7 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
                             </SelectContent>
                         </Select>
                     </Field>
-                    <Field label="Ghi chú" className="md:col-span-2 xl:col-span-3">
+                    <Field label="Ghi chú" className="md:col-span-2">
                         <Textarea className={cn(controlClass, "resize-none py-2")} value={form.note ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, note: event.target.value }))} />
                     </Field>
                     <div className="flex items-end">
@@ -255,18 +254,29 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
                                 <h2 className="text-xl font-semibold">Bảng giá đã tính</h2>
                                 <p className="text-sm text-muted-foreground">Chọn một lần tính để xem kết quả chi tiết.</p>
                             </div>
-                            <Field label="Bảng giá">
+                            <Field label="Bảng giá" className="min-w-0">
                                 <Select value={selectedSnapshot?.id ? String(selectedSnapshot.id) : ""} onValueChange={(value) => {
                                     const snapshot = latestSnapshots.find((item) => String(item.id) === value)
                                     setSelectedSnapshot(snapshot ?? null)
                                 }}>
-                                    <SelectTrigger className={cn(controlClass, "w-full !py-0")}>
+                                    <SelectTrigger className={cn(controlClass, "w-full min-w-0 overflow-hidden !py-0 [&>span]:block [&>span]:min-w-0 [&>span]:truncate")}>
                                         <SelectValue placeholder="Chọn bảng giá" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="max-w-[min(720px,calc(100vw-32px))]">
                                         {latestSnapshots.map((snapshot) => (
-                                            <SelectItem key={snapshot.id} value={String(snapshot.id)}>
-                                                {snapshotLabel(snapshot, lookups.regions)}
+                                            <SelectItem
+                                                key={snapshot.id}
+                                                value={String(snapshot.id)}
+                                                textValue={snapshotShortLabel(snapshot, lookups.regions)}
+                                            >
+                                                <div className="min-w-0 pr-4">
+                                                    <div className="truncate font-medium">
+                                                        {snapshotShortLabel(snapshot, lookups.regions)}
+                                                    </div>
+                                                    <div className="truncate text-xs text-muted-foreground">
+                                                        {snapshot.code}
+                                                    </div>
+                                                </div>
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -284,14 +294,14 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
                                     onChange={setItemProductId}
                                 />
                             </Field>
-                            <Field label="Lọc nhóm" className="min-w-0">
+                            <Field label="Lọc mã nhóm báo giá" className="min-w-0">
                                 <OptionCombobox
-                                    value={itemGroupId}
-                                    options={lookups.groups}
-                                    placeholder="Tất cả nhóm"
-                                    searchPlaceholder="Tìm mã hoặc tên nhóm..."
-                                    emptyText="Không tìm thấy nhóm"
-                                    onChange={setItemGroupId}
+                                    value={itemPricingGroupId}
+                                    options={lookups.pricingGroups}
+                                    placeholder="Tất cả mã nhóm"
+                                    searchPlaceholder="Tìm mã hoặc tên nhóm báo giá..."
+                                    emptyText="Không tìm thấy mã nhóm báo giá"
+                                    onChange={setItemPricingGroupId}
                                 />
                             </Field>
                         </div>
@@ -303,6 +313,7 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
                             items={filteredItems}
                             isLoading={tableLoading}
                             isCrossRegionFilter={isCrossRegionFilter}
+                            lookups={lookups}
                         />
                     ) : (
                         <div className="p-8 text-center text-muted-foreground">Chưa chọn bảng giá để xem.</div>
@@ -315,10 +326,129 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
 
 function ConfigPanel({ lookups }: { lookups: ReturnType<typeof usePricingLookups> }) {
     return (
-        <div className="grid gap-5 xl:grid-cols-2">
-            <MarginRulesPanel lookups={lookups} />
-            <TransportRulesPanel lookups={lookups} />
+        <div className="space-y-5">
+            <div className="grid gap-5 xl:grid-cols-2">
+                <PricingGroupsPanel lookups={lookups} />
+                <PackagingCostsPanel lookups={lookups} />
+            </div>
+            <div className="grid gap-5 xl:grid-cols-2">
+                <MarginRulesPanel lookups={lookups} />
+                <TransportRulesPanel lookups={lookups} />
+            </div>
+            <div className="grid gap-5 xl:grid-cols-2">
+                <PromotionsPanel lookups={lookups} />
+                <AlertConfigsPanel lookups={lookups} />
+            </div>
         </div>
+    )
+}
+
+function PricingGroupsPanel({ lookups }: { lookups: ReturnType<typeof usePricingLookups> }) {
+    const queryClient = useQueryClient()
+    const [open, setOpen] = useState(false)
+    const [editing, setEditing] = useState<PricingGroup | null>(null)
+    const query = useQuery({
+        queryKey: ["pricing-groups"],
+        queryFn: () => pricingGroupsApi.list({ page: 1, size: 100, active: true }),
+    })
+    const remove = useMutation({
+        mutationFn: pricingGroupsApi.delete,
+        onSuccess: () => {
+            toast.success("Đã xoá mã nhóm báo giá")
+            queryClient.invalidateQueries({ queryKey: ["pricing-groups"] })
+            queryClient.invalidateQueries({ queryKey: ["lookup-pricing-groups"] })
+        },
+        onError: showError("Xoá thất bại"),
+    })
+    const rows = query.data?.items ?? []
+
+    return (
+        <section className="rounded-md border bg-background">
+            <PanelHeader
+                title="Mã nhóm báo giá"
+                description="Mã dùng để gom sản phẩm cùng logic giá, phí bán hàng, lợi nhuận, vận chuyển, khuyến mãi."
+                action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
+            />
+            <TableWrap>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Mã</TableHead>
+                            <TableHead>Tên</TableHead>
+                            <TableHead>ĐVT chuẩn</TableHead>
+                            <TableHead className="w-24 text-right">Thao tác</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {rows.map((row) => (
+                            <TableRow key={row.id}>
+                                <TableCell className="font-semibold">{row.code}</TableCell>
+                                <TableCell>{row.name}</TableCell>
+                                <TableCell>{row.base_unit_code || "-"}</TableCell>
+                                <TableCell><RowActions onEdit={() => setEditing(row)} onDelete={() => remove.mutate(row.id)} /></TableCell>
+                            </TableRow>
+                        ))}
+                        {!rows.length && <EmptyRow colSpan={4} text={query.isLoading ? "Đang tải..." : "Chưa có mã nhóm báo giá"} />}
+                    </TableBody>
+                </Table>
+            </TableWrap>
+            <PricingGroupDialog open={open} onOpenChange={setOpen} lookups={lookups} />
+            {editing && <PricingGroupDialog open={!!editing} onOpenChange={(value) => !value && setEditing(null)} rule={editing} lookups={lookups} />}
+        </section>
+    )
+}
+
+function PackagingCostsPanel({ lookups }: { lookups: ReturnType<typeof usePricingLookups> }) {
+    const queryClient = useQueryClient()
+    const [open, setOpen] = useState(false)
+    const [editing, setEditing] = useState<PricingPackagingCost | null>(null)
+    const query = useQuery({
+        queryKey: ["pricing-packaging-costs"],
+        queryFn: () => pricingPackagingCostsApi.list({ page: 1, size: 100, active: true }),
+    })
+    const remove = useMutation({
+        mutationFn: pricingPackagingCostsApi.delete,
+        onSuccess: () => {
+            toast.success("Đã xoá chi phí bao bì")
+            queryClient.invalidateQueries({ queryKey: ["pricing-packaging-costs"] })
+        },
+        onError: showError("Xoá thất bại"),
+    })
+    const rows = query.data?.items ?? []
+
+    return (
+        <section className="rounded-md border bg-background">
+            <PanelHeader
+                title="Chi phí bao bì"
+                description="Cộng vào giá nguyên liệu theo mã nhóm báo giá."
+                action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
+            />
+            <TableWrap>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Mã nhóm báo giá</TableHead>
+                            <TableHead>Tên cấu hình</TableHead>
+                            <TableHead className="text-right">Chi phí/đv</TableHead>
+                            <TableHead className="w-24 text-right">Thao tác</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {rows.map((row) => (
+                            <TableRow key={row.id}>
+                                <TableCell className="font-semibold">{labelOf(lookups.pricingGroups, row.pricing_group_id)}</TableCell>
+                                <TableCell>{row.name}</TableCell>
+                                <MoneyCell value={row.cost_per_unit_vnd} />
+                                <TableCell><RowActions onEdit={() => setEditing(row)} onDelete={() => remove.mutate(row.id)} /></TableCell>
+                            </TableRow>
+                        ))}
+                        {!rows.length && <EmptyRow colSpan={4} text={query.isLoading ? "Đang tải..." : "Chưa có chi phí bao bì"} />}
+                    </TableBody>
+                </Table>
+            </TableWrap>
+            <PackagingCostDialog open={open} onOpenChange={setOpen} lookups={lookups} />
+            {editing && <PackagingCostDialog open={!!editing} onOpenChange={(value) => !value && setEditing(null)} rule={editing} lookups={lookups} />}
+        </section>
     )
 }
 
@@ -344,30 +474,30 @@ function MarginRulesPanel({ lookups }: { lookups: ReturnType<typeof usePricingLo
     return (
         <section className="rounded-md border bg-background">
             <PanelHeader
-                title="Lợi nhuận"
-                description="Cộng lợi nhuận theo nhóm sản phẩm và vùng. Vùng bỏ trống là mặc định."
+                title="Biên lợi nhuận & Phí bán hàng"
+                description="Cấu hình %/số tiền lợi nhuận và 6 cấu phần phí bán hàng theo mã nhóm báo giá, vùng."
                 action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
             />
             <TableWrap>
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Nhóm</TableHead>
+                            <TableHead>Mã nhóm báo giá</TableHead>
                             <TableHead>Vùng</TableHead>
-                            <TableHead>LN</TableHead>
-                            <TableHead>Tiền mặt</TableHead>
-                            <TableHead>30 ngày</TableHead>
+                            <TableHead>Lợi nhuận</TableHead>
+                            <TableHead>Phí bán hàng</TableHead>
+                            <TableHead>An toàn</TableHead>
                             <TableHead className="w-24 text-right">Thao tác</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {rows.map((row) => (
                             <TableRow key={row.id}>
-                                <TableCell className="font-medium">{labelOf(lookups.groups, row.group_id)}</TableCell>
+                                <TableCell className="font-medium">{labelOf(lookups.pricingGroups, row.pricing_group_id)}</TableCell>
                                 <TableCell>{row.region_id ? labelOf(lookups.regions, row.region_id) : "Mặc định"}</TableCell>
-                                <TableCell>{row.margin_type === "AMOUNT" ? formatCurrency(row.margin_value) : `${formatNumber(row.margin_value ?? 0)}%`}</TableCell>
-                                <TableCell>{formatCurrency(row.cash_adjustment_vnd)}</TableCell>
-                                <TableCell>{formatCurrency(row.term_30_adjustment_vnd)}</TableCell>
+                                <TableCell>{marginLabel(row)}</TableCell>
+                                <TableCell>{formatCurrency(salesExpenseTotal(row))}</TableCell>
+                                <TableCell>{row.min_margin_safety_percent ? `${formatNumber(row.min_margin_safety_percent)}%` : "-"}</TableCell>
                                 <TableCell>
                                     <RowActions onEdit={() => setEditing(row)} onDelete={() => remove.mutate(row.id)} />
                                 </TableCell>
@@ -405,8 +535,8 @@ function TransportRulesPanel({ lookups }: { lookups: ReturnType<typeof usePricin
     return (
         <section className="rounded-md border bg-background">
             <PanelHeader
-                title="Vận chuyển"
-                description="Ưu tiên theo sản phẩm, sau đó nhóm sản phẩm, cuối cùng là mặc định."
+                title="Vận chuyển & phụ phí"
+                description="VC giao kho là phí vận chuyển; 7-10 ngày/30 ngày là phụ phí công nợ; giá nông dân là cộng hoặc giảm riêng."
                 action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
             />
             <TableWrap>
@@ -415,9 +545,10 @@ function TransportRulesPanel({ lookups }: { lookups: ReturnType<typeof usePricin
                         <TableRow>
                             <TableHead>Áp dụng</TableHead>
                             <TableHead>Vùng</TableHead>
-                            <TableHead>VC chung</TableHead>
-                            <TableHead>Tiền mặt</TableHead>
-                            <TableHead>30 ngày</TableHead>
+                            <TableHead>VC giao kho</TableHead>
+                            <TableHead>Phụ phí 7-10 ngày</TableHead>
+                            <TableHead>Phụ phí 30 ngày</TableHead>
+                            <TableHead>Giá nông dân</TableHead>
                             <TableHead className="w-24 text-right">Thao tác</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -427,14 +558,15 @@ function TransportRulesPanel({ lookups }: { lookups: ReturnType<typeof usePricin
                                 <TableCell className="font-medium">{transportTarget(row, lookups)}</TableCell>
                                 <TableCell>{row.region_id ? labelOf(lookups.regions, row.region_id) : "Mặc định"}</TableCell>
                                 <TableCell>{formatCurrency(row.transport_cost_vnd)}</TableCell>
-                                <TableCell>{formatCurrency(row.cash_transport_cost_vnd)}</TableCell>
-                                <TableCell>{formatCurrency(row.term_30_transport_cost_vnd)}</TableCell>
+                                <TableCell>{formatCurrency(row.debt_7_10_surcharge_vnd ?? row.term_8_10_transport_cost_vnd)}</TableCell>
+                                <TableCell>{formatCurrency(row.debt_30_surcharge_vnd ?? row.term_30_transport_cost_vnd)}</TableCell>
+                                <TableCell>{formatCurrency(row.farmer_price_surcharge_vnd)}</TableCell>
                                 <TableCell>
                                     <RowActions onEdit={() => setEditing(row)} onDelete={() => remove.mutate(row.id)} />
                                 </TableCell>
                             </TableRow>
                         ))}
-                        {!rows.length && <EmptyRow colSpan={6} text={query.isLoading ? "Đang tải..." : "Chưa có cấu hình vận chuyển"} />}
+                        {!rows.length && <EmptyRow colSpan={7} text={query.isLoading ? "Đang tải..." : "Chưa có cấu hình vận chuyển"} />}
                     </TableBody>
                 </Table>
             </TableWrap>
@@ -444,18 +576,144 @@ function TransportRulesPanel({ lookups }: { lookups: ReturnType<typeof usePricin
     )
 }
 
+function PromotionsPanel({ lookups }: { lookups: ReturnType<typeof usePricingLookups> }) {
+    const queryClient = useQueryClient()
+    const [open, setOpen] = useState(false)
+    const [editing, setEditing] = useState<PricingPromotion | null>(null)
+    const query = useQuery({
+        queryKey: ["pricing-promotions"],
+        queryFn: () => pricingPromotionsApi.list({ page: 1, size: 100, active: true }),
+    })
+    const remove = useMutation({
+        mutationFn: pricingPromotionsApi.delete,
+        onSuccess: () => {
+            toast.success("Đã xoá khuyến mãi")
+            queryClient.invalidateQueries({ queryKey: ["pricing-promotions"] })
+        },
+        onError: showError("Xoá thất bại"),
+    })
+    const rows = query.data?.items ?? []
+
+    return (
+        <section className="rounded-md border bg-background">
+            <PanelHeader
+                title="Khuyến mãi tháng"
+                description="Giảm giá theo nhóm báo giá, vùng và thời gian áp dụng."
+                action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
+            />
+            <TableWrap>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>CTKM</TableHead>
+                            <TableHead>Nhóm báo giá</TableHead>
+                            <TableHead>Vùng</TableHead>
+                            <TableHead>Thời gian</TableHead>
+                            <TableHead>Giảm</TableHead>
+                            <TableHead className="w-24 text-right">Thao tác</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {rows.map((row) => (
+                            <TableRow key={row.id}>
+                                <TableCell className="font-semibold">{row.code}<div className="text-xs font-normal text-muted-foreground">{row.name}</div></TableCell>
+                                <TableCell>{labelOf(lookups.pricingGroups, row.pricing_group_id)}</TableCell>
+                                <TableCell>{row.region_id ? labelOf(lookups.regions, row.region_id) : "Tất cả vùng"}</TableCell>
+                                <TableCell>{row.from_date} → {row.to_date}</TableCell>
+                                <TableCell>{row.discount_percent ? `${formatNumber(row.discount_percent)}%` : formatCurrency(row.discount_amount_vnd)}</TableCell>
+                                <TableCell><RowActions onEdit={() => setEditing(row)} onDelete={() => remove.mutate(row.id)} /></TableCell>
+                            </TableRow>
+                        ))}
+                        {!rows.length && <EmptyRow colSpan={6} text={query.isLoading ? "Đang tải..." : "Chưa có khuyến mãi"} />}
+                    </TableBody>
+                </Table>
+            </TableWrap>
+            <PromotionDialog open={open} onOpenChange={setOpen} lookups={lookups} />
+            {editing && <PromotionDialog open={!!editing} onOpenChange={(value) => !value && setEditing(null)} rule={editing} lookups={lookups} />}
+        </section>
+    )
+}
+
+function AlertConfigsPanel({ lookups }: { lookups: ReturnType<typeof usePricingLookups> }) {
+    const queryClient = useQueryClient()
+    const [open, setOpen] = useState(false)
+    const [editing, setEditing] = useState<PricingAlertConfig | null>(null)
+    const query = useQuery({
+        queryKey: ["pricing-alert-configs"],
+        queryFn: () => pricingAlertConfigsApi.list({ page: 1, size: 100, active: true }),
+    })
+    const remove = useMutation({
+        mutationFn: pricingAlertConfigsApi.delete,
+        onSuccess: () => {
+            toast.success("Đã xoá cấu hình cảnh báo")
+            queryClient.invalidateQueries({ queryKey: ["pricing-alert-configs"] })
+        },
+        onError: showError("Xoá thất bại"),
+    })
+    const rows = query.data?.items ?? []
+
+    return (
+        <section className="rounded-md border bg-background">
+            <PanelHeader
+                title="Cảnh báo"
+                description="Cảnh báo khi giá nguyên liệu tăng mạnh hoặc biên lợi nhuận thấp."
+                action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
+            />
+            <TableWrap>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Nhóm báo giá</TableHead>
+                            <TableHead>Vùng</TableHead>
+                            <TableHead>Ngưỡng tăng giá</TableHead>
+                            <TableHead>Lợi nhuận tối thiểu</TableHead>
+                            <TableHead className="w-24 text-right">Thao tác</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {rows.map((row) => (
+                            <TableRow key={row.id}>
+                                <TableCell>{labelOf(lookups.pricingGroups, row.pricing_group_id)}</TableCell>
+                                <TableCell>{row.region_id ? labelOf(lookups.regions, row.region_id) : "Tất cả vùng"}</TableCell>
+                                <TableCell>{formatNumber(row.price_change_threshold_percent)}%</TableCell>
+                                <TableCell>{row.min_margin_percent ? `${formatNumber(row.min_margin_percent)}%` : "-"}</TableCell>
+                                <TableCell><RowActions onEdit={() => setEditing(row)} onDelete={() => remove.mutate(row.id)} /></TableCell>
+                            </TableRow>
+                        ))}
+                        {!rows.length && <EmptyRow colSpan={5} text={query.isLoading ? "Đang tải..." : "Chưa có cấu hình cảnh báo"} />}
+                    </TableBody>
+                </Table>
+            </TableWrap>
+            <AlertConfigDialog open={open} onOpenChange={setOpen} lookups={lookups} />
+            {editing && <AlertConfigDialog open={!!editing} onOpenChange={(value) => !value && setEditing(null)} rule={editing} lookups={lookups} />}
+        </section>
+    )
+}
+
 function SnapshotItemsTable({
     snapshot,
     items,
     isLoading,
     isCrossRegionFilter,
+    lookups,
 }: {
     snapshot: PricingSnapshot
     items: SnapshotTableItem[]
     isLoading: boolean
     isCrossRegionFilter?: boolean
+    lookups: ReturnType<typeof usePricingLookups>
 }) {
     const [sourceItem, setSourceItem] = useState<PricingSnapshotItem | null>(null)
+    const groupedItems = useMemo(() => {
+        const groups = new Map<string, { key: string; label: string; items: SnapshotTableItem[] }>()
+        items.forEach((item) => {
+            const key = item.pricing_group_id ? String(item.pricing_group_id) : "none"
+            const label = labelOf(lookups.pricingGroups, item.pricing_group_id)
+            if (!groups.has(key)) groups.set(key, { key, label, items: [] })
+            groups.get(key)!.items.push(item)
+        })
+        return Array.from(groups.values()).sort((a, b) => a.label.localeCompare(b.label, "vi"))
+    }, [items, lookups.pricingGroups])
 
     return (
         <>
@@ -464,56 +722,115 @@ function SnapshotItemsTable({
                     ? `${snapshot.pricing_month} · Đang xem gộp các vùng theo bộ lọc · ${priceMethodLabel(snapshot.price_method)}`
                     : `${snapshot.code} · ${snapshot.pricing_month} · ${snapshotRegionLabel(snapshot)} · ${priceMethodLabel(snapshot.price_method)}`}
             </div>
-            <div className="overflow-x-auto">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="min-w-[260px]">Sản phẩm</TableHead>
-                            <TableHead>Vùng miền</TableHead>
-                            <TableHead className="text-right">Giá mua</TableHead>
-                            <TableHead className="text-right">LN</TableHead>
-                            <TableHead className="text-right">Tại kho</TableHead>
-                            <TableHead className="text-right">Tiền mặt</TableHead>
-                            <TableHead className="text-right">8-10 ngày</TableHead>
-                            <TableHead className="text-right">30 ngày</TableHead>
-                            <TableHead>Nguồn</TableHead>
-                            <TableHead>Cảnh báo</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {items.map((item) => {
-                            const rowSnapshot = item.snapshot ?? snapshot
-                            return (
-                            <TableRow key={`${rowSnapshot.id}-${item.id}`}>
-                                <TableCell>
-                                    <div className="font-semibold">{item.product_code}</div>
-                                    <div className="text-sm text-muted-foreground">{item.product_name}</div>
-                                    <div className="text-xs text-muted-foreground">ĐVT: {item.sale_unit_name || item.sale_unit_code || item.base_unit_code || "-"}</div>
-                                </TableCell>
-                                <TableCell className="min-w-[140px] font-medium">{snapshotRegionLabel(rowSnapshot)}</TableCell>
-                                <MoneyCell value={item.purchase_price_vnd} />
-                                <MoneyCell value={item.margin_amount_vnd} />
-                                <MoneyCell value={item.warehouse_price_vnd} strong />
-                                <MoneyCell value={item.cash_price_vnd} strong className="text-primary" />
-                                <MoneyCell value={item.term_8_10_price_vnd} strong />
-                                <MoneyCell value={item.term_30_price_vnd} strong />
-                                <TableCell>
-                                    <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => setSourceItem(item)}>
-                                        <Eye className="mr-1 h-4 w-4" />
-                                        Xem
-                                    </Button>
-                                    <div className="max-w-[220px] truncate text-xs text-muted-foreground">{item.source_summary}</div>
-                                </TableCell>
-                                <TableCell>{item.warning_text ? <Badge variant="destructive">{item.warning_text}</Badge> : <Badge variant="outline">OK</Badge>}</TableCell>
-                            </TableRow>
-                            )
-                        })}
-                        {!items.length && <EmptyRow colSpan={10} text={isLoading ? "Đang tải..." : "Bảng giá này chưa có dòng"} />}
-                    </TableBody>
-                </Table>
+            <div className="space-y-5 p-4">
+                {groupedItems.map((group) => (
+                    <section key={group.key} className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+                            <div>
+                                <h3 className="text-lg font-semibold">{group.label}</h3>
+                                <p className="text-sm text-muted-foreground">{group.items.length} dòng bảng giá</p>
+                            </div>
+                        </div>
+                        <div className="space-y-3">
+                            {group.items.map((item, index) => {
+                                const rowSnapshot = item.snapshot ?? snapshot
+                                return (
+                                    <PriceItemCard
+                                        key={`${rowSnapshot.id}-${item.id}`}
+                                        index={index + 1}
+                                        item={item}
+                                        regionLabel={snapshotRegionLabel(rowSnapshot)}
+                                        onInspect={() => setSourceItem(item)}
+                                    />
+                                )
+                            })}
+                        </div>
+                    </section>
+                ))}
+                {!items.length && (
+                    <div className="rounded-md border bg-background p-10 text-center text-muted-foreground">
+                        {isLoading ? "Đang tải..." : "Bảng giá này chưa có dòng"}
+                    </div>
+                )}
             </div>
             {sourceItem && <SourcesDialog item={sourceItem} open={!!sourceItem} onOpenChange={(value) => !value && setSourceItem(null)} />}
         </>
+    )
+}
+
+function PriceItemCard({ index, item, regionLabel, onInspect }: { index: number; item: SnapshotTableItem; regionLabel: string; onInspect: () => void }) {
+    return (
+        <div className="overflow-hidden rounded-md border bg-background">
+            <div className="grid gap-0 border-b bg-muted/10 lg:grid-cols-[64px_220px_minmax(280px,1fr)_110px]">
+                <div className="flex items-center justify-center border-b p-4 text-sm font-semibold text-muted-foreground lg:border-b-0 lg:border-r">
+                    {index}
+                </div>
+                <div className="border-b p-4 lg:border-b-0 lg:border-r">
+                    <Badge variant={item.warning_text ? "destructive" : "outline"}>{item.warning_text ? "Cần kiểm tra" : "OK"}</Badge>
+                    <div className="mt-3 text-sm font-semibold">{regionLabel}</div>
+                    <div className="mt-1 text-sm text-muted-foreground">{item.source_summary || "Không có nguồn"}</div>
+                </div>
+                <div className="min-w-0 border-b p-4 lg:border-b-0 lg:border-r">
+                    <div className="truncate text-base font-semibold text-primary">{item.product_code}</div>
+                    <div className="mt-1 text-lg font-bold leading-snug">{item.product_name}</div>
+                    <div className="mt-2 text-sm text-muted-foreground">ĐVT: {item.sale_unit_name || item.sale_unit_code || item.base_unit_code || "-"}</div>
+                </div>
+                <div className="flex items-center justify-end p-4">
+                    <Button variant="ghost" size="sm" onClick={onInspect}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Kiểm
+                    </Button>
+                </div>
+            </div>
+            <div className="grid divide-y lg:grid-cols-4 lg:divide-x lg:divide-y-0">
+                <PriceBlock title="Cấu thành giá">
+                    <PriceLine label="Giá mua" value={item.purchase_price_vnd} />
+                    <PriceLine label="Bao bì" value={item.packaging_cost_vnd} />
+                    <PriceLine label="Phí bán hàng" value={item.sales_expense_vnd} />
+                    <PriceLine label="Giá thành" value={item.cogs_vnd ?? item.base_price_vnd} strong />
+                </PriceBlock>
+                <PriceBlock title="Giá nền">
+                    <PriceLine label="Lợi nhuận" value={item.margin_amount_vnd} />
+                    <PriceLine label="Trước VAT" value={item.base_sale_price_vnd ?? item.base_price_vnd} strong />
+                    <PriceLine label="Khách lẻ tại kho" value={item.warehouse_retail_vat_vnd ?? item.warehouse_price_vnd} tone="primary" />
+                </PriceBlock>
+                <PriceBlock title="Khách lẻ công nợ">
+                    <PriceLine label="7-10 ngày" value={item.debt_7_10_retail_vat_vnd} />
+                    <PriceLine label="30 ngày" value={item.debt_30_retail_vat_vnd} />
+                </PriceBlock>
+                <PriceBlock title="Đại lý & nông dân">
+                    <PriceLine label="Đại lý tại kho" value={item.warehouse_dealer_vat_vnd ?? item.cash_price_vnd} tone="primary" />
+                    <PriceLine label="Đại lý 7-10 ngày" value={item.debt_7_10_dealer_vat_vnd ?? item.term_8_10_price_vnd} />
+                    <PriceLine label="Đại lý 30 ngày" value={item.debt_30_dealer_vat_vnd ?? item.term_30_price_vnd} />
+                    <PriceLine label="Giá nông dân" value={item.farmer_price_vnd} tone="warning" />
+                </PriceBlock>
+            </div>
+            {item.warning_text && (
+                <div className="border-t bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive">
+                    {item.warning_text}
+                </div>
+            )}
+        </div>
+    )
+}
+
+function PriceBlock({ title, children }: { title: string; children: React.ReactNode }) {
+    return (
+        <div className="p-4">
+            <div className="mb-3 text-sm font-bold uppercase text-muted-foreground">{title}</div>
+            <div className="space-y-2">{children}</div>
+        </div>
+    )
+}
+
+function PriceLine({ label, value, strong, tone }: { label: string; value?: number; strong?: boolean; tone?: "primary" | "warning" }) {
+    return (
+        <div className="flex items-baseline justify-between gap-4 text-sm">
+            <span className="text-muted-foreground">{label}</span>
+            <span className={cn("text-right tabular-nums", strong && "font-bold", tone === "primary" && "font-bold text-primary", tone === "warning" && "font-bold text-amber-700")}>
+                {formatCurrency(value)}
+            </span>
+        </div>
     )
 }
 
@@ -522,12 +839,20 @@ function MarginRuleDialog({ open, onOpenChange, rule, lookups }: { open: boolean
     const [form, setForm] = useState<Partial<PricingMarginRule>>(() => ({
         region_id: rule?.region_id,
         group_id: rule?.group_id,
+        pricing_group_id: rule?.pricing_group_id,
         margin_type: rule?.margin_type ?? "PERCENT",
         margin_value: rule?.margin_value ?? 0,
         warehouse_adjustment_vnd: rule?.warehouse_adjustment_vnd ?? 0,
         cash_adjustment_vnd: rule?.cash_adjustment_vnd ?? 0,
         term_8_10_adjustment_vnd: rule?.term_8_10_adjustment_vnd ?? 0,
         term_30_adjustment_vnd: rule?.term_30_adjustment_vnd ?? 0,
+        hd_nam_vip_vnd_per_unit: rule?.hd_nam_vip_vnd_per_unit ?? 0,
+        qua_nd_vnd_per_unit: rule?.qua_nd_vnd_per_unit ?? 0,
+        ck_quy_vnd_per_unit: rule?.ck_quy_vnd_per_unit ?? 0,
+        dlsk_vnd_per_unit: rule?.dlsk_vnd_per_unit ?? 0,
+        quy_mkt_kd_vnd_per_unit: rule?.quy_mkt_kd_vnd_per_unit ?? 0,
+        thuong_sale_vnd_per_unit: rule?.thuong_sale_vnd_per_unit ?? 0,
+        min_margin_safety_percent: rule?.min_margin_safety_percent,
         priority: rule?.priority ?? 100,
         active: rule?.active ?? true,
     }))
@@ -542,45 +867,77 @@ function MarginRuleDialog({ open, onOpenChange, rule, lookups }: { open: boolean
     })
 
     const submit = () => {
-        if (!form.group_id) return toast.error("Chọn nhóm sản phẩm")
+        if (!form.pricing_group_id) return toast.error("Chọn mã nhóm báo giá")
         mutation.mutate({
             ...form,
+            group_id: undefined,
             margin_value: Number(form.margin_value ?? 0),
             warehouse_adjustment_vnd: Number(form.warehouse_adjustment_vnd ?? 0),
             cash_adjustment_vnd: Number(form.cash_adjustment_vnd ?? 0),
             term_8_10_adjustment_vnd: Number(form.term_8_10_adjustment_vnd ?? 0),
             term_30_adjustment_vnd: Number(form.term_30_adjustment_vnd ?? 0),
+            hd_nam_vip_vnd_per_unit: Number(form.hd_nam_vip_vnd_per_unit ?? 0),
+            qua_nd_vnd_per_unit: Number(form.qua_nd_vnd_per_unit ?? 0),
+            ck_quy_vnd_per_unit: Number(form.ck_quy_vnd_per_unit ?? 0),
+            dlsk_vnd_per_unit: Number(form.dlsk_vnd_per_unit ?? 0),
+            quy_mkt_kd_vnd_per_unit: Number(form.quy_mkt_kd_vnd_per_unit ?? 0),
+            thuong_sale_vnd_per_unit: Number(form.thuong_sale_vnd_per_unit ?? 0),
+            min_margin_safety_percent: form.min_margin_safety_percent === undefined ? undefined : Number(form.min_margin_safety_percent),
             priority: Number(form.priority ?? 100),
             active: form.active !== false,
         })
     }
 
+    const totalSalesExpense = salesExpenseTotal(form)
+
     return (
-        <RuleDialog title={rule ? "Sửa lợi nhuận" : "Thêm lợi nhuận"} open={open} onOpenChange={onOpenChange} onSubmit={submit} loading={mutation.isPending}>
-            <Field label="Nhóm sản phẩm">
-                <OptionSelect value={form.group_id} options={lookups.groups} required placeholder="Chọn nhóm" onChange={(value) => setForm((prev) => ({ ...prev, group_id: value }))} />
+        <RuleDialog title={rule ? "Sửa lợi nhuận & phí bán hàng" : "Thêm lợi nhuận & phí bán hàng"} description="Áp dụng theo mã nhóm báo giá và vùng. Phí bán hàng là 6 cấu phần cộng vào giá mua trước khi tính lợi nhuận." open={open} onOpenChange={onOpenChange} onSubmit={submit} loading={mutation.isPending}>
+            <Field label="Mã nhóm báo giá">
+                <OptionSelect value={form.pricing_group_id} options={lookups.pricingGroups} required placeholder="Chọn mã nhóm báo giá" onChange={(value) => setForm((prev) => ({ ...prev, pricing_group_id: value }))} />
             </Field>
             <Field label="Vùng">
                 <OptionSelect value={form.region_id} options={lookups.regions} placeholder="Mặc định tất cả vùng" onChange={(value) => setForm((prev) => ({ ...prev, region_id: value }))} />
             </Field>
-            <Field label="Kiểu lợi nhuận">
-                <Select value={form.margin_type ?? "PERCENT"} onValueChange={(value) => setForm((prev) => ({ ...prev, margin_type: value as PricingMarginType }))}>
-                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="PERCENT">Theo % giá mua</SelectItem>
-                        <SelectItem value="AMOUNT">Cộng số tiền</SelectItem>
-                    </SelectContent>
-                </Select>
-            </Field>
-            <Field label="Giá trị lợi nhuận">
-                <NumberInput value={form.margin_value} onChange={(value) => setForm((prev) => ({ ...prev, margin_value: value }))} />
-            </Field>
-            <div className="grid gap-3 md:grid-cols-2">
-                <Field label="Điều chỉnh tại kho"><NumberInput value={form.warehouse_adjustment_vnd} onChange={(value) => setForm((prev) => ({ ...prev, warehouse_adjustment_vnd: value }))} /></Field>
-                <Field label="Điều chỉnh tiền mặt"><NumberInput value={form.cash_adjustment_vnd} onChange={(value) => setForm((prev) => ({ ...prev, cash_adjustment_vnd: value }))} /></Field>
-                <Field label="Điều chỉnh 8-10 ngày"><NumberInput value={form.term_8_10_adjustment_vnd} onChange={(value) => setForm((prev) => ({ ...prev, term_8_10_adjustment_vnd: value }))} /></Field>
-                <Field label="Điều chỉnh 30 ngày"><NumberInput value={form.term_30_adjustment_vnd} onChange={(value) => setForm((prev) => ({ ...prev, term_30_adjustment_vnd: value }))} /></Field>
-            </div>
+            <Tabs defaultValue="margin" className="gap-4">
+                <TabsList className="grid w-full grid-cols-2 rounded-md">
+                    <TabsTrigger value="margin">Lợi nhuận</TabsTrigger>
+                    <TabsTrigger value="expense">Phí bán hàng</TabsTrigger>
+                </TabsList>
+                <TabsContent value="margin" className="space-y-4">
+                    <Field label="Kiểu lợi nhuận">
+                        <Select value={form.margin_type ?? "PERCENT"} onValueChange={(value) => setForm((prev) => ({ ...prev, margin_type: value as PricingMarginType }))}>
+                            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="PERCENT">Theo % giá thành</SelectItem>
+                                <SelectItem value="AMOUNT">Theo VND/đơn vị</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </Field>
+                    <Field label={form.margin_type === "AMOUNT" ? "Lợi nhuận VND/đơn vị" : "Lợi nhuận (%)"}>
+                        <NumberInput value={form.margin_value} onChange={(value) => setForm((prev) => ({ ...prev, margin_value: value }))} />
+                    </Field>
+                    <Field label="Lợi nhuận tối thiểu an toàn (%)">
+                        <NumberInput value={form.min_margin_safety_percent} onChange={(value) => setForm((prev) => ({ ...prev, min_margin_safety_percent: value }))} />
+                    </Field>
+                    <p className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
+                        Công thức: Giá thành = Giá mua + Phí bán hàng. Giá nền trước VAT = Giá thành + Lợi nhuận, sau đó làm tròn.
+                    </p>
+                </TabsContent>
+                <TabsContent value="expense" className="space-y-4">
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <Field label="HD năm VIP"><NumberInput value={form.hd_nam_vip_vnd_per_unit} onChange={(value) => setForm((prev) => ({ ...prev, hd_nam_vip_vnd_per_unit: value }))} /></Field>
+                        <Field label="Quà nông dân"><NumberInput value={form.qua_nd_vnd_per_unit} onChange={(value) => setForm((prev) => ({ ...prev, qua_nd_vnd_per_unit: value }))} /></Field>
+                        <Field label="Chiết khấu quý"><NumberInput value={form.ck_quy_vnd_per_unit} onChange={(value) => setForm((prev) => ({ ...prev, ck_quy_vnd_per_unit: value }))} /></Field>
+                        <Field label="Du lịch sự kiện"><NumberInput value={form.dlsk_vnd_per_unit} onChange={(value) => setForm((prev) => ({ ...prev, dlsk_vnd_per_unit: value }))} /></Field>
+                        <Field label="Quỹ MKT-KD"><NumberInput value={form.quy_mkt_kd_vnd_per_unit} onChange={(value) => setForm((prev) => ({ ...prev, quy_mkt_kd_vnd_per_unit: value }))} /></Field>
+                        <Field label="Thưởng sale"><NumberInput value={form.thuong_sale_vnd_per_unit} onChange={(value) => setForm((prev) => ({ ...prev, thuong_sale_vnd_per_unit: value }))} /></Field>
+                    </div>
+                    <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                        <span className="text-muted-foreground">Tổng phí bán hàng: </span>
+                        <span className="font-semibold">{formatCurrency(totalSalesExpense)}</span>
+                    </div>
+                </TabsContent>
+            </Tabs>
         </RuleDialog>
     )
 }
@@ -589,13 +946,17 @@ function TransportRuleDialog({ open, onOpenChange, rule, lookups }: { open: bool
     const queryClient = useQueryClient()
     const [form, setForm] = useState<Partial<PricingTransportRule>>(() => ({
         region_id: rule?.region_id,
-        match_type: rule?.match_type ?? "GROUP",
+        match_type: rule?.match_type === "GROUP" ? "PRICING_GROUP" : rule?.match_type ?? "PRICING_GROUP",
         product_id: rule?.product_id,
         group_id: rule?.group_id,
+        pricing_group_id: rule?.pricing_group_id,
         transport_cost_vnd: rule?.transport_cost_vnd ?? 0,
         cash_transport_cost_vnd: rule?.cash_transport_cost_vnd ?? 0,
         term_8_10_transport_cost_vnd: rule?.term_8_10_transport_cost_vnd ?? 0,
         term_30_transport_cost_vnd: rule?.term_30_transport_cost_vnd ?? 0,
+        debt_7_10_surcharge_vnd: rule?.debt_7_10_surcharge_vnd ?? rule?.term_8_10_transport_cost_vnd ?? 0,
+        debt_30_surcharge_vnd: rule?.debt_30_surcharge_vnd ?? rule?.term_30_transport_cost_vnd ?? 0,
+        farmer_price_surcharge_vnd: rule?.farmer_price_surcharge_vnd ?? 0,
         priority: rule?.priority ?? 100,
         active: rule?.active ?? true,
     }))
@@ -611,38 +972,42 @@ function TransportRuleDialog({ open, onOpenChange, rule, lookups }: { open: bool
 
     const submit = () => {
         if (form.match_type === "PRODUCT" && !form.product_id) return toast.error("Chọn sản phẩm")
-        if (form.match_type === "GROUP" && !form.group_id) return toast.error("Chọn nhóm sản phẩm")
+        if (form.match_type === "PRICING_GROUP" && !form.pricing_group_id) return toast.error("Chọn mã nhóm báo giá")
         mutation.mutate({
             ...form,
             product_id: form.match_type === "PRODUCT" ? form.product_id : undefined,
-            group_id: form.match_type === "GROUP" ? form.group_id : undefined,
+            pricing_group_id: form.match_type === "PRICING_GROUP" ? form.pricing_group_id : undefined,
+            group_id: undefined,
             transport_cost_vnd: Number(form.transport_cost_vnd ?? 0),
-            cash_transport_cost_vnd: Number(form.cash_transport_cost_vnd ?? 0),
-            term_8_10_transport_cost_vnd: Number(form.term_8_10_transport_cost_vnd ?? 0),
-            term_30_transport_cost_vnd: Number(form.term_30_transport_cost_vnd ?? 0),
-            priority: Number(form.priority ?? 100),
+            cash_transport_cost_vnd: 0,
+            term_8_10_transport_cost_vnd: Number(form.debt_7_10_surcharge_vnd ?? 0),
+            term_30_transport_cost_vnd: Number(form.debt_30_surcharge_vnd ?? 0),
+            debt_7_10_surcharge_vnd: Number(form.debt_7_10_surcharge_vnd ?? 0),
+            debt_30_surcharge_vnd: Number(form.debt_30_surcharge_vnd ?? 0),
+            farmer_price_surcharge_vnd: Number(form.farmer_price_surcharge_vnd ?? 0),
+            priority: form.match_type === "PRODUCT" ? 10 : form.match_type === "PRICING_GROUP" ? 20 : 40,
             active: form.active !== false,
         })
     }
 
     return (
-        <RuleDialog title={rule ? "Sửa vận chuyển" : "Thêm vận chuyển"} open={open} onOpenChange={onOpenChange} onSubmit={submit} loading={mutation.isPending}>
+        <RuleDialog title={rule ? "Sửa vận chuyển & phụ phí" : "Thêm vận chuyển & phụ phí"} description="VC giao kho dùng cho giá đại lý. Phụ phí công nợ là khoản cộng riêng cho giá nợ 7-10 ngày và 30 ngày. Giá nông dân có thể cộng hoặc giảm." open={open} onOpenChange={onOpenChange} onSubmit={submit} loading={mutation.isPending}>
             <Field label="Vùng">
                 <OptionSelect value={form.region_id} options={lookups.regions} placeholder="Mặc định tất cả vùng" onChange={(value) => setForm((prev) => ({ ...prev, region_id: value }))} />
             </Field>
             <Field label="Áp dụng cho">
-                <Select value={form.match_type ?? "GROUP"} onValueChange={(value) => setForm((prev) => ({ ...prev, match_type: value as PricingTransportMatchType, product_id: undefined, group_id: undefined }))}>
+                <Select value={form.match_type ?? "PRICING_GROUP"} onValueChange={(value) => setForm((prev) => ({ ...prev, match_type: value as PricingTransportMatchType, product_id: undefined, group_id: undefined, pricing_group_id: undefined }))}>
                     <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="GROUP">Nhóm sản phẩm</SelectItem>
+                        <SelectItem value="PRICING_GROUP">Mã nhóm báo giá</SelectItem>
                         <SelectItem value="PRODUCT">Sản phẩm cụ thể</SelectItem>
                         <SelectItem value="DEFAULT">Mặc định</SelectItem>
                     </SelectContent>
                 </Select>
             </Field>
-            {form.match_type === "GROUP" && (
-                <Field label="Nhóm sản phẩm">
-                    <OptionSelect value={form.group_id} options={lookups.groups} required placeholder="Chọn nhóm" onChange={(value) => setForm((prev) => ({ ...prev, group_id: value }))} />
+            {form.match_type === "PRICING_GROUP" && (
+                <Field label="Mã nhóm báo giá">
+                    <OptionSelect value={form.pricing_group_id} options={lookups.pricingGroups} required placeholder="Chọn mã nhóm báo giá" onChange={(value) => setForm((prev) => ({ ...prev, pricing_group_id: value }))} />
                 </Field>
             )}
             {form.match_type === "PRODUCT" && (
@@ -651,11 +1016,198 @@ function TransportRuleDialog({ open, onOpenChange, rule, lookups }: { open: bool
                 </Field>
             )}
             <div className="grid gap-3 md:grid-cols-2">
-                <Field label="VC chung"><NumberInput value={form.transport_cost_vnd} onChange={(value) => setForm((prev) => ({ ...prev, transport_cost_vnd: value }))} /></Field>
-                <Field label="VC tiền mặt"><NumberInput value={form.cash_transport_cost_vnd} onChange={(value) => setForm((prev) => ({ ...prev, cash_transport_cost_vnd: value }))} /></Field>
-                <Field label="VC 8-10 ngày"><NumberInput value={form.term_8_10_transport_cost_vnd} onChange={(value) => setForm((prev) => ({ ...prev, term_8_10_transport_cost_vnd: value }))} /></Field>
-                <Field label="VC 30 ngày"><NumberInput value={form.term_30_transport_cost_vnd} onChange={(value) => setForm((prev) => ({ ...prev, term_30_transport_cost_vnd: value }))} /></Field>
+                <Field label="VC giao kho đại lý"><NumberInput value={form.transport_cost_vnd} onChange={(value) => setForm((prev) => ({ ...prev, transport_cost_vnd: value }))} /></Field>
+                <Field label="Cộng/giảm giá nông dân"><NumberInput value={form.farmer_price_surcharge_vnd} onChange={(value) => setForm((prev) => ({ ...prev, farmer_price_surcharge_vnd: value }))} /></Field>
+                <Field label="Phụ phí nợ 7-10 ngày"><NumberInput value={form.debt_7_10_surcharge_vnd} onChange={(value) => setForm((prev) => ({ ...prev, debt_7_10_surcharge_vnd: value }))} /></Field>
+                <Field label="Phụ phí nợ 30 ngày"><NumberInput value={form.debt_30_surcharge_vnd} onChange={(value) => setForm((prev) => ({ ...prev, debt_30_surcharge_vnd: value }))} /></Field>
             </div>
+            <p className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
+                Thứ tự ưu tiên khi tính: sản phẩm cụ thể → mã nhóm báo giá → mặc định vùng → mặc định toàn hệ thống.
+            </p>
+        </RuleDialog>
+    )
+}
+
+function PricingGroupDialog({ open, onOpenChange, rule, lookups }: { open: boolean; onOpenChange: (open: boolean) => void; rule?: PricingGroup; lookups: ReturnType<typeof usePricingLookups> }) {
+    const queryClient = useQueryClient()
+    const [form, setForm] = useState<Partial<PricingGroup>>(() => ({
+        code: rule?.code ?? "",
+        name: rule?.name ?? "",
+        parent_product_group_id: rule?.parent_product_group_id,
+        base_unit_code: rule?.base_unit_code ?? "KG",
+        description: rule?.description ?? "",
+        sort_order: rule?.sort_order ?? 100,
+        active: rule?.active ?? true,
+    }))
+    const mutation = useMutation({
+        mutationFn: (body: Partial<PricingGroup>) => rule ? pricingGroupsApi.update({ ...body, id: rule.id }) : pricingGroupsApi.create(body),
+        onSuccess: async () => {
+            toast.success("Đã lưu mã nhóm báo giá")
+            await queryClient.invalidateQueries({ queryKey: ["pricing-groups"] })
+            await queryClient.invalidateQueries({ queryKey: ["lookup-pricing-groups"] })
+            onOpenChange(false)
+        },
+        onError: showError("Lưu thất bại"),
+    })
+    const submit = () => {
+        if (!form.code?.trim()) return toast.error("Nhập mã nhóm báo giá")
+        if (!form.name?.trim()) return toast.error("Nhập tên nhóm báo giá")
+        mutation.mutate({
+            ...form,
+            code: form.code.trim().toUpperCase(),
+            name: form.name.trim(),
+            sort_order: Number(form.sort_order ?? 100),
+            active: form.active !== false,
+        })
+    }
+
+    return (
+        <RuleDialog title={rule ? "Sửa mã nhóm báo giá" : "Thêm mã nhóm báo giá"} description="Mã nhóm báo giá là nhóm chi tiết từ file BA, dùng để gom SKU cùng logic giá." open={open} onOpenChange={onOpenChange} onSubmit={submit} loading={mutation.isPending}>
+            <Field label="Mã">
+                <Input value={form.code ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))} placeholder="VD: BLL-25" />
+            </Field>
+            <Field label="Tên">
+                <Input value={form.name ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="VD: Bón lá lỏng size 25" />
+            </Field>
+            <Field label="Đơn vị chuẩn">
+                <Input value={form.base_unit_code ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, base_unit_code: event.target.value.toUpperCase() }))} placeholder="KG, LIT..." />
+            </Field>
+            <Field label="Ghi chú">
+                <Textarea value={form.description ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} />
+            </Field>
+        </RuleDialog>
+    )
+}
+
+function PackagingCostDialog({ open, onOpenChange, rule, lookups }: { open: boolean; onOpenChange: (open: boolean) => void; rule?: PricingPackagingCost; lookups: ReturnType<typeof usePricingLookups> }) {
+    const queryClient = useQueryClient()
+    const [form, setForm] = useState<Partial<PricingPackagingCost>>(() => ({
+        pricing_group_id: rule?.pricing_group_id,
+        name: rule?.name ?? "",
+        cost_per_unit_vnd: rule?.cost_per_unit_vnd ?? 0,
+        note: rule?.note ?? "",
+        active: rule?.active ?? true,
+    }))
+    const mutation = useMutation({
+        mutationFn: (body: Partial<PricingPackagingCost>) => rule ? pricingPackagingCostsApi.update({ ...body, id: rule.id }) : pricingPackagingCostsApi.create(body),
+        onSuccess: async () => {
+            toast.success("Đã lưu chi phí bao bì")
+            await queryClient.invalidateQueries({ queryKey: ["pricing-packaging-costs"] })
+            onOpenChange(false)
+        },
+        onError: showError("Lưu thất bại"),
+    })
+    const submit = () => {
+        if (!form.pricing_group_id) return toast.error("Chọn mã nhóm báo giá")
+        if (!form.name?.trim()) return toast.error("Nhập tên bao bì")
+        mutation.mutate({
+            ...form,
+            name: form.name.trim(),
+            cost_per_unit_vnd: Number(form.cost_per_unit_vnd ?? 0),
+            active: form.active !== false,
+        })
+    }
+
+    return (
+        <RuleDialog title={rule ? "Sửa chi phí bao bì" : "Thêm chi phí bao bì"} description="Bao bì được cộng vào giá nguyên liệu theo mã nhóm báo giá." open={open} onOpenChange={onOpenChange} onSubmit={submit} loading={mutation.isPending}>
+            <Field label="Mã nhóm báo giá">
+                <OptionSelect value={form.pricing_group_id} options={lookups.pricingGroups} required placeholder="Chọn mã nhóm báo giá" onChange={(value) => setForm((prev) => ({ ...prev, pricing_group_id: value }))} />
+            </Field>
+            <Field label="Tên cấu hình"><Input value={form.name ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} /></Field>
+            <Field label="Chi phí/đơn vị"><NumberInput value={form.cost_per_unit_vnd} onChange={(value) => setForm((prev) => ({ ...prev, cost_per_unit_vnd: value }))} /></Field>
+            <Field label="Ghi chú"><Textarea value={form.note ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, note: event.target.value }))} /></Field>
+        </RuleDialog>
+    )
+}
+
+function PromotionDialog({ open, onOpenChange, rule, lookups }: { open: boolean; onOpenChange: (open: boolean) => void; rule?: PricingPromotion; lookups: ReturnType<typeof usePricingLookups> }) {
+    const queryClient = useQueryClient()
+    const [form, setForm] = useState<Partial<PricingPromotion>>(() => ({
+        code: rule?.code ?? "",
+        name: rule?.name ?? "",
+        pricing_group_id: rule?.pricing_group_id,
+        region_id: rule?.region_id,
+        from_date: rule?.from_date ?? today,
+        to_date: rule?.to_date ?? today,
+        discount_percent: rule?.discount_percent ?? 0,
+        discount_amount_vnd: rule?.discount_amount_vnd ?? 0,
+        note: rule?.note ?? "",
+        active: rule?.active ?? true,
+    }))
+    const mutation = useMutation({
+        mutationFn: (body: Partial<PricingPromotion>) => rule ? pricingPromotionsApi.update({ ...body, id: rule.id }) : pricingPromotionsApi.create(body),
+        onSuccess: async () => {
+            toast.success("Đã lưu khuyến mãi")
+            await queryClient.invalidateQueries({ queryKey: ["pricing-promotions"] })
+            onOpenChange(false)
+        },
+        onError: showError("Lưu thất bại"),
+    })
+    const submit = () => {
+        if (!form.code?.trim()) return toast.error("Nhập mã CTKM")
+        if (!form.name?.trim()) return toast.error("Nhập tên CTKM")
+        if (!form.pricing_group_id) return toast.error("Chọn mã nhóm báo giá")
+        mutation.mutate({
+            ...form,
+            code: form.code.trim().toUpperCase(),
+            name: form.name.trim(),
+            discount_percent: Number(form.discount_percent ?? 0),
+            discount_amount_vnd: Number(form.discount_amount_vnd ?? 0),
+            active: form.active !== false,
+        })
+    }
+
+    return (
+        <RuleDialog title={rule ? "Sửa khuyến mãi" : "Thêm khuyến mãi"} description="Khuyến mãi làm giảm giá nền trước VAT trước khi ra các cột giá bán." open={open} onOpenChange={onOpenChange} onSubmit={submit} loading={mutation.isPending}>
+            <Field label="Mã CTKM"><Input value={form.code ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))} /></Field>
+            <Field label="Tên CTKM"><Input value={form.name ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} /></Field>
+            <Field label="Mã nhóm báo giá"><OptionSelect value={form.pricing_group_id} options={lookups.pricingGroups} required placeholder="Chọn mã nhóm báo giá" onChange={(value) => setForm((prev) => ({ ...prev, pricing_group_id: value }))} /></Field>
+            <Field label="Vùng"><OptionSelect value={form.region_id} options={lookups.regions} placeholder="Tất cả vùng" onChange={(value) => setForm((prev) => ({ ...prev, region_id: value }))} /></Field>
+            <div className="grid gap-3 md:grid-cols-2">
+                <Field label="Từ ngày"><Input type="date" value={form.from_date ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, from_date: event.target.value }))} /></Field>
+                <Field label="Đến ngày"><Input type="date" value={form.to_date ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, to_date: event.target.value }))} /></Field>
+                <Field label="Giảm %"><NumberInput value={form.discount_percent} onChange={(value) => setForm((prev) => ({ ...prev, discount_percent: value }))} /></Field>
+                <Field label="Giảm VND"><NumberInput value={form.discount_amount_vnd} onChange={(value) => setForm((prev) => ({ ...prev, discount_amount_vnd: value }))} /></Field>
+            </div>
+            <Field label="Ghi chú"><Textarea value={form.note ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, note: event.target.value }))} /></Field>
+        </RuleDialog>
+    )
+}
+
+function AlertConfigDialog({ open, onOpenChange, rule, lookups }: { open: boolean; onOpenChange: (open: boolean) => void; rule?: PricingAlertConfig; lookups: ReturnType<typeof usePricingLookups> }) {
+    const queryClient = useQueryClient()
+    const [form, setForm] = useState<Partial<PricingAlertConfig>>(() => ({
+        pricing_group_id: rule?.pricing_group_id,
+        region_id: rule?.region_id,
+        price_change_threshold_percent: rule?.price_change_threshold_percent ?? 5,
+        min_margin_percent: rule?.min_margin_percent ?? 0,
+        active: rule?.active ?? true,
+    }))
+    const mutation = useMutation({
+        mutationFn: (body: Partial<PricingAlertConfig>) => rule ? pricingAlertConfigsApi.update({ ...body, id: rule.id }) : pricingAlertConfigsApi.create(body),
+        onSuccess: async () => {
+            toast.success("Đã lưu cấu hình cảnh báo")
+            await queryClient.invalidateQueries({ queryKey: ["pricing-alert-configs"] })
+            onOpenChange(false)
+        },
+        onError: showError("Lưu thất bại"),
+    })
+    const submit = () => {
+        if (!form.pricing_group_id) return toast.error("Chọn mã nhóm báo giá")
+        mutation.mutate({
+            ...form,
+            price_change_threshold_percent: Number(form.price_change_threshold_percent ?? 0),
+            min_margin_percent: Number(form.min_margin_percent ?? 0),
+            active: form.active !== false,
+        })
+    }
+
+    return (
+        <RuleDialog title={rule ? "Sửa cảnh báo" : "Thêm cảnh báo"} description="Dùng để báo khi giá nguyên liệu tăng quá ngưỡng hoặc biên lợi nhuận thấp." open={open} onOpenChange={onOpenChange} onSubmit={submit} loading={mutation.isPending}>
+            <Field label="Mã nhóm báo giá"><OptionSelect value={form.pricing_group_id} options={lookups.pricingGroups} required placeholder="Chọn mã nhóm báo giá" onChange={(value) => setForm((prev) => ({ ...prev, pricing_group_id: value }))} /></Field>
+            <Field label="Vùng"><OptionSelect value={form.region_id} options={lookups.regions} placeholder="Tất cả vùng" onChange={(value) => setForm((prev) => ({ ...prev, region_id: value }))} /></Field>
+            <Field label="Cảnh báo tăng giá NL (%)"><NumberInput value={form.price_change_threshold_percent} onChange={(value) => setForm((prev) => ({ ...prev, price_change_threshold_percent: value }))} /></Field>
+            <Field label="Lợi nhuận tối thiểu (%)"><NumberInput value={form.min_margin_percent} onChange={(value) => setForm((prev) => ({ ...prev, min_margin_percent: value }))} /></Field>
         </RuleDialog>
     )
 }
@@ -672,9 +1224,19 @@ function SourcesDialog({ item, open, onOpenChange }: { item: PricingSnapshotItem
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
-                    <DialogTitle>Nguồn giá mua</DialogTitle>
+                    <DialogTitle>Nguồn giá mua & cấu hình áp dụng</DialogTitle>
                     <DialogDescription>{item.product_code} - {item.product_name}</DialogDescription>
                 </DialogHeader>
+                <div className="grid gap-3 rounded-md border bg-muted/20 p-4 text-sm md:grid-cols-2">
+                    <AuditLine label="Giá mua" value={formatCurrency(item.purchase_price_vnd)} />
+                    <AuditLine label="Bao bì" value={formatCurrency(item.packaging_cost_vnd)} />
+                    <AuditLine label="Phí bán hàng" value={formatCurrency(item.sales_expense_vnd)} />
+                    <AuditLine label="Chi tiết phí BH" value={item.sales_expense_breakdown_text || "-"} wide />
+                    <AuditLine label="Lợi nhuận" value={formatCurrency(item.margin_amount_vnd)} />
+                    <AuditLine label="Khuyến mãi" value={formatCurrency(item.promo_amount_vnd)} />
+                    <AuditLine label="Vận chuyển đại lý" value={formatCurrency(item.transport_cost_vnd)} />
+                    <AuditLine label="Trace config" value={item.config_trace_text || "-"} wide />
+                </div>
                 <TableWrap>
                     <Table>
                         <TableHeader>
@@ -703,13 +1265,38 @@ function SourcesDialog({ item, open, onOpenChange }: { item: PricingSnapshotItem
     )
 }
 
-function RuleDialog({ title, open, onOpenChange, onSubmit, loading, children }: { title: string; open: boolean; onOpenChange: (open: boolean) => void; onSubmit: () => void; loading?: boolean; children: React.ReactNode }) {
+function AuditLine({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
+    return (
+        <div className={cn("min-w-0", wide && "md:col-span-2")}>
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+            <div className="mt-1 break-words font-medium">{value}</div>
+        </div>
+    )
+}
+
+function RuleDialog({
+    title,
+    description = "Nhập cấu hình để hệ thống cộng vào giá mua khi tính bảng giá.",
+    open,
+    onOpenChange,
+    onSubmit,
+    loading,
+    children,
+}: {
+    title: string
+    description?: string
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onSubmit: () => void
+    loading?: boolean
+    children: React.ReactNode
+}) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
-                    <DialogDescription>Nhập cấu hình để hệ thống cộng vào giá mua khi tính bảng giá.</DialogDescription>
+                    <DialogDescription>{description}</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4">{children}</div>
                 <DialogFooter>
@@ -725,9 +1312,9 @@ function RuleDialog({ title, open, onOpenChange, onSubmit, loading, children }: 
 }
 
 function usePricingLookups() {
-    const groupsQuery = useQuery({
-        queryKey: ["lookup-product-groups"],
-        queryFn: () => listProductGroups({ page: 1, size: 200, active: true }),
+    const pricingGroupsQuery = useQuery({
+        queryKey: ["lookup-pricing-groups"],
+        queryFn: () => pricingGroupsApi.list({ page: 1, size: 200, active: true }),
     })
     const regionsQuery = useQuery({
         queryKey: ["lookup-regions"],
@@ -739,10 +1326,10 @@ function usePricingLookups() {
     })
 
     return {
-        groups: (groupsQuery.data?.items ?? []).map((item: any) => ({ id: item.id, label: item.name, sub: item.code })),
+        pricingGroups: (pricingGroupsQuery.data?.items ?? []).map((item: any) => ({ id: item.id, label: item.name, sub: item.code })),
         regions: (regionsQuery.data?.items ?? []).map((item: any) => ({ id: item.id, label: item.name, sub: item.code })),
         products: (productsQuery.data?.items ?? []).map((item: any) => ({ id: item.id, label: item.name, sub: item.code })),
-        isLoading: groupsQuery.isLoading || regionsQuery.isLoading || productsQuery.isLoading,
+        isLoading: pricingGroupsQuery.isLoading || regionsQuery.isLoading || productsQuery.isLoading,
     }
 }
 
@@ -854,6 +1441,10 @@ function formatOptionLabel(option: Option) {
 
 function snapshotLabel(snapshot: PricingSnapshot, regions: Option[]) {
     return `${snapshot.code} - ${snapshot.pricing_month} - ${snapshotRegionLabel(snapshot, regions)}`
+}
+
+function snapshotShortLabel(snapshot: PricingSnapshot, regions: Option[]) {
+    return `${snapshot.pricing_month} · ${snapshotRegionLabel(snapshot, regions)} · ${priceMethodLabel(snapshot.price_method)}`
 }
 
 function snapshotRegionLabel(snapshot: PricingSnapshot, regions?: Option[]) {
@@ -1035,15 +1626,32 @@ function labelOf(options: Option[], id?: number) {
     return options.find((item) => item.id === id)?.label ?? (id ? `#${id}` : "-")
 }
 
+function marginLabel(row: Partial<PricingMarginRule>) {
+    if (row.margin_type === "AMOUNT") return formatCurrency(row.margin_value)
+    return `${formatNumber(row.margin_value ?? 0)}%`
+}
+
+function salesExpenseTotal(row: Partial<PricingMarginRule>) {
+    return (
+        Number(row.hd_nam_vip_vnd_per_unit ?? 0) +
+        Number(row.qua_nd_vnd_per_unit ?? 0) +
+        Number(row.ck_quy_vnd_per_unit ?? 0) +
+        Number(row.dlsk_vnd_per_unit ?? 0) +
+        Number(row.quy_mkt_kd_vnd_per_unit ?? 0) +
+        Number(row.thuong_sale_vnd_per_unit ?? 0)
+    )
+}
+
 function transportTarget(row: PricingTransportRule, lookups: ReturnType<typeof usePricingLookups>) {
     if (row.match_type === "PRODUCT") return `SP: ${labelOf(lookups.products, row.product_id)}`
-    if (row.match_type === "GROUP") return `Nhóm: ${labelOf(lookups.groups, row.group_id)}`
+    if (row.match_type === "PRICING_GROUP") return `Mã giá: ${labelOf(lookups.pricingGroups, row.pricing_group_id)}`
     return "Mặc định"
 }
 
 function priceMethodLabel(method?: string) {
     if (method === "LATEST") return "Giá gần nhất"
     if (method === "FIFO") return "FIFO"
+    if (method === "MANUAL") return "Giá nhập tay"
     return "Bình quân tháng"
 }
 
