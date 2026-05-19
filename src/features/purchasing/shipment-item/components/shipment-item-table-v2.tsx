@@ -50,9 +50,9 @@ type PortOptionSource = {
 }
 
 const STATUS_OPTIONS = [
-    { value: "IN_TRANSIT", label: "Đang vận chuyển" },
-    { value: "ARRIVED_PORT", label: "Đến cảng" },
-    { value: "IN_WAREHOUSE", label: "Về kho" },
+    { value: "IN_TRANSIT", values: ["IN_TRANSIT"], label: "Đang vận chuyển" },
+    { value: "ARRIVED_PORT", values: ["ARRIVED_PORT"], label: "Đã cập cảng" },
+    { value: "IN_WAREHOUSE", values: ["IN_WAREHOUSE", "DONE"], label: "Đã về kho" },
 ]
 
 type Props = {
@@ -319,11 +319,16 @@ function StatusFilter({
     onChange: (value?: string[]) => void
 }) {
     const selected = value ?? []
+    const selectedOptionCount = STATUS_OPTIONS.filter((option) =>
+        option.values.some((status) => selected.includes(status)),
+    ).length
 
-    const toggleStatus = (status: string) => {
-        const next = selected.includes(status)
-            ? selected.filter((item) => item !== status)
-            : [...selected, status]
+    const toggleStatus = (option: (typeof STATUS_OPTIONS)[number]) => {
+        const optionValues = option.values
+        const isSelected = optionValues.some((status) => selected.includes(status))
+        const next = isSelected
+            ? selected.filter((item) => !optionValues.includes(item))
+            : Array.from(new Set([...selected, ...optionValues]))
 
         onChange(next.length ? next : undefined)
     }
@@ -339,7 +344,7 @@ function StatusFilter({
                     <span className="inline-flex min-w-0 items-center gap-2">
                         <Clock className="h-4 w-4 text-slate-500" />
                         <span className="truncate">
-                            {selected.length ? `Trạng thái (${selected.length})` : "Trạng thái"}
+                            {selectedOptionCount ? `Trạng thái (${selectedOptionCount})` : "Trạng thái"}
                         </span>
                     </span>
                 </Button>
@@ -348,8 +353,8 @@ function StatusFilter({
                 {STATUS_OPTIONS.map((option) => (
                     <DropdownMenuCheckboxItem
                         key={option.value}
-                        checked={selected.includes(option.value)}
-                        onCheckedChange={() => toggleStatus(option.value)}
+                        checked={option.values.some((status) => selected.includes(status))}
+                        onCheckedChange={() => toggleStatus(option)}
                     >
                         {option.label}
                     </DropdownMenuCheckboxItem>
@@ -484,9 +489,9 @@ function formatStatus(status?: string) {
         case "IN_TRANSIT":
             return "Đang vận chuyển"
         case "ARRIVED_PORT":
-            return "Đến cảng"
+            return "Đã cập cảng"
         case "IN_WAREHOUSE":
-            return "Về kho"
+            return "Đã về kho"
         case "DONE":
             return "Hoàn tất"
         case "CANCELLED":
