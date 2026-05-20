@@ -6,8 +6,16 @@ import { Route } from '@/routes/_authenticated/sales/ar-ledgers'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
 import { ImportArLedgerButton } from './components/ar-ledger-import-button'
-import { formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import type React from 'react'
+import {
+    AlertCircle,
+    ArrowDownLeft,
+    ArrowUpRight,
+    FileText,
+    type LucideIcon,
+} from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 
 export default function ArLedgerPage() {
 
@@ -108,10 +116,11 @@ function ArLedgerSummary({ rows }: { rows: any[] }) {
 
     return (
         <div className="grid gap-3 md:grid-cols-4">
-            <Metric label="Số dòng đang xem" value={formatNumber(rows.length)} />
-            <Metric label="Tổng phát sinh Nợ" value={formatCurrency(debit)} tone="bad" />
-            <Metric label="Tổng phát sinh Có" value={formatCurrency(credit)} tone="ok" />
+            <Metric icon={FileText} label="Số dòng đang xem" value={formatNumber(rows.length)} tone="info" />
+            <Metric icon={ArrowUpRight} label="Tổng phát sinh Nợ" value={formatCurrency(debit)} tone="bad" />
+            <Metric icon={ArrowDownLeft} label="Tổng phát sinh Có" value={formatCurrency(credit)} tone="ok" />
             <Metric
+                icon={AlertCircle}
                 label={net >= 0 ? "Còn phải thu" : "Thu vượt"}
                 value={formatCurrency(Math.abs(net))}
                 tone={net >= 0 ? "warn" : "ok"}
@@ -121,30 +130,64 @@ function ArLedgerSummary({ rows }: { rows: any[] }) {
 }
 
 function Metric({
+    icon: Icon,
     label,
     value,
-    tone,
+    tone = "muted",
 }: {
+    icon: LucideIcon
     label: string
     value: React.ReactNode
-    tone?: "ok" | "warn" | "bad"
+    tone?: keyof typeof SUMMARY_TONES
 }) {
-    const valueClass =
-        tone === "ok"
-            ? "text-emerald-600"
-            : tone === "warn"
-                ? "text-amber-600"
-                : tone === "bad"
-                    ? "text-rose-600"
-                    : ""
+    const styles = SUMMARY_TONES[tone]
 
     return (
-        <div className="rounded-md border bg-muted/20 px-3 py-2">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className={`mt-1 font-semibold ${valueClass}`}>{value}</div>
-        </div>
+        <Card className={cn("gap-0 py-4 shadow-sm transition-shadow hover:shadow-md", styles.ring)}>
+            <CardContent className="flex items-center gap-3 px-4">
+                <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-lg", styles.iconBg)}>
+                    <Icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <div className="text-muted-foreground truncate text-[11px] font-semibold uppercase tracking-wider">
+                        {label}
+                    </div>
+                    <div className={cn("mt-1 truncate text-xl font-bold tabular-nums", styles.value)}>
+                        {value}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
     )
 }
+
+const SUMMARY_TONES = {
+    info: {
+        ring: "border-blue-200/60 dark:border-blue-900/40",
+        iconBg: "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400",
+        value: "",
+    },
+    bad: {
+        ring: "border-rose-200/70 bg-rose-50/30 dark:border-rose-900/50 dark:bg-rose-950/10",
+        iconBg: "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400",
+        value: "text-rose-600 dark:text-rose-400",
+    },
+    ok: {
+        ring: "border-emerald-200/60 dark:border-emerald-900/40",
+        iconBg: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400",
+        value: "text-emerald-600 dark:text-emerald-400",
+    },
+    warn: {
+        ring: "border-amber-300/70 bg-amber-50/40 dark:border-amber-900/60 dark:bg-amber-950/20",
+        iconBg: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
+        value: "text-amber-700 dark:text-amber-400",
+    },
+    muted: {
+        ring: "border-border/60",
+        iconBg: "bg-muted text-muted-foreground",
+        value: "text-muted-foreground",
+    },
+} as const
 
 function formatNumber(value: number) {
     return new Intl.NumberFormat("vi-VN").format(value || 0)

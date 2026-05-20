@@ -16,6 +16,7 @@ import { AsyncSelect } from "@/components/rjsf/async-select"
 import { formatCurrency } from "@/lib/utils"
 
 import { listProducts, getProduct } from "@/api/product"
+import { listGoodsDescriptions } from "@/api/sale/goods-description"
 import { createOrderItem } from "@/api/sale/order"
 
 type Props = {
@@ -34,6 +35,7 @@ export function CreateOrderItemDialog({ order, open, onOpenChange }: Props) {
     const [quantity, setQuantity] = useState(1)
     const [unitPrice, setUnitPrice] = useState(0)
     const [discount, setDiscount] = useState(0)
+    const [description, setDescription] = useState<string | undefined>()
 
     const reset = () => {
         setProductId(undefined)
@@ -41,6 +43,7 @@ export function CreateOrderItemDialog({ order, open, onOpenChange }: Props) {
         setQuantity(1)
         setUnitPrice(0)
         setDiscount(0)
+        setDescription(undefined)
     }
 
     const { mutate, isPending } = useMutation({
@@ -94,6 +97,7 @@ export function CreateOrderItemDialog({ order, open, onOpenChange }: Props) {
                 quantity,
                 unit_price: unitPrice,
                 discount,
+                description,
             }
         })
     }
@@ -148,6 +152,35 @@ export function CreateOrderItemDialog({ order, open, onOpenChange }: Props) {
                                 {product.code} - {product.name} · ĐVT: {product.unit || "-"}
                             </div>
                         )}
+                    </div>
+
+                    <div className="md:col-span-2">
+                        <label className="text-sm font-medium">Mô tả HH</label>
+                        <AsyncSelect
+                            placeholder="Chọn mô tả HH"
+                            searchPlaceholder="Tìm mô tả HH..."
+                            emptyText="Không có mô tả phù hợp"
+                            value={description}
+                            onChange={(value: any) => setDescription(value)}
+                            dataSource={{
+                                getList: listGoodsDescriptions,
+                                params: { page: 1, size: 20, active: 1 },
+                            }}
+                            mapOption={(x: any) => ({
+                                value: x.name,
+                                label: x.name,
+                                raw: x,
+                            })}
+                            initialOption={
+                                description
+                                    ? {
+                                        value: description,
+                                        label: description,
+                                        raw: { name: description },
+                                    }
+                                    : undefined
+                            }
+                        />
                     </div>
 
                     <div>

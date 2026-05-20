@@ -1,8 +1,40 @@
 import { useMemo, useState } from "react"
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Calculator, CalendarIcon, Check, ChevronLeft, ChevronRight, ChevronsUpDown, Edit, Eye, Plus, RefreshCw, Save, Trash2, X } from "lucide-react"
+import {
+    AlertTriangle,
+    Bell,
+    Calculator,
+    CalendarIcon,
+    CheckCircle2,
+    Check,
+    ChevronLeft,
+    ChevronRight,
+    ChevronsUpDown,
+    Coins,
+    Database,
+    Edit,
+    Eye,
+    FileSpreadsheet,
+    Filter,
+    Inbox,
+    Layers,
+    Package,
+    PackageOpen,
+    Plus,
+    RefreshCw,
+    Save,
+    Settings2,
+    Sparkles,
+    Tag,
+    TrendingUp,
+    Trash2,
+    Truck,
+    Warehouse,
+    X,
+} from "lucide-react"
 import { toast } from "sonner"
 import { listProducts } from "@/api/product"
+import { listProductGroups } from "@/api/product-group"
 import { listRegions } from "@/api/region"
 import {
     calculatePricing,
@@ -19,15 +51,19 @@ import {
 import { Main } from "@/components/layout/main"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import type {
     CalculatePricingRequest,
@@ -57,35 +93,105 @@ export default function PricingPage() {
     const lookups = usePricingLookups()
 
     return (
-        <Main className="flex w-full min-w-0 max-w-full flex-1 flex-col gap-5">
-            <div className="flex flex-col gap-3 border-b pb-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Giá thành</h1>
-                    <p className="text-muted-foreground mt-1 text-base">
-                        Lấy giá mua từ hợp đồng, cộng lợi nhuận và vận chuyển để ra bảng giá bán.
-                    </p>
-                </div>
-                <div className="rounded-md border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-                    <span className="font-semibold text-foreground">Hợp đồng mua</span> → Cấu hình giá → Tính bảng giá
-                </div>
-            </div>
+        <Main className="flex w-full min-w-0 max-w-full flex-1 flex-col gap-6">
+            <PageHeader />
 
-            <Tabs value={tab} onValueChange={setTab} className="gap-5">
-                <TabsList className="h-12 w-full justify-start rounded-md p-1 lg:w-fit">
-                    <TabsTrigger value="calculate" className="h-10 px-5 text-base">Tính bảng giá</TabsTrigger>
-                    <TabsTrigger value="config" className="h-10 px-5 text-base">Cấu hình giá</TabsTrigger>
+            <Tabs value={tab} onValueChange={setTab} className="gap-6">
+                <TabsList className="bg-muted/60 h-12 w-full justify-start rounded-lg p-1 lg:w-fit">
+                    <TabsTrigger
+                        value="calculate"
+                        className="data-[state=active]:bg-background data-[state=active]:shadow-sm h-10 gap-2 rounded-md px-5 text-sm font-medium"
+                    >
+                        <Calculator className="h-4 w-4" />
+                        Tính bảng giá
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="config"
+                        className="data-[state=active]:bg-background data-[state=active]:shadow-sm h-10 gap-2 rounded-md px-5 text-sm font-medium"
+                    >
+                        <Settings2 className="h-4 w-4" />
+                        Cấu hình giá
+                    </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="calculate">
+                <TabsContent value="calculate" className="mt-0">
                     <CalculatePanel lookups={lookups} />
                 </TabsContent>
 
-                <TabsContent value="config">
+                <TabsContent value="config" className="mt-0">
                     <ConfigPanel lookups={lookups} />
                 </TabsContent>
             </Tabs>
         </Main>
     )
+}
+
+function PageHeader() {
+    const monthLabel = `${currentMonth.slice(5, 7)}/${currentMonth.slice(0, 4)}`
+    return (
+        <div className="flex flex-col gap-5 border-b pb-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+                <div className="bg-primary/10 text-primary flex h-12 w-12 shrink-0 items-center justify-center rounded-xl">
+                    <Coins className="h-6 w-6" />
+                </div>
+                <div>
+                    <div className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                        Quản lý giá thành
+                    </div>
+                    <h1 className="mt-1 text-2xl font-bold tracking-tight lg:text-3xl">
+                        Bảng giá bán
+                    </h1>
+                    <p className="text-muted-foreground mt-1 max-w-2xl text-sm">
+                        Lấy giá mua từ hợp đồng, cộng phí bán hàng và lợi nhuận để xuất bảng giá bán theo vùng, theo kỳ.
+                    </p>
+                </div>
+            </div>
+
+            <div className="flex items-center gap-2 lg:gap-3">
+                <WorkflowStep number={1} label="Hợp đồng mua" />
+                <WorkflowArrow />
+                <WorkflowStep number={2} label="Cấu hình giá" />
+                <WorkflowArrow />
+                <WorkflowStep number={3} label="Tính bảng giá" active />
+                <Separator orientation="vertical" className="hidden h-10 lg:block" />
+                <div className="bg-muted/60 hidden flex-col rounded-md px-3 py-1.5 lg:flex">
+                    <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
+                        Kỳ hiện tại
+                    </span>
+                    <span className="text-sm font-bold tabular-nums">{monthLabel}</span>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+function WorkflowStep({ number, label, active }: { number: number; label: string; active?: boolean }) {
+    return (
+        <div className="flex items-center gap-2">
+            <div
+                className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold",
+                    active
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted text-muted-foreground"
+                )}
+            >
+                {number}
+            </div>
+            <span
+                className={cn(
+                    "hidden text-xs font-medium md:inline",
+                    active ? "text-foreground" : "text-muted-foreground"
+                )}
+            >
+                {label}
+            </span>
+        </div>
+    )
+}
+
+function WorkflowArrow() {
+    return <ChevronRight className="text-muted-foreground/40 h-4 w-4 shrink-0" />
 }
 
 function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLookups> }) {
@@ -99,8 +205,8 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
     const [itemPricingGroupId, setItemPricingGroupId] = useState<number | undefined>()
 
     const snapshotsQuery = useQuery({
-        queryKey: ["pricing-snapshots", form.pricing_month],
-        queryFn: () => pricingSnapshotsApi.list({ page: 1, size: 20, pricing_month: form.pricing_month }),
+        queryKey: ["pricing-snapshots", form.pricing_month, form.region_id],
+        queryFn: () => pricingSnapshotsApi.list({ page: 1, size: 20, pricing_month: form.pricing_month, region_id: form.region_id }),
     })
 
     const calculateMutation = useMutation({
@@ -113,36 +219,34 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
         onError: showError("Tính bảng giá thất bại"),
     })
 
-    const itemsQuery = useQuery({
-        queryKey: ["pricing-snapshot-items", selectedSnapshot?.id],
-        queryFn: () => listPricingSnapshotItems(selectedSnapshot!.id),
-        enabled: !!selectedSnapshot?.id,
-    })
-
     const latestSnapshots = snapshotsQuery.data?.items ?? []
-    const items = itemsQuery.data ?? []
-    const allItemsQueries = useQueries({
-        queries: latestSnapshots.map((snapshot) => ({
+    const isAllRegionView = !form.region_id
+    const viewSnapshots = useMemo(() => {
+        if (!selectedSnapshot) return []
+        if (!isAllRegionView) return [selectedSnapshot]
+        return latestSnapshots.filter((snapshot) =>
+            snapshot.pricing_month === selectedSnapshot.pricing_month &&
+            snapshot.price_method === selectedSnapshot.price_method
+        )
+    }, [isAllRegionView, latestSnapshots, selectedSnapshot])
+    const viewItemQueries = useQueries({
+        queries: viewSnapshots.map((snapshot) => ({
             queryKey: ["pricing-snapshot-items", snapshot.id],
             queryFn: () => listPricingSnapshotItems(snapshot.id),
             enabled: !!snapshot.id,
         })),
     })
-    const allSnapshotItems = useMemo<SnapshotTableItem[]>(() => {
-        return allItemsQueries.flatMap((query, index) => {
-            const snapshot = latestSnapshots[index]
+    const currentSnapshotItems = useMemo<SnapshotTableItem[]>(() => {
+        return viewItemQueries.flatMap((query, index) => {
+            const snapshot = viewSnapshots[index]
             return (query.data ?? []).map((item) => ({ ...item, snapshot }))
         })
-    }, [allItemsQueries, latestSnapshots])
-    const currentSnapshotItems = useMemo<SnapshotTableItem[]>(() => {
-        return items.map((item) => ({ ...item, snapshot: selectedSnapshot ?? undefined }))
-    }, [items, selectedSnapshot])
-    const isCrossRegionFilter = Boolean(itemProductId || itemPricingGroupId)
-    const baseItems = isCrossRegionFilter ? allSnapshotItems : currentSnapshotItems
+    }, [viewItemQueries, viewSnapshots])
+    const baseItems = currentSnapshotItems
     const productFilterOptions = useMemo(() => {
         const map = new Map<number, Option>()
         lookups.products.forEach((option) => map.set(option.id, option))
-        allSnapshotItems.forEach((item) => {
+        currentSnapshotItems.forEach((item) => {
             if (!item.product_id) return
             map.set(item.product_id, {
                 id: item.product_id,
@@ -151,7 +255,7 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
             })
         })
         return Array.from(map.values()).sort((a, b) => formatOptionLabel(a).localeCompare(formatOptionLabel(b), "vi"))
-    }, [allSnapshotItems, lookups.products])
+    }, [currentSnapshotItems, lookups.products])
     const filteredItems = useMemo(() => {
         return baseItems.filter((item) => {
             if (itemProductId && item.product_id !== itemProductId) return false
@@ -159,9 +263,8 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
             return true
         })
     }, [baseItems, itemProductId, itemPricingGroupId])
-    const tableLoading = isCrossRegionFilter
-        ? allItemsQueries.some((query) => query.isLoading)
-        : itemsQuery.isLoading
+    const tableLoading = viewItemQueries.some((query) => query.isLoading)
+    const allRegionSnapshotValue = selectedSnapshot ? "__all_regions" : ""
 
     const totals = useMemo(() => {
         return filteredItems.reduce(
@@ -187,83 +290,157 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
     }
 
     return (
-        <div className="space-y-5">
-            <section className="rounded-md border bg-background p-5">
-                <div className="mb-5 flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <Calculator className="h-5 w-5" />
+        <div className="space-y-6">
+            <Card className="border-border/60 gap-0 overflow-hidden py-0 shadow-sm">
+                <CardHeader className="bg-muted/30 border-b py-5">
+                    <div className="flex items-start gap-3">
+                        <div className="bg-primary text-primary-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg shadow-sm">
+                            <Calculator className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                            <CardTitle className="text-lg">Chạy tính bảng giá</CardTitle>
+                            <CardDescription className="mt-1">
+                                Chọn tháng, vùng và phương pháp lấy giá mua. Hệ thống sẽ tự cộng phí, lợi nhuận, vận chuyển và xuất bảng giá.
+                            </CardDescription>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-xl font-semibold">Tính bảng giá</h2>
-                        <p className="text-sm text-muted-foreground">Giá mua lấy từ hợp đồng mua hàng.</p>
-                    </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    <Field label="Tháng áp dụng">
-                        <MonthPicker
-                            value={form.pricing_month}
-                            placeholder="Chọn tháng áp dụng"
-                            onChange={(value) => setForm((prev) => ({ ...prev, pricing_month: value }))}
-                        />
-                    </Field>
-                    <Field label="Vùng">
-                        <OptionSelect
-                            value={form.region_id}
-                            options={lookups.regions}
-                            placeholder="Tất cả vùng"
-                            onChange={(value) => setForm((prev) => ({ ...prev, region_id: value }))}
-                        />
-                    </Field>
-                    <Field label="Cách lấy giá mua">
-                        <Select value={form.price_method ?? "WAVG"} onValueChange={(value) => setForm((prev) => ({ ...prev, price_method: value as PricingPriceMethod }))}>
-                            <SelectTrigger className={cn(controlClass, "w-full !py-0")}>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="WAVG">Bình quân trong tháng</SelectItem>
-                                <SelectItem value="LATEST">Giá gần nhất</SelectItem>
-                                <SelectItem value="FIFO">Nhập trước xuất trước</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </Field>
-                    <Field label="Ghi chú" className="md:col-span-2">
-                        <Textarea className={cn(controlClass, "resize-none py-2")} value={form.note ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, note: event.target.value }))} />
-                    </Field>
-                    <div className="flex items-end">
-                        <Button className={cn(controlClass, "w-full")} onClick={submit} disabled={calculateMutation.isPending}>
-                            {calculateMutation.isPending ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Calculator className="mr-2 h-4 w-4" />}
+                </CardHeader>
+                <CardContent className="p-6">
+                    <div className="grid gap-5 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
+                        <Field label="Tháng áp dụng" required>
+                            <MonthPicker
+                                value={form.pricing_month}
+                                placeholder="Chọn tháng áp dụng"
+                                onChange={(value) => setForm((prev) => ({ ...prev, pricing_month: value }))}
+                            />
+                        </Field>
+                        <Field label="Vùng áp dụng">
+                            <OptionSelect
+                                value={form.region_id}
+                                options={lookups.regions}
+                                placeholder="Tất cả vùng"
+                                onChange={(value) => {
+                                    setSelectedSnapshot(null)
+                                    setItemProductId(undefined)
+                                    setItemPricingGroupId(undefined)
+                                    setForm((prev) => ({ ...prev, region_id: value }))
+                                }}
+                            />
+                        </Field>
+                        <Field label="Phương pháp lấy giá mua">
+                            <Select
+                                value={form.price_method ?? "WAVG"}
+                                onValueChange={(value) =>
+                                    setForm((prev) => ({ ...prev, price_method: value as PricingPriceMethod }))
+                                }
+                            >
+                                <SelectTrigger className={cn(controlClass, "w-full !py-0")}>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="WAVG">Bình quân trong tháng</SelectItem>
+                                    <SelectItem value="LATEST">Giá gần nhất</SelectItem>
+                                    <SelectItem value="FIFO">Nhập trước xuất trước</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </Field>
+                        <Button
+                            size="lg"
+                            className={cn(controlClass, "min-w-[160px] shadow-sm")}
+                            onClick={submit}
+                            disabled={calculateMutation.isPending}
+                        >
+                            {calculateMutation.isPending ? (
+                                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Calculator className="mr-2 h-4 w-4" />
+                            )}
                             Tính bảng giá
                         </Button>
                     </div>
-                </div>
-            </section>
+                    <div className="mt-4">
+                        <Field label="Ghi chú nội bộ (không bắt buộc)">
+                            <Textarea
+                                className="min-h-[44px] resize-none py-2"
+                                placeholder="VD: Áp dụng cho khu vực Tây Nguyên, có khuyến mãi tháng 5..."
+                                value={form.note ?? ""}
+                                onChange={(event) => setForm((prev) => ({ ...prev, note: event.target.value }))}
+                            />
+                        </Field>
+                    </div>
+                </CardContent>
+            </Card>
 
-            <section className="min-w-0 space-y-5">
-                <div className="grid gap-3 md:grid-cols-4">
-                    <Metric label="Số dòng" value={formatNumber(items.length)} />
-                    <Metric label="Giá mua" value={formatCurrency(totals.purchase)} />
-                    <Metric label="Giá tại kho" value={formatCurrency(totals.warehouse)} />
-                    <Metric label="Cảnh báo" value={formatNumber(totals.warning)} tone={totals.warning ? "warning" : "normal"} />
-                </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <Metric
+                    icon={FileSpreadsheet}
+                    label="Số dòng bảng giá"
+                    value={formatNumber(filteredItems.length)}
+                    tone="info"
+                />
+                <Metric
+                    icon={Coins}
+                    label="Tổng giá mua"
+                    value={formatCurrency(totals.purchase)}
+                    tone="default"
+                />
+                <Metric
+                    icon={Warehouse}
+                    label="Tổng giá tại kho"
+                    value={formatCurrency(totals.warehouse)}
+                    tone="primary"
+                />
+                <Metric
+                    icon={AlertTriangle}
+                    label="Dòng cần kiểm tra"
+                    value={formatNumber(totals.warning)}
+                    tone={totals.warning ? "warning" : "success"}
+                />
+            </div>
 
-                <div className="rounded-md border bg-background">
-                    <div className="space-y-4 border-b p-4">
-                        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(260px,420px)] xl:items-end">
-                            <div className="min-w-0">
-                                <h2 className="text-xl font-semibold">Bảng giá đã tính</h2>
-                                <p className="text-sm text-muted-foreground">Chọn một lần tính để xem kết quả chi tiết.</p>
+            <Card className="border-border/60 gap-0 overflow-hidden py-0 shadow-sm">
+                <CardHeader className="space-y-4 border-b py-5">
+                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,440px)] xl:items-end">
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                                <CardTitle className="text-lg">Bảng giá đã tính</CardTitle>
+                                <Badge variant="secondary" className="font-mono text-xs">
+                                    {latestSnapshots.length} kỳ
+                                </Badge>
                             </div>
-                            <Field label="Bảng giá" className="min-w-0">
-                                <Select value={selectedSnapshot?.id ? String(selectedSnapshot.id) : ""} onValueChange={(value) => {
+                            <CardDescription className="mt-1">
+                                Chọn một lần tính để xem chi tiết theo nhóm sản phẩm và truy ngược nguồn giá.
+                            </CardDescription>
+                        </div>
+                        <Field label="Chọn bảng giá để xem" className="min-w-0">
+                            <Select
+                                value={isAllRegionView ? allRegionSnapshotValue : (selectedSnapshot?.id ? String(selectedSnapshot.id) : "")}
+                                onValueChange={(value) => {
+                                    if (value === "__all_regions") return
                                     const snapshot = latestSnapshots.find((item) => String(item.id) === value)
                                     setSelectedSnapshot(snapshot ?? null)
-                                }}>
-                                    <SelectTrigger className={cn(controlClass, "w-full min-w-0 overflow-hidden !py-0 [&>span]:block [&>span]:min-w-0 [&>span]:truncate")}>
-                                        <SelectValue placeholder="Chọn bảng giá" />
-                                    </SelectTrigger>
-                                    <SelectContent className="max-w-[min(720px,calc(100vw-32px))]">
-                                        {latestSnapshots.map((snapshot) => (
+                                }}
+                            >
+                                <SelectTrigger
+                                    className={cn(
+                                        controlClass,
+                                        "w-full min-w-0 overflow-hidden !py-0 [&>span]:block [&>span]:min-w-0 [&>span]:truncate"
+                                    )}
+                                >
+                                    <SelectValue placeholder="Chọn bảng giá" />
+                                </SelectTrigger>
+                                <SelectContent className="max-w-[min(720px,calc(100vw-32px))]">
+                                    {isAllRegionView ? (
+                                        <SelectItem value="__all_regions" textValue={selectedSnapshot ? allRegionSnapshotLabel(viewSnapshots, selectedSnapshot) : "Tất cả vùng"}>
+                                            <div className="min-w-0 pr-4">
+                                                <div className="truncate font-medium">{selectedSnapshot ? allRegionSnapshotLabel(viewSnapshots, selectedSnapshot) : "Tất cả vùng"}</div>
+                                                <div className="text-muted-foreground truncate font-mono text-xs">
+                                                    {viewSnapshots.map((snapshot) => snapshot.code).join(", ")}
+                                                </div>
+                                            </div>
+                                        </SelectItem>
+                                    ) : (
+                                        latestSnapshots.map((snapshot) => (
                                             <SelectItem
                                                 key={snapshot.id}
                                                 value={String(snapshot.id)}
@@ -273,18 +450,24 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
                                                     <div className="truncate font-medium">
                                                         {snapshotShortLabel(snapshot, lookups.regions)}
                                                     </div>
-                                                    <div className="truncate text-xs text-muted-foreground">
+                                                    <div className="text-muted-foreground truncate font-mono text-xs">
                                                         {snapshot.code}
                                                     </div>
                                                 </div>
                                             </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </Field>
+                                        ))
+                                    )}
+                                </SelectContent>
+                            </Select>
+                        </Field>
+                    </div>
+                    <div className="bg-muted/40 -mx-6 -mb-5 border-t px-6 py-4">
+                        <div className="text-muted-foreground mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
+                            <Filter className="h-3.5 w-3.5" />
+                            Bộ lọc bảng giá
                         </div>
                         <div className="grid min-w-0 gap-3 md:grid-cols-2">
-                            <Field label="Lọc sản phẩm" className="min-w-0">
+                            <Field label="Sản phẩm" className="min-w-0">
                                 <OptionCombobox
                                     value={itemProductId}
                                     options={productFilterOptions}
@@ -294,7 +477,7 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
                                     onChange={setItemProductId}
                                 />
                             </Field>
-                            <Field label="Lọc mã nhóm báo giá" className="min-w-0">
+                            <Field label="Mã nhóm báo giá" className="min-w-0">
                                 <OptionCombobox
                                     value={itemPricingGroupId}
                                     options={lookups.pricingGroups}
@@ -306,40 +489,150 @@ function CalculatePanel({ lookups }: { lookups: ReturnType<typeof usePricingLook
                             </Field>
                         </div>
                     </div>
+                </CardHeader>
 
-                    {selectedSnapshot ? (
-                        <SnapshotItemsTable
-                            snapshot={selectedSnapshot}
-                            items={filteredItems}
-                            isLoading={tableLoading}
-                            isCrossRegionFilter={isCrossRegionFilter}
-                            lookups={lookups}
-                        />
-                    ) : (
-                        <div className="p-8 text-center text-muted-foreground">Chưa chọn bảng giá để xem.</div>
-                    )}
-                </div>
-            </section>
+                {selectedSnapshot ? (
+                    <SnapshotItemsTable
+                        snapshot={selectedSnapshot}
+                        snapshots={viewSnapshots}
+                        items={filteredItems}
+                        isLoading={tableLoading}
+                        isAllRegionView={isAllRegionView}
+                        lookups={lookups}
+                    />
+                ) : (
+                    <EmptyState
+                        icon={FileSpreadsheet}
+                        title="Chưa chọn bảng giá"
+                        description="Hãy chạy tính giá ở trên, hoặc chọn một bảng giá đã có để xem chi tiết."
+                    />
+                )}
+            </Card>
         </div>
     )
 }
 
+type ConfigSectionKey =
+    | "pricing-groups"
+    | "packaging"
+    | "margin"
+    | "transport"
+    | "promotion"
+    | "alert"
+
+type ConfigGroup = {
+    title: string
+    items: {
+        key: ConfigSectionKey
+        label: string
+        description: string
+        icon: React.ComponentType<{ className?: string }>
+        tone: keyof typeof PANEL_TONES
+    }[]
+}
+
+const CONFIG_GROUPS: ConfigGroup[] = [
+    {
+        title: "Danh mục cơ bản",
+        items: [
+            { key: "pricing-groups", label: "Mã nhóm báo giá", description: "Gom SKU cùng logic giá", icon: Tag, tone: "blue" },
+            { key: "packaging", label: "Chi phí bao bì", description: "Cộng vào giá nguyên liệu", icon: Package, tone: "amber" },
+        ],
+    },
+    {
+        title: "Quy tắc tính giá",
+        items: [
+            { key: "margin", label: "Lợi nhuận & Phí BH", description: "Biên LN + 6 cấu phần phí", icon: TrendingUp, tone: "emerald" },
+            { key: "transport", label: "Vận chuyển", description: "VC + phụ phí công nợ", icon: Truck, tone: "violet" },
+        ],
+    },
+    {
+        title: "Khuyến mãi & Cảnh báo",
+        items: [
+            { key: "promotion", label: "Khuyến mãi tháng", description: "Giảm giá theo nhóm/vùng", icon: Sparkles, tone: "pink" },
+            { key: "alert", label: "Cảnh báo", description: "Ngưỡng giá NL & lợi nhuận", icon: Bell, tone: "rose" },
+        ],
+    },
+]
+
 function ConfigPanel({ lookups }: { lookups: ReturnType<typeof usePricingLookups> }) {
+    const [active, setActive] = useState<ConfigSectionKey>("pricing-groups")
+
     return (
-        <div className="space-y-5">
-            <div className="grid gap-5 xl:grid-cols-2">
-                <PricingGroupsPanel lookups={lookups} />
-                <PackagingCostsPanel lookups={lookups} />
-            </div>
-            <div className="grid gap-5 xl:grid-cols-2">
-                <MarginRulesPanel lookups={lookups} />
-                <TransportRulesPanel lookups={lookups} />
-            </div>
-            <div className="grid gap-5 xl:grid-cols-2">
-                <PromotionsPanel lookups={lookups} />
-                <AlertConfigsPanel lookups={lookups} />
+        <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
+            <ConfigSidebar active={active} onChange={setActive} />
+            <div className="min-w-0">
+                {active === "pricing-groups" && <PricingGroupsPanel lookups={lookups} />}
+                {active === "packaging" && <PackagingCostsPanel lookups={lookups} />}
+                {active === "margin" && <MarginRulesPanel lookups={lookups} />}
+                {active === "transport" && <TransportRulesPanel lookups={lookups} />}
+                {active === "promotion" && <PromotionsPanel lookups={lookups} />}
+                {active === "alert" && <AlertConfigsPanel lookups={lookups} />}
             </div>
         </div>
+    )
+}
+
+function ConfigSidebar({
+    active,
+    onChange,
+}: {
+    active: ConfigSectionKey
+    onChange: (key: ConfigSectionKey) => void
+}) {
+    return (
+        <Card className="h-fit gap-0 py-0 shadow-sm lg:sticky lg:top-4">
+            <div className="border-b px-4 py-3">
+                <div className="text-muted-foreground flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider">
+                    <Settings2 className="h-3 w-3" />
+                    Cấu hình giá
+                </div>
+            </div>
+            <nav className="space-y-4 p-3">
+                {CONFIG_GROUPS.map((group) => (
+                    <div key={group.title} className="space-y-1">
+                        <div className="text-muted-foreground/80 px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider">
+                            {group.title}
+                        </div>
+                        {group.items.map((item) => {
+                            const isActive = active === item.key
+                            const Icon = item.icon
+                            return (
+                                <button
+                                    key={item.key}
+                                    type="button"
+                                    onClick={() => onChange(item.key)}
+                                    className={cn(
+                                        "group flex w-full items-start gap-3 rounded-lg px-2.5 py-2 text-left transition-colors",
+                                        isActive
+                                            ? "bg-primary/5 text-foreground"
+                                            : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    <div
+                                        className={cn(
+                                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
+                                            isActive ? PANEL_TONES[item.tone] : "bg-muted/60 text-muted-foreground group-hover:bg-background"
+                                        )}
+                                    >
+                                        <Icon className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0 flex-1 pt-0.5">
+                                        <div className={cn("truncate text-sm font-medium", isActive && "font-semibold")}>
+                                            {item.label}
+                                        </div>
+                                        <div className="text-muted-foreground truncate text-xs">
+                                            {item.description}
+                                        </div>
+                                    </div>
+                                    {isActive && <ChevronRight className="text-primary mt-2 h-4 w-4 shrink-0" />}
+                                </button>
+                            )
+                        })}
+                    </div>
+                ))}
+            </nav>
+        </Card>
     )
 }
 
@@ -363,38 +656,44 @@ function PricingGroupsPanel({ lookups }: { lookups: ReturnType<typeof usePricing
     const rows = query.data?.items ?? []
 
     return (
-        <section className="rounded-md border bg-background">
+        <Card className="border-border/60 gap-0 overflow-hidden py-0 shadow-sm">
             <PanelHeader
+                icon={Tag}
+                tone="blue"
                 title="Mã nhóm báo giá"
-                description="Mã dùng để gom sản phẩm cùng logic giá, phí bán hàng, lợi nhuận, vận chuyển, khuyến mãi."
-                action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
+                description="Mã dùng để gom sản phẩm cùng logic giá, phí, lợi nhuận, vận chuyển và khuyến mãi."
+                count={rows.length}
+                action={<Button size="sm" onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
             />
             <TableWrap>
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-muted/40">
                         <TableRow>
                             <TableHead>Mã</TableHead>
                             <TableHead>Tên</TableHead>
-                            <TableHead>ĐVT chuẩn</TableHead>
+                            <TableHead>Nhóm sản phẩm</TableHead>
+                            <TableHead>ĐVT</TableHead>
                             <TableHead className="w-24 text-right">Thao tác</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {rows.map((row) => (
-                            <TableRow key={row.id}>
-                                <TableCell className="font-semibold">{row.code}</TableCell>
-                                <TableCell>{row.name}</TableCell>
-                                <TableCell>{row.base_unit_code || "-"}</TableCell>
+                        {query.isLoading && <SkeletonRows cols={5} rows={3} />}
+                        {!query.isLoading && rows.map((row) => (
+                            <TableRow key={row.id} className="hover:bg-muted/30">
+                                <TableCell className="font-mono font-semibold text-primary">{row.code}</TableCell>
+                                <TableCell className="font-medium">{row.name}</TableCell>
+                                <TableCell className="text-muted-foreground">{labelOf(lookups.productGroups, row.parent_product_group_id)}</TableCell>
+                                <TableCell><Badge variant="outline" className="font-mono">{row.base_unit_code || "-"}</Badge></TableCell>
                                 <TableCell><RowActions onEdit={() => setEditing(row)} onDelete={() => remove.mutate(row.id)} /></TableCell>
                             </TableRow>
                         ))}
-                        {!rows.length && <EmptyRow colSpan={4} text={query.isLoading ? "Đang tải..." : "Chưa có mã nhóm báo giá"} />}
+                        {!query.isLoading && !rows.length && <EmptyRow colSpan={5} icon={Tag} text="Chưa có mã nhóm báo giá" />}
                     </TableBody>
                 </Table>
             </TableWrap>
             <PricingGroupDialog open={open} onOpenChange={setOpen} lookups={lookups} />
             {editing && <PricingGroupDialog open={!!editing} onOpenChange={(value) => !value && setEditing(null)} rule={editing} lookups={lookups} />}
-        </section>
+        </Card>
     )
 }
 
@@ -417,15 +716,18 @@ function PackagingCostsPanel({ lookups }: { lookups: ReturnType<typeof usePricin
     const rows = query.data?.items ?? []
 
     return (
-        <section className="rounded-md border bg-background">
+        <Card className="border-border/60 gap-0 overflow-hidden py-0 shadow-sm">
             <PanelHeader
+                icon={Package}
+                tone="amber"
                 title="Chi phí bao bì"
                 description="Cộng vào giá nguyên liệu theo mã nhóm báo giá."
-                action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
+                count={rows.length}
+                action={<Button size="sm" onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
             />
             <TableWrap>
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-muted/40">
                         <TableRow>
                             <TableHead>Mã nhóm báo giá</TableHead>
                             <TableHead>Tên cấu hình</TableHead>
@@ -434,21 +736,22 @@ function PackagingCostsPanel({ lookups }: { lookups: ReturnType<typeof usePricin
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {rows.map((row) => (
-                            <TableRow key={row.id}>
-                                <TableCell className="font-semibold">{labelOf(lookups.pricingGroups, row.pricing_group_id)}</TableCell>
-                                <TableCell>{row.name}</TableCell>
-                                <MoneyCell value={row.cost_per_unit_vnd} />
+                        {query.isLoading && <SkeletonRows cols={4} rows={3} />}
+                        {!query.isLoading && rows.map((row) => (
+                            <TableRow key={row.id} className="hover:bg-muted/30">
+                                <TableCell className="font-medium">{labelOf(lookups.pricingGroups, row.pricing_group_id)}</TableCell>
+                                <TableCell className="text-muted-foreground">{row.name}</TableCell>
+                                <MoneyCell value={row.cost_per_unit_vnd} strong />
                                 <TableCell><RowActions onEdit={() => setEditing(row)} onDelete={() => remove.mutate(row.id)} /></TableCell>
                             </TableRow>
                         ))}
-                        {!rows.length && <EmptyRow colSpan={4} text={query.isLoading ? "Đang tải..." : "Chưa có chi phí bao bì"} />}
+                        {!query.isLoading && !rows.length && <EmptyRow colSpan={4} icon={Package} text="Chưa có chi phí bao bì" />}
                     </TableBody>
                 </Table>
             </TableWrap>
             <PackagingCostDialog open={open} onOpenChange={setOpen} lookups={lookups} />
             {editing && <PackagingCostDialog open={!!editing} onOpenChange={(value) => !value && setEditing(null)} rule={editing} lookups={lookups} />}
-        </section>
+        </Card>
     )
 }
 
@@ -472,44 +775,54 @@ function MarginRulesPanel({ lookups }: { lookups: ReturnType<typeof usePricingLo
     const rows = query.data?.items ?? []
 
     return (
-        <section className="rounded-md border bg-background">
+        <Card className="border-border/60 gap-0 overflow-hidden py-0 shadow-sm">
             <PanelHeader
+                icon={TrendingUp}
+                tone="emerald"
                 title="Biên lợi nhuận & Phí bán hàng"
-                description="Cấu hình %/số tiền lợi nhuận và 6 cấu phần phí bán hàng theo mã nhóm báo giá, vùng."
-                action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
+                description="Cấu hình %/số tiền lợi nhuận và 6 cấu phần phí bán hàng theo nhóm báo giá, vùng."
+                count={rows.length}
+                action={<Button size="sm" onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
             />
             <TableWrap>
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-muted/40">
                         <TableRow>
                             <TableHead>Mã nhóm báo giá</TableHead>
                             <TableHead>Vùng</TableHead>
                             <TableHead>Lợi nhuận</TableHead>
-                            <TableHead>Phí bán hàng</TableHead>
+                            <TableHead className="text-right">Phí bán hàng</TableHead>
                             <TableHead>An toàn</TableHead>
                             <TableHead className="w-24 text-right">Thao tác</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {rows.map((row) => (
-                            <TableRow key={row.id}>
+                        {query.isLoading && <SkeletonRows cols={6} rows={3} />}
+                        {!query.isLoading && rows.map((row) => (
+                            <TableRow key={row.id} className="hover:bg-muted/30">
                                 <TableCell className="font-medium">{labelOf(lookups.pricingGroups, row.pricing_group_id)}</TableCell>
-                                <TableCell>{row.region_id ? labelOf(lookups.regions, row.region_id) : "Mặc định"}</TableCell>
-                                <TableCell>{marginLabel(row)}</TableCell>
-                                <TableCell>{formatCurrency(salesExpenseTotal(row))}</TableCell>
-                                <TableCell>{row.min_margin_safety_percent ? `${formatNumber(row.min_margin_safety_percent)}%` : "-"}</TableCell>
+                                <TableCell className="text-muted-foreground">
+                                    {row.region_id ? labelOf(lookups.regions, row.region_id) : <Badge variant="outline">Mặc định</Badge>}
+                                </TableCell>
+                                <TableCell><Badge variant="secondary" className="font-mono">{marginLabel(row)}</Badge></TableCell>
+                                <MoneyCell value={salesExpenseTotal(row)} strong />
+                                <TableCell>
+                                    {row.min_margin_safety_percent
+                                        ? <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{`${formatNumber(row.min_margin_safety_percent)}%`}</span>
+                                        : <span className="text-muted-foreground">-</span>}
+                                </TableCell>
                                 <TableCell>
                                     <RowActions onEdit={() => setEditing(row)} onDelete={() => remove.mutate(row.id)} />
                                 </TableCell>
                             </TableRow>
                         ))}
-                        {!rows.length && <EmptyRow colSpan={6} text={query.isLoading ? "Đang tải..." : "Chưa có cấu hình lợi nhuận"} />}
+                        {!query.isLoading && !rows.length && <EmptyRow colSpan={6} icon={TrendingUp} text="Chưa có cấu hình lợi nhuận" />}
                     </TableBody>
                 </Table>
             </TableWrap>
             <MarginRuleDialog open={open} onOpenChange={setOpen} lookups={lookups} />
             {editing && <MarginRuleDialog open={!!editing} onOpenChange={(value) => !value && setEditing(null)} rule={editing} lookups={lookups} />}
-        </section>
+        </Card>
     )
 }
 
@@ -533,46 +846,52 @@ function TransportRulesPanel({ lookups }: { lookups: ReturnType<typeof usePricin
     const rows = query.data?.items ?? []
 
     return (
-        <section className="rounded-md border bg-background">
+        <Card className="border-border/60 gap-0 overflow-hidden py-0 shadow-sm">
             <PanelHeader
+                icon={Truck}
+                tone="violet"
                 title="Vận chuyển & phụ phí"
-                description="VC giao kho là phí vận chuyển; 7-10 ngày/30 ngày là phụ phí công nợ; giá nông dân là cộng hoặc giảm riêng."
-                action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
+                description="VC giao kho là phí vận chuyển; 7-10 / 30 ngày là phụ phí công nợ; giá nông dân cộng hoặc giảm riêng."
+                count={rows.length}
+                action={<Button size="sm" onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
             />
             <TableWrap>
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-muted/40">
                         <TableRow>
                             <TableHead>Áp dụng</TableHead>
                             <TableHead>Vùng</TableHead>
-                            <TableHead>VC giao kho</TableHead>
-                            <TableHead>Phụ phí 7-10 ngày</TableHead>
-                            <TableHead>Phụ phí 30 ngày</TableHead>
-                            <TableHead>Giá nông dân</TableHead>
+                            <TableHead className="text-right">VC giao kho</TableHead>
+                            <TableHead className="text-right">PP 7-10 ngày</TableHead>
+                            <TableHead className="text-right">PP 30 ngày</TableHead>
+                            <TableHead className="text-right">Giá nông dân</TableHead>
                             <TableHead className="w-24 text-right">Thao tác</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {rows.map((row) => (
-                            <TableRow key={row.id}>
+                        {query.isLoading && <SkeletonRows cols={7} rows={3} />}
+                        {!query.isLoading && rows.map((row) => (
+                            <TableRow key={row.id} className="hover:bg-muted/30">
                                 <TableCell className="font-medium">{transportTarget(row, lookups)}</TableCell>
-                                <TableCell>{row.region_id ? labelOf(lookups.regions, row.region_id) : "Mặc định"}</TableCell>
-                                <TableCell>{formatCurrency(row.transport_cost_vnd)}</TableCell>
-                                <TableCell>{formatCurrency(row.debt_7_10_surcharge_vnd ?? row.term_8_10_transport_cost_vnd)}</TableCell>
-                                <TableCell>{formatCurrency(row.debt_30_surcharge_vnd ?? row.term_30_transport_cost_vnd)}</TableCell>
-                                <TableCell>{formatCurrency(row.farmer_price_surcharge_vnd)}</TableCell>
+                                <TableCell className="text-muted-foreground">
+                                    {row.region_id ? labelOf(lookups.regions, row.region_id) : <Badge variant="outline">Mặc định</Badge>}
+                                </TableCell>
+                                <MoneyCell value={row.transport_cost_vnd} />
+                                <MoneyCell value={row.debt_7_10_surcharge_vnd ?? row.term_8_10_transport_cost_vnd} />
+                                <MoneyCell value={row.debt_30_surcharge_vnd ?? row.term_30_transport_cost_vnd} />
+                                <MoneyCell value={row.farmer_price_surcharge_vnd} />
                                 <TableCell>
                                     <RowActions onEdit={() => setEditing(row)} onDelete={() => remove.mutate(row.id)} />
                                 </TableCell>
                             </TableRow>
                         ))}
-                        {!rows.length && <EmptyRow colSpan={7} text={query.isLoading ? "Đang tải..." : "Chưa có cấu hình vận chuyển"} />}
+                        {!query.isLoading && !rows.length && <EmptyRow colSpan={7} icon={Truck} text="Chưa có cấu hình vận chuyển" />}
                     </TableBody>
                 </Table>
             </TableWrap>
             <TransportRuleDialog open={open} onOpenChange={setOpen} lookups={lookups} />
             {editing && <TransportRuleDialog open={!!editing} onOpenChange={(value) => !value && setEditing(null)} rule={editing} lookups={lookups} />}
-        </section>
+        </Card>
     )
 }
 
@@ -595,42 +914,57 @@ function PromotionsPanel({ lookups }: { lookups: ReturnType<typeof usePricingLoo
     const rows = query.data?.items ?? []
 
     return (
-        <section className="rounded-md border bg-background">
+        <Card className="border-border/60 gap-0 overflow-hidden py-0 shadow-sm">
             <PanelHeader
+                icon={Sparkles}
+                tone="pink"
                 title="Khuyến mãi tháng"
                 description="Giảm giá theo nhóm báo giá, vùng và thời gian áp dụng."
-                action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
+                count={rows.length}
+                action={<Button size="sm" onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
             />
             <TableWrap>
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-muted/40">
                         <TableRow>
                             <TableHead>CTKM</TableHead>
                             <TableHead>Nhóm báo giá</TableHead>
                             <TableHead>Vùng</TableHead>
                             <TableHead>Thời gian</TableHead>
-                            <TableHead>Giảm</TableHead>
+                            <TableHead className="text-right">Giảm</TableHead>
                             <TableHead className="w-24 text-right">Thao tác</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {rows.map((row) => (
-                            <TableRow key={row.id}>
-                                <TableCell className="font-semibold">{row.code}<div className="text-xs font-normal text-muted-foreground">{row.name}</div></TableCell>
-                                <TableCell>{labelOf(lookups.pricingGroups, row.pricing_group_id)}</TableCell>
-                                <TableCell>{row.region_id ? labelOf(lookups.regions, row.region_id) : "Tất cả vùng"}</TableCell>
-                                <TableCell>{row.from_date} → {row.to_date}</TableCell>
-                                <TableCell>{row.discount_percent ? `${formatNumber(row.discount_percent)}%` : formatCurrency(row.discount_amount_vnd)}</TableCell>
+                        {query.isLoading && <SkeletonRows cols={6} rows={3} />}
+                        {!query.isLoading && rows.map((row) => (
+                            <TableRow key={row.id} className="hover:bg-muted/30">
+                                <TableCell>
+                                    <div className="font-mono font-semibold text-pink-700 dark:text-pink-400">{row.code}</div>
+                                    <div className="text-muted-foreground mt-0.5 text-xs">{row.name}</div>
+                                </TableCell>
+                                <TableCell className="font-medium">{labelOf(lookups.pricingGroups, row.pricing_group_id)}</TableCell>
+                                <TableCell className="text-muted-foreground">
+                                    {row.region_id ? labelOf(lookups.regions, row.region_id) : <Badge variant="outline">Tất cả</Badge>}
+                                </TableCell>
+                                <TableCell className="text-xs tabular-nums whitespace-nowrap">
+                                    {row.from_date} <ChevronRight className="inline h-3 w-3" /> {row.to_date}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <Badge variant="secondary" className="font-mono">
+                                        {row.discount_percent ? `${formatNumber(row.discount_percent)}%` : formatCurrency(row.discount_amount_vnd)}
+                                    </Badge>
+                                </TableCell>
                                 <TableCell><RowActions onEdit={() => setEditing(row)} onDelete={() => remove.mutate(row.id)} /></TableCell>
                             </TableRow>
                         ))}
-                        {!rows.length && <EmptyRow colSpan={6} text={query.isLoading ? "Đang tải..." : "Chưa có khuyến mãi"} />}
+                        {!query.isLoading && !rows.length && <EmptyRow colSpan={6} icon={Sparkles} text="Chưa có khuyến mãi" />}
                     </TableBody>
                 </Table>
             </TableWrap>
             <PromotionDialog open={open} onOpenChange={setOpen} lookups={lookups} />
             {editing && <PromotionDialog open={!!editing} onOpenChange={(value) => !value && setEditing(null)} rule={editing} lookups={lookups} />}
-        </section>
+        </Card>
     )
 }
 
@@ -653,54 +987,66 @@ function AlertConfigsPanel({ lookups }: { lookups: ReturnType<typeof usePricingL
     const rows = query.data?.items ?? []
 
     return (
-        <section className="rounded-md border bg-background">
+        <Card className="border-border/60 gap-0 overflow-hidden py-0 shadow-sm">
             <PanelHeader
+                icon={Bell}
+                tone="rose"
                 title="Cảnh báo"
-                description="Cảnh báo khi giá nguyên liệu tăng mạnh hoặc biên lợi nhuận thấp."
-                action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
+                description="Cảnh báo khi giá nguyên liệu tăng mạnh hoặc biên lợi nhuận thấp hơn ngưỡng."
+                count={rows.length}
+                action={<Button size="sm" onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Thêm</Button>}
             />
             <TableWrap>
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-muted/40">
                         <TableRow>
                             <TableHead>Nhóm báo giá</TableHead>
                             <TableHead>Vùng</TableHead>
-                            <TableHead>Ngưỡng tăng giá</TableHead>
-                            <TableHead>Lợi nhuận tối thiểu</TableHead>
+                            <TableHead className="text-right">Ngưỡng tăng giá</TableHead>
+                            <TableHead className="text-right">LN tối thiểu</TableHead>
                             <TableHead className="w-24 text-right">Thao tác</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {rows.map((row) => (
-                            <TableRow key={row.id}>
-                                <TableCell>{labelOf(lookups.pricingGroups, row.pricing_group_id)}</TableCell>
-                                <TableCell>{row.region_id ? labelOf(lookups.regions, row.region_id) : "Tất cả vùng"}</TableCell>
-                                <TableCell>{formatNumber(row.price_change_threshold_percent)}%</TableCell>
-                                <TableCell>{row.min_margin_percent ? `${formatNumber(row.min_margin_percent)}%` : "-"}</TableCell>
+                        {query.isLoading && <SkeletonRows cols={5} rows={3} />}
+                        {!query.isLoading && rows.map((row) => (
+                            <TableRow key={row.id} className="hover:bg-muted/30">
+                                <TableCell className="font-medium">{labelOf(lookups.pricingGroups, row.pricing_group_id)}</TableCell>
+                                <TableCell className="text-muted-foreground">
+                                    {row.region_id ? labelOf(lookups.regions, row.region_id) : <Badge variant="outline">Tất cả</Badge>}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                    <Badge variant="secondary" className="font-mono">{formatNumber(row.price_change_threshold_percent)}%</Badge>
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                    {row.min_margin_percent ? <Badge variant="secondary" className="font-mono">{`${formatNumber(row.min_margin_percent)}%`}</Badge> : <span className="text-muted-foreground">-</span>}
+                                </TableCell>
                                 <TableCell><RowActions onEdit={() => setEditing(row)} onDelete={() => remove.mutate(row.id)} /></TableCell>
                             </TableRow>
                         ))}
-                        {!rows.length && <EmptyRow colSpan={5} text={query.isLoading ? "Đang tải..." : "Chưa có cấu hình cảnh báo"} />}
+                        {!query.isLoading && !rows.length && <EmptyRow colSpan={5} icon={Bell} text="Chưa có cấu hình cảnh báo" />}
                     </TableBody>
                 </Table>
             </TableWrap>
             <AlertConfigDialog open={open} onOpenChange={setOpen} lookups={lookups} />
             {editing && <AlertConfigDialog open={!!editing} onOpenChange={(value) => !value && setEditing(null)} rule={editing} lookups={lookups} />}
-        </section>
+        </Card>
     )
 }
 
 function SnapshotItemsTable({
     snapshot,
+    snapshots,
     items,
     isLoading,
-    isCrossRegionFilter,
+    isAllRegionView,
     lookups,
 }: {
     snapshot: PricingSnapshot
+    snapshots: PricingSnapshot[]
     items: SnapshotTableItem[]
     isLoading: boolean
-    isCrossRegionFilter?: boolean
+    isAllRegionView?: boolean
     lookups: ReturnType<typeof usePricingLookups>
 }) {
     const [sourceItem, setSourceItem] = useState<PricingSnapshotItem | null>(null)
@@ -717,18 +1063,34 @@ function SnapshotItemsTable({
 
     return (
         <>
-            <div className="border-b bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                {isCrossRegionFilter
-                    ? `${snapshot.pricing_month} · Đang xem gộp các vùng theo bộ lọc · ${priceMethodLabel(snapshot.price_method)}`
-                    : `${snapshot.code} · ${snapshot.pricing_month} · ${snapshotRegionLabel(snapshot)} · ${priceMethodLabel(snapshot.price_method)}`}
+            <div className="bg-muted/30 flex flex-wrap items-center gap-2 border-b px-6 py-3 text-sm">
+                <Badge variant="secondary" className="font-mono">
+                    {isAllRegionView ? `${snapshots.length} vùng` : snapshot.code}
+                </Badge>
+                <span className="text-muted-foreground">·</span>
+                <Badge variant="secondary" className="font-mono">{snapshot.pricing_month}</Badge>
+                <span className="text-muted-foreground">·</span>
+                <span className="font-medium">{isAllRegionView ? "Tất cả vùng" : snapshotRegionLabel(snapshot)}</span>
+                <span className="text-muted-foreground">·</span>
+                <Badge variant="outline">{priceMethodLabel(snapshot.price_method)}</Badge>
             </div>
-            <div className="space-y-5 p-4">
+            <div className="space-y-6 p-6">
+                {isLoading && !items.length && (
+                    <div className="space-y-3">
+                        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-44 w-full" />)}
+                    </div>
+                )}
                 {groupedItems.map((group) => (
                     <section key={group.key} className="space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
-                            <div>
-                                <h3 className="text-lg font-semibold">{group.label}</h3>
-                                <p className="text-sm text-muted-foreground">{group.items.length} dòng bảng giá</p>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-md">
+                                    <Layers className="h-4 w-4" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-semibold leading-tight">{group.label}</h3>
+                                    <p className="text-muted-foreground text-xs">{group.items.length} dòng bảng giá</p>
+                                </div>
                             </div>
                         </div>
                         <div className="space-y-3">
@@ -747,10 +1109,12 @@ function SnapshotItemsTable({
                         </div>
                     </section>
                 ))}
-                {!items.length && (
-                    <div className="rounded-md border bg-background p-10 text-center text-muted-foreground">
-                        {isLoading ? "Đang tải..." : "Bảng giá này chưa có dòng"}
-                    </div>
+                {!isLoading && !items.length && (
+                    <EmptyState
+                        icon={Inbox}
+                        title="Bảng giá này chưa có dòng"
+                        description="Có thể chưa có hợp đồng mua hoặc cấu hình giá cho kỳ này. Hãy kiểm tra cấu hình."
+                    />
                 )}
             </div>
             {sourceItem && <SourcesDialog item={sourceItem} open={!!sourceItem} onOpenChange={(value) => !value && setSourceItem(null)} />}
@@ -759,75 +1123,127 @@ function SnapshotItemsTable({
 }
 
 function PriceItemCard({ index, item, regionLabel, onInspect }: { index: number; item: SnapshotTableItem; regionLabel: string; onInspect: () => void }) {
+    const hasWarning = !!item.warning_text
     return (
-        <div className="overflow-hidden rounded-md border bg-background">
-            <div className="grid gap-0 border-b bg-muted/10 lg:grid-cols-[64px_220px_minmax(280px,1fr)_110px]">
-                <div className="flex items-center justify-center border-b p-4 text-sm font-semibold text-muted-foreground lg:border-b-0 lg:border-r">
-                    {index}
-                </div>
-                <div className="border-b p-4 lg:border-b-0 lg:border-r">
-                    <Badge variant={item.warning_text ? "destructive" : "outline"}>{item.warning_text ? "Cần kiểm tra" : "OK"}</Badge>
-                    <div className="mt-3 text-sm font-semibold">{regionLabel}</div>
-                    <div className="mt-1 text-sm text-muted-foreground">{item.source_summary || "Không có nguồn"}</div>
+        <div
+            className={cn(
+                "group bg-card overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md",
+                hasWarning && "border-destructive/30"
+            )}
+        >
+            {/* Card header */}
+            <div className="bg-muted/30 grid gap-0 border-b lg:grid-cols-[56px_minmax(280px,1.4fr)_minmax(180px,1fr)_auto]">
+                <div className="bg-muted/50 text-muted-foreground flex items-center justify-center border-b font-mono text-sm font-semibold tabular-nums lg:border-b-0 lg:border-r">
+                    #{index}
                 </div>
                 <div className="min-w-0 border-b p-4 lg:border-b-0 lg:border-r">
-                    <div className="truncate text-base font-semibold text-primary">{item.product_code}</div>
-                    <div className="mt-1 text-lg font-bold leading-snug">{item.product_name}</div>
-                    <div className="mt-2 text-sm text-muted-foreground">ĐVT: {item.sale_unit_name || item.sale_unit_code || item.base_unit_code || "-"}</div>
+                    <div className="flex items-center gap-2">
+                        <span className="bg-primary/10 text-primary rounded-md px-2 py-0.5 font-mono text-xs font-bold">
+                            {item.product_code}
+                        </span>
+                        {hasWarning ? (
+                            <Badge variant="destructive" className="gap-1 text-xs">
+                                <AlertTriangle className="h-3 w-3" />
+                                Cần kiểm tra
+                            </Badge>
+                        ) : (
+                            <Badge
+                                variant="outline"
+                                className="gap-1 border-emerald-300 bg-emerald-50 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400"
+                            >
+                                <CheckCircle2 className="h-3 w-3" />
+                                Hợp lệ
+                            </Badge>
+                        )}
+                    </div>
+                    <div className="mt-2 text-base font-bold leading-snug">{item.product_name}</div>
+                    <div className="text-muted-foreground mt-1 text-xs">
+                        ĐVT: <span className="font-medium">{item.sale_unit_name || item.sale_unit_code || item.base_unit_code || "-"}</span>
+                    </div>
+                </div>
+                <div className="border-b p-4 lg:border-b-0 lg:border-r">
+                    <div className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">Vùng áp dụng</div>
+                    <div className="mt-1 text-sm font-semibold">{regionLabel}</div>
+                    <div className="text-muted-foreground mt-2 text-xs">
+                        {item.source_summary || <span className="italic">Không có nguồn</span>}
+                    </div>
                 </div>
                 <div className="flex items-center justify-end p-4">
-                    <Button variant="ghost" size="sm" onClick={onInspect}>
-                        <Eye className="mr-2 h-4 w-4" />
-                        Kiểm
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="outline" size="sm" onClick={onInspect}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Kiểm tra
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Xem nguồn giá mua & cấu hình áp dụng</TooltipContent>
+                    </Tooltip>
                 </div>
             </div>
+
+            {/* Price blocks */}
             <div className="grid divide-y lg:grid-cols-4 lg:divide-x lg:divide-y-0">
-                <PriceBlock title="Cấu thành giá">
+                <PriceBlock title="Cấu thành giá" icon={Database}>
                     <PriceLine label="Giá mua" value={item.purchase_price_vnd} />
                     <PriceLine label="Bao bì" value={item.packaging_cost_vnd} />
                     <PriceLine label="Phí bán hàng" value={item.sales_expense_vnd} />
+                    <Separator className="my-1" />
                     <PriceLine label="Giá thành" value={item.cogs_vnd ?? item.base_price_vnd} strong />
                 </PriceBlock>
-                <PriceBlock title="Giá nền">
-                    <PriceLine label="Lợi nhuận" value={item.margin_amount_vnd} />
+                <PriceBlock title="Giá nền" icon={TrendingUp}>
+                    <PriceLine label="Lợi nhuận" value={item.margin_amount_vnd} tone="success" />
                     <PriceLine label="Trước VAT" value={item.base_sale_price_vnd ?? item.base_price_vnd} strong />
+                    <Separator className="my-1" />
                     <PriceLine label="Khách lẻ tại kho" value={item.warehouse_retail_vat_vnd ?? item.warehouse_price_vnd} tone="primary" />
                 </PriceBlock>
-                <PriceBlock title="Khách lẻ công nợ">
+                <PriceBlock title="Khách lẻ công nợ" icon={Coins}>
                     <PriceLine label="7-10 ngày" value={item.debt_7_10_retail_vat_vnd} />
                     <PriceLine label="30 ngày" value={item.debt_30_retail_vat_vnd} />
                 </PriceBlock>
-                <PriceBlock title="Đại lý & nông dân">
+                <PriceBlock title="Đại lý & nông dân" icon={Warehouse}>
                     <PriceLine label="Đại lý tại kho" value={item.warehouse_dealer_vat_vnd ?? item.cash_price_vnd} tone="primary" />
                     <PriceLine label="Đại lý 7-10 ngày" value={item.debt_7_10_dealer_vat_vnd ?? item.term_8_10_price_vnd} />
                     <PriceLine label="Đại lý 30 ngày" value={item.debt_30_dealer_vat_vnd ?? item.term_30_price_vnd} />
                     <PriceLine label="Giá nông dân" value={item.farmer_price_vnd} tone="warning" />
                 </PriceBlock>
             </div>
-            {item.warning_text && (
-                <div className="border-t bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive">
-                    {item.warning_text}
+
+            {hasWarning && (
+                <div className="border-destructive/20 bg-destructive/5 flex items-start gap-2 border-t px-4 py-3">
+                    <AlertTriangle className="text-destructive mt-0.5 h-4 w-4 shrink-0" />
+                    <div className="text-destructive text-sm font-medium">{item.warning_text}</div>
                 </div>
             )}
         </div>
     )
 }
 
-function PriceBlock({ title, children }: { title: string; children: React.ReactNode }) {
+function PriceBlock({ title, icon: Icon, children }: { title: string; icon?: React.ComponentType<{ className?: string }>; children: React.ReactNode }) {
     return (
         <div className="p-4">
-            <div className="mb-3 text-sm font-bold uppercase text-muted-foreground">{title}</div>
+            <div className="text-muted-foreground mb-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
+                {Icon && <Icon className="h-3 w-3" />}
+                {title}
+            </div>
             <div className="space-y-2">{children}</div>
         </div>
     )
 }
 
-function PriceLine({ label, value, strong, tone }: { label: string; value?: number; strong?: boolean; tone?: "primary" | "warning" }) {
+function PriceLine({ label, value, strong, tone }: { label: string; value?: number; strong?: boolean; tone?: "primary" | "warning" | "success" }) {
     return (
-        <div className="flex items-baseline justify-between gap-4 text-sm">
-            <span className="text-muted-foreground">{label}</span>
-            <span className={cn("text-right tabular-nums", strong && "font-bold", tone === "primary" && "font-bold text-primary", tone === "warning" && "font-bold text-amber-700")}>
+        <div className="flex items-baseline justify-between gap-3 text-sm">
+            <span className="text-muted-foreground text-xs">{label}</span>
+            <span
+                className={cn(
+                    "text-right tabular-nums",
+                    strong && "text-foreground font-bold",
+                    !strong && !tone && "text-foreground",
+                    tone === "primary" && "text-primary font-bold",
+                    tone === "warning" && "font-bold text-amber-700 dark:text-amber-500",
+                    tone === "success" && "font-semibold text-emerald-700 dark:text-emerald-400"
+                )}
+            >
                 {formatCurrency(value)}
             </span>
         </div>
@@ -1063,6 +1479,14 @@ function PricingGroupDialog({ open, onOpenChange, rule, lookups }: { open: boole
 
     return (
         <RuleDialog title={rule ? "Sửa mã nhóm báo giá" : "Thêm mã nhóm báo giá"} description="Mã nhóm báo giá là nhóm chi tiết từ file BA, dùng để gom SKU cùng logic giá." open={open} onOpenChange={onOpenChange} onSubmit={submit} loading={mutation.isPending}>
+            <Field label="Nhóm sản phẩm">
+                <OptionSelect
+                    value={form.parent_product_group_id}
+                    options={lookups.productGroups}
+                    placeholder="Chọn nhóm sản phẩm cha"
+                    onChange={(value) => setForm((prev) => ({ ...prev, parent_product_group_id: value }))}
+                />
+            </Field>
             <Field label="Mã">
                 <Input value={form.code ?? ""} onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))} placeholder="VD: BLL-25" />
             </Field>
@@ -1224,10 +1648,20 @@ function SourcesDialog({ item, open, onOpenChange }: { item: PricingSnapshotItem
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
-                    <DialogTitle>Nguồn giá mua & cấu hình áp dụng</DialogTitle>
-                    <DialogDescription>{item.product_code} - {item.product_name}</DialogDescription>
+                    <div className="flex items-start gap-3">
+                        <div className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+                            <Eye className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <DialogTitle className="text-lg">Nguồn giá mua & cấu hình áp dụng</DialogTitle>
+                            <DialogDescription className="mt-1">
+                                <span className="bg-primary/10 text-primary mr-2 rounded-md px-1.5 py-0.5 font-mono text-xs font-bold">{item.product_code}</span>
+                                {item.product_name}
+                            </DialogDescription>
+                        </div>
+                    </div>
                 </DialogHeader>
-                <div className="grid gap-3 rounded-md border bg-muted/20 p-4 text-sm md:grid-cols-2">
+                <div className="bg-muted/30 grid gap-4 rounded-lg border p-4 text-sm md:grid-cols-2">
                     <AuditLine label="Giá mua" value={formatCurrency(item.purchase_price_vnd)} />
                     <AuditLine label="Bao bì" value={formatCurrency(item.packaging_cost_vnd)} />
                     <AuditLine label="Phí bán hàng" value={formatCurrency(item.sales_expense_vnd)} />
@@ -1237,9 +1671,9 @@ function SourcesDialog({ item, open, onOpenChange }: { item: PricingSnapshotItem
                     <AuditLine label="Vận chuyển đại lý" value={formatCurrency(item.transport_cost_vnd)} />
                     <AuditLine label="Trace config" value={item.config_trace_text || "-"} wide />
                 </div>
-                <TableWrap>
+                <div className="overflow-hidden rounded-lg border">
                     <Table>
-                        <TableHeader>
+                        <TableHeader className="bg-muted/40">
                             <TableRow>
                                 <TableHead>Hợp đồng</TableHead>
                                 <TableHead>Ngày</TableHead>
@@ -1248,18 +1682,19 @@ function SourcesDialog({ item, open, onOpenChange }: { item: PricingSnapshotItem
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {rows.map((row: PricingSnapshotItemSource) => (
-                                <TableRow key={row.id}>
-                                    <TableCell>{row.contract_code || `#${row.contract_id}`}</TableCell>
-                                    <TableCell>{row.source_date || "-"}</TableCell>
-                                    <TableCell className="text-right">{formatNumber(row.source_quantity)}</TableCell>
-                                    <MoneyCell value={row.source_price_vnd} />
+                            {query.isLoading && <SkeletonRows cols={4} rows={2} />}
+                            {!query.isLoading && rows.map((row: PricingSnapshotItemSource) => (
+                                <TableRow key={row.id} className="hover:bg-muted/30">
+                                    <TableCell className="font-mono font-semibold">{row.contract_code || `#${row.contract_id}`}</TableCell>
+                                    <TableCell className="text-muted-foreground tabular-nums">{row.source_date || "-"}</TableCell>
+                                    <TableCell className="text-right tabular-nums">{formatNumber(row.source_quantity)}</TableCell>
+                                    <MoneyCell value={row.source_price_vnd} strong />
                                 </TableRow>
                             ))}
-                            {!rows.length && <EmptyRow colSpan={4} text={query.isLoading ? "Đang tải..." : "Không có nguồn chi tiết"} />}
+                            {!query.isLoading && !rows.length && <EmptyRow colSpan={4} icon={Inbox} text="Không có nguồn chi tiết" />}
                         </TableBody>
                     </Table>
-                </TableWrap>
+                </div>
             </DialogContent>
         </Dialog>
     )
@@ -1268,8 +1703,8 @@ function SourcesDialog({ item, open, onOpenChange }: { item: PricingSnapshotItem
 function AuditLine({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
     return (
         <div className={cn("min-w-0", wide && "md:col-span-2")}>
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
-            <div className="mt-1 break-words font-medium">{value}</div>
+            <div className="text-muted-foreground text-[10px] font-bold uppercase tracking-wider">{label}</div>
+            <div className="mt-1 break-words text-sm font-semibold tabular-nums">{value}</div>
         </div>
     )
 }
@@ -1295,15 +1730,25 @@ function RuleDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
-                    <DialogDescription>{description}</DialogDescription>
+                    <div className="flex items-start gap-3">
+                        <div className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+                            <Settings2 className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                            <DialogTitle className="text-lg">{title}</DialogTitle>
+                            <DialogDescription className="mt-1">{description}</DialogDescription>
+                        </div>
+                    </div>
                 </DialogHeader>
                 <div className="grid gap-4">{children}</div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Đóng</Button>
+                <DialogFooter className="gap-2 sm:gap-2">
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                        <X className="mr-2 h-4 w-4" />
+                        Đóng
+                    </Button>
                     <Button onClick={onSubmit} disabled={loading}>
                         {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Lưu
+                        Lưu cấu hình
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -1320,6 +1765,10 @@ function usePricingLookups() {
         queryKey: ["lookup-regions"],
         queryFn: () => listRegions({ page: 1, size: 200 }),
     })
+    const productGroupsQuery = useQuery({
+        queryKey: ["lookup-product-groups"],
+        queryFn: () => listProductGroups({ page: 1, size: 200, active: true }),
+    })
     const productsQuery = useQuery({
         queryKey: ["lookup-products"],
         queryFn: () => listProducts({ page: 1, size: 200, status: "1" }),
@@ -1327,9 +1776,10 @@ function usePricingLookups() {
 
     return {
         pricingGroups: (pricingGroupsQuery.data?.items ?? []).map((item: any) => ({ id: item.id, label: item.name, sub: item.code })),
+        productGroups: (productGroupsQuery.data?.items ?? []).map((item: any) => ({ id: item.id, label: item.name, sub: item.code })),
         regions: (regionsQuery.data?.items ?? []).map((item: any) => ({ id: item.id, label: item.name, sub: item.code })),
         products: (productsQuery.data?.items ?? []).map((item: any) => ({ id: item.id, label: item.name, sub: item.code })),
-        isLoading: pricingGroupsQuery.isLoading || regionsQuery.isLoading || productsQuery.isLoading,
+        isLoading: pricingGroupsQuery.isLoading || productGroupsQuery.isLoading || regionsQuery.isLoading || productsQuery.isLoading,
     }
 }
 
@@ -1439,12 +1889,13 @@ function formatOptionLabel(option: Option) {
     return option.sub ? `${option.sub} - ${option.label}` : option.label
 }
 
-function snapshotLabel(snapshot: PricingSnapshot, regions: Option[]) {
-    return `${snapshot.code} - ${snapshot.pricing_month} - ${snapshotRegionLabel(snapshot, regions)}`
-}
-
 function snapshotShortLabel(snapshot: PricingSnapshot, regions: Option[]) {
     return `${snapshot.pricing_month} · ${snapshotRegionLabel(snapshot, regions)} · ${priceMethodLabel(snapshot.price_method)}`
+}
+
+function allRegionSnapshotLabel(snapshots: PricingSnapshot[], fallback: PricingSnapshot) {
+    const count = snapshots.length || 1
+    return `${fallback.pricing_month} · Tất cả vùng (${count}) · ${priceMethodLabel(fallback.price_method)}`
 }
 
 function snapshotRegionLabel(snapshot: PricingSnapshot, regions?: Option[]) {
@@ -1455,10 +1906,23 @@ function snapshotRegionLabel(snapshot: PricingSnapshot, regions?: Option[]) {
     return "Tất cả vùng"
 }
 
-function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+function Field({
+    label,
+    children,
+    className,
+    required,
+}: {
+    label: string
+    children: React.ReactNode
+    className?: string
+    required?: boolean
+}) {
     return (
-        <div className={cn("grid gap-2", className)}>
-            <Label className="text-base font-semibold">{label}</Label>
+        <div className={cn("grid gap-1.5", className)}>
+            <Label className="text-xs font-semibold uppercase tracking-wider">
+                {label}
+                {required && <span className="text-destructive ml-1">*</span>}
+            </Label>
             {children}
         </div>
     )
@@ -1564,12 +2028,49 @@ function MonthPicker({
     )
 }
 
-function PanelHeader({ title, description, action }: { title: string; description: string; action: React.ReactNode }) {
+const PANEL_TONES: Record<string, string> = {
+    blue: "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400",
+    amber: "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400",
+    emerald: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400",
+    violet: "bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400",
+    pink: "bg-pink-50 text-pink-600 dark:bg-pink-950/40 dark:text-pink-400",
+    rose: "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
+}
+
+function PanelHeader({
+    icon: Icon,
+    tone = "blue",
+    title,
+    description,
+    count,
+    action,
+}: {
+    icon?: React.ComponentType<{ className?: string }>
+    tone?: keyof typeof PANEL_TONES
+    title: string
+    description: string
+    count?: number
+    action: React.ReactNode
+}) {
     return (
-        <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <h2 className="text-xl font-semibold">{title}</h2>
-                <p className="text-sm text-muted-foreground">{description}</p>
+        <div className="flex flex-col gap-3 border-b p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+                {Icon && (
+                    <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", PANEL_TONES[tone])}>
+                        <Icon className="h-5 w-5" />
+                    </div>
+                )}
+                <div>
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-base font-semibold">{title}</h2>
+                        {typeof count === "number" && (
+                            <Badge variant="secondary" className="font-mono text-xs">
+                                {count}
+                            </Badge>
+                        )}
+                    </div>
+                    <p className="text-muted-foreground mt-0.5 text-xs">{description}</p>
+                </div>
             </div>
             {action}
         </div>
@@ -1580,37 +2081,135 @@ function TableWrap({ children }: { children: React.ReactNode }) {
     return <div className="overflow-x-auto">{children}</div>
 }
 
-function Metric({ label, value, tone = "normal" }: { label: string; value: string; tone?: "normal" | "warning" }) {
+const METRIC_TONES = {
+    default: { wrap: "border-border/60", iconBg: "bg-muted text-muted-foreground", value: "" },
+    primary: { wrap: "border-primary/20 bg-primary/[0.02]", iconBg: "bg-primary/10 text-primary", value: "text-primary" },
+    info: { wrap: "border-blue-200/50 dark:border-blue-900/40", iconBg: "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400", value: "" },
+    success: { wrap: "border-emerald-200/50 dark:border-emerald-900/40", iconBg: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400", value: "" },
+    warning: { wrap: "border-amber-300/60 bg-amber-50/40 dark:border-amber-900/60 dark:bg-amber-950/20", iconBg: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400", value: "text-amber-700 dark:text-amber-400" },
+} as const
+
+function Metric({
+    icon: Icon,
+    label,
+    value,
+    tone = "default",
+}: {
+    icon?: React.ComponentType<{ className?: string }>
+    label: string
+    value: string
+    tone?: keyof typeof METRIC_TONES
+}) {
+    const styles = METRIC_TONES[tone]
     return (
-        <div className="rounded-md border bg-background p-4">
-            <div className="text-sm font-semibold text-muted-foreground">{label}</div>
-            <div className={cn("mt-2 text-2xl font-bold", tone === "warning" && "text-amber-700")}>{value}</div>
-        </div>
+        <Card className={cn("gap-0 py-4 shadow-sm transition-shadow hover:shadow-md", styles.wrap)}>
+            <CardContent className="flex items-center gap-3 px-4">
+                {Icon && (
+                    <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-lg", styles.iconBg)}>
+                        <Icon className="h-5 w-5" />
+                    </div>
+                )}
+                <div className="min-w-0 flex-1">
+                    <div className="text-muted-foreground truncate text-[11px] font-semibold uppercase tracking-wider">
+                        {label}
+                    </div>
+                    <div className={cn("mt-1 truncate text-xl font-bold tabular-nums", styles.value)}>{value}</div>
+                </div>
+            </CardContent>
+        </Card>
     )
 }
 
 function MoneyCell({ value, strong, className }: { value?: number; strong?: boolean; className?: string }) {
-    return <TableCell className={cn("text-right tabular-nums", strong && "font-semibold", className)}>{formatCurrency(value)}</TableCell>
+    return (
+        <TableCell className={cn("text-right tabular-nums", strong && "text-foreground font-semibold", className)}>
+            {formatCurrency(value)}
+        </TableCell>
+    )
 }
 
 function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
     return (
-        <div className="flex justify-end gap-1">
-            <Button variant="ghost" size="icon" onClick={onEdit}>
-                <Edit className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-destructive" onClick={onDelete}>
-                <Trash2 className="h-4 w-4" />
-            </Button>
+        <div className="flex justify-end gap-1 opacity-70 transition-opacity group-hover:opacity-100">
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
+                        <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>Sửa</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hover:bg-destructive/10 hover:text-destructive text-destructive/80 h-8 w-8"
+                        onClick={onDelete}
+                    >
+                        <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>Xoá</TooltipContent>
+            </Tooltip>
         </div>
     )
 }
 
-function EmptyRow({ colSpan, text }: { colSpan: number; text: string }) {
+function EmptyRow({ colSpan, text, icon: Icon }: { colSpan: number; text: string; icon?: React.ComponentType<{ className?: string }> }) {
     return (
-        <TableRow>
-            <TableCell colSpan={colSpan} className="h-28 text-center text-muted-foreground">{text}</TableCell>
+        <TableRow className="hover:bg-transparent">
+            <TableCell colSpan={colSpan} className="h-32">
+                <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center text-sm">
+                    {Icon ? (
+                        <div className="bg-muted text-muted-foreground/60 flex h-10 w-10 items-center justify-center rounded-full">
+                            <Icon className="h-5 w-5" />
+                        </div>
+                    ) : (
+                        <PackageOpen className="text-muted-foreground/40 h-8 w-8" />
+                    )}
+                    {text}
+                </div>
+            </TableCell>
         </TableRow>
+    )
+}
+
+function EmptyState({
+    icon: Icon,
+    title,
+    description,
+}: {
+    icon: React.ComponentType<{ className?: string }>
+    title: string
+    description?: string
+}) {
+    return (
+        <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+            <div className="bg-muted text-muted-foreground flex h-14 w-14 items-center justify-center rounded-full">
+                <Icon className="h-7 w-7" />
+            </div>
+            <div className="space-y-1">
+                <h3 className="text-base font-semibold">{title}</h3>
+                {description && <p className="text-muted-foreground mx-auto max-w-sm text-sm">{description}</p>}
+            </div>
+        </div>
+    )
+}
+
+function SkeletonRows({ cols, rows = 3 }: { cols: number; rows?: number }) {
+    return (
+        <>
+            {Array.from({ length: rows }).map((_, rowIdx) => (
+                <TableRow key={`skeleton-${rowIdx}`} className="hover:bg-transparent">
+                    {Array.from({ length: cols }).map((_, colIdx) => (
+                        <TableCell key={colIdx}>
+                            <Skeleton className="h-4 w-full" />
+                        </TableCell>
+                    ))}
+                </TableRow>
+            ))}
+        </>
     )
 }
 

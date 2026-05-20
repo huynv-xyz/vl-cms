@@ -53,5 +53,6 @@ export function getRolePermissions(roleId: number) {
 export function updateRolePermissions(roleId: number, permissionIds: number[]) {
     return apiPut<RolePermissions>(`/auth/roles/${roleId}/permissions`, {
         permission_ids: permissionIds,
+        confirm_clear_all: permissionIds.length === 0,
     })
 }

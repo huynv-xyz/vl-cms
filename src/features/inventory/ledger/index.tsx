@@ -6,6 +6,9 @@ import { Route } from "@/routes/_authenticated/inventory/ledgers"
 import { listInventoryLedgerReport } from "@/api/inventory/ledger"
 import { InventoryLedgerTable } from "./components/ledger-table"
 import type React from "react"
+import { cn } from "@/lib/utils"
+import { ArrowDownLeft, ArrowUpRight, Boxes, FileText, type LucideIcon } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
 
 export default function InventoryLedgerPage() {
     const search = Route.useSearch()
@@ -93,37 +96,68 @@ function InventoryLedgerSummary({ rows }: { rows: any[] }) {
 
     return (
         <div className="grid gap-3 md:grid-cols-4">
-            <Metric label="Số dòng đang xem" value={formatNumber(rows.length)} />
-            <Metric label="Tổng nhập" value={formatNumber(quantityIn)} tone="ok" />
-            <Metric label="Tổng xuất" value={formatNumber(quantityOut)} tone="bad" />
-            <Metric label="Tồn dòng cuối" value={formatNumber(latestBalance)} />
+            <Metric icon={FileText} label="Số dòng đang xem" value={formatNumber(rows.length)} tone="info" />
+            <Metric icon={ArrowDownLeft} label="Tổng nhập" value={formatNumber(quantityIn)} tone="ok" />
+            <Metric icon={ArrowUpRight} label="Tổng xuất" value={formatNumber(quantityOut)} tone="bad" />
+            <Metric icon={Boxes} label="Tồn dòng cuối" value={formatNumber(latestBalance)} tone="muted" />
         </div>
     )
 }
 
 function Metric({
+    icon: Icon,
     label,
     value,
-    tone,
+    tone = "muted",
 }: {
+    icon: LucideIcon
     label: string
     value: React.ReactNode
-    tone?: "ok" | "bad"
+    tone?: keyof typeof SUMMARY_TONES
 }) {
-    const valueClass =
-        tone === "ok"
-            ? "text-emerald-600"
-            : tone === "bad"
-                ? "text-rose-600"
-                : ""
+    const styles = SUMMARY_TONES[tone]
 
     return (
-        <div className="rounded-md border bg-muted/20 px-3 py-2">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className={`mt-1 font-semibold ${valueClass}`}>{value}</div>
-        </div>
+        <Card className={cn("gap-0 py-4 shadow-sm transition-shadow hover:shadow-md", styles.ring)}>
+            <CardContent className="flex items-center gap-3 px-4">
+                <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-lg", styles.iconBg)}>
+                    <Icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <div className="text-muted-foreground truncate text-[11px] font-semibold uppercase tracking-wider">
+                        {label}
+                    </div>
+                    <div className={cn("mt-1 truncate text-xl font-bold tabular-nums", styles.value)}>
+                        {value}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
     )
 }
+
+const SUMMARY_TONES = {
+    info: {
+        ring: "border-blue-200/60 dark:border-blue-900/40",
+        iconBg: "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400",
+        value: "",
+    },
+    ok: {
+        ring: "border-emerald-200/60 dark:border-emerald-900/40",
+        iconBg: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400",
+        value: "text-emerald-600 dark:text-emerald-400",
+    },
+    bad: {
+        ring: "border-rose-200/70 bg-rose-50/30 dark:border-rose-900/50 dark:bg-rose-950/10",
+        iconBg: "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400",
+        value: "text-rose-600 dark:text-rose-400",
+    },
+    muted: {
+        ring: "border-border/60",
+        iconBg: "bg-muted text-muted-foreground",
+        value: "text-muted-foreground",
+    },
+} as const
 
 function formatNumber(value: number) {
     return new Intl.NumberFormat("vi-VN").format(value || 0)

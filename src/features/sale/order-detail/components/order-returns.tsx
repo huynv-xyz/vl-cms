@@ -1,17 +1,17 @@
-import { useState, Fragment } from "react"
-import { Plus, Trash2, Pencil } from "lucide-react"
+import { useState } from "react"
+import { Pencil, Plus, RotateCcw, Trash2 } from "lucide-react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
     Select,
-    SelectTrigger,
-    SelectValue,
     SelectContent,
     SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select"
-
 import {
     Table,
     TableBody,
@@ -32,8 +32,13 @@ const statusOptions = [
     { value: "CANCELLED", label: "Hủy" },
 ]
 
-export function OrderReturns({ order, returns }: any) {
+const statusVariant: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+    NEW: "secondary",
+    DONE: "outline",
+    CANCELLED: "destructive",
+}
 
+export function OrderReturns({ order, returns }: any) {
     const queryClient = useQueryClient()
 
     const [createOpen, setCreateOpen] = useState(false)
@@ -53,190 +58,147 @@ export function OrderReturns({ order, returns }: any) {
         onError: (e: any) => toast.error(e.message || "Lỗi"),
     })
 
-    return (
-        <div className="">
+    const { mutate: changeStatus, isPending: isUpdating } = useMutation({
+        mutationFn: ({ id, status }: any) => updateReturnStatus(id, status),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: ["order-detail", order.id],
+            })
+            toast.success("Cập nhật trạng thái thành công")
+        },
+        onError: () => toast.error("Cập nhật thất bại"),
+    })
 
+    return (
+        <div className="overflow-hidden rounded-xl border bg-background shadow-sm">
             {/* HEADER */}
-            <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-semibold">Trả hàng</h2>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-5 py-3.5">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
+                        <RotateCcw className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-semibold">Phiếu trả hàng</h2>
+                        <p className="text-xs text-muted-foreground">
+                            Theo dõi các phiếu trả hàng phát sinh từ đơn này
+                        </p>
+                    </div>
+                </div>
 
                 {isEditable && (
                     <Button size="sm" onClick={() => setCreateOpen(true)}>
-                        <Plus className="mr-1 h-4 w-4" />
-                        Tạo mới
+                        <Plus className="mr-1.5 h-4 w-4" />
+                        Tạo phiếu trả
                     </Button>
                 )}
             </div>
 
             {!returns?.length ? (
-                <div className="text-sm text-muted-foreground">
-                    Chưa có phiếu trả
-                </div>
+                <EmptyState
+                    title="Chưa có phiếu trả hàng"
+                    desc="Phiếu trả sẽ xuất hiện khi khách hoàn lại sản phẩm."
+                />
             ) : (
-                <div className="border rounded-lg overflow-hidden">
+                <div className="space-y-3 p-4">
+                    {returns.map((r: any) => {
+                        const isRowLocked = !isEditable || r.status === "DONE"
+                        const totalQty = (r.items || []).reduce(
+                            (s: number, i: any) => s + Number(i.quantity || 0),
+                            0
+                        )
+                        const currentStatus = statusOptions.find((s) => s.value === r.status)
 
-                    <Table>
+                        return (
+                            <div
+                                key={r.id}
+                                className="overflow-hidden rounded-lg border bg-card transition-shadow hover:shadow-sm"
+                            >
+                                <div className="flex flex-wrap items-start justify-between gap-3 border-b bg-muted/20 px-4 py-3">
+                                    <div className="min-w-0">
+                                        <button
+                                            type="button"
+                                            className="text-left font-semibold text-primary hover:underline"
+                                            onClick={() => setSelectedId(r.id)}
+                                        >
+                                            {r.return_no}
+                                        </button>
+                                        {r.reason && (
+                                            <div className="mt-1 max-w-[420px] truncate text-xs text-muted-foreground">
+                                                <span className="font-medium">Lý do:</span> {r.reason}
+                                            </div>
+                                        )}
+                                    </div>
 
-                        {/* HEADER */}
-                        <TableHeader className="bg-muted text-xs uppercase">
-                            <TableRow>
-                                <TableHead className="w-[70px] text-center">#</TableHead>
-                                <TableHead>Mã trả</TableHead>
-                                <TableHead>Lý do</TableHead>
-                                <TableHead>Trạng thái</TableHead>
-                                <TableHead className="w-[140px]" />
-                            </TableRow>
-                        </TableHeader>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant="outline" className="font-normal">
+                                            {formatNumber(r.items?.length || 0)} dòng
+                                        </Badge>
+                                        <Badge variant="secondary" className="font-normal">
+                                            SL: {formatNumber(totalQty)}
+                                        </Badge>
 
-                        <TableBody>
-                            {returns.map((r: any, idx: number) => {
+                                        <Select
+                                            value={r.status}
+                                            onValueChange={(v) =>
+                                                changeStatus({ id: r.id, status: v })
+                                            }
+                                            disabled={isUpdating || isRowLocked}
+                                        >
+                                            <SelectTrigger className="h-8 w-[150px]">
+                                                <SelectValue>
+                                                    <Badge
+                                                        variant={statusVariant[r.status] || "outline"}
+                                                    >
+                                                        {currentStatus?.label || r.status}
+                                                    </Badge>
+                                                </SelectValue>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {statusOptions.map((s) => (
+                                                    <SelectItem
+                                                        key={s.value}
+                                                        value={s.value}
+                                                        disabled={isRowLocked}
+                                                    >
+                                                        {s.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
 
-                                const isRowLocked =
-                                    !isEditable || r.status === "DONE"
-
-                                return (
-                                    <Fragment key={r.id}>
-
-                                        {/* HEADER ROW */}
-                                        <TableRow className="bg-muted/20">
-
-                                            <TableCell className="text-center font-bold text-primary">
-                                                <span className="text-2xl font-bold text-primary">
-                                                    #{idx + 1}
-                                                </span>
-                                            </TableCell>
-
-                                            <TableCell className="font-medium">
-                                                <span
-                                                    className="text-primary cursor-pointer hover:underline"
-                                                    onClick={() => setSelectedId(r.id)}
+                                        {!isRowLocked && (
+                                            <>
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8"
+                                                    onClick={() => setEditRow(r)}
                                                 >
-                                                    {r.return_no}
-                                                </span>
-                                            </TableCell>
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
 
-                                            <TableCell className="text-muted-foreground">
-                                                {r.reason || "-"}
-                                            </TableCell>
-
-                                            {/* STATUS */}
-                                            <TableCell>
-                                                <Select
-                                                    value={r.status}
-                                                    onValueChange={(v) =>
-                                                        updateReturnStatus(r.id, v)
-                                                    }
-                                                    disabled={isRowLocked}
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
+                                                    disabled={isPending}
+                                                    onClick={() => {
+                                                        if (confirm("Xoá phiếu trả này?")) {
+                                                            removeReturn(r.id)
+                                                        }
+                                                    }}
                                                 >
-                                                    <SelectTrigger className="w-[140px]">
-                                                        <SelectValue>
-                                                            {
-                                                                statusOptions.find(
-                                                                    s => s.value === r.status
-                                                                )?.label
-                                                            }
-                                                        </SelectValue>
-                                                    </SelectTrigger>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
 
-                                                    <SelectContent>
-                                                        {statusOptions.map(s => (
-                                                            <SelectItem
-                                                                key={s.value}
-                                                                value={s.value}
-                                                                disabled={isRowLocked}
-                                                            >
-                                                                {s.label}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </TableCell>
-
-                                            {/* ACTION */}
-                                            <TableCell className="text-right space-x-1">
-
-                                                {!isRowLocked && (
-                                                    <>
-                                                        <Button
-                                                            size="icon"
-                                                            variant="ghost"
-                                                            onClick={() => setEditRow(r)}
-                                                        >
-                                                            <Pencil className="h-4 w-4" />
-                                                        </Button>
-
-                                                        <Button
-                                                            size="icon"
-                                                            variant="ghost"
-                                                            className="text-red-500"
-                                                            disabled={isPending}
-                                                            onClick={() => {
-                                                                if (confirm("Xoá phiếu trả này?")) {
-                                                                    removeReturn(r.id)
-                                                                }
-                                                            }}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </>
-                                                )}
-
-                                            </TableCell>
-
-                                        </TableRow>
-
-                                        {/* ITEMS */}
-                                        <TableRow>
-                                            <TableCell />
-                                            <TableCell colSpan={4} className="p-0">
-
-                                                <div className="p-2">
-                                                    <Table>
-
-                                                        <TableHeader className="bg-muted/30">
-                                                            <TableRow>
-                                                                <TableHead>Mã SP</TableHead>
-                                                                <TableHead>Tên SP</TableHead>
-                                                                <TableHead className="text-right">SL</TableHead>
-                                                                <TableHead className="text-right">ĐVT</TableHead>
-                                                            </TableRow>
-                                                        </TableHeader>
-
-                                                        <TableBody>
-                                                            {r.items?.map((i: any) => (
-                                                                <TableRow key={i.product_id}>
-                                                                    <TableCell className="text-xs text-muted-foreground">
-                                                                        {i.product?.code}
-                                                                    </TableCell>
-
-                                                                    <TableCell>
-                                                                        {i.product?.name}
-                                                                    </TableCell>
-
-                                                                    <TableCell className="text-right font-medium">
-                                                                        {i.quantity}
-                                                                    </TableCell>
-
-                                                                    <TableCell className="text-right text-muted-foreground">
-                                                                        {i.product?.unit}
-                                                                    </TableCell>
-                                                                </TableRow>
-                                                            ))}
-                                                        </TableBody>
-
-                                                    </Table>
-                                                </div>
-
-                                            </TableCell>
-                                        </TableRow>
-
-                                    </Fragment>
-                                )
-                            })}
-                        </TableBody>
-
-                    </Table>
-
+                                <ItemsTable items={r.items ?? []} />
+                            </div>
+                        )
+                    })}
                 </div>
             )}
 
@@ -268,4 +230,62 @@ export function OrderReturns({ order, returns }: any) {
             />
         </div>
     )
+}
+
+function ItemsTable({ items }: { items: any[] }) {
+    if (!items.length) {
+        return (
+            <div className="px-4 py-5 text-center text-xs text-muted-foreground">
+                Phiếu chưa có hàng
+            </div>
+        )
+    }
+
+    return (
+        <div className="overflow-x-auto">
+            <Table>
+                <TableHeader className="bg-muted/30">
+                    <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-xs font-semibold uppercase">Sản phẩm</TableHead>
+                        <TableHead className="w-[140px] text-right text-xs font-semibold uppercase">Số lượng</TableHead>
+                        <TableHead className="w-[120px] text-right text-xs font-semibold uppercase">Đơn vị</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {items.map((i: any) => (
+                        <TableRow key={`${i.product_id}-${i.id ?? ""}`}>
+                            <TableCell>
+                                <div className="font-medium">{i.product?.name}</div>
+                                <div className="mt-0.5 font-mono text-xs text-muted-foreground">
+                                    {i.product?.code}
+                                </div>
+                            </TableCell>
+                            <TableCell className="text-right font-medium tabular-nums">
+                                {formatNumber(i.quantity)}
+                            </TableCell>
+                            <TableCell className="text-right text-sm text-muted-foreground">
+                                {i.product?.unit || "-"}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+    )
+}
+
+function EmptyState({ title, desc }: { title: string; desc: string }) {
+    return (
+        <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <RotateCcw className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <h3 className="mt-3 text-sm font-semibold">{title}</h3>
+            <p className="mt-1 max-w-sm text-xs text-muted-foreground">{desc}</p>
+        </div>
+    )
+}
+
+function formatNumber(value: unknown) {
+    return new Intl.NumberFormat("vi-VN").format(Number(value || 0))
 }

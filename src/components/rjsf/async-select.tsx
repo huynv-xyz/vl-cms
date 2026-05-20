@@ -109,13 +109,13 @@ export const AsyncSelect = React.memo(function AsyncSelect({
             <PopoverTrigger asChild>
                 <Button
                     variant="outline"
-                    className={cn("w-full justify-between", className)}
+                    className={cn("min-w-0 w-full justify-between", className)}
                     disabled={disabled}
                 >
-                    <span className="truncate">
+                    <span className="min-w-0 flex-1 truncate text-left">
                         {selected ? selected.label : placeholder}
                     </span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
 
@@ -149,6 +149,7 @@ export const AsyncSelect = React.memo(function AsyncSelect({
                         {options.map((item) => (
                             <CommandItem
                                 key={item.value}
+                                className="min-w-0"
                                 onSelect={() => {
                                     setSelected(item)
                                     onChange(item.value, item)
@@ -163,7 +164,7 @@ export const AsyncSelect = React.memo(function AsyncSelect({
                                             : "opacity-0"
                                     )}
                                 />
-                                {item.label}
+                                <span className="min-w-0 truncate">{item.label}</span>
                             </CommandItem>
                         ))}
                     </CommandList>

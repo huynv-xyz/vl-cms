@@ -18,7 +18,10 @@ import {
     getRolePermissions,
     updateRolePermissions,
 } from "@/api/auth/role"
-import { listPermissions, type PermissionItem } from "@/api/auth/permission"
+import {
+    listPermissions,
+    type PermissionItem,
+} from "@/api/auth/permission"
 import type { AccessRole } from "../data/schema"
 
 type Props = {
@@ -31,10 +34,11 @@ export function AssignPermissionsDialog({ role, open, onOpenChange }: Props) {
     const queryClient = useQueryClient()
     const [selected, setSelected] = useState<Set<number>>(new Set())
     const [keyword, setKeyword] = useState("")
+    const [rolePermissionsLoaded, setRolePermissionsLoaded] = useState(false)
 
     const allPermsQuery = useQuery({
         queryKey: ["admin", "permissions", "all"],
-        queryFn: () => listPermissions({ page: 1, size: 1000 }),
+        queryFn: fetchAllPermissions,
         enabled: open,
         staleTime: 60_000,
     })
@@ -48,14 +52,32 @@ export function AssignPermissionsDialog({ role, open, onOpenChange }: Props) {
     useEffect(() => {
         if (open && role) {
             setSelected(new Set())
+            setRolePermissionsLoaded(false)
         }
     }, [open, role?.id])
 
     useEffect(() => {
-        if (rolePermsQuery.data) {
-            setSelected(new Set(rolePermsQuery.data.permission_ids))
+        if (open && rolePermsQuery.data && role) {
+            const roleId = Number((rolePermsQuery.data as any).role_id)
+            if (roleId !== role.id) {
+                setSelected(new Set())
+                setRolePermissionsLoaded(false)
+                return
+            }
+
+            const permissionIds = getPermissionIds(rolePermsQuery.data)
+
+            if (!permissionIds) {
+                setSelected(new Set())
+                setRolePermissionsLoaded(false)
+                toast.error("Không đọc được danh sách quyền hiện tại của vai trò")
+                return
+            }
+
+            setSelected(new Set(permissionIds))
+            setRolePermissionsLoaded(true)
         }
-    }, [rolePermsQuery.data])
+    }, [open, rolePermsQuery.data, role?.id])
 
     useEffect(() => {
         if (!open) {
@@ -63,16 +85,21 @@ export function AssignPermissionsDialog({ role, open, onOpenChange }: Props) {
         }
     }, [open])
 
-    const permissions: PermissionItem[] = allPermsQuery.data?.items ?? []
-    const isReady = allPermsQuery.isSuccess && rolePermsQuery.isSuccess
+    const permissions: PermissionItem[] = allPermsQuery.data ?? []
+    const isReady =
+        allPermsQuery.isSuccess &&
+        rolePermsQuery.isSuccess &&
+        rolePermissionsLoaded
 
     const grouped = useMemo(() => {
         const m = new Map<string, PermissionItem[]>()
-        const kw = keyword.trim().toLowerCase()
+        const kw = normalizePermissionKeyword(keyword)
 
         for (const p of permissions) {
             if (kw) {
-                const hay = `${p.module} ${p.action} ${p.name ?? ""}`.toLowerCase()
+                const hay = normalizePermissionKeyword(
+                    `${p.module} ${moduleToPath(p.module)} ${p.action} ${p.name ?? ""}`
+                )
                 if (!hay.includes(kw)) continue
             }
             const arr = m.get(p.module) ?? []
@@ -126,11 +153,22 @@ export function AssignPermissionsDialog({ role, open, onOpenChange }: Props) {
     }
 
     const mutation = useMutation({
-        mutationFn: () => updateRolePermissions(role!.id, Array.from(selected)),
+        mutationFn: () => {
+            if (!rolePermissionsLoaded) {
+                throw new Error("Chưa tải xong quyền hiện tại, vui lòng chờ rồi lưu lại")
+            }
+            return updateRolePermissions(role!.id, Array.from(selected))
+        },
         onSuccess: () => {
             toast.success("Đã cập nhật quyền cho vai trò")
             queryClient.invalidateQueries({
                 queryKey: ["admin", "access-roles", role?.id, "permissions"],
+            })
+            queryClient.invalidateQueries({
+                queryKey: ["admin", "access-roles"],
+            })
+            queryClient.invalidateQueries({
+                queryKey: ["my-permissions"],
             })
             onOpenChange(false)
         },
@@ -153,7 +191,7 @@ export function AssignPermissionsDialog({ role, open, onOpenChange }: Props) {
 
                 <div className="flex items-center gap-2">
                     <Input
-                        placeholder="Tìm quyền theo module / hành động / tên..."
+                        placeholder="Tìm quyền hoặc nhập route, ví dụ /transactions..."
                         value={keyword}
                         onChange={(e) => setKeyword(e.target.value)}
                     />
@@ -188,11 +226,17 @@ export function AssignPermissionsDialog({ role, open, onOpenChange }: Props) {
                                         <div className="flex items-center gap-2">
                                             <Checkbox
                                                 checked={allOn}
+                                                disabled={!isReady}
                                                 onCheckedChange={() => toggleGroup(items)}
                                             />
-                                            <span className="font-semibold text-sm">
-                                                {module}
-                                            </span>
+                                            <div className="leading-tight">
+                                                <div className="font-semibold text-sm">
+                                                    {module}
+                                                </div>
+                                                <div className="text-muted-foreground text-xs">
+                                                    {moduleToPath(module)}
+                                                </div>
+                                            </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-1.5 pl-6">
                                             {items.map((p) => (
@@ -202,6 +246,7 @@ export function AssignPermissionsDialog({ role, open, onOpenChange }: Props) {
                                                 >
                                                     <Checkbox
                                                         checked={selected.has(p.id)}
+                                                        disabled={!isReady}
                                                         onCheckedChange={() => toggle(p.id)}
                                                     />
                                                     <span>
@@ -238,4 +283,40 @@ export function AssignPermissionsDialog({ role, open, onOpenChange }: Props) {
             </DialogContent>
         </Dialog>
     )
+}
+
+function getPermissionIds(data: unknown): number[] | null {
+    const x = data as any
+    const raw =
+        x?.permission_ids ??
+        x?.permissionIds ??
+        x?.permissions?.map((permission: any) => permission?.id)
+
+    if (!Array.isArray(raw)) return null
+
+    return raw
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0)
+}
+
+function moduleToPath(module: string) {
+    return `/${module.replace(/\./g, "/")}`
+}
+
+function normalizePermissionKeyword(value: string) {
+    return value.trim().toLowerCase().replace(/^\/+/, "").replace(/\//g, ".")
+}
+
+async function fetchAllPermissions() {
+    const size = 500
+    const first = await listPermissions({ page: 1, size })
+    const items = [...(first.items ?? [])]
+    const totalPage = Number(first.total_page ?? 1)
+
+    for (let page = 2; page <= totalPage; page += 1) {
+        const res = await listPermissions({ page, size })
+        items.push(...(res.items ?? []))
+    }
+
+    return items
 }

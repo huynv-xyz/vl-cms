@@ -1,3 +1,4 @@
+import { ShoppingCart } from 'lucide-react'
 import { PageSection } from '@/components/page-section'
 import { usePaginatedList } from '@/hooks/use-paginated-list'
 import { OrderTable } from './components/order-table'
@@ -68,6 +69,8 @@ export default function OrderPage() {
                 isLoading={isLoading}
                 error={error}
                 title="Đơn hàng"
+                description="Danh sách đơn bán, theo dõi trạng thái giao hàng và tổng giá trị bán ra."
+                icon={ShoppingCart}
                 actions={<CreateOrderButton />}
                 data={data}
             >

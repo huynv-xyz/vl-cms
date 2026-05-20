@@ -1,9 +1,12 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { listProducts, getProduct } from "@/api/product"
-import { formatCurrency, formatNumber } from "@/lib/utils"
-import { Plus, Trash2 } from "lucide-react"
+import { listGoodsDescriptions } from "@/api/sale/goods-description"
+import { cn, formatCurrency, formatNumber } from "@/lib/utils"
+import { PackageOpen, Plus, Trash2 } from "lucide-react"
 
 type OrderItem = {
     product_id?: number
@@ -13,6 +16,7 @@ type OrderItem = {
     unit?: string
     discount?: number
     line_type?: string
+    description?: string
 }
 
 type Props = {
@@ -21,7 +25,6 @@ type Props = {
 }
 
 export function OrderItemsEditor({ items, setItems }: Props) {
-
     const addRow = () => {
         setItems([
             ...items,
@@ -46,140 +49,228 @@ export function OrderItemsEditor({ items, setItems }: Props) {
         setItems(newItems)
     }
 
-    const totalQty = items.reduce((sum, i) => sum + Number(i.quantity || 0), 0)
-    const total = items.reduce((sum, i) => {
-        const lineTotal = Number(i.quantity || 0) * Number(i.unit_price || 0)
-        return sum + Math.max(lineTotal - Number(i.discount || 0), 0)
-    }, 0)
-
     return (
-        <div className="space-y-4">
-
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h3 className="text-lg font-semibold">Hàng bán</h3>
-                    <p className="text-sm text-muted-foreground">
-                        Chọn sản phẩm, nhập số lượng và đơn giá cho từng dòng hàng.
-                    </p>
+        <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                    <Badge variant="secondary" className="font-mono">
+                        {items.length} dòng
+                    </Badge>
+                    <span>Mỗi dòng tương ứng 1 SKU sản phẩm.</span>
                 </div>
-
-                <Button type="button" variant="outline" onClick={addRow}>
+                <Button type="button" variant="outline" size="sm" onClick={addRow}>
                     <Plus className="mr-2 h-4 w-4" />
                     Thêm dòng
                 </Button>
             </div>
 
-            <div className="overflow-hidden rounded-md border bg-background">
-                <table className="w-full min-w-[880px] text-sm">
-                    <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
+            <div className="overflow-x-auto rounded-lg border">
+                <table className="w-full min-w-[1240px] table-fixed text-sm">
+                    <colgroup>
+                        <col className="w-12" />
+                        <col className="w-[520px]" />
+                        <col className="w-[220px]" />
+                        <col className="w-[120px]" />
+                        <col className="w-[150px]" />
+                        <col className="w-[130px]" />
+                        <col className="w-[160px]" />
+                        <col className="w-12" />
+                    </colgroup>
+                    <thead className="bg-muted/50 text-muted-foreground text-[10px] uppercase tracking-wider">
                         <tr>
-                            <th className="px-4 py-3 text-left">Sản phẩm</th>
-                            <th className="w-[128px] px-3 py-3 text-left">Số lượng</th>
-                            <th className="w-[160px] px-3 py-3 text-left">Đơn giá</th>
-                            <th className="w-[140px] px-3 py-3 text-left">Chiết khấu</th>
-                            <th className="w-[168px] px-3 py-3 text-right">Thành tiền</th>
-                            <th className="w-[56px] px-2 py-3" />
+                            <th className="px-3 py-2.5 text-center font-semibold">#</th>
+                            <th className="px-3 py-2.5 text-left font-semibold">Sản phẩm</th>
+                            <th className="px-3 py-2.5 text-left font-semibold">Mô tả HH</th>
+                            <th className="px-3 py-2.5 text-right font-semibold">Số lượng</th>
+                            <th className="px-3 py-2.5 text-right font-semibold">Đơn giá</th>
+                            <th className="px-3 py-2.5 text-right font-semibold">Chiết khấu</th>
+                            <th className="px-3 py-2.5 text-right font-semibold">Thành tiền</th>
+                            <th className="px-2 py-2.5" />
                         </tr>
                     </thead>
 
-                    <tbody>
-                        {items.map((row, i) => (
-                            <tr key={i} className="border-t hover:bg-muted/30">
-
-                                <td className="px-4 py-3">
-                                    <AsyncSelect
-                                        value={row.product_id}
-                                        onChange={(value: any, option: any) => {
-                                            if (items.some((x, idx) => idx !== i && x.product_id === value)) {
-                                                return
-                                            }
-
-                                            updateRow(i, {
-                                                product_id: value,
-                                                product: option?.raw,
-                                                unit_price: option?.raw?.price ?? 0,
-                                                unit: option?.raw?.unit,
-                                            })
-                                        }}
-                                        dataSource={{
-                                            getList: listProducts,
-                                            getById: getProduct,
-                                            params: { page: 1, size: 20 },
-                                        }}
-                                        mapOption={(x: any) => ({
-                                            value: x.id,
-                                            label: `${x.code} - ${x.name}`,
-                                            raw: x,
-                                        })}
-                                    />
-                                    {row.product && (
-                                        <div className="mt-1 text-xs text-muted-foreground">
-                                            ĐVT: {row.product.unit || row.unit || "-"}
-                                        </div>
+                    <tbody className="bg-background">
+                        {items.map((row, i) => {
+                            const lineTotal = Math.max(
+                                (row.quantity || 0) * (row.unit_price || 0) - Number(row.discount || 0),
+                                0
+                            )
+                            const isInvalid = !row.product_id || (row.quantity ?? 0) <= 0
+                            return (
+                                <tr
+                                    key={i}
+                                    className={cn(
+                                        "border-t transition-colors hover:bg-muted/30",
+                                        isInvalid && "bg-amber-50/30 dark:bg-amber-950/10"
                                     )}
-                                </td>
+                                >
+                                    <td className="text-muted-foreground px-3 py-3 text-center font-mono text-xs font-semibold tabular-nums">
+                                        {i + 1}
+                                    </td>
 
-                                <td className="px-3 py-3">
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        value={row.quantity}
-                                        onChange={(e) =>
-                                            updateRow(i, {
-                                                quantity: Number(e.target.value),
-                                            })
-                                        }
-                                    />
-                                </td>
+                                    <td className="min-w-0 px-3 py-3">
+                                        <AsyncSelect
+                                            value={row.product_id}
+                                            onChange={(value: any, option: any) => {
+                                                if (items.some((x, idx) => idx !== i && x.product_id === value)) {
+                                                    return
+                                                }
 
-                                <td className="px-3 py-3">
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        value={row.unit_price}
-                                        onChange={(e) =>
-                                            updateRow(i, {
-                                                unit_price: Number(e.target.value),
-                                            })
-                                        }
-                                    />
-                                </td>
+                                                updateRow(i, {
+                                                    product_id: value,
+                                                    product: option?.raw,
+                                                    unit_price: option?.raw?.price ?? 0,
+                                                    unit: option?.raw?.unit,
+                                                })
+                                            }}
+                                            dataSource={{
+                                                getList: listProducts,
+                                                getById: getProduct,
+                                                params: { page: 1, size: 20 },
+                                            }}
+                                            mapOption={(x: any) => ({
+                                                value: x.id,
+                                                label: `${x.code} - ${x.name}`,
+                                                raw: x,
+                                            })}
+                                            className="min-w-0"
+                                        />
+                                        {row.product && (
+                                            <div className="text-muted-foreground mt-1.5 flex min-w-0 items-center gap-2 text-xs">
+                                                <Badge variant="outline" className="shrink-0 font-mono text-[10px]">
+                                                    ĐVT: {row.product.unit || row.unit || "-"}
+                                                </Badge>
+                                                {row.product.code && (
+                                                    <span className="min-w-0 truncate font-mono text-[11px]">{row.product.code}</span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </td>
 
-                                <td className="px-3 py-3">
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        value={row.discount ?? 0}
-                                        onChange={(e) =>
-                                            updateRow(i, {
-                                                discount: Number(e.target.value),
-                                            })
-                                        }
-                                    />
-                                </td>
+                                    <td className="min-w-0 px-3 py-3 align-top">
+                                        <AsyncSelect
+                                            value={row.description}
+                                            onChange={(value: any) => {
+                                                updateRow(i, {
+                                                    description: value,
+                                                })
+                                            }}
+                                            dataSource={{
+                                                getList: listGoodsDescriptions,
+                                                params: { page: 1, size: 20, active: 1 },
+                                            }}
+                                            mapOption={(x: any) => ({
+                                                value: x.name,
+                                                label: x.name,
+                                                raw: x,
+                                            })}
+                                            initialOption={
+                                                row.description
+                                                    ? {
+                                                        value: row.description,
+                                                        label: row.description,
+                                                        raw: { name: row.description },
+                                                    }
+                                                    : undefined
+                                            }
+                                            placeholder="Chọn mô tả"
+                                            searchPlaceholder="Tìm mô tả HH..."
+                                            emptyText="Không có mô tả phù hợp"
+                                            className="min-w-0"
+                                        />
+                                    </td>
 
-                                <td className="px-3 py-3 text-right font-semibold">
-                                    {formatNumber(Math.max((row.quantity || 0) * (row.unit_price || 0) - Number(row.discount || 0), 0))}
-                                </td>
+                                    <td className="px-3 py-3">
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            className="text-right tabular-nums"
+                                            value={row.quantity}
+                                            onChange={(e) =>
+                                                updateRow(i, {
+                                                    quantity: Number(e.target.value),
+                                                })
+                                            }
+                                        />
+                                    </td>
 
-                                <td className="px-2 py-3 text-center">
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="text-muted-foreground hover:text-red-500"
-                                        onClick={() => removeRow(i)}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </td>
-                            </tr>
-                        ))}
+                                    <td className="px-3 py-3">
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            className="text-right tabular-nums"
+                                            value={row.unit_price}
+                                            onChange={(e) =>
+                                                updateRow(i, {
+                                                    unit_price: Number(e.target.value),
+                                                })
+                                            }
+                                        />
+                                    </td>
 
-                        {/* EMPTY */}
+                                    <td className="px-3 py-3">
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            className="text-right tabular-nums"
+                                            value={row.discount ?? 0}
+                                            onChange={(e) =>
+                                                updateRow(i, {
+                                                    discount: Number(e.target.value),
+                                                })
+                                            }
+                                        />
+                                    </td>
+
+                                    <td className="px-3 py-3 text-right">
+                                        <div className="text-base font-bold tabular-nums">
+                                            {formatNumber(lineTotal)}
+                                        </div>
+                                        <div className="text-muted-foreground text-[10px] uppercase tracking-wider">
+                                            VND
+                                        </div>
+                                    </td>
+
+                                    <td className="px-2 py-3 text-center">
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-8 w-8"
+                                                    onClick={() => removeRow(i)}
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>Xoá dòng</TooltipContent>
+                                        </Tooltip>
+                                    </td>
+                                </tr>
+                            )
+                        })}
+
                         {!items.length && (
                             <tr>
-                                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                                    Chưa có sản phẩm trong đơn. Bấm “Thêm dòng” để bắt đầu.
+                                <td colSpan={8} className="px-4 py-14">
+                                    <div className="text-muted-foreground flex flex-col items-center gap-3 text-center text-sm">
+                                        <div className="bg-muted text-muted-foreground/60 flex h-14 w-14 items-center justify-center rounded-full">
+                                            <PackageOpen className="h-7 w-7" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <div className="text-foreground font-semibold">
+                                                Chưa có sản phẩm trong đơn
+                                            </div>
+                                            <div className="text-xs">
+                                                Bấm "Thêm dòng" để thêm sản phẩm cần bán.
+                                            </div>
+                                        </div>
+                                        <Button type="button" variant="outline" size="sm" onClick={addRow}>
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            Thêm dòng đầu tiên
+                                        </Button>
+                                    </div>
                                 </td>
                             </tr>
                         )}
@@ -187,16 +278,16 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                 </table>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-3">
-                <div className="rounded-md border bg-muted/20 px-4 py-3 text-right">
-                    <div className="text-xs text-muted-foreground">Tổng số lượng</div>
-                    <div className="text-base font-semibold">{formatNumber(totalQty)}</div>
+            {items.length > 0 && (
+                <div className="text-muted-foreground flex items-center justify-end gap-1.5 text-xs">
+                    <span className="bg-amber-100 dark:bg-amber-950/40 h-1.5 w-1.5 rounded-full" />
+                    Dòng được làm nổi vàng nếu chưa chọn sản phẩm hoặc số lượng = 0
                 </div>
-                <div className="rounded-md border bg-muted/20 px-4 py-3 text-right">
-                    <div className="text-xs text-muted-foreground">Tổng tiền hàng</div>
-                    <div className="text-lg font-bold">{formatCurrency(total)}</div>
-                </div>
-            </div>
+            )}
         </div>
     )
 }
+
+// re-export for potential external consumers, currently unused
+export type { OrderItem }
+export { formatCurrency }

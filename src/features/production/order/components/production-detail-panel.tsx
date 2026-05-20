@@ -4,8 +4,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
     AlertTriangle,
+    Boxes,
+    CalendarDays,
     CheckCircle2,
     ClipboardList,
+    CircleDollarSign,
     Download,
     Factory,
     FileText,
@@ -18,6 +21,7 @@ import {
     Save,
     Settings2,
     Wand2,
+    Warehouse,
 } from "lucide-react"
 
 import { AsyncSelect } from "@/components/rjsf/async-select"
@@ -52,7 +56,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { listProducts, getProduct } from "@/api/product"
 import { listWarehouses, getWarehouse } from "@/api/warehouse"
-import { formatCurrency, formatNumber } from "@/lib/utils"
+import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import {
     addProductionExtraMaterial,
     addProductionSubstitution,
@@ -80,74 +84,100 @@ export function ProductionDetailPanel({ production }: Props) {
     const warnings = production.warnings ?? []
     const actionLogs = production.action_logs ?? []
     const fifoRuns = production.fifo_runs ?? []
+    const openWarnings = warnings.filter((x) => !x.resolved_at)
+    const shortageCount = countShortage(items)
 
     return (
-        <div className="space-y-4 bg-background p-2">
+        <div className="space-y-5">
             <ProductionHeader production={production} />
             <ProductionActionBar production={production} />
 
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <Metric label="Thành phẩm" value={formatNumber(items.length)} />
-                <Metric label="Tổng giá thành" value={formatCurrency(sumItems(items, "total_cost"))} />
-                <Metric label="Dòng thiếu tồn" value={formatNumber(countShortage(items))} tone={countShortage(items) > 0 ? "bad" : "ok"} />
-                <Metric label="Cảnh báo mở" value={formatNumber(warnings.filter((x) => !x.resolved_at).length)} tone={warnings.some((x) => !x.resolved_at) ? "bad" : "ok"} />
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <DetailMetric
+                    icon={Factory}
+                    label="Thành phẩm"
+                    value={formatNumber(items.length)}
+                    hint="Số dòng TP trong lệnh"
+                    tone="primary"
+                />
+                <DetailMetric
+                    icon={CircleDollarSign}
+                    label="Tổng giá thành"
+                    value={formatCurrency(sumItems(items, "total_cost"))}
+                    hint="Tổng chi phí đã tính"
+                    tone="info"
+                />
+                <DetailMetric
+                    icon={Boxes}
+                    label="Dòng thiếu tồn"
+                    value={formatNumber(shortageCount)}
+                    hint={shortageCount > 0 ? "Cần bổ sung tồn hoặc giảm SL SX" : "Đủ tồn theo FIFO"}
+                    tone={shortageCount > 0 ? "warn" : "success"}
+                />
+                <DetailMetric
+                    icon={openWarnings.length ? AlertTriangle : CheckCircle2}
+                    label="Cảnh báo mở"
+                    value={formatNumber(openWarnings.length)}
+                    hint={openWarnings.length ? "Cần kiểm tra trước khi nhập TP" : "Không có cảnh báo"}
+                    tone={openWarnings.length ? "warn" : "muted"}
+                />
             </div>
 
             <Tabs defaultValue="items">
-                <TabsList className="grid w-full grid-cols-7">
-                    <TabsTrigger value="items">
+                <TabsList className="bg-muted/70 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl p-1">
+                    <TabsTrigger value="items" className="h-10 shrink-0 px-4">
                         <Factory className="mr-2 h-4 w-4" />
-                        TP
+                        Thành phẩm
                     </TabsTrigger>
-                    <TabsTrigger value="materials">
+                    <TabsTrigger value="materials" className="h-10 shrink-0 px-4">
                         <Layers3 className="mr-2 h-4 w-4" />
                         Vật tư
                     </TabsTrigger>
-                    <TabsTrigger value="fifo">
+                    <TabsTrigger value="fifo" className="h-10 shrink-0 px-4">
                         <Route className="mr-2 h-4 w-4" />
                         FIFO
                     </TabsTrigger>
-                    <TabsTrigger value="outputs">
+                    <TabsTrigger value="outputs" className="h-10 shrink-0 px-4">
                         <PackageCheck className="mr-2 h-4 w-4" />
                         Nhập TP
                     </TabsTrigger>
-                    <TabsTrigger value="vouchers">
+                    <TabsTrigger value="vouchers" className="h-10 shrink-0 px-4">
                         <FileText className="mr-2 h-4 w-4" />
                         Chứng từ
                     </TabsTrigger>
-                    <TabsTrigger value="warnings">
+                    <TabsTrigger value="warnings" className="h-10 shrink-0 px-4">
                         <AlertTriangle className="mr-2 h-4 w-4" />
                         Cảnh báo
                     </TabsTrigger>
-                    <TabsTrigger value="logs">
+                    <TabsTrigger value="logs" className="h-10 shrink-0 px-4">
                         <ClipboardList className="mr-2 h-4 w-4" />
                         Log
                     </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="items" className="space-y-3">
+                <TabsContent value="items" className="mt-4 space-y-3">
                     {items.map((item) => (
                         <FinishedProductBlock key={item.id} production={production} item={item} />
                     ))}
                 </TabsContent>
 
-                <TabsContent value="materials">
+                <TabsContent value="materials" className="mt-4">
                     <MaterialsTable production={production} />
                 </TabsContent>
 
-                <TabsContent value="fifo">
+                <TabsContent value="fifo" className="mt-4">
                     <FifoTab production={production} fifoRuns={fifoRuns} />
                 </TabsContent>
 
-                <TabsContent value="outputs">
+                <TabsContent value="outputs" className="mt-4">
                     <OutputsTab production={production} />
                 </TabsContent>
 
-                <TabsContent value="vouchers">
+                <TabsContent value="vouchers" className="mt-4">
                     <ProductionVoucherTab production={production} />
                 </TabsContent>
 
-                <TabsContent value="warnings">
+                <TabsContent value="warnings" className="mt-4">
                     <SimpleTable
                         empty="Không có cảnh báo"
                         headers={["Mức", "Mã", "Nội dung", "Trạng thái"]}
@@ -160,7 +190,7 @@ export function ProductionDetailPanel({ production }: Props) {
                     />
                 </TabsContent>
 
-                <TabsContent value="logs">
+                <TabsContent value="logs" className="mt-4">
                     <SimpleTable
                         empty="Chưa có log thao tác"
                         headers={["Thời điểm", "Đối tượng", "Hành động", "Ghi chú"]}
@@ -184,21 +214,31 @@ function ProductionHeader({ production }: { production: Production }) {
     )
 
     return (
-        <div className="rounded-md border bg-muted/20 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
+        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+            <div className="grid lg:grid-cols-[minmax(360px,1.2fr)_minmax(360px,0.8fr)]">
+                <div className="min-w-0 border-b p-5 lg:border-b-0 lg:border-r">
                     <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="truncate text-lg font-semibold">
-                            {production.production_no || `Lệnh #${production.id}`}
-                        </h3>
+                        <span className="bg-primary/10 text-primary rounded-md px-2 py-0.5 font-mono text-xs font-bold">
+                            #{production.id}
+                        </span>
                         <StatusBadge value={production.status} />
                     </div>
-                    <div className="mt-1 text-sm text-muted-foreground">
-                        Ngày lệnh {formatDate(production.production_date)} · Kho nhập {warehouses.length ? warehouses.join(", ") : "-"}
+                    <h3 className="mt-3 truncate text-2xl font-bold">
+                            {production.production_no || `Lệnh #${production.id}`}
+                    </h3>
+                    <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                        <span className="inline-flex items-center gap-1.5">
+                            <CalendarDays className="h-4 w-4" />
+                            Ngày lệnh {formatDate(production.production_date)}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                            <Warehouse className="h-4 w-4" />
+                            Kho nhập {warehouses.length ? warehouses.join(", ") : "-"}
+                        </span>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-sm md:grid-cols-3">
+                <div className="grid gap-2 p-5 text-sm sm:grid-cols-3">
                     <MiniInfo label="Kỳ tính giá" value={production.costing_period || "-"} />
                     <MiniInfo label="Số dòng TP" value={formatNumber(items.length)} />
                     <MiniInfo label="Tạo lúc" value={formatDateTime(production.created_at)} />
@@ -206,7 +246,7 @@ function ProductionHeader({ production }: { production: Production }) {
             </div>
 
             {production.note && (
-                <div className="mt-3 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+                <div className="border-t bg-muted/30 px-5 py-3 text-sm text-muted-foreground">
                     {production.note}
                 </div>
             )}
@@ -251,10 +291,13 @@ function ProductionActionBar({ production }: { production: Production }) {
         fifoMutation.isPending
 
     return (
-        <div className="space-y-2 rounded-md border px-3 py-2">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm text-muted-foreground">
-                    Thao tác theo thứ tự: sinh vật tư, chạy FIFO, sau đó nhập thành phẩm.
+        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-4 py-3">
+                <div>
+                    <div className="font-semibold">Luồng xử lý sản xuất</div>
+                    <div className="text-muted-foreground mt-1 text-sm">
+                        Sinh vật tư → chạy FIFO → nhập thành phẩm.
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -285,19 +328,19 @@ function ProductionActionBar({ production }: { production: Production }) {
             </div>
 
             {isClosed && (
-                <div className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+                <div className="mx-4 my-3 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
                     Lệnh đã nhập thành phẩm hoặc đã đóng, không thể thao tác thêm.
                 </div>
             )}
 
             {!isClosed && (
-                <div className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                <div className="mx-4 my-3 rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
                     Bước hiện tại: {getProductionStepMessage(production)}
                 </div>
             )}
 
             {shortageCount > 0 && (
-                <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <div className="mx-4 mb-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
                     Còn {shortageCount} dòng vật tư chưa được FIFO đủ. Vào tab Vật tư để xem dòng thiếu,
                     bổ sung tồn kho hoặc giảm số lượng sản xuất rồi chạy FIFO lại trước khi nhập TP.
                 </div>
@@ -514,23 +557,30 @@ function FinishedProductBlock({
     const canAdjust = canAdjustMaterials(production)
 
     return (
-        <div className="rounded-md border p-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <div className="font-medium">
-                        {item.product?.code} - {item.product?.name}
+        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+            <div className="grid border-b bg-muted/30 lg:grid-cols-[minmax(320px,1.3fr)_minmax(240px,0.7fr)]">
+                <div className="min-w-0 border-b p-4 lg:border-b-0 lg:border-r">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="bg-primary/10 text-primary rounded-md px-2 py-0.5 font-mono text-xs font-bold">
+                            {item.product?.code || `#${item.product_id}`}
+                        </span>
+                        <StatusBadge value={item.check_status} />
+                        <StatusBadge value={item.fifo_status} />
                     </div>
-                    <div className="text-muted-foreground text-sm">
+                    <div className="mt-2 text-lg font-bold leading-snug">
+                        {item.product?.name || "-"}
+                    </div>
+                    <div className="text-muted-foreground mt-1 text-sm">
                         BOM {item.bom_version || "-"} · SL kế hoạch {formatQty(item.quantity_plan, item.product?.unit)} · SL nhập {formatQty(item.quantity_done, item.product?.unit)}
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <StatusBadge value={item.check_status} />
-                    <StatusBadge value={item.fifo_status} />
+                <div className="flex flex-wrap items-center justify-start gap-2 p-4 lg:justify-end">
+                    <ExtraForm production={production} item={item} disabled={!canAdjust} />
+                    <SubstitutionForm production={production} item={item} disabled={!canAdjust} />
                 </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
+            <div className="grid grid-cols-2 gap-0 divide-x divide-y md:grid-cols-5 md:divide-y-0">
                 <Metric label="NVL" value={formatCurrency(item.total_nvl_cost)} />
                 <Metric label="Bao bì" value={formatCurrency(item.total_bb_cost)} />
                 <Metric label="Gia công" value={formatCurrency(item.processing_cost)} />
@@ -539,11 +589,6 @@ function FinishedProductBlock({
             </div>
 
             <ItemAdjustments item={item} />
-
-            <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-3">
-                <ExtraForm production={production} item={item} disabled={!canAdjust} />
-                <SubstitutionForm production={production} item={item} disabled={!canAdjust} />
-            </div>
         </div>
     )
 }
@@ -1421,6 +1466,46 @@ function MiniInfo({ label, value }: { label: string; value: React.ReactNode }) {
         <div className="rounded-md border bg-background px-3 py-2">
             <div className="text-xs text-muted-foreground">{label}</div>
             <div className="font-medium">{value}</div>
+        </div>
+    )
+}
+
+function DetailMetric({
+    icon: Icon,
+    label,
+    value,
+    hint,
+    tone,
+}: {
+    icon: React.ComponentType<{ className?: string }>
+    label: string
+    value: React.ReactNode
+    hint: string
+    tone?: "primary" | "success" | "info" | "warn" | "muted"
+}) {
+    const toneClass =
+        tone === "success"
+            ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+            : tone === "info"
+                ? "bg-blue-50 text-blue-700 border-blue-100"
+                : tone === "warn"
+                    ? "bg-amber-50 text-amber-700 border-amber-100"
+                    : tone === "primary"
+                        ? "bg-primary/10 text-primary border-primary/10"
+                        : "bg-muted text-muted-foreground border-transparent"
+
+    return (
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+                <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border", toneClass)}>
+                    <Icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                    <div className="text-muted-foreground text-sm font-semibold">{label}</div>
+                    <div className="mt-1 text-2xl font-bold tabular-nums">{value}</div>
+                    <div className="text-muted-foreground mt-1 line-clamp-2 text-xs">{hint}</div>
+                </div>
+            </div>
         </div>
     )
 }

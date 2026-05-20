@@ -14,6 +14,7 @@ export type OrderItem = {
     product?: Product
 
     product_name?: string
+    description?: string
 
     quantity: number
     exported_quantity: number

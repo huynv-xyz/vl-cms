@@ -12,8 +12,10 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { AsyncSelect } from "@/components/rjsf/async-select"
 import { formatCurrency } from "@/lib/utils"
 
+import { listGoodsDescriptions } from "@/api/sale/goods-description"
 import { updateOrderItem } from "@/api/sale/order"
 
 type Props = {
@@ -29,6 +31,7 @@ export function UpdateOrderItemDialog({ item, open, onOpenChange }: Props) {
     const [quantity, setQuantity] = useState(1)
     const [unitPrice, setUnitPrice] = useState(0)
     const [discount, setDiscount] = useState(0)
+    const [description, setDescription] = useState<string | undefined>()
 
     // load data khi mở dialog
     useEffect(() => {
@@ -36,6 +39,7 @@ export function UpdateOrderItemDialog({ item, open, onOpenChange }: Props) {
             setQuantity(item.quantity || 1)
             setUnitPrice(item.unit_price || 0)
             setDiscount(item.discount || 0)
+            setDescription(item.description || undefined)
         }
     }, [item])
 
@@ -45,6 +49,7 @@ export function UpdateOrderItemDialog({ item, open, onOpenChange }: Props) {
                 quantity,
                 unit_price: unitPrice,
                 discount,
+                description,
             }),
 
         onSuccess: async () => {
@@ -95,6 +100,35 @@ export function UpdateOrderItemDialog({ item, open, onOpenChange }: Props) {
                         <div className="text-xs text-muted-foreground">
                             {item?.product?.code}
                         </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                        <label className="text-sm font-medium">Mô tả HH</label>
+                        <AsyncSelect
+                            placeholder="Chọn mô tả HH"
+                            searchPlaceholder="Tìm mô tả HH..."
+                            emptyText="Không có mô tả phù hợp"
+                            value={description}
+                            onChange={(value: any) => setDescription(value)}
+                            dataSource={{
+                                getList: listGoodsDescriptions,
+                                params: { page: 1, size: 20, active: 1 },
+                            }}
+                            mapOption={(x: any) => ({
+                                value: x.name,
+                                label: x.name,
+                                raw: x,
+                            })}
+                            initialOption={
+                                description
+                                    ? {
+                                        value: description,
+                                        label: description,
+                                        raw: { name: description },
+                                    }
+                                    : undefined
+                            }
+                        />
                     </div>
 
                     <div>

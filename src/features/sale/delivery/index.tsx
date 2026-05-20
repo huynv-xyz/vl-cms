@@ -73,6 +73,7 @@ export default function DeliveryPage() {
                 isLoading={isLoading}
                 error={error}
                 title="Giao hàng"
+                description="Quản lý phiếu giao, theo dõi trạng thái và lịch giao hàng theo đơn."
                 actions={<CreateDeliveryButton />}
                 data={data}
             >

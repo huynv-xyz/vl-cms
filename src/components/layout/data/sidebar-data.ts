@@ -73,6 +73,11 @@ export const sidebarData: SidebarData = {
                     icon: ShoppingCart,
                 },
                 {
+                    title: 'Mô tả HH',
+                    url: '/sales/goods-descriptions',
+                    icon: ReceiptText,
+                },
+                {
                     title: 'Khu vực',
                     url: '/provinces',
                     icon: MapPin, // 📍 OK

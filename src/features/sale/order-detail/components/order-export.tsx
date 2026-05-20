@@ -1,6 +1,11 @@
 import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { CalendarDays, Eye, PackageCheck, Warehouse } from "lucide-react"
+import {
+    CalendarDays,
+    Eye,
+    PackageCheck,
+    Warehouse,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -25,9 +30,6 @@ import {
 import { ExportDetailDialog } from "../../export/components/export-detail-dialog"
 import { updateExportStatus } from "@/api/sale/export"
 
-// ========================
-// CONSTANT
-// ========================
 const EXPORT_STATUSES = [
     { value: "NEW", label: "Mới" },
     { value: "DONE", label: "Hoàn thành" },
@@ -43,94 +45,78 @@ const exportStatusMeta: Record<
     CANCELLED: { label: "Hủy", variant: "destructive" },
 }
 
-// ========================
-// MAIN
-// ========================
 export function OrderExports({ exports, order }: any) {
-
     const queryClient = useQueryClient()
     const [selectedId, setSelectedId] = useState<number | null>(null)
 
-    const isEditable = order?.status === "CONFIRMED"
-
     const { mutate: changeStatus, isPending } = useMutation({
-        mutationFn: ({ id, status }: any) =>
-            updateExportStatus(id, status),
+        mutationFn: ({ id, status }: any) => updateExportStatus(id, status),
 
         onMutate: async ({ id, status }) => {
             await queryClient.cancelQueries({
                 queryKey: ["order-detail", order.id],
             })
 
-            const prev = queryClient.getQueryData([
-                "order-detail",
-                order.id,
-            ])
+            const prev = queryClient.getQueryData(["order-detail", order.id])
 
-            queryClient.setQueryData(
-                ["order-detail", order.id],
-                (old: any) => {
-                    if (!old) return old
-                    return {
-                        ...old,
-                        exports: old.exports.map((x: any) =>
-                            x.id === id ? { ...x, status } : x
-                        ),
-                    }
+            queryClient.setQueryData(["order-detail", order.id], (old: any) => {
+                if (!old) return old
+                return {
+                    ...old,
+                    exports: old.exports.map((x: any) =>
+                        x.id === id ? { ...x, status } : x
+                    ),
                 }
-            )
+            })
 
             return { prev }
         },
 
         onError: (_, __, context) => {
-            queryClient.setQueryData(
-                ["order-detail", order.id],
-                context?.prev
-            )
+            queryClient.setQueryData(["order-detail", order.id], context?.prev)
             toast.error("Cập nhật thất bại")
         },
 
-        onSuccess: () => {
-            toast.success("Cập nhật trạng thái thành công")
-        },
+        onSuccess: () => toast.success("Cập nhật trạng thái thành công"),
 
         onSettled: () => {
-            queryClient.invalidateQueries({
-                queryKey: ["order-detail", order.id],
-            })
+            queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] })
         },
     })
 
     return (
-        <div className="rounded-md border bg-background">
-
+        <div className="overflow-hidden rounded-xl border bg-background shadow-sm">
             {/* HEADER */}
-            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
-                <div>
-                    <h2 className="font-semibold">Phiếu xuất kho</h2>
-                    <p className="text-sm text-muted-foreground">
-                        Các chứng từ xuất kho đã tạo.
-                    </p>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-5 py-3.5">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400">
+                        <Warehouse className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-semibold">Phiếu xuất kho</h2>
+                        <p className="text-xs text-muted-foreground">
+                            Các chứng từ xuất kho phát sinh từ đơn hàng này
+                        </p>
+                    </div>
                 </div>
 
-                <Badge variant="outline">
+                <Badge variant="outline" className="font-normal">
                     {formatNumber(exports?.length || 0)} phiếu
                 </Badge>
             </div>
 
-            {/* EMPTY */}
             {!exports?.length ? (
-                <EmptyState text="Chưa có phiếu xuất kho cho đơn này." />
+                <EmptyState
+                    icon={Warehouse}
+                    title="Chưa có phiếu xuất kho"
+                    desc="Phiếu xuất sẽ được sinh ra khi giao hàng được xác nhận."
+                />
             ) : (
-
                 <div className="space-y-3 p-4">
                     {exports.map((exportDoc: any) => {
-
                         const meta = getExportStatusMeta(exportDoc.status)
                         const isRowLocked =
-                            exportDoc.status === "DONE" ||
-                            exportDoc.status === "CANCELLED"
+                            exportDoc.status === "DONE" || exportDoc.status === "CANCELLED"
 
                         const totalQty = sumBy(
                             exportDoc.items ?? [],
@@ -138,11 +124,11 @@ export function OrderExports({ exports, order }: any) {
                         )
 
                         return (
-                            <div key={exportDoc.id} className="rounded-md border">
-
-                                {/* HEADER ITEM */}
+                            <div
+                                key={exportDoc.id}
+                                className="overflow-hidden rounded-lg border bg-card transition-shadow hover:shadow-sm"
+                            >
                                 <div className="flex flex-wrap items-start justify-between gap-3 border-b bg-muted/20 px-4 py-3">
-
                                     <div className="min-w-0">
                                         <button
                                             className="font-semibold text-primary hover:underline"
@@ -151,50 +137,45 @@ export function OrderExports({ exports, order }: any) {
                                             {exportDoc.export_no}
                                         </button>
 
-                                        <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                                        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                                             <span className="flex items-center gap-1">
-                                                <CalendarDays className="h-4 w-4" />
+                                                <CalendarDays className="h-3.5 w-3.5" />
                                                 {formatDate(exportDoc.export_date)}
                                             </span>
 
                                             <span className="flex items-center gap-1">
-                                                <Warehouse className="h-4 w-4" />
+                                                <Warehouse className="h-3.5 w-3.5" />
                                                 {exportDoc.warehouse?.name || "-"}
                                             </span>
 
-                                            <span className="flex items-center gap-1">
-                                                <PackageCheck className="h-4 w-4" />
-                                                {exportDoc.delivery?.delivery_no || "-"}
-                                            </span>
+                                            {exportDoc.delivery?.delivery_no && (
+                                                <span className="flex items-center gap-1">
+                                                    <PackageCheck className="h-3.5 w-3.5" />
+                                                    {exportDoc.delivery.delivery_no}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
 
-                                    {/* ACTION */}
-                                    <div className="flex items-center gap-2">
-
-                                        <Badge variant="outline">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant="outline" className="font-normal">
                                             {formatNumber(exportDoc.items?.length || 0)} dòng
                                         </Badge>
 
-                                        <Badge variant="secondary">
-                                            {formatNumber(totalQty)} SL
+                                        <Badge variant="secondary" className="font-normal">
+                                            SL: {formatNumber(totalQty)}
                                         </Badge>
 
                                         <Select
                                             value={exportDoc.status || "NEW"}
                                             onValueChange={(status) =>
-                                                changeStatus({
-                                                    id: exportDoc.id,
-                                                    status,
-                                                })
+                                                changeStatus({ id: exportDoc.id, status })
                                             }
                                             disabled={isPending || isRowLocked}
                                         >
-                                            <SelectTrigger className="h-9 w-[150px]">
+                                            <SelectTrigger className="h-8 w-[150px]">
                                                 <SelectValue>
-                                                    <Badge variant={meta.variant}>
-                                                        {meta.label}
-                                                    </Badge>
+                                                    <Badge variant={meta.variant}>{meta.label}</Badge>
                                                 </SelectValue>
                                             </SelectTrigger>
 
@@ -214,6 +195,7 @@ export function OrderExports({ exports, order }: any) {
                                         <Button
                                             size="icon"
                                             variant="ghost"
+                                            className="h-8 w-8"
                                             onClick={() => setSelectedId(exportDoc.id)}
                                         >
                                             <Eye className="h-4 w-4" />
@@ -237,66 +219,68 @@ export function OrderExports({ exports, order }: any) {
     )
 }
 
-//
-// ========================
-// SUB COMPONENTS
-// ========================
-//
-
 function ItemsTable({ items }: { items: any[] }) {
     if (!items.length) {
         return (
-            <div className="px-4 py-6 text-sm text-muted-foreground">
-                Phiếu chưa có hàng xuất.
+            <div className="px-4 py-5 text-center text-xs text-muted-foreground">
+                Phiếu chưa có hàng xuất
             </div>
         )
     }
 
     return (
-        <Table>
-            <TableHeader className="bg-muted/40">
-                <TableRow>
-                    <TableHead>Sản phẩm</TableHead>
-                    <TableHead className="text-right">Số lượng</TableHead>
-                    <TableHead className="text-right">Đơn vị</TableHead>
-                </TableRow>
-            </TableHeader>
-
-            <TableBody>
-                {items.map((item) => (
-                    <TableRow key={item.id}>
-                        <TableCell>
-                            <div className="font-medium">{item.product?.code}</div>
-                            <div className="text-sm text-muted-foreground">
-                                {item.product?.name}
-                            </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                            {formatNumber(item.quantity)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                            {item.product?.unit}
-                        </TableCell>
+        <div className="overflow-x-auto">
+            <Table>
+                <TableHeader className="bg-muted/30">
+                    <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-xs font-semibold uppercase">Sản phẩm</TableHead>
+                        <TableHead className="text-right text-xs font-semibold uppercase">Số lượng</TableHead>
+                        <TableHead className="text-right text-xs font-semibold uppercase">Đơn vị</TableHead>
                     </TableRow>
-                ))}
-            </TableBody>
-        </Table>
-    )
-}
+                </TableHeader>
 
-function EmptyState({ text }: { text: string }) {
-    return (
-        <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-            {text}
+                <TableBody>
+                    {items.map((item) => (
+                        <TableRow key={item.id}>
+                            <TableCell>
+                                <div className="font-medium">{item.product?.name}</div>
+                                <div className="mt-0.5 font-mono text-xs text-muted-foreground">
+                                    {item.product?.code}
+                                </div>
+                            </TableCell>
+                            <TableCell className="text-right font-medium tabular-nums">
+                                {formatNumber(item.quantity)}
+                            </TableCell>
+                            <TableCell className="text-right text-sm text-muted-foreground">
+                                {item.product?.unit}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
         </div>
     )
 }
 
-//
-// ========================
-// HELPERS
-// ========================
-//
+function EmptyState({
+    icon: Icon,
+    title,
+    desc,
+}: {
+    icon: any
+    title: string
+    desc: string
+}) {
+    return (
+        <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <Icon className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <h3 className="mt-3 text-sm font-semibold">{title}</h3>
+            <p className="mt-1 max-w-sm text-xs text-muted-foreground">{desc}</p>
+        </div>
+    )
+}
 
 function getExportStatusMeta(status?: string) {
     return exportStatusMeta[String(status ?? "").toUpperCase()] ?? {
@@ -315,5 +299,10 @@ function formatNumber(value: unknown) {
 
 function formatDate(value?: string) {
     if (!value) return "-"
-    return value.split("T")[0]
+    const [date] = value.split("T")
+    const parts = date.split("-")
+    if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`
+    }
+    return date
 }
