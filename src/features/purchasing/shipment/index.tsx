@@ -6,6 +6,7 @@ import { useUrlListFilters } from "@/hooks/use-url-list-filters"
 import { ShipmentsProvider } from "./components/shipments-provider"
 import { listShipmentItems } from "@/api/purchasing/shipment_items"
 import { ShipmentItemTableV2 } from "../shipment-item/components/shipment-item-table-v2"
+import { ShipmentScheduleExportButton } from "./components/shipment-schedule-export-button"
 
 export default function ShipmentPage() {
     const search = Route.useSearch()
@@ -58,6 +59,15 @@ export default function ShipmentPage() {
         }
     )
 
+    const exportParams = {
+        keyword,
+        status: requestFilters.status,
+        eta_from: requestFilters.eta_from,
+        eta_to: requestFilters.eta_to,
+        product_ids: requestFilters.product_ids,
+        port_ids: requestFilters.port_ids,
+    }
+
     return (
         <ShipmentsProvider>
             <PageSection
@@ -65,6 +75,7 @@ export default function ShipmentPage() {
                 error={error}
                 title="Lịch hàng về"
                 data={data}
+                actions={<ShipmentScheduleExportButton params={exportParams} />}
             >
                 {(data) => (
                     <ShipmentItemTableV2
