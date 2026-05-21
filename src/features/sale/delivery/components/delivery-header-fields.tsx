@@ -1,32 +1,21 @@
 import { getCompany, listCompanies } from "@/api/company"
 import { getOrder, listOrders } from "@/api/sale/order"
-import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { companyOption, orderOption, warehouseOption } from "@/lib/option-mapper"
-import { DELIVERY_STATUSES } from "./delivery-status"
+import { companyOption, orderOption } from "@/lib/option-mapper"
 
 type Props = {
     value: any
     onChange: (value: any) => void
     lockedOrder?: boolean
-    showStatus?: boolean
 }
 
 export function DeliveryHeaderFields({
     value,
     onChange,
     lockedOrder,
-    showStatus = false,
 }: Props) {
     const update = (patch: any) => onChange({ ...value, ...patch })
 
@@ -52,17 +41,6 @@ export function DeliveryHeaderFields({
                 />
             </Field>
 
-            <Field label="Kho xuất" required>
-                <AsyncSelect
-                    placeholder="Chọn kho xuất"
-                    value={value.warehouse_id}
-                    onChange={(warehouseId: any) => update({ warehouse_id: warehouseId })}
-                    required
-                    dataSource={{ getList: listWarehouses, getById: getWarehouse }}
-                    mapOption={warehouseOption}
-                />
-            </Field>
-
             <Field label="Công ty xuất">
                 <AsyncSelect
                     placeholder="Chọn công ty xuất"
@@ -72,26 +50,6 @@ export function DeliveryHeaderFields({
                     mapOption={companyOption}
                 />
             </Field>
-
-            {showStatus && (
-                <Field label="Trạng thái">
-                    <Select
-                        value={value.status || "NEW"}
-                        onValueChange={(status) => update({ status })}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Chọn trạng thái" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {DELIVERY_STATUSES.map((status) => (
-                                <SelectItem key={status.value} value={status.value}>
-                                    {status.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </Field>
-            )}
 
             <Field label="Địa chỉ giao" className="md:col-span-2">
                 <Textarea

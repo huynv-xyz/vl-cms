@@ -7,7 +7,6 @@ type QuantityInputCellProps = {
     value: number
     disabled: boolean
     max: number
-    stock: number
     onCommit: (productId: number, quantity: number) => void
 }
 
@@ -16,7 +15,6 @@ export function QuantityInputCell({
     value,
     disabled,
     max,
-    stock,
     onCommit,
 }: QuantityInputCellProps) {
 
@@ -33,11 +31,10 @@ export function QuantityInputCell({
             nextValue = 0
         }
 
-        const limit = Math.min(max, stock)
-
-        if (nextValue > limit) {
-            nextValue = limit
-            toast.warning("Vượt tồn kho hoặc số lượng đặt")
+        // Chỉ giới hạn theo số lượng còn phải giao, không kiểm tra tồn kho.
+        if (nextValue > max) {
+            nextValue = max
+            toast.warning("Vượt số lượng còn phải giao")
         }
 
         setLocalValue(String(nextValue))

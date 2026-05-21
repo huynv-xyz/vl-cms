@@ -125,7 +125,6 @@ export default function OrderDetailPage({ id }: Props) {
                                     <TabTrigger value="items" icon={Package} label="Hàng bán" count={items.length} />
                                     <TabTrigger value="deliveries" icon={Truck} label="Giao hàng" count={deliveries.length} />
                                     <TabTrigger value="exports" icon={Warehouse} label="Xuất kho" count={exports.length} />
-                                    <TabTrigger value="receipts" icon={Wallet} label="Thu tiền" count={receipts.length} />
                                     <TabTrigger value="returns" icon={RotateCcw} label="Trả hàng" count={returns.length} />
                                 </TabsList>
                             </div>
@@ -140,10 +139,6 @@ export default function OrderDetailPage({ id }: Props) {
 
                             <TabsContent value="exports" className="m-0">
                                 <OrderExports exports={exports} order={data} disabled={!isEditable} />
-                            </TabsContent>
-
-                            <TabsContent value="receipts" className="m-0">
-                                <OrderReceipts order={data} receipts={receipts} />
                             </TabsContent>
 
                             <TabsContent value="returns" className="m-0">

@@ -4,12 +4,10 @@ import { useDeliveryColumns } from "../hook/use-delivery-columns"
 import { DELIVERY_STATUSES } from "./delivery-status"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { getOrder, listOrders } from "@/api/sale/order"
-import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { getCompany, listCompanies } from "@/api/company"
 import {
     companyOption,
     orderOption,
-    warehouseOption,
 } from "@/lib/option-mapper"
 import { cn, formatNumber } from "@/lib/utils"
 import { DatePicker } from "@/components/date-picker"
@@ -132,24 +130,6 @@ export function DeliveryTable({
                     <StatusFilter
                         value={filters?.status}
                         onChange={(value) => setFilter("status", value)}
-                    />
-
-                    <AsyncSelect
-                        className={cn(
-                            FILTER_CONTROL_CLASS,
-                            "min-w-[200px] flex-1 py-0"
-                        )}
-                        placeholder="Kho xuất"
-                        value={filters?.warehouse_id}
-                        onChange={(value: any) =>
-                            setFilter("warehouse_id", value || undefined)
-                        }
-                        dataSource={{
-                            getList: listWarehouses,
-                            getById: getWarehouse,
-                            params: { page: 1, size: 20 },
-                        }}
-                        mapOption={warehouseOption}
                     />
 
                     <AsyncSelect

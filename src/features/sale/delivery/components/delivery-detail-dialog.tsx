@@ -36,7 +36,6 @@ export function DeliveryDetailDialog({
 
                     <DetailInfoGrid>
                         <DetailInfoItem label="Đơn hàng" value={data.order?.order_no} />
-                        <DetailInfoItem label="Kho" value={data.warehouse?.name} />
                         <DetailInfoItem label="Công ty" value={data.company?.name} />
                         <DetailInfoItem label="Ngày giao" value={data.delivery_date} />
                         <DetailInfoItem label="Địa chỉ" value={data.delivery_address} className="lg:col-span-2" />

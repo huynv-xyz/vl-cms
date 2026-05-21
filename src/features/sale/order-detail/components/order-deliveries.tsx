@@ -140,10 +140,6 @@ export function OrderDeliveries({ order, deliveries }: any) {
                                                 <CalendarDays className="h-3.5 w-3.5" />
                                                 {formatDate(delivery.delivery_date)}
                                             </span>
-                                            <span className="inline-flex items-center gap-1">
-                                                <Warehouse className="h-3.5 w-3.5" />
-                                                {delivery.warehouse?.name || "-"}
-                                            </span>
                                             {delivery.delivery_address && (
                                                 <span className="inline-flex max-w-[280px] items-center gap-1 truncate">
                                                     <MapPin className="h-3.5 w-3.5 shrink-0" />
@@ -237,6 +233,7 @@ export function OrderDeliveries({ order, deliveries }: any) {
 
             {editRow && (
                 <UpdateDeliveryDialog
+                    order={order}
                     delivery={editRow}
                     open={!!editRow}
                     onOpenChange={(open: boolean) => {
@@ -269,6 +266,7 @@ function ItemsTable({ items }: { items: any[] }) {
                 <TableHeader className="bg-muted/30">
                     <TableRow className="hover:bg-transparent">
                         <TableHead className="text-xs font-semibold uppercase">Sản phẩm</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase">Kho xuất</TableHead>
                         <TableHead className="w-[140px] text-right text-xs font-semibold uppercase">Số lượng</TableHead>
                         <TableHead className="w-[120px] text-right text-xs font-semibold uppercase">Đơn vị</TableHead>
                     </TableRow>
@@ -281,6 +279,12 @@ function ItemsTable({ items }: { items: any[] }) {
                                 <div className="mt-0.5 font-mono text-xs text-muted-foreground">
                                     {item.product?.code || "-"}
                                 </div>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                                <span className="inline-flex items-center gap-1.5">
+                                    <Warehouse className="h-3.5 w-3.5 text-muted-foreground" />
+                                    {item.warehouse?.name || "-"}
+                                </span>
                             </TableCell>
                             <TableCell className="text-right font-medium tabular-nums">
                                 {formatNumber(item.quantity)}

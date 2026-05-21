@@ -3,7 +3,6 @@ import { Product } from "@/features/product/data/schema"
 export type DeliveryFormValues = {
     order_id: number
     delivery_date: string
-    warehouse_id?: number
     company_id?: number
     delivery_address?: string
     status?: string
@@ -17,5 +16,6 @@ export type DeliveryFormItem = {
     selected: boolean
     quantity: number
     remain_quantity?: number
+    warehouse_id?: number
     note?: string
 }

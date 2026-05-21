@@ -15,6 +15,9 @@ export function CreateProductDialog({ open, onOpenChange }: any) {
             defaultValues={{
                 code: "",
                 name: "",
+                quote_name: "",
+                quote_code: "",
+                misa_material_code: "",
                 unit: "",
                 nature: "",
                 group_id: undefined,
@@ -36,6 +39,9 @@ export function CreateProductDialog({ open, onOpenChange }: any) {
             mapFormToRequest={(v) => ({
                 code: v.code,
                 name: v.name,
+                quote_name: v.quote_name?.trim() || undefined,
+                quote_code: v.quote_code?.trim() || undefined,
+                misa_material_code: v.misa_material_code?.trim() || undefined,
                 unit: v.unit?.trim() || "",
                 nature: v.nature?.trim() || undefined,
                 group_id: v.group_id,

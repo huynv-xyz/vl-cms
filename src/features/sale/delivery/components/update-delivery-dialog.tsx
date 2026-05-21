@@ -78,7 +78,6 @@ export function UpdateDeliveryDialog({
 
             delivery_date: normalizeDate(detail.delivery_date),
 
-            warehouse_id: detail.warehouse_id ?? undefined,
             company_id: detail.company_id ?? undefined,
 
             delivery_address: detail.delivery_address ?? "",
@@ -100,13 +99,16 @@ export function UpdateDeliveryDialog({
 
         const mapped: DeliveryFormItem[] = orderItems.map((o: any) => {
             const existing = existingMap.get(o.product_id)
+            const existingQuantity = Number(existing?.quantity ?? 0)
+            const remainingQuantity = Number(o.remain_quantity ?? o.quantity ?? 0)
 
             return {
                 product_id: o.product_id,
                 product: o.product,
                 selected: !!existing,
-                quantity: existing?.quantity ?? 0,
-                remain_quantity: o.remain_quantity ?? o.quantity,
+                quantity: existingQuantity,
+                remain_quantity: remainingQuantity + existingQuantity,
+                warehouse_id: existing?.warehouse_id,
                 note: existing?.note ?? "",
             }
         })
@@ -128,7 +130,6 @@ export function UpdateDeliveryDialog({
 
             if (!headerFormData.order_id) throw new Error("Vui lòng chọn đơn hàng")
             if (!headerFormData.delivery_date) throw new Error("Vui lòng chọn ngày giao")
-            if (!headerFormData.warehouse_id) throw new Error("Vui lòng chọn kho xuất")
 
             if (!selectedItems.length) {
                 throw new Error("Phải chọn ít nhất 1 sản phẩm")
@@ -137,6 +138,9 @@ export function UpdateDeliveryDialog({
             for (const i of selectedItems) {
                 if ((i.quantity ?? 0) <= 0) {
                     throw new Error("Số lượng phải > 0")
+                }
+                if (!i.warehouse_id) {
+                    throw new Error("Vui lòng chọn kho xuất cho từng sản phẩm")
                 }
             }
 
@@ -147,6 +151,7 @@ export function UpdateDeliveryDialog({
 
                 items: selectedItems.map((i) => ({
                     product_id: i.product_id,
+                    warehouse_id: i.warehouse_id!,
                     quantity: i.quantity,
                     note: i.note ?? "",
                 })),
@@ -196,13 +201,12 @@ export function UpdateDeliveryDialog({
                                 <div className="mb-4">
                                     <div className="text-base font-semibold">Thông tin giao hàng</div>
                                     <div className="text-sm text-muted-foreground">
-                                        Cập nhật kho xuất, ngày giao và thông tin liên quan.
+                                        Chọn đơn hàng, kho xuất và thông tin giao cho phiếu.
                                     </div>
                                 </div>
                                 <DeliveryHeaderFields
                                     value={headerFormData}
                                     lockedOrder={!!order?.id}
-                                    showStatus
                                     onChange={(next) =>
                                         setHeaderFormData(next as DeliveryFormValues)
                                     }
@@ -212,7 +216,6 @@ export function UpdateDeliveryDialog({
                             <DeliveryItemsEditor
                                 orderItems={orderItems}
                                 items={items}
-                                warehouseId={headerFormData.warehouse_id}
                                 onChange={setItems}
                             />
 

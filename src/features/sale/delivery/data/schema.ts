@@ -37,6 +37,9 @@ export type DeliveryItem = {
     product_id: number
     product?: Product
 
+    warehouse_id?: number
+    warehouse?: Warehouse
+
     quantity: number
     note?: string
 }

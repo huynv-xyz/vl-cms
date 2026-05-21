@@ -41,7 +41,7 @@ export const currencyOption = createOptionMapper({
 
 export const productOption = (x: any) => ({
     value: x.id,
-    label: `${x.code} - ${x.name}`,
+    label: `${x.code} - ${x.quote_name || x.name}`,
     raw: x,
 })
 
@@ -75,4 +75,3 @@ export const deliveryOption = createOptionMapper({
     getLabel: (x: any) =>
         `${x.delivery_no}${x.order?.order_no ? ` - ${x.order.order_no}` : ""}`,
 })
-

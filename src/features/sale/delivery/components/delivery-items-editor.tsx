@@ -10,46 +10,23 @@ import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table"
 import { formatNumber } from "@/lib/utils"
-import { useQuery } from "@tanstack/react-query"
-import { getStockLots } from "@/api/inventory/lot"
+import { AsyncSelect } from "@/components/rjsf/async-select"
+import { getWarehouse, listWarehouses } from "@/api/warehouse"
+import { warehouseOption } from "@/lib/option-mapper"
 import { QuantityInputCell } from "./delivery-quantity-input-cell"
 import { Badge } from "@/components/ui/badge"
 
 type Props = {
     orderItems: any[]
     items: any[]
-    warehouseId?: number
     onChange: (items: any[]) => void
 }
 
 export function DeliveryItemsEditor({
     orderItems,
     items,
-    warehouseId,
     onChange,
 }: Props) {
-
-    const productIds = orderItems.map(i => i.product_id)
-
-    const { data: stockRes } = useQuery({
-        queryKey: ["stock-lots", warehouseId, productIds],
-        queryFn: () =>
-            getStockLots({
-                warehouse_id: warehouseId!,
-                product_ids: productIds,
-            }),
-        enabled: !!warehouseId && productIds.length > 0,
-    })
-
-    const stockMap = useMemo(() => {
-        const map = new Map<number, number>()
-
-        stockRes?.forEach((x) => {
-            map.set(x.product_id, x.quantity)
-        })
-
-        return map
-    }, [stockRes])
 
     const updateRow = (productId: number, patch: any) => {
 
@@ -66,12 +43,11 @@ export function DeliveryItemsEditor({
         const order = orderItems.find(o => o.product_id === productId)
 
         if (order) {
-            const stock = stockMap.get(productId) ?? 0
-
+            // Chỉ giới hạn theo số lượng còn phải giao của đơn hàng,
+            // không kiểm tra tồn kho.
             const remain = Number(order.remain_quantity ?? order.quantity ?? 0)
-            const limit = Math.min(remain, stock)
 
-            if (next.quantity > limit) next.quantity = limit
+            if (next.quantity > remain) next.quantity = remain
             if (next.quantity < 0) next.quantity = 0
         }
 
@@ -87,10 +63,10 @@ export function DeliveryItemsEditor({
                 ...o,
                 selected: existing?.selected ?? false,
                 quantity_delivery: existing?.quantity ?? 0,
-                stock_quantity: stockMap.get(o.product_id) ?? 0,
+                warehouse_id: existing?.warehouse_id,
             }
         })
-    }, [orderItems, items, stockMap])
+    }, [orderItems, items])
 
     const columns: ColumnDef<any>[] = [
         {
@@ -110,7 +86,7 @@ export function DeliveryItemsEditor({
         {
             header: "Sản phẩm",
             cell: ({ row }) => (
-                <div className="min-w-[260px]">
+                <div className="min-w-[240px]">
                     <div className="font-medium text-foreground">
                         {row.original.product?.code ?? `#${row.original.product_id}`}
                     </div>
@@ -129,11 +105,26 @@ export function DeliveryItemsEditor({
             cell: ({ row }) => formatNumber(row.original.max_quantity),
         },
         {
-            header: "Tồn kho",
+            header: "Kho xuất",
             cell: ({ row }) => (
-                <span className={row.original.stock_quantity > 0 ? "font-medium text-blue-600" : "font-medium text-destructive"}>
-                    {formatNumber(row.original.stock_quantity)}
-                </span>
+                <div className="min-w-[200px]">
+                    <AsyncSelect
+                        placeholder="Chọn kho xuất"
+                        value={row.original.warehouse_id}
+                        disabled={!row.original.selected}
+                        onChange={(warehouseId: number | undefined) =>
+                            updateRow(row.original.product_id, {
+                                warehouse_id: warehouseId || undefined,
+                            })
+                        }
+                        dataSource={{
+                            getList: listWarehouses,
+                            getById: getWarehouse,
+                            params: { page: 1, size: 20 },
+                        }}
+                        mapOption={warehouseOption}
+                    />
+                </div>
             ),
         },
         {
@@ -146,7 +137,6 @@ export function DeliveryItemsEditor({
                         value={row.original.quantity_delivery}
                         disabled={!row.original.selected}
                         max={row.original.max_quantity}
-                        stock={row.original.stock_quantity ?? 0}
                         onCommit={(productId, quantity) =>
                             updateRow(productId, { quantity })
                         }
@@ -181,7 +171,7 @@ export function DeliveryItemsEditor({
                 <div>
                     <div className="text-base font-semibold">Hàng giao</div>
                     <div className="text-sm text-muted-foreground">
-                        Chọn sản phẩm và nhập số lượng giao theo tồn kho hiện có.
+                        Chọn sản phẩm, kho xuất và số lượng giao cho từng dòng.
                     </div>
                 </div>
                 <div className="flex gap-2">

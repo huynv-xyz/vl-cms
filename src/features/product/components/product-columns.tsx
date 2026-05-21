@@ -39,6 +39,19 @@ export const productColumns: ColumnDef<Product>[] = [
     }),
 
     buildTextColumn<Product>({
+        title: "Báo giá XNK",
+        width: 220,
+        render: (product) => (
+            <div className="min-w-[180px] max-w-[260px]">
+                <div className="truncate font-medium">{product.quote_code || "-"}</div>
+                <div className="truncate text-xs text-muted-foreground">
+                    {product.quote_name || "-"}
+                </div>
+            </div>
+        ),
+    }),
+
+    buildTextColumn<Product>({
         title: "ĐVT",
         width: 90,
         render: (product) => product.unit || "-",
@@ -89,6 +102,11 @@ function ProductCell({ product }: { product: Product }) {
                 <span className="block truncate text-sm text-muted-foreground">
                     {product.name}
                 </span>
+                {(product.quote_code || product.misa_material_code) && (
+                    <span className="block truncate text-xs text-muted-foreground">
+                        {product.quote_code || "-"} · NL MISA: {product.misa_material_code || "-"}
+                    </span>
+                )}
             </span>
         </button>
     )

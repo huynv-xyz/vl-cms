@@ -88,6 +88,7 @@ export function OrderFormDialog({
     const Icon = meta.icon
     const totalQty = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
     const totalAmount = items.reduce((sum, item) => {
+        if (item.line_type === "PROMOTION") return sum
         const lineTotal = Number(item.quantity || 0) * Number(item.unit_price || 0)
         return sum + Math.max(lineTotal - Number(item.discount || 0), 0)
     }, 0)

@@ -16,6 +16,18 @@ export const productSchema: RJSFSchema = {
             title: "Tên sản phẩm",
             minLength: 1,
         },
+        quote_name: {
+            type: "string",
+            title: "Tên báo giá XNK",
+        },
+        quote_code: {
+            type: "string",
+            title: "Mã báo giá",
+        },
+        misa_material_code: {
+            type: "string",
+            title: "Mã NL MISA",
+        },
         unit: {
             type: "string",
             title: "Đơn vị tính",
@@ -120,6 +132,9 @@ export const productUiSchema: UiSchema = {
     "ui:order": [
         "code",
         "name",
+        "quote_name",
+        "quote_code",
+        "misa_material_code",
         "unit",
         "nature",
         "group_id",

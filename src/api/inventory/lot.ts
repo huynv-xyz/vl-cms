@@ -63,12 +63,15 @@ export const updateInventoryLot = inventoryLotApi.update
 export const deleteInventoryLot = inventoryLotApi.delete
 
 export async function getStockLots(params: {
-    warehouse_id: number
+    warehouse_id?: number
     product_ids: number[]
 }) {
-    const query = new URLSearchParams({
-        warehouse_id: String(params.warehouse_id),
-        product_ids: params.product_ids.join(","),
+    const query = new URLSearchParams()
+    if (params.warehouse_id != null) {
+        query.set("warehouse_id", String(params.warehouse_id))
+    }
+    params.product_ids.forEach((productId) => {
+        query.append("product_ids", String(productId))
     })
 
     return apiGet<StockRow[]>(`/inventory/lots/stock?${query}`)

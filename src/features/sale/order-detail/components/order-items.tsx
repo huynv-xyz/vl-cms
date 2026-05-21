@@ -41,10 +41,13 @@ export function OrderItems({ order, items }: any) {
         },
     })
 
-    const total = items.reduce(
-        (sum: number, i: any) => sum + (i.line_total || 0),
-        0
-    )
+    const total = items.reduce((sum: number, i: any) => {
+        if (i.line_type === "PROMOTION") return sum
+
+        const quantity = Number(i.quantity || 0)
+        const unitPrice = Number(i.unit_price || 0)
+        return sum + Number(i.line_total ?? quantity * unitPrice)
+    }, 0)
 
     return (
         <div className="overflow-hidden rounded-xl border bg-background shadow-sm">
@@ -83,6 +86,8 @@ export function OrderItems({ order, items }: any) {
                             <TableRow className="hover:bg-transparent">
                                 <TableHead className="w-[56px] text-center text-xs font-semibold uppercase">#</TableHead>
                                 <TableHead className="min-w-[280px] text-xs font-semibold uppercase">Sản phẩm</TableHead>
+                                <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Mô tả HH</TableHead>
+                                <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">Khuyến mãi</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">SL đặt</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">Đã xuất</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">Đã trả</TableHead>
@@ -100,6 +105,7 @@ export function OrderItems({ order, items }: any) {
                                 const returned = Number(i.returned_quantity || 0)
                                 const remain = Number(i.remain_quantity || 0)
                                 const unitPrice = Number(i.unit_price || 0)
+                                const isPromotion = i.line_type === "PROMOTION"
                                 const isRowLocked = !isEditable
 
                                 return (
@@ -116,12 +122,27 @@ export function OrderItems({ order, items }: any) {
                                                 <span className="mt-0.5 font-mono text-xs text-muted-foreground">
                                                     {i.product?.code ?? "-"}
                                                 </span>
-                                                {i.description && (
-                                                    <span className="mt-1 w-fit rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                                                        {i.description}
-                                                    </span>
-                                                )}
                                             </div>
+                                        </TableCell>
+
+                                        <TableCell>
+                                            {i.description ? (
+                                                <span className="inline-flex max-w-[260px] rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                                                    {i.description}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">—</span>
+                                            )}
+                                        </TableCell>
+
+                                        <TableCell className="text-center">
+                                            {isPromotion ? (
+                                                <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                                    Hàng KM
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">—</span>
+                                            )}
                                         </TableCell>
 
                                         <TableCell className="text-right font-medium tabular-nums">
@@ -153,7 +174,7 @@ export function OrderItems({ order, items }: any) {
                                         </TableCell>
 
                                         <TableCell className="text-right font-semibold tabular-nums">
-                                            {formatCurrency(i.line_total || quantity * unitPrice)}
+                                            {formatCurrency(isPromotion ? 0 : (i.line_total ?? quantity * unitPrice))}
                                         </TableCell>
 
                                         {isEditable && (
@@ -193,7 +214,7 @@ export function OrderItems({ order, items }: any) {
                         <TableFooter className="bg-muted/40">
                             <TableRow className="hover:bg-transparent">
                                 <TableCell
-                                    colSpan={7}
+                                    colSpan={9}
                                     className="text-right text-sm font-semibold uppercase tracking-wide text-muted-foreground"
                                 >
                                     Tổng cộng

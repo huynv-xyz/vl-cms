@@ -12,6 +12,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { formatCurrency } from "@/lib/utils"
 
@@ -32,6 +33,7 @@ export function UpdateOrderItemDialog({ item, open, onOpenChange }: Props) {
     const [unitPrice, setUnitPrice] = useState(0)
     const [discount, setDiscount] = useState(0)
     const [description, setDescription] = useState<string | undefined>()
+    const [isPromotion, setIsPromotion] = useState(false)
 
     // load data khi mở dialog
     useEffect(() => {
@@ -40,6 +42,7 @@ export function UpdateOrderItemDialog({ item, open, onOpenChange }: Props) {
             setUnitPrice(item.unit_price || 0)
             setDiscount(item.discount || 0)
             setDescription(item.description || undefined)
+            setIsPromotion(item.line_type === "PROMOTION")
         }
     }, [item])
 
@@ -48,7 +51,8 @@ export function UpdateOrderItemDialog({ item, open, onOpenChange }: Props) {
             updateOrderItem(item.id, {
                 quantity,
                 unit_price: unitPrice,
-                discount,
+                discount: isPromotion ? 0 : discount,
+                line_type: isPromotion ? "PROMOTION" : "NORMAL",
                 description,
             }),
 
@@ -161,14 +165,29 @@ export function UpdateOrderItemDialog({ item, open, onOpenChange }: Props) {
                             type="number"
                             min={0}
                             value={discount}
+                            disabled={isPromotion}
                             onChange={(e) => setDiscount(Number(e.target.value))}
                         />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium">Khuyến mãi</label>
+                        <label className="mt-1 flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm font-medium shadow-xs">
+                            <Checkbox
+                                checked={isPromotion}
+                                onCheckedChange={(checked) => {
+                                    setIsPromotion(!!checked)
+                                    if (checked) setDiscount(0)
+                                }}
+                            />
+                            <span>Hàng khuyến mãi</span>
+                        </label>
                     </div>
 
                     <div className="rounded-md border bg-muted/20 px-4 py-3">
                         <div className="text-sm text-muted-foreground">Thành tiền</div>
                         <div className="mt-1 text-xl font-bold">
-                            {formatCurrency(Math.max(quantity * unitPrice - discount, 0))}
+                            {formatCurrency(isPromotion ? 0 : Math.max(quantity * unitPrice - discount, 0))}
                         </div>
                     </div>
 

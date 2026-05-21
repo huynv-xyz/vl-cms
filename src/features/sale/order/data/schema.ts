@@ -17,6 +17,10 @@ export type OrderItem = {
     description?: string
 
     quantity: number
+    unit_price?: number
+    discount?: number
+    line_type?: string
+    line_total?: number
     exported_quantity: number
     stock_quantity?: number
 }

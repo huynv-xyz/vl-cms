@@ -1,6 +1,9 @@
 export type ProductFormValues = {
     code: string
     name: string
+    quote_name?: string
+    quote_code?: string
+    misa_material_code?: string
     unit?: string
     nature?: string
     group_id?: number

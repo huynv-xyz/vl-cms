@@ -27,13 +27,13 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
     const [formData, setFormData] = useState<any>({
         order_id: order?.id, // FIX
         delivery_date: new Date().toISOString().slice(0, 10),
+        company_id: undefined,
         status: "NEW",
         note: "",
         delivery_address: "",
     })
 
     const orderId = formData.order_id
-    const warehouseId = formData.warehouse_id
 
     const { data: orderDetail, isLoading } = useQuery({
         queryKey: ["order-detail", orderId],
@@ -82,7 +82,6 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
 
             if (!formData.order_id) throw new Error("Vui lòng chọn đơn hàng")
             if (!formData.delivery_date) throw new Error("Vui lòng chọn ngày giao")
-            if (!formData.warehouse_id) throw new Error("Vui lòng chọn kho xuất")
 
             const selectedItems = items.filter(x => x.selected)
 
@@ -94,12 +93,16 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
                 if ((item.quantity ?? 0) <= 0) {
                     throw new Error("Số lượng giao phải > 0")
                 }
+                if (!item.warehouse_id) {
+                    throw new Error("Vui lòng chọn kho xuất cho từng sản phẩm")
+                }
             }
 
             return createDelivery({
                 ...formData,
                 items: selectedItems.map(i => ({
                     product_id: i.product_id,
+                    warehouse_id: i.warehouse_id,
                     quantity: i.quantity,
                     note: i.note ?? "",
                 })),
@@ -170,7 +173,6 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
                             <DeliveryItemsEditor
                                 orderItems={orderDetail?.items ?? []}
                                 items={items}
-                                warehouseId={warehouseId}
                                 onChange={setItems}
                             />
                         )}

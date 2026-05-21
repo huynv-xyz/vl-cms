@@ -2,6 +2,9 @@ export type Product = {
     id: number
     code: string
     name: string
+    quote_name?: string
+    quote_code?: string
+    misa_material_code?: string
     unit?: string
     nature?: string
     group_code?: string

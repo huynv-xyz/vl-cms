@@ -7,7 +7,6 @@ import {
     CalendarDays,
     MapPin,
     Package,
-    Warehouse as WarehouseIcon,
 } from "lucide-react"
 
 import { Delivery } from "../data/schema"
@@ -54,21 +53,6 @@ export function useDeliveryColumns() {
                             {r.order?.order_no || "Chưa có đơn"}
                         </span>
                     </button>
-                )
-            },
-        },
-
-        {
-            accessorKey: "warehouse_id",
-            header: "Kho xuất",
-            cell: ({ row }) => {
-                const name = row.original.warehouse?.name
-                if (!name) return <span className="text-muted-foreground">—</span>
-                return (
-                    <div className="inline-flex items-center gap-1.5 text-sm">
-                        <WarehouseIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="font-medium">{name}</span>
-                    </div>
                 )
             },
         },

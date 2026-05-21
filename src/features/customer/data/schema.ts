@@ -2,6 +2,7 @@ export type Customer = {
     id: number
     code: string
     name: string
+    tax_code?: string
     type: string
     region: string
     status: number

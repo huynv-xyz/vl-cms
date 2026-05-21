@@ -61,6 +61,12 @@ export function ProductDetailDialog({
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-3">
+                    <InfoCard label="Tên báo giá XNK" value={product.quote_name || "-"} />
+                    <InfoCard label="Mã báo giá" value={product.quote_code || "-"} />
+                    <InfoCard label="Mã NL MISA" value={product.misa_material_code || "-"} />
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-3">
                     <InfoCard label="Đơn vị tính" value={product.unit || "-"} />
                     <InfoCard
                         icon={<Hash className="h-4 w-4" />}

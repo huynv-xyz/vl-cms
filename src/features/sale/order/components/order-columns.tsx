@@ -101,6 +101,11 @@ export function useOrderColumns() {
                                 <span className="text-muted-foreground tabular-nums text-xs">
                                     {formatNumber(Number(item.quantity || 0))} {item.product?.unit || ""}
                                 </span>
+                                {item.line_type === "PROMOTION" && (
+                                    <Badge className="bg-emerald-100 px-1.5 py-0 text-[10px] text-emerald-700 hover:bg-emerald-100" variant="secondary">
+                                        KM
+                                    </Badge>
+                                )}
                             </div>
                         ))}
                         {items.length > preview.length && (

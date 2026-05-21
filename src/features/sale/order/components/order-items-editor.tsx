@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { listProducts, getProduct } from "@/api/product"
@@ -32,6 +33,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                 product_id: undefined,
                 quantity: 1,
                 unit_price: 0,
+                line_type: "NORMAL",
             },
         ])
     }
@@ -65,11 +67,12 @@ export function OrderItemsEditor({ items, setItems }: Props) {
             </div>
 
             <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full min-w-[1240px] table-fixed text-sm">
+                <table className="w-full min-w-[1360px] table-fixed text-sm">
                     <colgroup>
                         <col className="w-12" />
                         <col className="w-[520px]" />
                         <col className="w-[220px]" />
+                        <col className="w-[130px]" />
                         <col className="w-[120px]" />
                         <col className="w-[150px]" />
                         <col className="w-[130px]" />
@@ -81,6 +84,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                             <th className="px-3 py-2.5 text-center font-semibold">#</th>
                             <th className="px-3 py-2.5 text-left font-semibold">Sản phẩm</th>
                             <th className="px-3 py-2.5 text-left font-semibold">Mô tả HH</th>
+                            <th className="px-3 py-2.5 text-center font-semibold">Khuyến mãi</th>
                             <th className="px-3 py-2.5 text-right font-semibold">Số lượng</th>
                             <th className="px-3 py-2.5 text-right font-semibold">Đơn giá</th>
                             <th className="px-3 py-2.5 text-right font-semibold">Chiết khấu</th>
@@ -91,8 +95,11 @@ export function OrderItemsEditor({ items, setItems }: Props) {
 
                     <tbody className="bg-background">
                         {items.map((row, i) => {
+                            const isPromotion = row.line_type === "PROMOTION"
                             const lineTotal = Math.max(
-                                (row.quantity || 0) * (row.unit_price || 0) - Number(row.discount || 0),
+                                isPromotion
+                                    ? 0
+                                    : (row.quantity || 0) * (row.unit_price || 0) - Number(row.discount || 0),
                                 0
                             )
                             const isInvalid = !row.product_id || (row.quantity ?? 0) <= 0
@@ -104,11 +111,11 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                         isInvalid && "bg-amber-50/30 dark:bg-amber-950/10"
                                     )}
                                 >
-                                    <td className="text-muted-foreground px-3 py-3 text-center font-mono text-xs font-semibold tabular-nums">
+                                    <td className="text-muted-foreground px-3 py-3 text-center align-top font-mono text-xs font-semibold tabular-nums">
                                         {i + 1}
                                     </td>
 
-                                    <td className="min-w-0 px-3 py-3">
+                                    <td className="min-w-0 px-3 py-3 align-top">
                                         <AsyncSelect
                                             value={row.product_id}
                                             onChange={(value: any, option: any) => {
@@ -142,6 +149,11 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                                 </Badge>
                                                 {row.product.code && (
                                                     <span className="min-w-0 truncate font-mono text-[11px]">{row.product.code}</span>
+                                                )}
+                                                {isPromotion && (
+                                                    <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100" variant="secondary">
+                                                        Khuyến mãi
+                                                    </Badge>
                                                 )}
                                             </div>
                                         )}
@@ -180,7 +192,22 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                         />
                                     </td>
 
-                                    <td className="px-3 py-3">
+                                    <td className="px-3 py-3 text-center align-top">
+                                        <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border bg-background px-3 text-xs font-semibold shadow-xs">
+                                            <Checkbox
+                                                checked={isPromotion}
+                                                onCheckedChange={(checked) =>
+                                                    updateRow(i, {
+                                                        line_type: checked ? "PROMOTION" : "NORMAL",
+                                                        discount: checked ? 0 : row.discount,
+                                                    })
+                                                }
+                                            />
+                                            <span>Hàng KM</span>
+                                        </label>
+                                    </td>
+
+                                    <td className="px-3 py-3 align-top">
                                         <Input
                                             type="number"
                                             min={0}
@@ -194,7 +221,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                         />
                                     </td>
 
-                                    <td className="px-3 py-3">
+                                    <td className="px-3 py-3 align-top">
                                         <Input
                                             type="number"
                                             min={0}
@@ -208,12 +235,13 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                         />
                                     </td>
 
-                                    <td className="px-3 py-3">
+                                    <td className="px-3 py-3 align-top">
                                         <Input
                                             type="number"
                                             min={0}
                                             className="text-right tabular-nums"
                                             value={row.discount ?? 0}
+                                            disabled={isPromotion}
                                             onChange={(e) =>
                                                 updateRow(i, {
                                                     discount: Number(e.target.value),
@@ -222,7 +250,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                         />
                                     </td>
 
-                                    <td className="px-3 py-3 text-right">
+                                    <td className="px-3 py-3 text-right align-top">
                                         <div className="text-base font-bold tabular-nums">
                                             {formatNumber(lineTotal)}
                                         </div>
@@ -231,7 +259,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                         </div>
                                     </td>
 
-                                    <td className="px-2 py-3 text-center">
+                                    <td className="px-2 py-3 text-center align-top">
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <Button
@@ -253,7 +281,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
 
                         {!items.length && (
                             <tr>
-                                <td colSpan={8} className="px-4 py-14">
+                                <td colSpan={9} className="px-4 py-14">
                                     <div className="text-muted-foreground flex flex-col items-center gap-3 text-center text-sm">
                                         <div className="bg-muted text-muted-foreground/60 flex h-14 w-14 items-center justify-center rounded-full">
                                             <PackageOpen className="h-7 w-7" />
