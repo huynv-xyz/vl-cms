@@ -56,7 +56,9 @@ export default function ShipmentPage() {
 
             product_ids: requestFilters.product_ids,
             port_ids: requestFilters.port_ids,
-        }
+        },
+        20,
+        true,
     )
 
     const exportParams = {
@@ -71,7 +73,7 @@ export default function ShipmentPage() {
     return (
         <ShipmentsProvider>
             <PageSection
-                isLoading={isLoading}
+                isLoading={isLoading && !data}
                 error={error}
                 title="Lịch hàng về"
                 data={data}

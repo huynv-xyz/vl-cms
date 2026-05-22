@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button"
 import {
     Command,
     CommandEmpty,
+    CommandGroup,
     CommandInput,
     CommandItem,
     CommandList,
+    CommandSeparator,
 } from "@/components/ui/command"
 import {
     Popover,
@@ -22,6 +24,7 @@ type Option = {
     value: string | number
     label: string
     raw?: any
+    values?: Array<string | number>
 }
 
 export function AsyncMultiSelect({
@@ -33,6 +36,7 @@ export function AsyncMultiSelect({
     searchPlaceholder = "Tìm kiếm...",
     emptyText = "Không có dữ liệu",
     className,
+    dedupeByLabel = false,
 }: any) {
     const selectedValues = React.useMemo<Set<string>>(
         () => new Set((value ?? []).map((item: any) => String(item))),
@@ -57,7 +61,10 @@ export function AsyncMultiSelect({
                     ...(dataSource.params || {}),
                     keyword,
                 })
-                const mapped = getItems(res).map(mapOption)
+                const mapped = normalizeOptions(
+                    getItems(res).map(mapOption).filter(Boolean),
+                    dedupeByLabel
+                )
                 setOptions(mapped)
                 setSelectedOptions((current) => mergeOptions(current, mapped, selectedValues))
             } finally {
@@ -93,7 +100,9 @@ export function AsyncMultiSelect({
             )
 
             if (active) {
-                setSelectedOptions((current) => mergeOptions(current, fetched, selectedValues))
+                setSelectedOptions((current) =>
+                    mergeOptions(current, fetched.filter(Boolean), selectedValues)
+                )
             }
         }
 
@@ -104,27 +113,37 @@ export function AsyncMultiSelect({
         }
     }, [value])
 
-    const selected = selectedOptions.filter((option) =>
-        selectedValues.has(String(option.value))
+    const selected = normalizeOptions(
+        selectedOptions.filter((option) =>
+            getOptionValues(option).some((item) => selectedValues.has(String(item)))
+        ),
+        dedupeByLabel
+    )
+    const unselectedOptions = options.filter(
+        (option) => !getOptionValues(option).some((item) => selectedValues.has(String(item)))
     )
 
     const toggle = (option: Option) => {
         const next = new Set(selectedValues)
-        const key = String(option.value)
+        const optionValues = getOptionValues(option).map((item) => String(item))
+        const selectedCount = optionValues.filter((item) => next.has(item)).length
+        const isSelected = selectedCount === optionValues.length
 
-        if (next.has(key)) {
-            next.delete(key)
+        if (isSelected) {
+            optionValues.forEach((item) => next.delete(item))
         } else {
-            next.add(key)
+            optionValues.forEach((item) => next.add(item))
         }
 
         setSelectedOptions((current) => mergeOptions(current, [option], next))
         onChange?.(Array.from(next))
+        setOpen(true)
     }
 
-    const clear = (event?: React.MouseEvent) => {
+    const clear = (event?: React.MouseEvent, keepOpen = false) => {
         event?.stopPropagation()
         onChange?.([])
+        if (keepOpen) setOpen(true)
     }
 
     return (
@@ -184,28 +203,44 @@ export function AsyncMultiSelect({
                     <CommandList className="max-h-80 overflow-y-auto">
                         <CommandEmpty>{loading ? "Đang tải..." : emptyText}</CommandEmpty>
 
-                        {options.map((option) => {
-                            const checked = selectedValues.has(String(option.value))
+                        {selected.length > 0 && (
+                            <>
+                                <CommandGroup heading="Đã chọn">
+                                    {selected.map((option) => (
+                                        <CommandItem
+                                            key={`selected-${option.value}`}
+                                            value={`selected-${option.value}`}
+                                            onMouseDown={(event) => event.preventDefault()}
+                                            onSelect={() => toggle(option)}
+                                        >
+                                            <Check className="mr-2 h-4 w-4 opacity-100" />
+                                            <span className="truncate">{option.label}</span>
+                                            <X className="ml-auto h-4 w-4 opacity-60" />
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                                <CommandSeparator />
+                            </>
+                        )}
 
-                            return (
+                        <CommandGroup heading="Kết quả">
+                            {unselectedOptions.map((option) => (
                                 <CommandItem
                                     key={option.value}
+                                    value={`option-${option.value}`}
+                                    onMouseDown={(event) => event.preventDefault()}
                                     onSelect={() => toggle(option)}
                                 >
-                                    <Check
-                                        className={cn(
-                                            "mr-2 h-4 w-4",
-                                            checked ? "opacity-100" : "opacity-0"
-                                        )}
-                                    />
+                                    <Check className="mr-2 h-4 w-4 opacity-0" />
                                     <span className="truncate">{option.label}</span>
                                 </CommandItem>
-                            )
-                        })}
+                            ))}
+                        </CommandGroup>
 
                         {selected.length > 0 && (
                             <CommandItem
-                                onSelect={() => clear()}
+                                onMouseDown={(event) => event.preventDefault()}
+                                onSelect={() => clear(undefined, true)}
                                 className="justify-center text-center text-muted-foreground"
                             >
                                 Xóa bộ lọc
@@ -226,7 +261,7 @@ function mergeOptions(
     const map = new Map<string, Option>()
 
     for (const option of current) {
-        if (selectedValues.has(String(option.value))) {
+        if (getOptionValues(option).some((item) => selectedValues.has(String(item)))) {
             map.set(String(option.value), option)
         }
     }
@@ -236,4 +271,45 @@ function mergeOptions(
     }
 
     return Array.from(map.values())
+}
+
+function normalizeOptions(options: Option[], dedupeByLabel: boolean) {
+    return dedupeByLabel ? groupOptionsByLabel(options) : uniqueOptions(options)
+}
+
+function uniqueOptions(options: Option[]) {
+    const map = new Map<string, Option>()
+
+    for (const option of options) {
+        map.set(String(option.value), option)
+    }
+
+    return Array.from(map.values())
+}
+
+function groupOptionsByLabel(options: Option[]) {
+    const map = new Map<string, Option>()
+
+    for (const option of options) {
+        const key = option.label || String(option.value)
+        const current = map.get(key)
+
+        if (!current) {
+            map.set(key, {
+                ...option,
+                values: getOptionValues(option),
+            })
+            continue
+        }
+
+        current.values = Array.from(
+            new Set([...getOptionValues(current), ...getOptionValues(option)])
+        )
+    }
+
+    return Array.from(map.values())
+}
+
+function getOptionValues(option: Option) {
+    return option.values?.length ? option.values : [option.value]
 }
