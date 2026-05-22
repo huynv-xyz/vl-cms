@@ -16,7 +16,6 @@ import { AsyncMultiSelect } from "@/components/rjsf/async-multi-select"
 import { useCrudDelete } from "@/hooks/use-crud-delete"
 import { getPort, listPorts } from "@/api/purchasing/port"
 import { getProduct, listProducts } from "@/api/product"
-import { productOption } from "@/lib/option-mapper"
 import { deleteShipmentItem } from "@/api/purchasing/shipment_items"
 import { useShipments } from "../../shipment/components/shipments-provider"
 import { formatNumber, getPageNumbers } from "@/lib/utils"
@@ -47,6 +46,12 @@ type FilterIdList = string[]
 type PortOptionSource = {
     id: string | number
     name: string
+}
+
+type ProductOptionSource = {
+    id: string | number
+    quote_name?: string
+    name?: string
 }
 
 const STATUS_OPTIONS = [
@@ -100,13 +105,19 @@ export function ShipmentItemTableV2({
                         className="h-10 min-w-[280px] flex-[1.8_1_0] border-slate-300 bg-white shadow-xs"
                         value={filters.product_ids}
                         onChange={(v: FilterIdList) => setFilter("product_ids", v)}
+                        searchPlaceholder="Nhập tên sản phẩm..."
                         placeholder="Sản phẩm"
                         dataSource={{
                             getList: listProducts,
                             getById: getProduct,
-                            params: { page: 1, size: 20 },
+                            params: {
+                                page: 1,
+                                size: 20,
+                                nature: "HANG_HOA,NGUYEN_VAT_LIEU",
+                            },
                         }}
-                        mapOption={productOption}
+                        mapOption={shipmentProductOption}
+                        dedupeByLabel
                     />
                 </div>
 
@@ -176,6 +187,16 @@ export function ShipmentItemTableV2({
             </div>
         </div>
     )
+}
+
+function shipmentProductOption(x: ProductOptionSource) {
+    return {
+        value: x.id,
+        // Shipment product filter displays products.quote_name from /products,
+        // falling back to products.name when quote_name is empty.
+        label: x.quote_name || x.name || "",
+        raw: x,
+    }
 }
 
 function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }) {
