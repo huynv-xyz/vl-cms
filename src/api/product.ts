@@ -8,6 +8,8 @@ export type ProductListParams = {
     keyword?: string
     status?: string
     nature?: string
+    group_id?: number | string
+    group_ids?: string
     group_code?: string
     default_warehouse_id?: number
     inventory_account_code?: string

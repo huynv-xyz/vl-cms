@@ -20,7 +20,11 @@ type Permission = {
 }
 
 function urlToModule(url: any) {
-    return url.replace(/^\/+/, "").replace(/\//g, ".")
+    const module = url.replace(/^\/+/, "").replace(/\//g, ".")
+    if (module === "pricing" || module.startsWith("pricing.")) {
+        return "pricing"
+    }
+    return module
 }
 
 function filterSidebar(data: typeof sidebarData, permissions: Permission[]) {

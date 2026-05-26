@@ -21,10 +21,12 @@ import {
     TrendingUp,
     Target,
     FileText,
+    FileSpreadsheet,
     Ship,
     ShieldCheck,
     UserCog,
     UsersRound,
+    Settings2,
     SlidersHorizontal
 } from 'lucide-react'
 import { SidebarData } from '../types'
@@ -174,6 +176,21 @@ export const sidebarData: SidebarData = {
                     title: 'Tính giá bán',
                     url: '/pricing',
                     icon: Calculator,
+                },
+                {
+                    title: 'Điều hành giá',
+                    url: '/pricing/operations',
+                    icon: Settings2,
+                },
+                {
+                    title: 'Tính giá thành',
+                    url: '/pricing/costing',
+                    icon: Calculator,
+                },
+                {
+                    title: 'Bảng giá',
+                    url: '/pricing/quotes',
+                    icon: FileSpreadsheet,
                 },
             ],
         },
