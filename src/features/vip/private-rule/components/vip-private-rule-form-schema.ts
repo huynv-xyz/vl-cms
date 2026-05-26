@@ -25,6 +25,10 @@ export const vipPrivateRuleSchema: RJSFSchema = {
             title: "Số tiền",
             default: 0,
         },
+        unit: {
+            type: "string",
+            title: "Đơn vị tính",
+        },
         note: {
             type: "string",
             title: "Ghi chú",

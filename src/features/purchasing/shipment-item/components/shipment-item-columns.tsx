@@ -5,6 +5,7 @@ import { formatCurrency, formatNumber } from "@/lib/utils"
 import type { ColumnDef } from "@tanstack/react-table"
 import type { ShipmentItem } from "../data/schema"
 import { ShipmentItemRowActions } from "./shipment-item-row-actions"
+import { getShipmentStatusLabel, getShipmentStatusBadgeClass } from "../../shipment/data/shipment-status"
 
 export const shipmentItemColumns: ColumnDef<ShipmentItem>[] = [
     buildIndexColumn(),
@@ -140,33 +141,9 @@ function InfoLine({
 }
 
 function StatusBadge({ status }: { status?: string }) {
-    const className =
-        status === "DONE"
-            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-            : status === "IN_TRANSIT"
-                ? "border-sky-200 bg-sky-50 text-sky-700"
-                : status === "CANCELLED"
-                    ? "border-red-200 bg-red-50 text-red-700"
-                    : "border-slate-200 bg-slate-50 text-slate-700"
-
     return (
-        <Badge variant="outline" className={`${className} text-sm`}>
-            {formatStatus(status)}
+        <Badge variant="outline" className={`${getShipmentStatusBadgeClass(status)} text-sm`}>
+            {getShipmentStatusLabel(status)}
         </Badge>
     )
-}
-
-function formatStatus(status?: string) {
-    switch (status) {
-        case "PLANNED":
-            return "Kế hoạch"
-        case "IN_TRANSIT":
-            return "Đang vận chuyển"
-        case "DONE":
-            return "Hoàn tất"
-        case "CANCELLED":
-            return "Đã hủy"
-        default:
-            return status || "-"
-    }
 }

@@ -46,7 +46,7 @@ const defaultHeader: ShipmentHeaderFormValues = {
     container_no: "",
     destination_port_id: undefined,
     exchange_rate: 1,
-    status: "PLANNED",
+    status: "IN_TRANSIT",
     note: "",
 }
 
@@ -145,9 +145,9 @@ export function UpdateShipmentDialog({
     const { mutate, isPending } = useMutation({
         mutationFn: async () => {
             const warehouseAt = headerFormData.warehouse_at || (
-                headerFormData.status === "DONE" ? todayInputValue() : ""
+                headerFormData.status === "IN_WAREHOUSE" ? todayInputValue() : ""
             )
-            if (headerFormData.status === "DONE" && !warehouseAt) {
+            if (headerFormData.status === "IN_WAREHOUSE" && !warehouseAt) {
                 throw new Error("Chọn ngày về kho trước khi hoàn tất lô hàng")
             }
 
@@ -219,7 +219,7 @@ export function UpdateShipmentDialog({
                             }}
                             onChange={({ formData }) => {
                                 const next = formData as ShipmentHeaderFormValues
-                                if (next.status === "DONE" && !next.warehouse_at) {
+                                if (next.status === "IN_WAREHOUSE" && !next.warehouse_at) {
                                     next.warehouse_at = todayInputValue()
                                 }
                                 setHeaderFormData(next)

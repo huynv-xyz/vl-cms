@@ -40,6 +40,13 @@ export const vipPrivateRuleColumns: ColumnDef<VipPrivateRule>[] = [
         width: 140,
     }),
 
+    buildTextColumn<VipPrivateRule>({
+        accessorKey: "unit",
+        title: "ĐVT",
+        width: 80,
+        maxWidth: 80,
+    }),
+
     buildTruncateColumn<VipPrivateRule>({
         accessorKey: "note",
         header: "Ghi chú",

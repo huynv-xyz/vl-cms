@@ -25,7 +25,9 @@ import {
     ShieldCheck,
     UserCog,
     UsersRound,
-    SlidersHorizontal
+    SlidersHorizontal,
+    GitMerge,
+    History,
 } from 'lucide-react'
 import { SidebarData } from '../types'
 import { Logo } from '@/assets/logo'
@@ -100,44 +102,19 @@ export const sidebarData: SidebarData = {
             ],
         },
 
-        /*{
-            title: 'Hợp đồng năm',
-            items: [
-                {
-                    title: 'VIP',
-                    url: '/vip/customers',
-                    icon: Crown, // 👑 chuẩn
-                },
-                {
-                    title: 'Tính điểm VIP',
-                    url: '/vip/point-rules',
-                    icon: Calculator, // 🧮 OK
-                },
-                {
-                    title: 'Mã riêng',
-                    url: '/vip/private-rules',
-                    icon: KeyRound, // 🔑 OK
-                },
-                {
-                    title: 'Cấp bậc VIP',
-                    url: '/vip/tiers',
-                    icon: Layers3, // 🧱 tầng
-                }
-            ],
-        },
-
+        /*
         {
             title: 'Lương sale',
             items: [
                 {
                     title: 'Chỉ tiêu tháng',
                     url: '/salary/sales-targets',
-                    icon: Target, // 🎯 chuẩn hơn Crown
+                    icon: Target, 
                 },
                 {
                     title: 'Thực hiện',
                     url: '/salary/sales-actuals',
-                    icon: TrendingUp, // 📈 logic
+                    icon: TrendingUp, 
                 }
             ],
         },*/
@@ -241,6 +218,46 @@ export const sidebarData: SidebarData = {
                     title: 'Định mức BOM',
                     url: '/production/boms',
                     icon: Layers3,
+                },
+            ],
+        },
+        {
+            title: 'Hợp đồng năm',
+            items: [
+                {
+                    title: 'VIP',
+                    url: '/vip/customer',
+                    icon: Crown,
+                },
+                {
+                    title: 'Tính điểm VIP',
+                    url: '/vip/point-rules',
+                    icon: Calculator,
+                },
+                {
+                    title: 'Mã riêng',
+                    url: '/vip/private-rules',
+                    icon: KeyRound,
+                },
+                {
+                    title: 'Cấp bậc VIP',
+                    url: '/vip/tiers',
+                    icon: Layers3,
+                },
+                {
+                    title: 'Mapping hàng hóa',
+                    url: '/vip/product-mapping',
+                    icon: GitMerge,
+                },
+                {
+                    title: 'Chỉ tiêu KH',
+                    url: '/vip/customer-target',
+                    icon: Target,
+                },
+                {
+                    title: 'Lịch sử tính VIP',
+                    url: '/vip/recalc-job',
+                    icon: History,
                 },
             ],
         },

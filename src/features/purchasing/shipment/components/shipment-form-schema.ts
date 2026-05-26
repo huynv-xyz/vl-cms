@@ -1,6 +1,7 @@
 import { getPort, listPorts } from "@/api/purchasing/port"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { RJSFSchema, UiSchema } from "@rjsf/utils"
+import { SHIPMENT_STATUS_FORM_OPTIONS } from "../data/shipment-status"
 
 export const shipmentSchema: RJSFSchema = {
     type: "object",
@@ -51,12 +52,7 @@ export const shipmentSchema: RJSFSchema = {
         status: {
             type: "string",
             title: "Trạng thái",
-            oneOf: [
-                { const: "PLANNED", title: "Kế hoạch" },
-                { const: "IN_TRANSIT", title: "Đang đi" },
-                { const: "DONE", title: "Hoàn tất" },
-                { const: "CANCELLED", title: "Đã hủy" },
-            ],
+            oneOf: SHIPMENT_STATUS_FORM_OPTIONS,
         },
 
         note: {

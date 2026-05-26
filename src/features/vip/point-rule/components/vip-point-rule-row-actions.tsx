@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import type { VipPointRule } from "../data/schema"
 import { CrudRowActions } from "@/components/crud/crud-row-actions"
 import { useVipPointRules } from "./vip-point-rules-provider"
-import { deleteVipPointRule } from "@/api/ vip-point-rule"
+import { deleteVipPointRule } from "@/api/vip-point-rule"
 
 type VipPointRuleRowActionsProps = {
     row: Row<VipPointRule>

@@ -9,6 +9,8 @@ export const Route = createFileRoute("/_authenticated/vip/customer/")({
         region: typeof search.region === 'string' ? search.region : undefined,
         tier_code: typeof search.tier_code === 'string' ? search.tier_code : undefined,
         group_code: typeof search.group_code === 'string' ? search.group_code : undefined,
+        calc_year: typeof search.calc_year === 'string' ? search.calc_year : undefined,
+        customer_type: typeof search.customer_type === 'string' ? search.customer_type : undefined,
     }),
     component: CustomerVipPage,
 })

@@ -2,7 +2,7 @@ import { CrudFormDialog } from "@/components/crud/crud-form-dialog"
 import {
     updateVipPointRule,
     type UpdateVipPointRuleRequest,
-} from "@/api/ vip-point-rule"
+} from "@/api/vip-point-rule"
 
 import type { VipPointRule } from "../data/schema"
 import { vipPointRuleSchema, vipPointRuleUiSchema } from "./vip-point-rule-form-schema"
@@ -33,6 +33,9 @@ export function UpdateVipPointRuleDialog({
                 to_value: rule.to_value ?? 0,
                 he_so_mb: rule.he_so_mb ?? 0,
                 he_so_mn: rule.he_so_mn ?? 0,
+                group_code: rule.group_code ?? "",
+                unit: rule.unit ?? "",
+                description: rule.description ?? "",
                 note: rule.note ?? "",
                 status: rule.status === 1,
             }}
@@ -47,6 +50,9 @@ export function UpdateVipPointRuleDialog({
                 to_value: values.to_value ?? 0,
                 he_so_mb: values.he_so_mb ?? 0,
                 he_so_mn: values.he_so_mn ?? 0,
+                group_code: values.group_code ?? "",
+                unit: values.unit ?? "",
+                description: values.description ?? "",
                 note: values.note ?? "",
                 status: values.status === false ? 0 : 1,
             })}

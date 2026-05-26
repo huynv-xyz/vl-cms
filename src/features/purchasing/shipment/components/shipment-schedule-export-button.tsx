@@ -7,6 +7,7 @@ import { Download } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import type { ShipmentItem } from "../../shipment-item/data/schema"
+import { getShipmentStatusLabel } from "../data/shipment-status"
 
 export type ShipmentScheduleExportParams = Omit<
     ShipmentItemListParams,
@@ -120,7 +121,7 @@ function exportShipmentScheduleExcel(items: ShipmentItem[]) {
                     <td class="date-text">${escapeHtml(formatDate(item.shipment?.eta))}</td>
                     <td>${escapeHtml(item.shipment?.destination_port?.name || "")}</td>
                     <td>${escapeHtml(formatNumberForExcel(realQuantity))}</td>
-                    <td>${escapeHtml(formatStatus(item.shipment?.status))}</td>
+                    <td>${escapeHtml(getShipmentStatusLabel(item.shipment?.status))}</td>
                     <td>${escapeHtml(item.note || item.shipment?.note || "")}</td>
                 </tr>`
         })
@@ -181,23 +182,6 @@ function getProductGroupName(item: ShipmentItem) {
         item.product?.group_code ||
         "Chưa phân loại"
     )
-}
-
-function formatStatus(status?: string) {
-    switch (status) {
-        case "IN_TRANSIT":
-            return "Đang vận chuyển"
-        case "ARRIVED_PORT":
-            return "Đã cập cảng"
-        case "IN_WAREHOUSE":
-            return "Đã về kho"
-        case "DONE":
-            return "Hoàn tất"
-        case "CANCELLED":
-            return "Đã hủy"
-        default:
-            return status || "—"
-    }
 }
 
 function formatDate(value?: string) {

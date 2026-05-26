@@ -14,11 +14,15 @@ type CustomerVipTableProps = {
         regions?: string[]
         tier_codes?: string[]
         group_codes?: string[]
+        calc_years?: string[]
+        customer_types?: string[]
     }
     onFiltersChange: (filters: {
         regions?: string[]
         tier_codes?: string[]
         group_codes?: string[]
+        calc_years?: string[]
+        customer_types?: string[]
     }) => void
 }
 
@@ -90,6 +94,37 @@ export function CustomerVipTable({
                     options: [
                         { label: 'B2B', value: 'B2B' },
                         { label: 'B2C', value: 'B2C' },
+                    ],
+                },
+                {
+                    columnId: 'calc_year',
+                    title: 'Năm tính',
+                    values: filters.calc_years ?? [],
+                    onChange: (values) =>
+                        onFiltersChange({
+                            ...filters,
+                            calc_years: values,
+                        }),
+                    options: [
+                        { label: '2023', value: '2023' },
+                        { label: '2024', value: '2024' },
+                        { label: '2025', value: '2025' },
+                        { label: '2026', value: '2026' },
+                    ],
+                },
+                {
+                    columnId: 'customer_type',
+                    title: 'Loại khách hàng',
+                    values: filters.customer_types ?? [],
+                    onChange: (values) =>
+                        onFiltersChange({
+                            ...filters,
+                            customer_types: values,
+                        }),
+                    options: [
+                        { label: 'B2B', value: 'B2B' },
+                        { label: 'B2C', value: 'B2C' },
+                        { label: 'MB B2B', value: 'MB_B2B' },
                     ],
                 },
             ]}

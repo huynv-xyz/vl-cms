@@ -25,18 +25,18 @@ export type CustomerVip = {
 
 export type CustomerVipDetailItem = {
     stt: number
-    ma_chung: string
-    nhom_hang_hoa: string
-    dvt: string
-    sl_dat?: number | string | null
-    sl_du_kien?: number | string | null
-    he_so?: number | null
-    sl_can_them_khuyen_cao?: number | null
-    sl_can_them_muc_tieu?: number | null
-    sl_admin_nhap?: number | null
-    diem_dat_admin?: number | null
-    diem_dat?: number | null
-    uu_tien?: string | null
+    group_code: string
+    product_group: string
+    unit: string
+    achieved_qty?: number | string | null
+    expected_qty?: number | string | null
+    point_factor?: number | null
+    needed_qty_recommended?: number | null
+    needed_qty_target?: number | null
+    target_qty?: number | null
+    target_point?: number | null
+    achieved_point?: number | null
+    priority?: string | null
 }
 
 export type CustomerVipDetail = CustomerVip & {

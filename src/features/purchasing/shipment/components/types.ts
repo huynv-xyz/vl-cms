@@ -1,8 +1,5 @@
-export type ShipmentStatus =
-    | "PLANNED"
-    | "IN_TRANSIT"
-    | "DONE"
-    | "CANCELLED"
+import type { ShipmentStatus } from "../data/shipment-status"
+export type { ShipmentStatus }
 
 export type ShipmentFormItem = {
     product_id?: number

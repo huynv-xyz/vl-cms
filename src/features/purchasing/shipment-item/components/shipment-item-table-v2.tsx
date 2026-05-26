@@ -32,6 +32,11 @@ import {
     Warehouse,
 } from "lucide-react"
 import type { ShipmentItem } from "../data/schema"
+import {
+    SHIPMENT_STATUS_FILTER_OPTIONS,
+    getShipmentStatusLabel,
+    getShipmentStatusBadgeClass,
+} from "../../shipment/data/shipment-status"
 
 type Filters = {
     eta_from?: string
@@ -53,12 +58,6 @@ type ProductOptionSource = {
     quote_name?: string
     name?: string
 }
-
-const STATUS_OPTIONS = [
-    { value: "IN_TRANSIT", values: ["IN_TRANSIT"], label: "Đang vận chuyển" },
-    { value: "ARRIVED_PORT", values: ["ARRIVED_PORT"], label: "Đã cập cảng" },
-    { value: "IN_WAREHOUSE", values: ["IN_WAREHOUSE", "DONE"], label: "Đã về kho" },
-]
 
 type Props = {
     data: ShipmentItem[]
@@ -210,8 +209,7 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
     const arrivedAtPort =
         !!shipment?.ata ||
         shipment?.status === "ARRIVED_PORT" ||
-        shipment?.status === "IN_WAREHOUSE" ||
-        shipment?.status === "DONE"
+        shipment?.status === "IN_WAREHOUSE"
 
     return (
         <div className="overflow-hidden rounded-lg border border-[#d8d5c9] shadow-xs">
@@ -340,11 +338,11 @@ function StatusFilter({
     onChange: (value?: string[]) => void
 }) {
     const selected = value ?? []
-    const selectedOptionCount = STATUS_OPTIONS.filter((option) =>
+    const selectedOptionCount = SHIPMENT_STATUS_FILTER_OPTIONS.filter((option) =>
         option.values.some((status) => selected.includes(status)),
     ).length
 
-    const toggleStatus = (option: (typeof STATUS_OPTIONS)[number]) => {
+    const toggleStatus = (option: (typeof SHIPMENT_STATUS_FILTER_OPTIONS)[number]) => {
         const optionValues = option.values
         const isSelected = optionValues.some((status) => selected.includes(status))
         const next = isSelected
@@ -371,7 +369,7 @@ function StatusFilter({
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-[220px]">
-                {STATUS_OPTIONS.map((option) => (
+                {SHIPMENT_STATUS_FILTER_OPTIONS.map((option) => (
                     <DropdownMenuCheckboxItem
                         key={option.value}
                         checked={option.values.some((status) => selected.includes(status))}
@@ -485,41 +483,11 @@ function QtyRow({
 }
 
 function ShipmentStatusBadge({ status }: { status?: string }) {
-    const className =
-        status === "DONE"
-            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-            : status === "IN_WAREHOUSE"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : status === "IN_TRANSIT"
-                    ? "border-sky-200 bg-sky-50 text-sky-700"
-                    : status === "ARRIVED_PORT"
-                        ? "border-amber-200 bg-amber-50 text-amber-700"
-                        : status === "CANCELLED"
-                            ? "border-red-200 bg-red-50 text-red-700"
-                            : "border-slate-200 bg-slate-50 text-slate-700"
-
     return (
-        <Badge variant="outline" className={`${className} h-5 rounded-sm px-2 text-[11px]`}>
-            {formatStatus(status)}
+        <Badge variant="outline" className={`${getShipmentStatusBadgeClass(status)} h-5 rounded-sm px-2 text-[11px]`}>
+            {getShipmentStatusLabel(status)}
         </Badge>
     )
-}
-
-function formatStatus(status?: string) {
-    switch (status) {
-        case "IN_TRANSIT":
-            return "Đang vận chuyển"
-        case "ARRIVED_PORT":
-            return "Đã cập cảng"
-        case "IN_WAREHOUSE":
-            return "Đã về kho"
-        case "DONE":
-            return "Hoàn tất"
-        case "CANCELLED":
-            return "Đã hủy"
-        default:
-            return status || "—"
-    }
 }
 
 function formatDate(value?: string) {

@@ -1,5 +1,6 @@
 import { createCrudApi } from "@/api/crud"
-import { CustomerVip, CustomerVipDetail } from "@/features/vip/customer/data/schema"
+import { apiPost } from "@/api/client"
+import type { CustomerVip, CustomerVipDetail } from "@/features/vip/customer/data/schema"
 
 export type CustomerVipListParams = {
     page: number
@@ -8,6 +9,8 @@ export type CustomerVipListParams = {
     region?: string
     tier_code?: string
     group_code?: string
+    calc_year?: number
+    customer_type?: string
 }
 
 const customerVipApi = createCrudApi<
@@ -15,11 +18,14 @@ const customerVipApi = createCrudApi<
     never,
     { id: number },
     CustomerVipListParams
->("/vip")
+>("/vip/customers")
 
 export const listCustomerVips = customerVipApi.list
 
-
-export async function getCustomerVipDetail(id: number) {
+export async function getCustomerVipDetail(id: number | string) {
     return customerVipApi.detail(id) as Promise<CustomerVipDetail>
+}
+
+export async function triggerVipRecalc(year?: number) {
+    return apiPost<boolean>("/vip/customers/recalc", year ? { year } : {})
 }
