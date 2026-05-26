@@ -7,122 +7,110 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatNumber } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
 
 type Props = {
     items: CustomerVipDetailItem[]
 }
 
-function formatNumber(value?: number | string | null) {
-    if (value === null || value === undefined || value === "") return "-"
-    const num = typeof value === "string" ? Number(value) : value
-    if (Number.isNaN(num)) return String(value)
-    return new Intl.NumberFormat("vi-VN").format(num)
+const PRIORITY_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
+    CAO: "default",
+    TRUNG_BINH: "secondary",
+    THAP: "outline",
 }
 
 export function CustomerVipDetailTable({ items }: Props) {
     return (
         <Card className="overflow-hidden rounded-xl border shadow-sm">
+            <CardHeader className="border-b px-5 py-3">
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    Chi tiết theo nhóm hàng hóa
+                </CardTitle>
+            </CardHeader>
             <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                    <Table className="min-w-[1500px]">
+                    <Table className="min-w-[1400px] text-sm">
                         <TableHeader>
-                            <TableRow className="bg-[#5f8ec6] hover:bg-[#5f8ec6]">
-                                <TableHead className="w-[70px] text-center font-bold text-white">
-                                    STT
-                                </TableHead>
-                                <TableHead className="font-bold text-white">Mã chung</TableHead>
-                                <TableHead className="font-bold text-white">
-                                    Nhóm hàng hóa
-                                </TableHead>
-                                <TableHead className="font-bold text-white">ĐVT</TableHead>
-                                <TableHead className="text-right font-bold text-white">
-                                    SL đặt
-                                </TableHead>
-                                <TableHead className="text-right font-bold text-white">
-                                    SL dự kiến
-                                </TableHead>
-                                <TableHead className="text-right font-bold text-white">
-                                    Hệ số
-                                </TableHead>
-                                <TableHead className="text-right font-bold text-white">
-                                    SL cần thêm (KK)
-                                </TableHead>
-                                <TableHead className="text-right font-bold text-white">
-                                    SL cần thêm (MT)
-                                </TableHead>
-                                <TableHead className="text-right font-bold text-white">
-                                    SL admin nhập
-                                </TableHead>
-                                <TableHead className="text-right font-bold text-white">
-                                    Điểm đạt admin
-                                </TableHead>
-                                <TableHead className="text-right font-bold text-white">
-                                    Điểm đạt
-                                </TableHead>
-                                <TableHead className="font-bold text-white">Ưu tiên</TableHead>
+                            <TableRow className="bg-muted/60 hover:bg-muted/60">
+                                <TableHead className="w-14 text-center font-semibold">STT</TableHead>
+                                <TableHead className="font-semibold">Mã chung</TableHead>
+                                <TableHead className="font-semibold">Nhóm hàng hóa</TableHead>
+                                <TableHead className="font-semibold">ĐVT</TableHead>
+                                <TableHead className="text-right font-semibold">SL đặt</TableHead>
+                                <TableHead className="text-right font-semibold">SL dự kiến</TableHead>
+                                <TableHead className="text-right font-semibold">Hệ số</TableHead>
+                                <TableHead className="text-right font-semibold">Cần thêm (KK)</TableHead>
+                                <TableHead className="text-right font-semibold">Cần thêm (MT)</TableHead>
+                                <TableHead className="text-right font-semibold">SL mục tiêu</TableHead>
+                                <TableHead className="text-right font-semibold">Điểm mục tiêu</TableHead>
+                                <TableHead className="text-right font-semibold">Điểm đạt</TableHead>
+                                <TableHead className="text-center font-semibold">Ưu tiên</TableHead>
                             </TableRow>
                         </TableHeader>
 
                         <TableBody>
                             {items.length === 0 ? (
                                 <TableRow>
-                                    <TableCell
-                                        colSpan={13}
-                                        className="h-24 text-center text-muted-foreground"
-                                    >
+                                    <TableCell colSpan={13} className="h-24 text-center text-muted-foreground">
                                         Không có dữ liệu chi tiết
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 items.map((item, index) => (
-                                    <TableRow
-                                        key={`${item.stt}-${item.group_code}-${index}`}
-                                        className="odd:bg-[#dfe8f5] even:bg-white"
-                                    >
-                                        <TableCell className="text-center font-medium text-green-600">
+                                    <TableRow key={`${item.stt}-${item.group_code}-${index}`}>
+                                        <TableCell className="text-center font-medium text-muted-foreground">
                                             {item.stt}
                                         </TableCell>
 
-                                        <TableCell className="font-medium">{item.group_code}</TableCell>
+                                        <TableCell className="font-semibold">{item.group_code}</TableCell>
 
-                                        <TableCell>{item.product_group}</TableCell>
+                                        <TableCell className="text-muted-foreground">{item.product_group || "—"}</TableCell>
 
-                                        <TableCell>{item.unit}</TableCell>
+                                        <TableCell>{item.unit || "—"}</TableCell>
 
-                                        <TableCell className="text-right text-green-600">
-                                            {formatNumber(item.achieved_qty)}
+                                        <TableCell className="text-right font-medium text-emerald-600">
+                                            {formatNumber(Number(item.achieved_qty ?? 0))}
+                                        </TableCell>
+
+                                        <TableCell className="text-right text-muted-foreground">
+                                            {formatNumber(Number(item.expected_qty ?? 0))}
+                                        </TableCell>
+
+                                        <TableCell className="text-right text-muted-foreground">
+                                            {formatNumber(Number(item.point_factor ?? 0))}
                                         </TableCell>
 
                                         <TableCell className="text-right">
-                                            {formatNumber(item.expected_qty)}
-                                        </TableCell>
-
-                                        <TableCell className="text-right text-green-600">
-                                            {formatNumber(item.point_factor)}
+                                            {formatNumber(Number(item.needed_qty_recommended ?? 0))}
                                         </TableCell>
 
                                         <TableCell className="text-right">
-                                            {formatNumber(item.needed_qty_recommended)}
+                                            {formatNumber(Number(item.needed_qty_target ?? 0))}
                                         </TableCell>
 
-                                        <TableCell className="text-right">
-                                            {formatNumber(item.needed_qty_target)}
+                                        <TableCell className="text-right font-semibold text-primary">
+                                            {formatNumber(Number(item.target_qty ?? 0))}
                                         </TableCell>
 
-                                        <TableCell className="text-right font-semibold text-blue-700">
-                                            {formatNumber(item.target_qty)}
-                                        </TableCell>
-
-                                        <TableCell className="text-right">
-                                            {formatNumber(item.target_point)}
+                                        <TableCell className="text-right text-muted-foreground">
+                                            {formatNumber(Number(item.target_point ?? 0))}
                                         </TableCell>
 
                                         <TableCell className="text-right font-semibold">
-                                            {formatNumber(item.achieved_point)}
+                                            {formatNumber(Number(item.achieved_point ?? 0))}
                                         </TableCell>
 
-                                        <TableCell>{item.priority || "-"}</TableCell>
+                                        <TableCell className="text-center">
+                                            {item.priority ? (
+                                                <Badge variant={PRIORITY_VARIANT[item.priority] ?? "outline"}>
+                                                    {item.priority}
+                                                </Badge>
+                                            ) : (
+                                                <span className="text-muted-foreground">—</span>
+                                            )}
+                                        </TableCell>
                                     </TableRow>
                                 ))
                             )}

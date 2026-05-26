@@ -31,7 +31,7 @@ export default function VipCustomerTargetPage() {
                 isLoading={isLoading}
                 error={error}
                 title="Chỉ tiêu khách hàng VIP"
-                description="Danh sách chỉ ti��u mục tiêu hạng VIP cho từng khách hàng."
+                description="Danh sách chỉ tiêu mục tiêu hạng VIP cho từng khách hàng."
                 actions={<CreateVipCustomerTargetButton />}
                 data={data}
             >

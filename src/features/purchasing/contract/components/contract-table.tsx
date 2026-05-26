@@ -11,10 +11,11 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { getProduct, listProducts } from "@/api/product"
+import { getProduct } from "@/api/product"
+import { listContractItems } from "@/api/purchasing/contract-item"
 import { getNation, listNations } from "@/api/purchasing/nation"
 import { getSupplier, listSuppliers } from "@/api/purchasing/supplier"
-import { nationOption, productOption, supplierOption } from "@/lib/option-mapper"
+import { nationOption, supplierOption } from "@/lib/option-mapper"
 import { formatCurrency, formatNumber } from "@/lib/utils"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { ClipboardList } from "lucide-react"
@@ -42,6 +43,19 @@ type ContractTableProps = {
 }
 
 type FilterIdList = string[]
+type ProductOptionSource = {
+    id: string | number
+    product_id?: string | number
+    product?: {
+        id?: string | number
+        code?: string
+        quote_name?: string
+        name?: string
+    }
+    code?: string
+    quote_name?: string
+    name?: string
+}
 
 const STATUS_OPTIONS = [
     { value: "DRAFT", label: "Nháp" },
@@ -91,11 +105,12 @@ export function ContractTable({
                         onChange={(v: FilterIdList) => setFilter("product_ids", v)}
                         placeholder="Sản phẩm"
                         dataSource={{
-                            getList: listProducts,
+                            getList: listContractItems,
                             getById: getProduct,
                             params: { page: 1, size: 20 },
                         }}
-                        mapOption={productOption}
+                        mapOption={contractProductOption}
+                        dedupeByLabel
                     />
                 </div>
 
@@ -170,6 +185,18 @@ export function ContractTable({
             />
         </div>
     )
+}
+
+function contractProductOption(x: ProductOptionSource) {
+    const product = x.product ?? x
+    const productId = x.product_id ?? product.id
+    if (!productId) return null
+
+    return {
+        value: productId,
+        label: product.quote_name || product.name || product.code || "",
+        raw: x,
+    }
 }
 
 function StatusFilter({

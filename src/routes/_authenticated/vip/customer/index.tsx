@@ -11,6 +11,7 @@ export const Route = createFileRoute("/_authenticated/vip/customer/")({
         group_code: typeof search.group_code === 'string' ? search.group_code : undefined,
         calc_year: typeof search.calc_year === 'string' ? search.calc_year : undefined,
         customer_type: typeof search.customer_type === 'string' ? search.customer_type : undefined,
+        customer_code: typeof search.customer_code === 'string' ? search.customer_code : undefined,
     }),
     component: CustomerVipPage,
 })

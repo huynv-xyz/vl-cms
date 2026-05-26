@@ -42,7 +42,7 @@ export function ExportTable({
     onFiltersChange,
 }: any) {
 
-    const { columns, dialog } = useExportColumns()
+    const { columns } = useExportColumns()
     const doneCount = data.filter((item: Export) => item.status === "DONE").length
     const newCount = data.filter((item: Export) => item.status === "NEW").length
     const totalItems = data.reduce(
@@ -112,7 +112,7 @@ export function ExportTable({
                         dataSource={{
                             getList: listOrders,
                             getById: getOrder,
-                            params: { page: 1, size: 20 },
+                            params: { page: 1, size: 20, status: "DONE" },
                         }}
                         mapOption={orderOption}
                         onChange={(orderId: any) =>
@@ -137,7 +137,7 @@ export function ExportTable({
                         dataSource={{
                             getList: listDeliveries,
                             getById: getDelivery,
-                            params: { page: 1, size: 20 },
+                            params: { page: 1, size: 20, status: "DONE" },
                         }}
                         mapOption={deliveryOption}
                         onChange={(deliveryId: any) =>
@@ -175,7 +175,6 @@ export function ExportTable({
                 showToolbar={false}
             />
 
-            {dialog}
         </div>
     )
 }

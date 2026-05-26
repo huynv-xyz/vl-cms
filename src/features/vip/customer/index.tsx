@@ -12,11 +12,31 @@ export default function CustomerVipPage() {
 
     const { pagination, setPagination } = useUrlPagination(search, navigate)
 
-    const { keyword, setKeyword, multiFilters, setMultiFilters, requestFilters } =
-        useUrlListFilters(search, navigate, ['region', 'tier_code', 'group_code', 'calc_year', 'customer_type'])
+    const {
+        keyword,
+        setKeyword,
+        multiFilters,
+        setMultiFilters,
+        requestFilters,
+    } = useUrlListFilters(
+        search,
+        navigate,
+        ['region', 'tier_code', 'group_code', 'calc_year', 'customer_type', 'customer_code'],
+    )
 
     const { data, isLoading, error } = usePaginatedList(
-        ['customer-vip'],
+        [
+            'customer-vip',
+            search.page,
+            search.size,
+            keyword,
+            multiFilters.region,
+            multiFilters.tier_code,
+            multiFilters.group_code,
+            multiFilters.calc_year,
+            multiFilters.customer_type,
+            multiFilters.customer_code,
+        ],
         listCustomerVips,
         {
             page: search.page,
@@ -27,6 +47,7 @@ export default function CustomerVipPage() {
             group_code: requestFilters.group_code,
             calc_year: requestFilters.calc_year ? Number(requestFilters.calc_year) : undefined,
             customer_type: requestFilters.customer_type,
+            customer_code: requestFilters.customer_code,
         },
     )
 
@@ -52,6 +73,7 @@ export default function CustomerVipPage() {
                         group_codes: multiFilters.group_code,
                         calc_years: multiFilters.calc_year,
                         customer_types: multiFilters.customer_type,
+                        customer_codes: multiFilters.customer_code,
                     }}
                     onFiltersChange={(next) =>
                         setMultiFilters({
@@ -60,6 +82,7 @@ export default function CustomerVipPage() {
                             group_code: next.group_codes,
                             calc_year: next.calc_years,
                             customer_type: next.customer_types,
+                            customer_code: next.customer_codes,
                         })
                     }
                 />

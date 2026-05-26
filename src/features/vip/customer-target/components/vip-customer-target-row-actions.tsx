@@ -16,6 +16,7 @@ export function VipCustomerTargetRowActions({ row }: Props) {
 
     return (
         <CrudRowActions
+            row={row.original}
             onEdit={() => openEdit(row.original)}
             onDelete={async () => {
                 await deleteVipCustomerTarget(row.original.id)

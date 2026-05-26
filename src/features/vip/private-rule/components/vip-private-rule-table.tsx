@@ -9,6 +9,8 @@ type VipPrivateRuleTableProps = {
     pagination: PaginationState
     onPaginationChange: OnChangeFn<PaginationState>
     pageCount: number
+    keyword: string
+    onKeywordChange: (value: string) => void
 }
 
 export function VipPrivateRuleTable({
@@ -16,16 +18,20 @@ export function VipPrivateRuleTable({
     pagination,
     onPaginationChange,
     pageCount,
+    keyword,
+    onKeywordChange,
 }: VipPrivateRuleTableProps) {
     return (
         <CrudTable<VipPrivateRule>
             data={data}
             columns={vipPrivateRuleColumns}
-            entityName="vip private rule"
-            searchPlaceholder="Tìm theo code, tên..."
+            entityName="quy tắc thưởng riêng"
+            searchPlaceholder="Tìm theo mã hoặc tên quy tắc..."
             pagination={pagination}
             onPaginationChange={onPaginationChange}
             pageCount={pageCount}
+            keyword={keyword}
+            onKeywordChange={onKeywordChange}
         />
     )
 }

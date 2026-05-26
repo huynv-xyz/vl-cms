@@ -16,6 +16,8 @@ import { warehouseOption } from "@/lib/option-mapper"
 import { QuantityInputCell } from "./delivery-quantity-input-cell"
 import { Badge } from "@/components/ui/badge"
 
+const DEFAULT_WAREHOUSE_ID = 12
+
 type Props = {
     orderItems: any[]
     items: any[]
@@ -78,6 +80,9 @@ export function DeliveryItemsEditor({
                         updateRow(row.original.product_id, {
                             selected: !!checked,
                             quantity: checked ? row.original.max_quantity : 0,
+                            warehouse_id: checked
+                                ? row.original.warehouse_id ?? DEFAULT_WAREHOUSE_ID
+                                : row.original.warehouse_id,
                         })
                     }
                 />

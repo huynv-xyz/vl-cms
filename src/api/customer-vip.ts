@@ -11,6 +11,7 @@ export type CustomerVipListParams = {
     group_code?: string
     calc_year?: number
     customer_type?: string
+    customer_code?: string
 }
 
 const customerVipApi = createCrudApi<

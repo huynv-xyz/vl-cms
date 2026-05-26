@@ -18,7 +18,7 @@ export type DeliveryStatusMeta = {
 export const DELIVERY_STATUSES = [
     { value: "NEW", label: "Mới" },
     { value: "DELIVERING", label: "Đang giao" },
-    { value: "DONE", label: "Hoàn thành" },
+    { value: "DONE", label: "Đã giao" },
     { value: "CANCELLED", label: "Hủy" },
 ] as const
 
@@ -42,7 +42,7 @@ export const deliveryStatusMeta: Record<string, DeliveryStatusMeta> = {
         dotClass: "bg-blue-500",
     },
     DONE: {
-        label: "Hoàn thành",
+        label: "Đã giao",
         variant: "outline",
         icon: CheckCircle2,
         tone: "text-emerald-600 dark:text-emerald-400",

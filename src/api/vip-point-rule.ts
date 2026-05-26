@@ -1,5 +1,7 @@
 import type { VipPointRule } from "@/features/vip/point-rule/data/schema"
-import { createCrudApi } from "@/api/crud"
+import { createCrudApi, type BaseListParams } from "@/api/crud"
+
+export type VipPointRuleListParams = BaseListParams & { keyword?: string }
 
 export type CreateVipPointRuleRequest = {
     vthh_con: string
@@ -31,7 +33,8 @@ export type UpdateVipPointRuleRequest = {
 const vipPointRuleApi = createCrudApi<
     VipPointRule,
     CreateVipPointRuleRequest,
-    UpdateVipPointRuleRequest
+    UpdateVipPointRuleRequest,
+    VipPointRuleListParams
 >("/vip/point-rules")
 
 export const listVipPointRules = vipPointRuleApi.list

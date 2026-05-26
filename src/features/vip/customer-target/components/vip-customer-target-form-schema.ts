@@ -23,7 +23,11 @@ export const vipCustomerTargetSchema: RJSFSchema = {
         },
         target_tier_code: {
             type: "string",
-            title: "Hạng mục tiêu",
+            title: "Mã hạng mục tiêu",
+        },
+        target_tier_name: {
+            type: "string",
+            title: "Tên hạng mục tiêu",
         },
         note: {
             type: "string",

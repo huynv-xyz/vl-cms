@@ -15,6 +15,7 @@ export function VipPointRuleRowActions({ row }: VipPointRuleRowActionsProps) {
 
     return (
         <CrudRowActions
+            row={row.original}
             onEdit={() => openEdit(row.original)}
             onDelete={async () => {
                 await deleteVipPointRule(row.original.id)

@@ -8,6 +8,7 @@ export type OrderListParams = {
     keyword?: string
     customer_id?: number
     employee_id?: number
+    status?: string
     from_date?: string
     to_date?: string
 }

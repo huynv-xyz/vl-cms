@@ -13,6 +13,9 @@ export type ShipmentItemListParams = {
     supplier_ids?: string
     port_ids?: string
     status?: string
+    date_type?: string
+    date_from?: string
+    date_to?: string
     eta_from?: string
     eta_to?: string
 }

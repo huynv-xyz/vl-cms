@@ -16,6 +16,7 @@ export function VipProductMappingRowActions({ row }: Props) {
 
     return (
         <CrudRowActions
+            row={row.original}
             onEdit={() => openEdit(row.original)}
             onDelete={async () => {
                 await deleteVipProductMapping(row.original.id)

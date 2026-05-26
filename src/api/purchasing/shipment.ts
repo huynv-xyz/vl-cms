@@ -9,6 +9,11 @@ export type ShipmentListParams = {
     keyword?: string
     status?: string
     contract_id?: number
+    date_type?: string
+    date_from?: string
+    date_to?: string
+    eta_from?: string
+    eta_to?: string
 }
 
 export type ShipmentItemPayload = {

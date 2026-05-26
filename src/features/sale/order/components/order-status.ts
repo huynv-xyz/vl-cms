@@ -19,7 +19,7 @@ export type OrderStatusMeta = {
 export const ORDER_STATUSES = [
     { value: "NEW", label: "Mới" },
     { value: "CONFIRMED", label: "Đã xác nhận" },
-    { value: "DONE", label: "Hoàn thành" },
+    { value: "DONE", label: "Đã giao" },
     { value: "CANCELLED", label: "Hủy" },
 ] as const
 
@@ -39,7 +39,7 @@ export const orderStatusMeta: Record<string, OrderStatusMeta> = {
         badgeClass: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300",
     },
     DONE: {
-        label: "Hoàn thành",
+        label: "Đã giao",
         variant: "outline",
         icon: CheckCircle2,
         tone: "text-emerald-600 dark:text-emerald-400",

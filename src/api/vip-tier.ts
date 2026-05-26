@@ -1,5 +1,7 @@
 import type { VipTier } from "@/features/vip/tier/data/schema"
-import { createCrudApi } from "@/api/crud"
+import { createCrudApi, type BaseListParams } from "@/api/crud"
+
+export type VipTierListParams = BaseListParams & { keyword?: string }
 
 export type CreateVipTierRequest = {
     name: string
@@ -31,7 +33,8 @@ export type UpdateVipTierRequest = {
 const vipTierApi = createCrudApi<
     VipTier,
     CreateVipTierRequest,
-    UpdateVipTierRequest
+    UpdateVipTierRequest,
+    VipTierListParams
 >("/vip/tiers")
 
 export const listVipTiers = vipTierApi.list

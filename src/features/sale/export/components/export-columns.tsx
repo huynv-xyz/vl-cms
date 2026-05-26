@@ -1,5 +1,5 @@
-import { useState } from "react"
 import { ColumnDef } from "@tanstack/react-table"
+import { Link } from "@tanstack/react-router"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
 import { buildActionsColumn } from "@/components/crud/build-actions-column"
@@ -13,13 +13,12 @@ import {
 import { useUpdateStatus } from "@/hooks/use-update-status"
 import { updateExportStatus } from "@/api/sale/export"
 import type { Export } from "../data/schema"
-import { ExportDetailDialog } from "../components/export-detail-dialog" // 🔥 cần có
 import { ExportRowActions } from "./export-row-actions"
 import { EXPORT_STATUSES, exportStatusLabel } from "./export-status"
+import { FileText } from "lucide-react"
 
 export function useExportColumns() {
 
-    const [selectedId, setSelectedId] = useState<number | null>(null)
     const statusMutation = useUpdateStatus<Export>({
         queryKey: ["exports"],
         mutationFn: updateExportStatus,
@@ -34,16 +33,21 @@ export function useExportColumns() {
             accessorKey: "export_no",
             title: "Số PX",
             render: (row) => (
-                <button
-                    type="button"
-                    className="text-left font-medium text-primary hover:underline"
-                    onClick={() => setSelectedId(row.id)}
+                <Link
+                    to="/sales/exports/$id"
+                    params={{ id: String(row.id) }}
+                    className="group inline-flex flex-col gap-0.5"
                 >
-                    {row.export_no}
-                    <div className="text-xs font-normal text-muted-foreground">
-                        {row.delivery?.delivery_no ? `Giao ${row.delivery.delivery_no}` : "Chưa có phiếu giao"}
-                    </div>
-                </button>
+                    <span className="inline-flex items-center gap-1.5 font-mono text-sm font-bold text-primary transition-colors group-hover:underline">
+                        <FileText className="h-3.5 w-3.5 opacity-70 transition-opacity group-hover:opacity-100" />
+                        {row.export_no ?? `#${row.id}`}
+                    </span>
+                    <span className="text-xs font-normal text-muted-foreground">
+                        {row.delivery?.delivery_no
+                            ? `Giao ${row.delivery.delivery_no}`
+                            : "Chưa có phiếu giao"}
+                    </span>
+                </Link>
             ),
         }),
 
@@ -55,8 +59,18 @@ export function useExportColumns() {
         buildTextColumn({
             accessorKey: "order_id",
             title: "Đơn hàng",
-            render: (row) =>
-                row.order?.order_no ?? `#${row.order_id}`,
+            render: (row) => (
+                <div>
+                    <div className="font-medium">
+                        {row.order?.order_no ?? `#${row.order_id}`}
+                    </div>
+                    {row.order?.customer?.name && (
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                            {row.order.customer.name}
+                        </div>
+                    )}
+                </div>
+            ),
         }),
 
         buildTextColumn({
@@ -115,14 +129,5 @@ export function useExportColumns() {
         }),
     ]
 
-    return {
-        columns,
-        dialog: (
-            <ExportDetailDialog
-                open={!!selectedId}
-                id={selectedId ?? undefined}
-                onClose={() => setSelectedId(null)}
-            />
-        ),
-    }
+    return { columns }
 }

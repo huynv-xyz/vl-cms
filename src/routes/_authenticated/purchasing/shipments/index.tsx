@@ -30,7 +30,26 @@ export const Route = createFileRoute(
                 ? search.port_ids
                 : undefined,
 
-        // ===== ETA =====
+        // ===== DATE FILTER =====
+        date_type:
+            typeof search.date_type === "string"
+                ? search.date_type
+                : "ETA",
+
+        date_from:
+            typeof search.date_from === "string"
+                ? search.date_from
+                : typeof search.eta_from === "string"
+                    ? search.eta_from
+                    : undefined,
+
+        date_to:
+            typeof search.date_to === "string"
+                ? search.date_to
+                : typeof search.eta_to === "string"
+                    ? search.eta_to
+                    : undefined,
+
         eta_from:
             typeof search.eta_from === "string"
                 ? search.eta_from

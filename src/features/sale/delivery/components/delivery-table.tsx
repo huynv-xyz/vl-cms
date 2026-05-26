@@ -80,7 +80,7 @@ export function DeliveryTable({
                 />
                 <SummaryCard
                     icon={CheckCircle2}
-                    label="Đã hoàn thành"
+                    label="Đã giao"
                     value={
                         totalCount > 0
                             ? `${formatNumber(doneCount)} (${donePct}%)`
@@ -120,7 +120,7 @@ export function DeliveryTable({
                         dataSource={{
                             getList: listOrders,
                             getById: getOrder,
-                            params: { page: 1, size: 20 },
+                            params: { page: 1, size: 20, status: "CONFIRMED" },
                         }}
                         mapOption={orderOption}
                     />

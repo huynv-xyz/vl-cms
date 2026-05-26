@@ -26,7 +26,7 @@ export default function ShipmentPage() {
         search,
         navigate,
         ["status", "product_ids", "port_ids"],
-        ["eta_from", "eta_to"]
+        ["date_type", "date_from", "date_to"]
     )
 
     const { data, isLoading, error } = usePaginatedList(
@@ -40,8 +40,9 @@ export default function ShipmentPage() {
             multiFilters.product_ids,
             multiFilters.port_ids,
 
-            singleFilters.eta_from,
-            singleFilters.eta_to,
+            singleFilters.date_type,
+            singleFilters.date_from,
+            singleFilters.date_to,
         ],
         listShipmentItems,
         {
@@ -51,8 +52,9 @@ export default function ShipmentPage() {
 
             status: requestFilters.status,
 
-            eta_from: requestFilters.eta_from,
-            eta_to: requestFilters.eta_to,
+            date_type: requestFilters.date_type,
+            date_from: requestFilters.date_from,
+            date_to: requestFilters.date_to,
 
             product_ids: requestFilters.product_ids,
             port_ids: requestFilters.port_ids,
@@ -64,8 +66,9 @@ export default function ShipmentPage() {
     const exportParams = {
         keyword,
         status: requestFilters.status,
-        eta_from: requestFilters.eta_from,
-        eta_to: requestFilters.eta_to,
+        date_type: requestFilters.date_type,
+        date_from: requestFilters.date_from,
+        date_to: requestFilters.date_to,
         product_ids: requestFilters.product_ids,
         port_ids: requestFilters.port_ids,
     }
@@ -93,9 +96,11 @@ export default function ShipmentPage() {
 
                             status: multiFilters.status,
 
-                            eta_from: singleFilters.eta_from,
+                            date_type: singleFilters.date_type as "SIGNED_DATE" | "ETD" | "ETA" | undefined,
 
-                            eta_to: singleFilters.eta_to,
+                            date_from: singleFilters.date_from,
+
+                            date_to: singleFilters.date_to,
 
                             product_ids: multiFilters.product_ids,
                             port_ids: multiFilters.port_ids,
@@ -118,9 +123,11 @@ export default function ShipmentPage() {
 
                             setSingleFilters({
 
-                                eta_from: next.eta_from,
+                                date_type: next.date_type,
 
-                                eta_to: next.eta_to,
+                                date_from: next.date_from,
+
+                                date_to: next.date_to,
 
                             })
                         }}

@@ -4,7 +4,9 @@ import type { VipPointRule } from "../data/schema"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildActionsColumn } from "@/components/crud/build-actions-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
+import { buildNumberColumn } from "@/components/crud/build-number-column"
 import { buildTruncateColumn } from "@/components/crud/build-truncate-column"
+import { buildBadgeColumn } from "@/components/crud/build-badge-column"
 import { VipPointRuleRowActions } from "./vip-point-rule-row-actions"
 
 export const vipPointRuleColumns: ColumnDef<VipPointRule>[] = [
@@ -21,8 +23,8 @@ export const vipPointRuleColumns: ColumnDef<VipPointRule>[] = [
     buildTextColumn<VipPointRule>({
         accessorKey: "group_code",
         title: "Mã chung",
-        width: 140,
-        maxWidth: 140,
+        width: 130,
+        maxWidth: 130,
     }),
 
     buildTextColumn<VipPointRule>({
@@ -32,32 +34,36 @@ export const vipPointRuleColumns: ColumnDef<VipPointRule>[] = [
         maxWidth: 80,
     }),
 
-    buildTextColumn<VipPointRule>({
+    buildNumberColumn<VipPointRule>({
         accessorKey: "from_value",
         title: "Từ giá trị",
-        width: 140,
-        maxWidth: 140,
+        width: 120,
     }),
 
-    buildTextColumn<VipPointRule>({
+    buildNumberColumn<VipPointRule>({
         accessorKey: "to_value",
         title: "Đến giá trị",
-        width: 140,
-        maxWidth: 140,
+        width: 120,
     }),
 
-    buildTextColumn<VipPointRule>({
+    buildNumberColumn<VipPointRule>({
         accessorKey: "he_so_mb",
         title: "Hệ số MB",
-        width: 120,
-        maxWidth: 120,
+        width: 110,
     }),
 
-    buildTextColumn<VipPointRule>({
+    buildNumberColumn<VipPointRule>({
         accessorKey: "he_so_mn",
         title: "Hệ số MN",
-        width: 120,
-        maxWidth: 120,
+        width: 110,
+    }),
+
+    buildBadgeColumn<VipPointRule>({
+        accessorKey: "status",
+        title: "Trạng thái",
+        width: 110,
+        mapValueToLabel: (v) => v === 1 ? "Hoạt động" : "Tắt",
+        mapValueToVariant: (v) => v === 1 ? "default" : "outline",
     }),
 
     buildTruncateColumn<VipPointRule>({

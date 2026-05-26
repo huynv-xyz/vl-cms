@@ -5,6 +5,7 @@ import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildActionsColumn } from "@/components/crud/build-actions-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
 import { buildBadgeColumn } from "@/components/crud/build-badge-column"
+import { buildTruncateColumn } from "@/components/crud/build-truncate-column"
 import { VipCustomerTargetRowActions } from "./vip-customer-target-row-actions"
 
 export const vipCustomerTargetColumns: ColumnDef<VipCustomerTarget>[] = [
@@ -46,6 +47,12 @@ export const vipCustomerTargetColumns: ColumnDef<VipCustomerTarget>[] = [
         width: 110,
         mapValueToLabel: (v) => v === 1 ? "Hoạt động" : "Tắt",
         mapValueToVariant: (v) => v === 1 ? "default" : "outline",
+    }),
+
+    buildTruncateColumn<VipCustomerTarget>({
+        accessorKey: "note",
+        header: "Ghi chú",
+        width: 200,
     }),
 
     buildActionsColumn<VipCustomerTarget>({

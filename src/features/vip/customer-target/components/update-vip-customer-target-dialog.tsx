@@ -32,6 +32,7 @@ export function UpdateVipCustomerTargetDialog({
                 customer_code: target.customer_code,
                 customer_name: target.customer_name ?? "",
                 target_tier_code: target.target_tier_code ?? "",
+                target_tier_name: target.target_tier_name ?? "",
                 note: target.note ?? "",
                 status: target.status === 1,
             }}
@@ -45,6 +46,7 @@ export function UpdateVipCustomerTargetDialog({
                 customer_code: values.customer_code,
                 customer_name: values.customer_name ?? "",
                 target_tier_code: values.target_tier_code ?? "",
+                target_tier_name: values.target_tier_name ?? values.target_tier_code ?? "",
                 note: values.note ?? "",
                 status: values.status === false ? 0 : 1,
             })}

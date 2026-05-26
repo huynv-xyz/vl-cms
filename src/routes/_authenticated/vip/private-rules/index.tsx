@@ -1,25 +1,11 @@
-import z from "zod"
 import { createFileRoute } from "@tanstack/react-router"
 import Page from "@/features/vip/private-rule"
 
-const searchSchema = z.object({
-    // page trong URL: ?page=2
-    page: z.coerce.number().int().positive().optional().catch(1),
-
-    // pageSize trong URL: ?pageSize=20
-    pageSize: z.coerce.number().int().positive().optional().catch(20),
-
-    // filter text: ?filter=admin
-    filter: z.string().optional().catch(""),
-
-    // optional: filter theo status: all | active | inactive
-    status: z
-        .enum(["all", "active", "inactive"])
-        .optional()
-        .catch("all"),
-})
-
 export const Route = createFileRoute("/_authenticated/vip/private-rules/")({
-    validateSearch: searchSchema,
+    validateSearch: (search: Record<string, unknown>) => ({
+        page: Number(search.page ?? 1),
+        size: Number(search.size ?? 20),
+        keyword: typeof search.keyword === "string" ? search.keyword : "",
+    }),
     component: Page,
 })

@@ -16,6 +16,7 @@ export function VipTierRowActions({ row }: Props) {
 
     return (
         <CrudRowActions
+            row={row.original}
             onEdit={() => openEdit(row.original)}
             onDelete={async () => {
                 await deleteVipTier(row.original.id)

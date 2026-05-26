@@ -5,6 +5,15 @@ import { toast } from "sonner"
 import { createOrder } from "@/api/sale/order"
 import { OrderFormDialog } from "./order-form-dialog"
 
+const initialOrderItems = () => [
+    {
+        product_id: undefined,
+        quantity: 1,
+        unit_price: 0,
+        line_type: "NORMAL",
+    },
+]
+
 export function CreateOrderDialog({ open, onOpenChange }: any) {
     const queryClient = useQueryClient()
     const [formData, setFormData] = useState({
@@ -14,7 +23,7 @@ export function CreateOrderDialog({ open, onOpenChange }: any) {
         status: "NEW",
         note: "",
     })
-    const [items, setItems] = useState<any[]>([])
+    const [items, setItems] = useState<any[]>(initialOrderItems())
 
     const { mutate, isPending } = useMutation({
         mutationFn: () => createOrder({ ...formData, items }),
@@ -22,7 +31,7 @@ export function CreateOrderDialog({ open, onOpenChange }: any) {
             await queryClient.invalidateQueries({ queryKey: ["orders"] })
             toast.success("Tạo đơn thành công")
             onOpenChange(false)
-            setItems([])
+            setItems(initialOrderItems())
             setFormData({
                 customer_id: undefined,
                 employee_id: undefined,

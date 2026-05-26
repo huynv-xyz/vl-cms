@@ -29,15 +29,22 @@ export const vipProductMappingColumns: ColumnDef<VipProductMapping>[] = [
     buildTextColumn<VipProductMapping>({
         accessorKey: "group_code",
         title: "Mã chung",
-        width: 140,
-        maxWidth: 140,
+        width: 130,
+        maxWidth: 130,
+    }),
+
+    buildTextColumn<VipProductMapping>({
+        accessorKey: "product_group",
+        title: "Nhóm hàng",
+        width: 150,
+        maxWidth: 150,
     }),
 
     buildTextColumn<VipProductMapping>({
         accessorKey: "product_name",
         title: "Tên sản phẩm",
         width: 200,
-        maxWidth: 200,
+        maxWidth: 260,
     }),
 
     buildTextColumn<VipProductMapping>({

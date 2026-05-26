@@ -1,6 +1,8 @@
 import { PageSection } from "@/components/page-section"
 import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { listVipTiers } from "@/api/vip-tier"
+import { Route } from "@/routes/_authenticated/vip/tiers"
+import { useUrlPagination } from "@/hooks/use-url-pagination"
 
 import { VipTiersProvider } from "./components/vip-tiers-provider"
 import { CreateVipTierButton } from "./components/create-vip-tier-button"
@@ -8,9 +10,20 @@ import { VipTierTable } from "./components/vip-tier-table"
 import { VipTierDialogs } from "./components/vip-tier-dialogs"
 
 export default function VipTierPage() {
-    const { data, isLoading, error, pagination, setPagination } = usePaginatedList(
+    const search = Route.useSearch()
+    const navigate = Route.useNavigate()
+
+    const { pagination, setPagination } = useUrlPagination(search, navigate)
+    const keyword = search.keyword ?? ""
+
+    const { data, isLoading, error } = usePaginatedList(
         ["vip-tier"],
-        listVipTiers
+        listVipTiers,
+        {
+            page: search.page,
+            size: search.size,
+            keyword,
+        },
     )
 
     return (
@@ -30,6 +43,17 @@ export default function VipTierPage() {
                             pagination={pagination}
                             onPaginationChange={setPagination}
                             pageCount={data.total_page}
+                            keyword={keyword}
+                            onKeywordChange={(value) =>
+                                navigate({
+                                    search: (prev) => ({
+                                        ...prev,
+                                        keyword: value || "",
+                                        page: 1,
+                                    }),
+                                    replace: true,
+                                })
+                            }
                         />
                         <VipTierDialogs />
                     </div>

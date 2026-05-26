@@ -1,3 +1,4 @@
+import type React from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -7,7 +8,7 @@ import { AsyncSelect } from "@/components/rjsf/async-select"
 import { listProducts, getProduct } from "@/api/product"
 import { listGoodsDescriptions } from "@/api/sale/goods-description"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
-import { PackageOpen, Plus, Trash2 } from "lucide-react"
+import { PackageOpen, Trash2 } from "lucide-react"
 
 type OrderItem = {
     product_id?: number
@@ -38,6 +39,14 @@ export function OrderItemsEditor({ items, setItems }: Props) {
         ])
     }
 
+    const addRowOnEnter = (event: React.KeyboardEvent, index?: number) => {
+        if (event.key !== "Enter") return
+        if (index !== undefined && index !== items.length - 1) return
+
+        event.preventDefault()
+        addRow()
+    }
+
     const removeRow = (index: number) => {
         setItems(items.filter((_, i) => i !== index))
     }
@@ -58,12 +67,8 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                     <Badge variant="secondary" className="font-mono">
                         {items.length} dòng
                     </Badge>
-                    <span>Mỗi dòng tương ứng 1 SKU sản phẩm.</span>
+                    <span>Mỗi dòng tương ứng 1 SKU sản phẩm. Nhấn Enter ở dòng cuối để thêm dòng mới.</span>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={addRow}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Thêm dòng
-                </Button>
             </div>
 
             <div className="overflow-x-auto rounded-lg border">
@@ -213,6 +218,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                             min={0}
                                             className="text-right tabular-nums"
                                             value={row.quantity}
+                                            onKeyDown={(event) => addRowOnEnter(event, i)}
                                             onChange={(e) =>
                                                 updateRow(i, {
                                                     quantity: Number(e.target.value),
@@ -227,6 +233,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                             min={0}
                                             className="text-right tabular-nums"
                                             value={row.unit_price}
+                                            onKeyDown={(event) => addRowOnEnter(event, i)}
                                             onChange={(e) =>
                                                 updateRow(i, {
                                                     unit_price: Number(e.target.value),
@@ -242,6 +249,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                             className="text-right tabular-nums"
                                             value={row.discount ?? 0}
                                             disabled={isPromotion}
+                                            onKeyDown={(event) => addRowOnEnter(event, i)}
                                             onChange={(e) =>
                                                 updateRow(i, {
                                                     discount: Number(e.target.value),
@@ -282,7 +290,11 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                         {!items.length && (
                             <tr>
                                 <td colSpan={9} className="px-4 py-14">
-                                    <div className="text-muted-foreground flex flex-col items-center gap-3 text-center text-sm">
+                                    <div
+                                        className="text-muted-foreground flex flex-col items-center gap-3 text-center text-sm"
+                                        tabIndex={0}
+                                        onKeyDown={(event) => addRowOnEnter(event)}
+                                    >
                                         <div className="bg-muted text-muted-foreground/60 flex h-14 w-14 items-center justify-center rounded-full">
                                             <PackageOpen className="h-7 w-7" />
                                         </div>
@@ -291,13 +303,9 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                                 Chưa có sản phẩm trong đơn
                                             </div>
                                             <div className="text-xs">
-                                                Bấm "Thêm dòng" để thêm sản phẩm cần bán.
+                                                Nhấn Enter để thêm sản phẩm cần bán.
                                             </div>
                                         </div>
-                                        <Button type="button" variant="outline" size="sm" onClick={addRow}>
-                                            <Plus className="mr-2 h-4 w-4" />
-                                            Thêm dòng đầu tiên
-                                        </Button>
                                     </div>
                                 </td>
                             </tr>

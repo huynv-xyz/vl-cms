@@ -1,5 +1,7 @@
 import type { VipPrivateRule } from "@/features/vip/private-rule/data/schema"
-import { createCrudApi } from "@/api/crud"
+import { createCrudApi, type BaseListParams } from "@/api/crud"
+
+export type VipPrivateRuleListParams = BaseListParams & { keyword?: string }
 
 export type CreateVipPrivateRuleRequest = {
     code: string
@@ -23,7 +25,8 @@ export type UpdateVipPrivateRuleRequest = {
 const vipPrivateRuleApi = createCrudApi<
     VipPrivateRule,
     CreateVipPrivateRuleRequest,
-    UpdateVipPrivateRuleRequest
+    UpdateVipPrivateRuleRequest,
+    VipPrivateRuleListParams
 >("/vip/private-rules")
 
 export const listVipPrivateRules = vipPrivateRuleApi.list

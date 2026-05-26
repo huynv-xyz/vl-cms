@@ -28,7 +28,11 @@ export function DeliveryHeaderFields({
                     onChange={(orderId: any) => update({ order_id: orderId })}
                     required
                     disabled={lockedOrder}
-                    dataSource={{ getList: listOrders, getById: getOrder }}
+                    dataSource={{
+                        getList: listOrders,
+                        getById: getOrder,
+                        params: { page: 1, size: 20, status: "CONFIRMED" },
+                    }}
                     mapOption={orderOption}
                 />
             </Field>

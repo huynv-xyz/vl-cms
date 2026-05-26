@@ -1,4 +1,5 @@
 import type { PaginationState, OnChangeFn } from "@tanstack/react-table"
+import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
@@ -10,12 +11,20 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { CrudRowActions } from "@/components/crud/crud-row-actions"
 import { DatePicker } from "@/components/date-picker"
 import { AsyncMultiSelect } from "@/components/rjsf/async-multi-select"
 import { useCrudDelete } from "@/hooks/use-crud-delete"
 import { getPort, listPorts } from "@/api/purchasing/port"
-import { getProduct, listProducts } from "@/api/product"
+import { getProduct } from "@/api/product"
+import { listContractItems } from "@/api/purchasing/contract-item"
 import { deleteShipmentItem } from "@/api/purchasing/shipment_items"
 import { useShipments } from "../../shipment/components/shipments-provider"
 import { formatNumber, getPageNumbers } from "@/lib/utils"
@@ -39,14 +48,22 @@ import {
 } from "../../shipment/data/shipment-status"
 
 type Filters = {
-    eta_from?: string
-    eta_to?: string
+    date_type?: DateFilterType
+    date_from?: string
+    date_to?: string
     product_ids?: string[]
     status?: string[]
     port_ids?: string[]
 }
 
 type FilterIdList = string[]
+type DateFilterType = "SIGNED_DATE" | "ETD" | "ETA"
+
+const DATE_FILTER_OPTIONS: { value: DateFilterType; label: string }[] = [
+    { value: "SIGNED_DATE", label: "Theo ngày ký hợp đồng" },
+    { value: "ETD", label: "Theo ngày hàng đi" },
+    { value: "ETA", label: "Theo ngày hàng về" },
+]
 
 type PortOptionSource = {
     id: string | number
@@ -55,6 +72,14 @@ type PortOptionSource = {
 
 type ProductOptionSource = {
     id: string | number
+    product_id?: string | number
+    product?: {
+        id?: string | number
+        code?: string
+        quote_name?: string
+        name?: string
+    }
+    code?: string
     quote_name?: string
     name?: string
 }
@@ -107,12 +132,11 @@ export function ShipmentItemTableV2({
                         searchPlaceholder="Nhập tên sản phẩm..."
                         placeholder="Sản phẩm"
                         dataSource={{
-                            getList: listProducts,
+                            getList: listContractItems,
                             getById: getProduct,
                             params: {
                                 page: 1,
                                 size: 20,
-                                nature: "HANG_HOA,NGUYEN_VAT_LIEU",
                             },
                         }}
                         mapOption={shipmentProductOption}
@@ -139,18 +163,13 @@ export function ShipmentItemTableV2({
                         onChange={(v) => setFilter("status", v)}
                     />
 
-                    <DatePicker
-                        className="min-w-[145px] flex-1 [&_button]:h-10"
-                        value={filters.eta_from}
-                        onChange={(v) => setFilter("eta_from", v)}
-                        placeholder="Ngày đi"
-                    />
-
-                    <DatePicker
-                        className="min-w-[145px] flex-1 [&_button]:h-10"
-                        value={filters.eta_to}
-                        onChange={(v) => setFilter("eta_to", v)}
-                        placeholder="Ngày đến"
+                    <ShipmentDateSearch
+                        value={{
+                            date_type: filters.date_type,
+                            date_from: filters.date_from,
+                            date_to: filters.date_to,
+                        }}
+                        onSearch={(v) => onFiltersChange({ ...filters, ...v })}
                     />
                 </div>
             </div>
@@ -188,12 +207,101 @@ export function ShipmentItemTableV2({
     )
 }
 
+function ShipmentDateSearch({
+    value,
+    onSearch,
+}: {
+    value: Pick<Filters, "date_type" | "date_from" | "date_to">
+    onSearch: (value: Pick<Filters, "date_type" | "date_from" | "date_to">) => void
+}) {
+    const [draft, setDraft] = useState({
+        date_type: value.date_type ?? "ETA",
+        date_from: value.date_from ?? "",
+        date_to: value.date_to ?? "",
+    })
+
+    useEffect(() => {
+        setDraft({
+            date_type: value.date_type ?? "ETA",
+            date_from: value.date_from ?? "",
+            date_to: value.date_to ?? "",
+        })
+    }, [value.date_type, value.date_from, value.date_to])
+
+    return (
+        <div className="flex min-w-full flex-wrap items-center gap-2 lg:min-w-[680px] lg:flex-[2_1_0]">
+            <Select
+                value={draft.date_type}
+                onValueChange={(next) =>
+                    setDraft((prev) => ({
+                        ...prev,
+                        date_type: next as DateFilterType,
+                    }))
+                }
+            >
+                <SelectTrigger className="h-10 min-w-[230px] flex-1 border-slate-300 bg-white shadow-xs">
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                    {DATE_FILTER_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            <DatePicker
+                className="min-w-[160px] flex-1 [&_button]:h-10"
+                value={draft.date_from}
+                onChange={(v) =>
+                    setDraft((prev) => ({
+                        ...prev,
+                        date_from: v ?? "",
+                    }))
+                }
+                placeholder="Từ ngày"
+            />
+
+            <DatePicker
+                className="min-w-[160px] flex-1 [&_button]:h-10"
+                value={draft.date_to}
+                onChange={(v) =>
+                    setDraft((prev) => ({
+                        ...prev,
+                        date_to: v ?? "",
+                    }))
+                }
+                placeholder="Tới ngày"
+            />
+
+            <Button
+                type="button"
+                className="h-10 min-w-[104px] bg-teal-600 px-6 font-semibold text-white hover:bg-teal-700"
+                onClick={() =>
+                    onSearch({
+                        date_type: draft.date_type,
+                        date_from: draft.date_from || undefined,
+                        date_to: draft.date_to || undefined,
+                    })
+                }
+            >
+                Tìm
+            </Button>
+        </div>
+    )
+}
+
 function shipmentProductOption(x: ProductOptionSource) {
+    const product = x.product ?? x
+    const productId = x.product_id ?? product.id
+    if (!productId) return null
+
     return {
-        value: x.id,
-        // Shipment product filter displays products.quote_name from /products,
+        value: productId,
+        // Shipment product filter displays products from contract items only,
         // falling back to products.name when quote_name is empty.
-        label: x.quote_name || x.name || "",
+        label: product.quote_name || product.name || product.code || "",
         raw: x,
     }
 }
@@ -271,23 +379,10 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
 
                 {/* TÌNH TRẠNG CẬP CẢNG */}
                 <Cell label="TÌNH TRẠNG CẬP CẢNG">
-                    {arrivedAtPort ? (
-                        <Badge
-                            variant="outline"
-                            className="border-emerald-200 bg-emerald-50 text-xs text-emerald-700"
-                        >
-                            <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-                            Đã cập cảng
-                        </Badge>
-                    ) : (
-                        <Badge
-                            variant="outline"
-                            className="border-amber-200 bg-amber-50 text-xs text-amber-700"
-                        >
-                            <Clock className="mr-1 h-3.5 w-3.5" />
-                            Chưa cập cảng
-                        </Badge>
-                    )}
+                    <Badge variant="outline" className={`${getShipmentStatusBadgeClass(shipment?.status)} border-emerald-200 bg-emerald-50 text-xs text-emerald-700`}>
+                        {getShipmentStatusLabel(shipment?.status)}
+                    </Badge>
+
                     <div className="mt-1 text-xs text-muted-foreground">
                         {arrivedAtPort
                             ? shipment?.ata ?? shipment?.eta
