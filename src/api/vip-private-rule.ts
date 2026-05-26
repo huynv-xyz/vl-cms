@@ -5,6 +5,7 @@ export type CreateVipPrivateRuleRequest = {
     code: string
     name: string
     amount?: number
+    unit?: string
     status?: number
     note?: string | null
 }
@@ -14,6 +15,7 @@ export type UpdateVipPrivateRuleRequest = {
     code: string
     name: string
     amount?: number
+    unit?: string
     status?: number
     note?: string | null
 }

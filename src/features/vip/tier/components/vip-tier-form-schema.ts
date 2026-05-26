@@ -42,6 +42,11 @@ export const vipTierSchema: RJSFSchema = {
             title: "B2B Reward",
             default: 0,
         },
+        sort_order: {
+            type: "integer",
+            title: "Thứ tự sắp xếp",
+            default: 0,
+        },
         note: {
             type: "string",
             title: "Ghi chú",

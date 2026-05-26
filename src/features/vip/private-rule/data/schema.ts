@@ -3,6 +3,7 @@ export type VipPrivateRule = {
     code: string
     name: string
     amount: number
+    unit?: string
     status: number
     note?: string | null
     created_at?: string

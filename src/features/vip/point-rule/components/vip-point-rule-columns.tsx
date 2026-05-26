@@ -11,19 +11,25 @@ export const vipPointRuleColumns: ColumnDef<VipPointRule>[] = [
     buildIndexColumn<VipPointRule>(),
 
     buildTextColumn<VipPointRule>({
-        accessorKey: "id",
-        title: "Mã",
-        width: 100,
-        maxWidth: 100,
-        textClassName: "font-medium text-sm",
-    }),
-
-    buildTextColumn<VipPointRule>({
         accessorKey: "vthh_con",
         title: "VTHH Con",
         width: 180,
         maxWidth: 180,
         textClassName: "font-medium text-sm",
+    }),
+
+    buildTextColumn<VipPointRule>({
+        accessorKey: "group_code",
+        title: "Mã chung",
+        width: 140,
+        maxWidth: 140,
+    }),
+
+    buildTextColumn<VipPointRule>({
+        accessorKey: "unit",
+        title: "ĐVT",
+        width: 80,
+        maxWidth: 80,
     }),
 
     buildTextColumn<VipPointRule>({
@@ -55,11 +61,16 @@ export const vipPointRuleColumns: ColumnDef<VipPointRule>[] = [
     }),
 
     buildTruncateColumn<VipPointRule>({
+        accessorKey: "description",
+        header: "Diễn giải",
+        width: 200,
+    }),
+
+    buildTruncateColumn<VipPointRule>({
         accessorKey: "note",
         header: "Ghi chú",
         width: 180,
     }),
-
 
     buildActionsColumn<VipPointRule>({
         renderActions: (_, row) => <VipPointRuleRowActions row={row} />,

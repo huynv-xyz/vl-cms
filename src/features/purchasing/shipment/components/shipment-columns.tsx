@@ -6,6 +6,7 @@ import { buildActionsColumn } from "@/components/crud/build-actions-column"
 import { ShipmentRowActions } from "./shipment-row-actions"
 import { Shipment } from "../data/schema"
 import { formatNumber } from "@/lib/utils"
+import { getShipmentStatusLabel, getShipmentStatusBadgeClass } from "../data/shipment-status"
 
 export const shipmentColumns: ColumnDef<Shipment>[] = [
     buildIndexColumn(),
@@ -59,15 +60,9 @@ export const shipmentColumns: ColumnDef<Shipment>[] = [
     buildBadgeColumn({
         accessorKey: "status",
         title: "Trạng thái",
-        mapValueToLabel: (v) => {
-            switch (v) {
-                case "PLANNED": return "Kế hoạch"
-                case "IN_TRANSIT": return "Đang vận chuyển"
-                case "DONE": return "Hoàn tất"
-                case "CANCELLED": return "Đã hủy"
-                default: return "-"
-            }
-        },
+        mapValueToLabel: (v) => getShipmentStatusLabel(v as string),
+        mapValueToVariant: () => "outline",
+        mapValueToClassName: (v) => getShipmentStatusBadgeClass(v as string),
     }),
 
     buildActionsColumn({

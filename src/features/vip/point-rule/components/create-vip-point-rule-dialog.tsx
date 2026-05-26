@@ -2,7 +2,7 @@ import { CrudFormDialog } from "@/components/crud/crud-form-dialog"
 import {
     createVipPointRule,
     type CreateVipPointRuleRequest,
-} from "@/api/ vip-point-rule"
+} from "@/api/vip-point-rule"
 
 import { vipPointRuleSchema, vipPointRuleUiSchema } from "./vip-point-rule-form-schema"
 import type { VipPointRuleFormValues } from "./types"
@@ -30,6 +30,9 @@ export function CreateVipPointRuleDialog({
                 to_value: 0,
                 he_so_mb: 0,
                 he_so_mn: 0,
+                group_code: "",
+                unit: "",
+                description: "",
                 note: "",
                 status: true,
             }}
@@ -45,6 +48,9 @@ export function CreateVipPointRuleDialog({
                 to_value: values.to_value ?? 0,
                 he_so_mb: values.he_so_mb ?? 0,
                 he_so_mn: values.he_so_mn ?? 0,
+                group_code: values.group_code ?? "",
+                unit: values.unit ?? "",
+                description: values.description ?? "",
                 note: values.note ?? "",
                 status: values.status === false ? 0 : 1,
             })}

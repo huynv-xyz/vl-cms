@@ -7,6 +7,7 @@ import { deleteShipmentItem } from "@/api/purchasing/shipment_items"
 import { CalendarDays, MapPin, Package, Truck } from "lucide-react"
 import { useShipments } from "../../shipment/components/shipments-provider"
 import type { ShipmentItem } from "../data/schema"
+import { getShipmentStatusLabel, getShipmentStatusBadgeClass } from "../../shipment/data/shipment-status"
 
 type Props = {
     data: ShipmentItem[]
@@ -187,41 +188,11 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
 }
 
 function ShipmentStatusBadge({ status }: { status?: string }) {
-    const className =
-        status === "DONE"
-            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-            : status === "IN_WAREHOUSE"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : status === "IN_TRANSIT"
-                    ? "border-sky-200 bg-sky-50 text-sky-700"
-                    : status === "ARRIVED_PORT"
-                        ? "border-amber-200 bg-amber-50 text-amber-700"
-                        : status === "CANCELLED"
-                            ? "border-red-200 bg-red-50 text-red-700"
-                            : "border-slate-200 bg-slate-50 text-slate-700"
-
     return (
-        <Badge variant="outline" className={`${className} h-5 rounded-sm px-2 text-[11px]`}>
-            {formatStatus(status)}
+        <Badge variant="outline" className={`${getShipmentStatusBadgeClass(status)} h-5 rounded-sm px-2 text-[11px]`}>
+            {getShipmentStatusLabel(status)}
         </Badge>
     )
-}
-
-function formatStatus(status?: string) {
-    switch (status) {
-        case "IN_TRANSIT":
-            return "Đang vận chuyển"
-        case "ARRIVED_PORT":
-            return "Đến cảng"
-        case "IN_WAREHOUSE":
-            return "Về kho"
-        case "DONE":
-            return "Hoàn tất"
-        case "CANCELLED":
-            return "Đã hủy"
-        default:
-            return status || "—"
-    }
 }
 
 function Summary({

@@ -1,11 +1,11 @@
 import { PageSection } from '@/components/page-section'
 import { usePaginatedList } from '@/hooks/use-paginated-list'
-import { listVipPointRules } from '@/api/ vip-point-rule'
+import { listVipPointRules } from '@/api/vip-point-rule'
 import { VipPointRuleTable } from './components/vip-point-rule-table'
 import { CreateVipPointRuleButton } from './components/create-vip-point-rule-button'
 import { VipPointRulesProvider } from './components/vip-point-rules-provider'
 import { VipPointRuleDiaLog } from './components/vip-point-rule-dialog'
-import { Route } from '@/routes/_authenticated/vip/point-rule'
+import { Route } from '@/routes/_authenticated/vip/point-rules'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
 
 export default function VipPointRulePage() {

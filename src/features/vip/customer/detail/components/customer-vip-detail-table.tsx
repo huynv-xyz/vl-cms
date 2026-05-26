@@ -31,25 +31,25 @@ export function CustomerVipDetailTable({ items }: Props) {
                                 <TableHead className="w-[70px] text-center font-bold text-white">
                                     STT
                                 </TableHead>
-                                <TableHead className="font-bold text-white">MA_CHUNG</TableHead>
+                                <TableHead className="font-bold text-white">Mã chung</TableHead>
                                 <TableHead className="font-bold text-white">
-                                    NHÓM_HÀNG_HÓA
+                                    Nhóm hàng hóa
                                 </TableHead>
                                 <TableHead className="font-bold text-white">ĐVT</TableHead>
                                 <TableHead className="text-right font-bold text-white">
-                                    SL_ĐẶT
+                                    SL đặt
                                 </TableHead>
                                 <TableHead className="text-right font-bold text-white">
-                                    SL_DỰ_KIẾN
+                                    SL dự kiến
                                 </TableHead>
                                 <TableHead className="text-right font-bold text-white">
-                                    HỆ_SỐ
+                                    Hệ số
                                 </TableHead>
                                 <TableHead className="text-right font-bold text-white">
-                                    SL cần thêm khuyến cáo
+                                    SL cần thêm (KK)
                                 </TableHead>
                                 <TableHead className="text-right font-bold text-white">
-                                    SL cần thêm mục tiêu
+                                    SL cần thêm (MT)
                                 </TableHead>
                                 <TableHead className="text-right font-bold text-white">
                                     SL admin nhập
@@ -58,7 +58,7 @@ export function CustomerVipDetailTable({ items }: Props) {
                                     Điểm đạt admin
                                 </TableHead>
                                 <TableHead className="text-right font-bold text-white">
-                                    Điểm_ĐẠT
+                                    Điểm đạt
                                 </TableHead>
                                 <TableHead className="font-bold text-white">Ưu tiên</TableHead>
                             </TableRow>
@@ -77,52 +77,52 @@ export function CustomerVipDetailTable({ items }: Props) {
                             ) : (
                                 items.map((item, index) => (
                                     <TableRow
-                                        key={`${item.stt}-${item.ma_chung}-${index}`}
+                                        key={`${item.stt}-${item.group_code}-${index}`}
                                         className="odd:bg-[#dfe8f5] even:bg-white"
                                     >
                                         <TableCell className="text-center font-medium text-green-600">
                                             {item.stt}
                                         </TableCell>
 
-                                        <TableCell className="font-medium">{item.ma_chung}</TableCell>
+                                        <TableCell className="font-medium">{item.group_code}</TableCell>
 
-                                        <TableCell>{item.nhom_hang_hoa}</TableCell>
+                                        <TableCell>{item.product_group}</TableCell>
 
-                                        <TableCell>{item.dvt}</TableCell>
-
-                                        <TableCell className="text-right text-green-600">
-                                            {formatNumber(item.sl_dat)}
-                                        </TableCell>
-
-                                        <TableCell className="text-right">
-                                            {formatNumber(item.sl_du_kien)}
-                                        </TableCell>
+                                        <TableCell>{item.unit}</TableCell>
 
                                         <TableCell className="text-right text-green-600">
-                                            {formatNumber(item.he_so)}
+                                            {formatNumber(item.achieved_qty)}
                                         </TableCell>
 
                                         <TableCell className="text-right">
-                                            {formatNumber(item.sl_can_them_khuyen_cao)}
+                                            {formatNumber(item.expected_qty)}
+                                        </TableCell>
+
+                                        <TableCell className="text-right text-green-600">
+                                            {formatNumber(item.point_factor)}
                                         </TableCell>
 
                                         <TableCell className="text-right">
-                                            {formatNumber(item.sl_can_them_muc_tieu)}
+                                            {formatNumber(item.needed_qty_recommended)}
+                                        </TableCell>
+
+                                        <TableCell className="text-right">
+                                            {formatNumber(item.needed_qty_target)}
                                         </TableCell>
 
                                         <TableCell className="text-right font-semibold text-blue-700">
-                                            {formatNumber(item.sl_admin_nhap)}
+                                            {formatNumber(item.target_qty)}
                                         </TableCell>
 
                                         <TableCell className="text-right">
-                                            {formatNumber(item.diem_dat_admin)}
+                                            {formatNumber(item.target_point)}
                                         </TableCell>
 
                                         <TableCell className="text-right font-semibold">
-                                            {formatNumber(item.diem_dat)}
+                                            {formatNumber(item.achieved_point)}
                                         </TableCell>
 
-                                        <TableCell>{item.uu_tien || "-"}</TableCell>
+                                        <TableCell>{item.priority || "-"}</TableCell>
                                     </TableRow>
                                 ))
                             )}

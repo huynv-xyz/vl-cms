@@ -1,5 +1,5 @@
 import { CrudDeleteButton } from "@/components/crud/crud-delete-button"
-import { deleteVipPointRule } from "@/api/ vip-point-rule"
+import { deleteVipPointRule } from "@/api/vip-point-rule"
 
 type Props = {
     id: number

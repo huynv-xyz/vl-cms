@@ -102,6 +102,30 @@ export function CustomerVipSummary({ data }: Props) {
                                 <LabelCell>Năm</LabelCell>
                                 <ValueCell>{data.calc_year}</ValueCell>
                             </TableRow>
+
+                            {/* Row 3 */}
+                            <TableRow>
+                                <LabelCell>Thưởng/điểm</LabelCell>
+                                <ValueCell alignRight>
+                                    {formatCurrency(Number(data.reward_amount ?? 0))}
+                                </ValueCell>
+
+                                <LabelCell>Thưởng mã riêng</LabelCell>
+                                <ValueCell alignRight>
+                                    {formatCurrency(Number(data.private_bonus_amount ?? 0))}
+                                </ValueCell>
+
+                                <LabelCell>Tổng thưởng</LabelCell>
+                                <ValueCell alignRight highlight>
+                                    {formatCurrency(Number(data.total_reward_amount ?? 0))}
+                                </ValueCell>
+
+                                <LabelCell>{" "}</LabelCell>
+                                <ValueCell>{" "}</ValueCell>
+
+                                <LabelCell>{" "}</LabelCell>
+                                <ValueCell>{" "}</ValueCell>
+                            </TableRow>
                         </TableBody>
                     </Table>
                 </div>

@@ -34,6 +34,7 @@ export function UpdateVipPrivateRuleDialog({
                 code: rule.code,
                 name: rule.name,
                 amount: rule.amount ?? 0,
+                unit: rule.unit ?? "",
                 note: rule.note ?? "",
                 status: rule.status === 1,
             }}
@@ -45,6 +46,7 @@ export function UpdateVipPrivateRuleDialog({
                 code: values.code,
                 name: values.name,
                 amount: values.amount ?? 0,
+                unit: values.unit ?? "",
                 note: values.note?.trim() ? values.note.trim() : null,
                 status: values.status === false ? 0 : 1,
             })}

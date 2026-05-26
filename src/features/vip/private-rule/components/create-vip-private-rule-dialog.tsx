@@ -31,6 +31,7 @@ export function CreateVipPrivateRuleDialog({
                 code: "",
                 name: "",
                 amount: 0,
+                unit: "",
                 note: "",
                 status: true,
             }}
@@ -40,6 +41,7 @@ export function CreateVipPrivateRuleDialog({
                 code: values.code,
                 name: values.name,
                 amount: values.amount ?? 0,
+                unit: values.unit ?? "",
                 note: values.note?.trim() ? values.note.trim() : null,
                 status: values.status === false ? 0 : 1,
             })}

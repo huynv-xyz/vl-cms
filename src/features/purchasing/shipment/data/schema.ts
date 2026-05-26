@@ -1,13 +1,9 @@
 import { Warehouse } from "@/features/warehouse/data/schema"
 import { Port } from "../../port/data/schema"
 import { ShipmentItem } from "../../shipment-item/data/schema"
+import type { ShipmentStatus } from "./shipment-status"
 
-export type ShipmentStatus =
-    | "IN_TRANSIT"
-    | "ARRIVED_PORT"
-    | "IN_WAREHOUSE"
-    | "DONE"
-    | "CANCELLED"
+export type { ShipmentStatus }
 
 export type Shipment = {
     id: number

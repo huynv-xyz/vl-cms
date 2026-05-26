@@ -32,6 +32,19 @@ export const vipPointRuleSchema: RJSFSchema = {
             title: "Hệ số MN",
             default: 0,
         },
+        group_code: {
+            type: "string",
+            title: "Mã chung (VD: SMART 60)",
+        },
+        unit: {
+            type: "string",
+            title: "Đơn vị tính",
+            enum: ["Tấn", "Kg", "Lít"],
+        },
+        description: {
+            type: "string",
+            title: "Diễn giải",
+        },
         note: {
             type: "string",
             title: "Ghi chú",
@@ -49,6 +62,12 @@ export const vipPointRuleUiSchema: UiSchema = {
         "ui:widget": "textarea",
         "ui:options": {
             rows: 4,
+        },
+    },
+    description: {
+        "ui:widget": "textarea",
+        "ui:options": {
+            rows: 2,
         },
     },
 }
