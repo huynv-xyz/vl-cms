@@ -9,6 +9,7 @@ import {
     createArLedger,
     deleteArLedger,
     importBankArLedgers,
+    importOpeningArLedgers,
     listArLedgers,
     updateArLedger,
     type ArLedgerListParams,
@@ -168,10 +169,15 @@ export function CashBankLedgerTable({
     })
 
     const importMutation = useMutation({
-        mutationFn: (file: File) => importBankArLedgers(file),
+        mutationFn: (file: File) =>
+            sourceType === "OPENING" ? importOpeningArLedgers(file) : importBankArLedgers(file),
         onSuccess: async (count) => {
             await queryClient.invalidateQueries({ queryKey: ["ar-ledgers"] })
-            toast.success(`Đã import ${count} giao dịch ngân hàng`)
+            toast.success(
+                sourceType === "OPENING"
+                    ? `Đã import ${count} số dư đầu kỳ`
+                    : `Đã import ${count} giao dịch ngân hàng`,
+            )
             if (fileInputRef.current) {
                 fileInputRef.current.value = ""
             }
@@ -252,7 +258,7 @@ export function CashBankLedgerTable({
                         {title}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        {sourceType === "BANK" ? (
+                        {sourceType === "BANK" || sourceType === "OPENING" ? (
                             <>
                                 <input
                                     ref={fileInputRef}

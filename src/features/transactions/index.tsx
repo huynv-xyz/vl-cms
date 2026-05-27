@@ -6,6 +6,7 @@ import { useUrlListFilters } from '@/hooks/use-url-list-filters'
 import { listTransactions } from '@/api/transactions'
 import { TransactionTable } from './components/transaction-table'
 import { ImportTransactionButton } from './components/import-transaction-button'
+import { ExportTransactionButton } from './components/export-transaction-button'
 import { Route } from '@/routes/_authenticated/transactions'
 
 export default function TransactionPage() {
@@ -43,15 +44,26 @@ export default function TransactionPage() {
             error={error}
             title='Dữ liệu bán hàng'
             actions={
-                <ImportTransactionButton
-                    onSuccess={(result) => {
-                        alert(`Import thành công: ${result.inserted} dòng`)
-                        queryClient.invalidateQueries({ queryKey: ['transactions'] })
-                    }}
-                    onError={(error) => {
-                        alert(error.message)
-                    }}
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                    <ImportTransactionButton
+                        onSuccess={(result) => {
+                            alert(`Import thành công: ${result.inserted} dòng`)
+                            queryClient.invalidateQueries({ queryKey: ['transactions'] })
+                        }}
+                        onError={(error) => {
+                            alert(error.message)
+                        }}
+                    />
+                    <ExportTransactionButton
+                        keyword={keyword}
+                        filters={{
+                            customer_type: requestFilters.customer_type,
+                            vthh_con: requestFilters.vthh_con,
+                            npp: requestFilters.npp,
+                            process_month: requestFilters.process_month,
+                        }}
+                    />
+                </div>
             }
             data={data}
         >

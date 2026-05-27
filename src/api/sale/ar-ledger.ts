@@ -65,3 +65,13 @@ export async function importBankArLedgers(file: File) {
         formData
     )
 }
+
+export async function importOpeningArLedgers(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<number>(
+        "/sales/ar-ledgers/import-opening-excel",
+        formData
+    )
+}
