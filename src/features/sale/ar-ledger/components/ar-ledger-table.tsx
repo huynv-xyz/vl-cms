@@ -633,7 +633,7 @@ function CustomerGroup({ group }: { group: Group }) {
                         <Td className="whitespace-nowrap text-slate-600">{fmtDate(item.posting_date)}</Td>
                         <Td className="font-mono text-xs font-semibold text-sky-700">{item.doc_no || `#${item.id}`}</Td>
                         <Td>
-                            <div className="font-medium text-slate-950">{lineDescription(item) || productLabel(item) || ""}</div>
+                            <div className="font-medium text-slate-950">{productLabel(item) || lineDescription(item) || ""}</div>
                         </Td>
                         <Td className="text-center text-xs text-slate-600">{unit}</Td>
                         <Td className="text-right tabular-nums">{fmtQtyBlank(num(item.quantity))}</Td>

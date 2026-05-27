@@ -17,6 +17,7 @@ export const Route = createFileRoute("/_authenticated/sales/returns/")({
 
             order_id: search.order_id ? Number(search.order_id) : undefined,
             export_id: search.export_id ? Number(search.export_id) : undefined,
+            customer_id: search.customer_id ? Number(search.customer_id) : undefined,
         }
     },
 

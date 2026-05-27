@@ -5,6 +5,7 @@ import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
 import { listTransactions } from '@/api/transactions'
 import { TransactionTable } from './components/transaction-table'
+import { TransactionSummaryStrip } from './components/transaction-summary-strip'
 import { ImportTransactionButton } from './components/import-transaction-button'
 import { ExportTransactionButton } from './components/export-transaction-button'
 import { Route } from '@/routes/_authenticated/transactions'
@@ -68,28 +69,31 @@ export default function TransactionPage() {
             data={data}
         >
             {(data) => (
-                <TransactionTable
-                    data={data.items}
-                    pagination={pagination}
-                    onPaginationChange={setPagination}
-                    pageCount={data.total_page}
-                    keyword={keyword}
-                    onKeywordChange={setKeyword}
-                    filters={{
-                        //customer_types: multiFilters.customer_type,
-                        //vthh_cons: multiFilters.vthh_con,
-                        //npps: multiFilters.npp,
-                        //process_months: multiFilters.process_month,
-                    }}
-                    onFiltersChange={(next) =>
-                        setMultiFilters({
-                            customer_type: next.customer_types,
-                            vthh_con: next.vthh_cons,
-                            npp: next.npps,
-                            process_month: next.process_months,
-                        })
-                    }
-                />
+                <div className="space-y-4">
+                    <TransactionSummaryStrip data={data.items} />
+                    <TransactionTable
+                        data={data.items}
+                        pagination={pagination}
+                        onPaginationChange={setPagination}
+                        pageCount={data.total_page}
+                        keyword={keyword}
+                        onKeywordChange={setKeyword}
+                        filters={{
+                            //customer_types: multiFilters.customer_type,
+                            //vthh_cons: multiFilters.vthh_con,
+                            //npps: multiFilters.npp,
+                            //process_months: multiFilters.process_month,
+                        }}
+                        onFiltersChange={(next) =>
+                            setMultiFilters({
+                                customer_type: next.customer_types,
+                                vthh_con: next.vthh_cons,
+                                npp: next.npps,
+                                process_month: next.process_months,
+                            })
+                        }
+                    />
+                </div>
             )}
         </PageSection>
     )

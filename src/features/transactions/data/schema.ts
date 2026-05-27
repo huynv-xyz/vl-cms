@@ -11,6 +11,9 @@ export type Transaction = {
     unit: string
     sale_qty: number
     return_qty: number
+    unit_price: number
+    discount: number
+    revenue: number
     sale_user_name: string
     contact_name: string
     vthh_con: string

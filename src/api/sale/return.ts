@@ -8,6 +8,7 @@ export type ReturnListParams = {
     keyword?: string
     order_id?: number
     export_id?: number
+    customer_id?: number
     status?: string
 }
 

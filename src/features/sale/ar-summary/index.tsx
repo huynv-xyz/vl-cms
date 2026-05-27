@@ -126,6 +126,29 @@ function ArSummaryTable({
         }),
         { opening: 0, debit: 0, credit: 0, closing: 0, sales: 0, adjust: 0, payment: 0 },
     )
+    const tableTotals = data.reduce(
+        (acc, row) => {
+            const opening = Number(row.opening_balance || 0)
+            const closing = Number(row.closing_balance || 0)
+
+            return {
+                openingDebit: acc.openingDebit + Math.max(opening, 0),
+                openingCredit: acc.openingCredit + Math.max(-opening, 0),
+                debit: acc.debit + Number(row.debit_amount || 0),
+                credit: acc.credit + Number(row.credit_amount || 0),
+                closingDebit: acc.closingDebit + Math.max(closing, 0),
+                closingCredit: acc.closingCredit + Math.max(-closing, 0),
+            }
+        },
+        {
+            openingDebit: 0,
+            openingCredit: 0,
+            debit: 0,
+            credit: 0,
+            closingDebit: 0,
+            closingCredit: 0,
+        },
+    )
 
     const setFilter = (key: keyof Filters, value: unknown) =>
         onFiltersChange({ ...filters, [key]: value })
@@ -225,69 +248,86 @@ function ArSummaryTable({
 
             <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1100px] text-sm">
+                    <table className="w-full min-w-[1380px] border-collapse text-sm">
                         <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500">
                             <tr>
-                                <th className="w-12 px-3 py-3 text-center">#</th>
-                                <th className="px-3 py-3 text-left">Khách hàng</th>
-                                <th className="px-3 py-3 text-right">Đầu kỳ</th>
-                                <th className="px-3 py-3 text-right">Doanh thu</th>
-                                <th className="px-3 py-3 text-right">Điều chỉnh</th>
-                                <th className="px-3 py-3 text-right">Thanh toán</th>
-                                <th className="px-3 py-3 text-right">Cuối kỳ</th>
+                                <ReportTh rowSpan={2} className="w-[170px]">Mã khách hàng</ReportTh>
+                                <ReportTh rowSpan={2} className="w-[240px]">Tên khách hàng</ReportTh>
+                                <ReportTh rowSpan={2} className="min-w-[320px]">Địa chỉ</ReportTh>
+                                <ReportTh colSpan={2} className="text-center">Số dư đầu kỳ</ReportTh>
+                                <ReportTh colSpan={2} className="text-center">Phát sinh</ReportTh>
+                                <ReportTh colSpan={2} className="text-center">Số dư cuối kỳ</ReportTh>
+                            </tr>
+                            <tr>
+                                <ReportTh className="w-[120px] text-right">Nợ</ReportTh>
+                                <ReportTh className="w-[120px] text-right">Có</ReportTh>
+                                <ReportTh className="w-[120px] text-right">Nợ</ReportTh>
+                                <ReportTh className="w-[120px] text-right">Có</ReportTh>
+                                <ReportTh className="w-[120px] text-right">Nợ</ReportTh>
+                                <ReportTh className="w-[120px] text-right">Có</ReportTh>
                             </tr>
                         </thead>
                         <tbody>
                             {data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-500">
+                                    <td colSpan={10} className="border border-slate-300 px-4 py-12 text-center text-sm text-slate-500">
                                         Không có dữ liệu công nợ.
                                     </td>
                                 </tr>
                             ) : (
-                                data.map((row, index) => (
-                                    <tr key={row.customer_id} className="border-b last:border-b-0 hover:bg-slate-50">
-                                        <td className="px-3 py-3 text-center text-xs text-slate-500">
-                                            {pagination.pageIndex * pagination.pageSize + index + 1}
-                                        </td>
-                                        <td className="px-3 py-3">
-                                            <Link
-                                                to="/sales/ar-ledgers"
-                                                search={{
-                                                    page: 1,
-                                                    size: pagination.pageSize,
-                                                    keyword: "",
-                                                    source_type: undefined,
-                                                    from_date: filters.from_date ?? today,
-                                                    to_date: filters.to_date ?? today,
-                                                    customer_id: row.customer_id,
-                                                    ...returnSearch,
-                                                }}
-                                                className="inline-flex min-w-0 flex-col rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                                            >
-                                                <span className="font-medium text-primary">{row.customer_name || "-"}</span>
-                                                <span className="mt-0.5 text-xs text-slate-500">{row.customer_code || "-"}</span>
-                                            </Link>
-                                        </td>
-                                        <MoneyCell value={row.opening_balance} />
-                                        <MoneyCell value={row.sales_amount} tone="debit" />
-                                        <MoneyCell value={row.adjust_amount} tone="neutral" />
-                                        <MoneyCell value={row.payment_amount} tone="credit" />
-                                        <MoneyCell value={row.closing_balance} strong />
-                                    </tr>
-                                ))
+                                data.map((row) => {
+                                    const opening = Number(row.opening_balance || 0)
+                                    const closing = Number(row.closing_balance || 0)
+
+                                    return (
+                                        <tr key={row.customer_id} className="hover:bg-slate-50">
+                                            <ReportTd className="font-mono text-xs font-semibold text-slate-800">
+                                                {row.customer_code || "-"}
+                                            </ReportTd>
+                                            <ReportTd>
+                                                <Link
+                                                    to="/sales/ar-ledgers"
+                                                    search={{
+                                                        page: 1,
+                                                        size: pagination.pageSize,
+                                                        keyword: "",
+                                                        source_type: undefined,
+                                                        from_date: filters.from_date ?? today,
+                                                        to_date: filters.to_date ?? today,
+                                                        customer_id: row.customer_id,
+                                                        ...returnSearch,
+                                                    }}
+                                                    className="inline-flex min-w-0 flex-col rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                                >
+                                                    <span className="font-medium text-slate-950">{row.customer_name || "-"}</span>
+                                                </Link>
+                                            </ReportTd>
+                                            <ReportTd className="text-slate-700">
+                                                {row.customer_region || ""}
+                                            </ReportTd>
+                                            <ReportMoneyCell value={Math.max(opening, 0)} />
+                                            <ReportMoneyCell value={Math.max(-opening, 0)} />
+                                            <ReportMoneyCell value={row.debit_amount} />
+                                            <ReportMoneyCell value={row.credit_amount} />
+                                            <ReportMoneyCell value={Math.max(closing, 0)} />
+                                            <ReportMoneyCell value={Math.max(-closing, 0)} />
+                                        </tr>
+                                    )
+                                })
                             )}
                         </tbody>
                         {data.length > 0 ? (
-                            <tfoot className="border-t bg-slate-50">
+                            <tfoot className="border-t bg-slate-50 font-bold">
                                 <tr>
-                                    <td colSpan={2} className="px-3 py-3 text-right font-bold text-slate-950">
+                                    <ReportTd colSpan={4} className="text-right text-slate-950">
                                         Tổng
-                                    </td>
-                                    <MoneyCell value={totals.opening} strong />
-                                    <MoneyCell value={totals.debit} tone="debit" strong />
-                                    <MoneyCell value={totals.credit} tone="credit" strong />
-                                    <MoneyCell value={totals.closing} strong />
+                                    </ReportTd>
+                                    <ReportMoneyCell value={tableTotals.openingDebit} strong />
+                                    <ReportMoneyCell value={tableTotals.openingCredit} strong />
+                                    <ReportMoneyCell value={tableTotals.debit} strong />
+                                    <ReportMoneyCell value={tableTotals.credit} strong />
+                                    <ReportMoneyCell value={tableTotals.closingDebit} strong />
+                                    <ReportMoneyCell value={tableTotals.closingCredit} strong />
                                 </tr>
                             </tfoot>
                         ) : null}
@@ -329,6 +369,66 @@ function MoneyCell({
         >
             {formatMoney(value)}
         </td>
+    )
+}
+
+function ReportTh({
+    className,
+    children,
+    rowSpan,
+    colSpan,
+}: {
+    className?: string
+    children: React.ReactNode
+    rowSpan?: number
+    colSpan?: number
+}) {
+    return (
+        <th
+            rowSpan={rowSpan}
+            colSpan={colSpan}
+            className={cn("border border-slate-200 px-3 py-3 text-left font-semibold align-middle", className)}
+        >
+            {children}
+        </th>
+    )
+}
+
+function ReportTd({
+    className,
+    children,
+    colSpan,
+}: {
+    className?: string
+    children?: React.ReactNode
+    colSpan?: number
+}) {
+    return (
+        <td
+            colSpan={colSpan}
+            className={cn("border-b border-slate-100 px-3 py-3 align-middle leading-snug", className)}
+        >
+            {children}
+        </td>
+    )
+}
+
+function ReportMoneyCell({
+    value,
+    strong,
+}: {
+    value?: number
+    strong?: boolean
+}) {
+    return (
+        <ReportTd
+            className={cn(
+                "text-right tabular-nums",
+                strong ? "font-bold text-slate-950" : "font-medium text-slate-900",
+            )}
+        >
+            {formatTableMoney(value)}
+        </ReportTd>
     )
 }
 
@@ -376,6 +476,12 @@ function customerOption(customer: { id: number; code?: string; name: string }) {
 function formatMoney(value?: number | string) {
     const amount = Number(value || 0)
     if (!amount) return "-"
+    return amount.toLocaleString("vi-VN")
+}
+
+function formatTableMoney(value?: number | string) {
+    const amount = Number(value || 0)
+    if (!amount) return ""
     return amount.toLocaleString("vi-VN")
 }
 

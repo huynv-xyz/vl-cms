@@ -1,4 +1,5 @@
 import { Product } from "@/features/product/data/schema"
+import { Customer } from "@/features/customer/data/schema"
 import { Export } from "../../export/data/schema"
 import { Order } from "../../order/data/schema"
 
@@ -16,6 +17,7 @@ export type Return = {
 
     order_id: number
     order?: Order
+    customer?: Customer
 
     export_id: number
     export?: Export

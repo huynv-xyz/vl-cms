@@ -5,6 +5,7 @@ import { RETURN_STATUSES } from "./return-status"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { getOrder, listOrders } from "@/api/sale/order"
 import { getExport, listExports } from "@/api/sale/export"
+import { getCustomer, listCustomers } from "@/api/customer"
 import { exportOption, orderOption } from "@/lib/option-mapper"
 import { cn, formatNumber } from "@/lib/utils"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
@@ -104,7 +105,28 @@ export function ReturnTable({
                     <AsyncSelect
                         className={cn(
                             FILTER_CONTROL_CLASS,
-                            "min-w-[260px] flex-[1.8_1_0] py-0"
+                            "min-w-[260px] flex-[1.6_1_0] py-0"
+                        )}
+                        value={filters.customer_id}
+                        placeholder="Khách hàng"
+                        dataSource={{
+                            getList: listCustomers,
+                            getById: getCustomer,
+                            params: { page: 1, size: 20 },
+                        }}
+                        mapOption={(customer: { id: number; code?: string; name: string }) => ({
+                            value: customer.id,
+                            label: `${customer.code ? `${customer.code} - ` : ""}${customer.name}`,
+                        })}
+                        onChange={(customerId: any) =>
+                            setFilter("customer_id", customerId || undefined)
+                        }
+                    />
+
+                    <AsyncSelect
+                        className={cn(
+                            FILTER_CONTROL_CLASS,
+                            "min-w-[260px] flex-[1.4_1_0] py-0"
                         )}
                         value={filters.order_id}
                         placeholder="Đơn hàng"

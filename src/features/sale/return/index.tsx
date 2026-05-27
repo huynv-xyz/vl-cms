@@ -32,7 +32,7 @@ export default function ReturnPage() {
         search,
         navigate,
         ['status'],
-        ['order_id', 'export_id']
+        ['order_id', 'export_id', 'customer_id']
     )
 
     const { data, isLoading, error } = usePaginatedList(
@@ -43,7 +43,8 @@ export default function ReturnPage() {
             keyword,
             multiFilters.status,
             singleFilters.order_id,
-            singleFilters.export_id
+            singleFilters.export_id,
+            singleFilters.customer_id
         ],
         listReturns,
         {
@@ -58,6 +59,10 @@ export default function ReturnPage() {
 
             export_id: requestFilters.export_id
                 ? Number(requestFilters.export_id)
+                : undefined,
+
+            customer_id: requestFilters.customer_id
+                ? Number(requestFilters.customer_id)
                 : undefined,
         },
     )
@@ -93,6 +98,10 @@ export default function ReturnPage() {
                                 export_id: singleFilters.export_id
                                     ? Number(singleFilters.export_id)
                                     : undefined,
+
+                                customer_id: singleFilters.customer_id
+                                    ? Number(singleFilters.customer_id)
+                                    : undefined,
                             }}
 
                             onFiltersChange={(next) => {
@@ -108,6 +117,10 @@ export default function ReturnPage() {
 
                                     export_id: next.export_id
                                         ? String(next.export_id)
+                                        : undefined,
+
+                                    customer_id: next.customer_id
+                                        ? String(next.customer_id)
                                         : undefined,
                                 })
                             }}

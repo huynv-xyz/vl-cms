@@ -3,7 +3,41 @@ import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
 import { buildNumberColumn } from "@/components/crud/build-number-column"
 import { DataTableColumnHeader } from "@/components/table/column-header"
+import { formatCurrency } from "@/lib/utils"
 import type { Transaction } from "../data/schema"
+
+function moneyCell(
+    accessorKey: keyof Transaction,
+    title: string,
+    options: { width: number; className?: string; align?: "right" } = { width: 140 }
+): ColumnDef<Transaction> {
+    return {
+        accessorKey: accessorKey as string,
+        enableSorting: false,
+        header: ({ column }) => (
+            <div className="text-right">
+                <DataTableColumnHeader column={column} title={title} />
+            </div>
+        ),
+        cell: ({ row }) => {
+            const raw = row.getValue(accessorKey as string)
+            const value = Number(raw ?? 0)
+            if (!value) {
+                return <span className="block text-right text-slate-400">-</span>
+            }
+            return (
+                <span className={`block text-right tabular-nums whitespace-nowrap ${options.className ?? ""}`}>
+                    {formatCurrency(value)}
+                </span>
+            )
+        },
+        size: options.width,
+        meta: {
+            thClassName: `w-[${options.width}px] whitespace-nowrap text-right`,
+            tdClassName: `w-[${options.width}px] whitespace-nowrap`,
+        },
+    }
+}
 
 export const transactionColumns: ColumnDef<Transaction>[] = [
     {
@@ -80,13 +114,17 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     buildNumberColumn<Transaction>({
         accessorKey: "sale_qty",
         title: "SL bán",
-        width: 120,
+        width: 110,
     }),
+
+    moneyCell("unit_price", "Đơn giá", { width: 140, className: "text-slate-700" }),
+    moneyCell("discount", "Chiết khấu", { width: 130, className: "text-amber-700" }),
+    moneyCell("revenue", "Doanh số", { width: 160, className: "font-semibold text-emerald-700" }),
 
     buildNumberColumn<Transaction>({
         accessorKey: "return_qty",
         title: "SL trả",
-        width: 120,
+        width: 100,
     }),
 
     buildTextColumn<Transaction>({

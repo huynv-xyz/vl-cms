@@ -59,6 +59,25 @@ export function useReturnColumns() {
         },
 
         {
+            accessorKey: "customer",
+            header: "Khách hàng",
+            cell: ({ row }) => {
+                const customer = row.original.customer ?? row.original.order?.customer
+
+                return (
+                    <div className="min-w-[220px]">
+                        <div className="font-medium text-slate-900">
+                            {customer?.name ?? "-"}
+                        </div>
+                        <div className="mt-0.5 font-mono text-xs text-muted-foreground">
+                            {customer?.code ?? "-"}
+                        </div>
+                    </div>
+                )
+            },
+        },
+
+        {
             accessorKey: "export_id",
             header: "Phiếu xuất",
             cell: ({ row }) =>
