@@ -7,6 +7,7 @@ export type ExportListParams = {
     size: number
     keyword?: string
     order_id?: number
+    customer_id?: number
     delivery_id?: number
     warehouse_id?: number
     status?: string

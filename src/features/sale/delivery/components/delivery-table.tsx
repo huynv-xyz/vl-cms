@@ -3,6 +3,7 @@ import type { Delivery } from "../data/schema"
 import { useDeliveryColumns } from "../hook/use-delivery-columns"
 import { DELIVERY_STATUSES } from "./delivery-status"
 import { AsyncSelect } from "@/components/rjsf/async-select"
+import { getCustomer, listCustomers } from "@/api/customer"
 import { getOrder, listOrders } from "@/api/sale/order"
 import { getCompany, listCompanies } from "@/api/company"
 import {
@@ -110,7 +111,7 @@ export function DeliveryTable({
                     <AsyncSelect
                         className={cn(
                             FILTER_CONTROL_CLASS,
-                            "min-w-[260px] flex-[1.8_1_0] py-0"
+                            "min-w-[240px] flex-[1.2_1_0] py-0"
                         )}
                         placeholder="Đơn hàng"
                         value={filters?.order_id}
@@ -123,6 +124,24 @@ export function DeliveryTable({
                             params: { page: 1, size: 20, status: "CONFIRMED" },
                         }}
                         mapOption={orderOption}
+                    />
+
+                    <AsyncSelect
+                        className={cn(
+                            FILTER_CONTROL_CLASS,
+                            "min-w-[240px] flex-[1.2_1_0] py-0"
+                        )}
+                        placeholder="Khách hàng"
+                        value={filters?.customer_id}
+                        onChange={(value: any) =>
+                            setFilter("customer_id", value || undefined)
+                        }
+                        dataSource={{
+                            getList: listCustomers,
+                            getById: getCustomer,
+                            params: { page: 1, size: 20 },
+                        }}
+                        mapOption={customerOption}
                     />
                 </div>
 
@@ -188,6 +207,14 @@ export function DeliveryTable({
             {dialog}
         </div>
     )
+}
+
+function customerOption(customer: { id: number; code?: string; name: string }) {
+    return {
+        value: customer.id,
+        label: `${customer.code ? `${customer.code} - ` : ""}${customer.name}`,
+        raw: customer,
+    }
 }
 
 /* ---------------- Status filter ---------------- */

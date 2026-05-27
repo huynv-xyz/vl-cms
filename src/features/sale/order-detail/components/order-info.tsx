@@ -75,7 +75,16 @@ export function OrderInfo({ order }: Props) {
                 <Info
                     icon={<UsersRound className="h-4 w-4" />}
                     label="Khách hàng"
-                    value={order.customer?.name ?? "-"}
+                    value={
+                        order.customer ? (
+                            <>
+                                {order.customer.name ?? "-"}
+                                <div className="text-muted-foreground mt-0.5 truncate text-xs">
+                                    {order.customer.code}
+                                </div>
+                            </>
+                        ) : "-"
+                    }
                     sub={
                         <>
                             {order.customer?.phone && (

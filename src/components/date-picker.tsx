@@ -17,6 +17,7 @@ type Props = {
     placeholder?: string
     className?: string
     displayFormat?: string
+    disabled?: React.ComponentProps<typeof Calendar>["disabled"]
 }
 
 export function DatePicker({
@@ -25,6 +26,7 @@ export function DatePicker({
     placeholder = "Chọn ngày",
     className,
     displayFormat = "dd/MM/yyyy",
+    disabled,
 }: Props) {
     const date = parseDateValue(value)
 
@@ -73,6 +75,7 @@ export function DatePicker({
                 <Calendar
                     mode="single"
                     selected={date}
+                    disabled={disabled}
                     onSelect={(d) => {
                         if (!d) return
                         onChange(format(d, "yyyy-MM-dd"))

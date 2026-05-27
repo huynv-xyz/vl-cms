@@ -29,6 +29,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { exportXlsx } from "@/lib/xlsx-export"
 import type { ArLedger } from "../data/schema"
 import { AR_SOURCE_TYPES, getSourceTypeMeta } from "./ar-ledger-columns"
 import { ImportArLedgerButton } from "./ar-ledger-import-button"
@@ -67,6 +68,7 @@ export function ArLedgerTable({
     const [exporting, setExporting] = useState(false)
     const groups = useMemo(() => buildGroups(data), [data])
     const period = periodLabel(filters.from_date, filters.to_date)
+    const today = todayYmd()
 
     const totals = useMemo(() => {
         const debit = data.reduce((sum, row) => sum + num(row.debit_amount), 0)
@@ -114,7 +116,7 @@ export function ArLedgerTable({
                 return
             }
 
-            exportReportCsv(buildGroups(rows), period)
+            exportReportXlsx(buildGroups(rows), period)
             toast.success(`Đã xuất ${rows.length} dòng công nợ`)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Xuất báo cáo thất bại")
@@ -206,6 +208,10 @@ export function ArLedgerTable({
                             )}
                             value={filters.from_date}
                             onChange={(value) => setFilter("from_date", value || undefined)}
+                            disabled={(date) => {
+                                const value = dateToYmd(date)
+                                return value > today || (!!filters.to_date && value > filters.to_date)
+                            }}
                             placeholder="Từ ngày"
                         />
 
@@ -216,6 +222,10 @@ export function ArLedgerTable({
                             )}
                             value={filters.to_date}
                             onChange={(value) => setFilter("to_date", value || undefined)}
+                            disabled={(date) => {
+                                const value = dateToYmd(date)
+                                return !!filters.from_date && value < filters.from_date
+                            }}
                             placeholder="Đến ngày"
                         />
                     </div>
@@ -533,17 +543,17 @@ async function fetchAllRows(base: ArLedgerListParams): Promise<ArLedger[]> {
     return all
 }
 
-function exportReportCsv(groups: Group[], period: string) {
-    const lines: string[] = []
-    const push = (cells: (string | number)[]) => lines.push(cells.map(csvCell).join(","))
+function exportReportXlsx(groups: Group[], period: string) {
+    const rows: (string | number)[][] = []
+    const push = (cells: (string | number)[]) => rows.push(cells)
 
-    push(["SO CHI TIET CONG NO PHAI THU"])
-    push([`Tai khoan: ${AR_ACCOUNT} - VND - ${period}`])
+    push(["SỔ CHI TIẾT CÔNG NỢ PHẢI THU"])
+    push([`Tài khoản: ${AR_ACCOUNT} - VND - ${period}`])
     push([])
-    push(["Khach hang", "Ngay", "Chung tu", "Dien giai", "Nghiep vu", "SL", "Don gia", "No", "Co", "So du"])
+    push(["Khách hàng", "Ngày", "Chứng từ", "Diễn giải", "Nghiệp vụ", "SL", "Đơn giá", "Nợ", "Có", "Số dư"])
 
     for (const group of groups) {
-        push([group.name, "", "", "Cong", "", group.qtyTotal, "", group.debitTotal, group.creditTotal, group.closing])
+        push([group.name, "", "", "Cộng", "", group.qtyTotal, "", group.debitTotal, group.creditTotal, group.closing])
         group.items.forEach((item, index) => {
             push([
                 group.name,
@@ -560,23 +570,20 @@ function exportReportCsv(groups: Group[], period: string) {
         })
     }
 
-    const blob = new Blob(["\uFEFF" + lines.join("\n")], {
-        type: "text/csv;charset=utf-8;",
-    })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `cong-no-phai-thu-${new Date().toISOString().slice(0, 10)}.csv`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    exportXlsx(`cong-no-phai-thu-${new Date().toISOString().slice(0, 10)}.xlsx`, [
+        { name: "Chi tiết công nợ", rows },
+    ])
 }
 
-function csvCell(value: string | number): string {
-    const text = String(value ?? "")
-    if (/[",\n;]/.test(text)) return `"${text.replace(/"/g, '""')}"`
-    return text
+function todayYmd() {
+    return dateToYmd(new Date())
+}
+
+function dateToYmd(date: Date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
 }
 
 const PRINT_CSS = `
