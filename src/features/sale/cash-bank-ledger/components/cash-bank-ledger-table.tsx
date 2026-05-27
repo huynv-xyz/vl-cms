@@ -2,10 +2,17 @@ import type React from "react"
 import { useMemo, useRef, useState } from "react"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Plus, Upload, WalletCards } from "lucide-react"
+import { Download, Loader2, Plus, Upload, WalletCards } from "lucide-react"
 import { toast } from "sonner"
 
-import { createArLedger, deleteArLedger, importBankArLedgers, updateArLedger } from "@/api/sale/ar-ledger"
+import {
+    createArLedger,
+    deleteArLedger,
+    importBankArLedgers,
+    listArLedgers,
+    updateArLedger,
+    type ArLedgerListParams,
+} from "@/api/sale/ar-ledger"
 import { getCustomer, listCustomers } from "@/api/customer"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
@@ -31,6 +38,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { DatePicker } from "@/components/date-picker"
 import { CrudRowActions } from "@/components/crud/crud-row-actions"
 import { cn } from "@/lib/utils"
+import { exportXlsx } from "@/lib/xlsx-export"
 import type { ArLedger } from "../../ar-ledger/data/schema"
 
 type Filters = {
@@ -98,7 +106,12 @@ export function CashBankLedgerTable({
     const queryClient = useQueryClient()
     const [open, setOpen] = useState(false)
     const [form, setForm] = useState<FormState>(emptyForm)
+    const [exporting, setExporting] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const incomingLabel = sourceType === "ADJUST" ? "Giảm nợ" : "Tiền vào"
+    const outgoingLabel = sourceType === "ADJUST" ? "Tăng nợ" : "Tiền ra"
+    const today = todayYmd()
+    const shouldConstrainDateFilters = sourceType === "ADJUST"
 
     const totals = useMemo(() => {
         const incoming = data.reduce((sum, row) => sum + Number(row.credit_amount || 0), 0)
@@ -169,6 +182,37 @@ export function CashBankLedgerTable({
         setOpen(true)
     }
 
+    const handleExport = async () => {
+        try {
+            setExporting(true)
+            const rows = await fetchAllRows({
+                page: 1,
+                size: 200,
+                keyword: keyword || undefined,
+                source_type: sourceType,
+                from_date: filters.from_date || undefined,
+                to_date: filters.to_date || undefined,
+                customer_id: filters.customer_id,
+            })
+
+            if (!rows.length) {
+                toast.warning("Không có dữ liệu để xuất")
+                return
+            }
+
+            exportAdjustmentXlsx(rows, {
+                incomingLabel,
+                outgoingLabel,
+                period: periodLabel(filters.from_date, filters.to_date),
+            })
+            toast.success(`Đã xuất ${rows.length} dòng điều chỉnh công nợ`)
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Xuất báo cáo thất bại")
+        } finally {
+            setExporting(false)
+        }
+    }
+
     const openEdit = (row: ArLedger) => {
         const debit = Number(row.debit_amount || 0)
         const credit = Number(row.credit_amount || 0)
@@ -228,6 +272,16 @@ export function CashBankLedgerTable({
                                 </Button>
                             </>
                         ) : null}
+                        {sourceType === "ADJUST" ? (
+                            <Button type="button" onClick={handleExport} disabled={exporting}>
+                                {exporting ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Download className="mr-2 h-4 w-4" />
+                                )}
+                                Xuất Excel
+                            </Button>
+                        ) : null}
                         <Button type="button" onClick={openCreate}>
                             <Plus className="mr-2 h-4 w-4" />
                             {createLabel}
@@ -270,6 +324,12 @@ export function CashBankLedgerTable({
                             value={filters.from_date}
                             onChange={(value) => setFilter("from_date", value || undefined)}
                             placeholder="Từ ngày"
+                            disabled={shouldConstrainDateFilters
+                                ? (date) => {
+                                    const value = dateToYmd(date)
+                                    return value > today || Boolean(filters.to_date && value > filters.to_date)
+                                }
+                                : undefined}
                         />
                         <DatePicker
                             className={cn(
@@ -279,14 +339,20 @@ export function CashBankLedgerTable({
                             value={filters.to_date}
                             onChange={(value) => setFilter("to_date", value || undefined)}
                             placeholder="Đến ngày"
+                            disabled={shouldConstrainDateFilters
+                                ? (date) => {
+                                    const value = dateToYmd(date)
+                                    return Boolean(filters.from_date && value < filters.from_date)
+                                }
+                                : undefined}
                         />
                     </div>
                 </div>
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-                <Summary label="Tiền vào" value={formatMoney(totals.incoming)} tone="success" />
-                <Summary label="Tiền ra / hoàn" value={formatMoney(totals.outgoing)} tone="danger" />
+                <Summary label={incomingLabel} value={formatMoney(totals.incoming)} tone="success" />
+                <Summary label={sourceType === "BANK" ? "Tiền ra / hoàn" : outgoingLabel} value={formatMoney(totals.outgoing)} tone="danger" />
                 <Summary label="Chênh lệch" value={formatMoney(totals.net)} tone={totals.net >= 0 ? "success" : "danger"} />
             </div>
 
@@ -302,8 +368,8 @@ export function CashBankLedgerTable({
                                 <th className="px-3 py-3 text-left">Khách hàng</th>
                                 <th className="px-3 py-3 text-left">Diễn giải</th>
                                 <th className="px-3 py-3 text-left">TK đối ứng</th>
-                                <th className="px-3 py-3 text-right">Tiền vào</th>
-                                <th className="px-3 py-3 text-right">Tiền ra</th>
+                                <th className="px-3 py-3 text-right">{incomingLabel}</th>
+                                <th className="px-3 py-3 text-right">{outgoingLabel}</th>
                                 <th className="w-12 px-2 py-3" />
                             </tr>
                         </thead>
@@ -456,10 +522,10 @@ function BankLedgerDialog({
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="IN">
-                                    {sourceType === "BANK" ? "Tiền vào - giảm công nợ" : "Giảm công nợ"}
+                                    {sourceType === "BANK" ? "Tiền vào - giảm công nợ" : sourceType === "ADJUST" ? "Giảm nợ" : "Giảm công nợ"}
                                 </SelectItem>
                                 <SelectItem value="OUT">
-                                    {sourceType === "BANK" ? "Tiền ra / hoàn - tăng công nợ" : "Tăng công nợ"}
+                                    {sourceType === "BANK" ? "Tiền ra / hoàn - tăng công nợ" : sourceType === "ADJUST" ? "Tăng nợ" : "Tăng công nợ"}
                                 </SelectItem>
                             </SelectContent>
                         </Select>
@@ -568,6 +634,18 @@ function dateOnly(value?: string) {
     return value ? value.split("T")[0] : ""
 }
 
+function todayYmd() {
+    const now = new Date()
+    return dateToYmd(now)
+}
+
+function dateToYmd(date: Date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+}
+
 function formatDate(value?: string) {
     if (!value) return "-"
     const parts = dateOnly(value).split("-")
@@ -577,8 +655,73 @@ function formatDate(value?: string) {
     return dateOnly(value)
 }
 
+function periodLabel(from?: string, to?: string) {
+    if (from && to) return `Từ ${formatDate(from)} đến ${formatDate(to)}`
+    if (from) return `Từ ${formatDate(from)}`
+    if (to) return `Đến ${formatDate(to)}`
+    return "Tất cả kỳ"
+}
+
 function formatMoney(value?: number | string) {
     const amount = Number(value || 0)
     if (!amount) return "-"
     return amount.toLocaleString("vi-VN")
+}
+
+async function fetchAllRows(base: ArLedgerListParams): Promise<ArLedger[]> {
+    const size = 200
+    const all: ArLedger[] = []
+    let page = 1
+
+    for (let guard = 0; guard < 300; guard++) {
+        const res = await listArLedgers({ ...base, page, size })
+        all.push(...res.items)
+        if (page >= (res.total_page || 1) || res.items.length === 0) break
+        page += 1
+    }
+
+    return all
+}
+
+function exportAdjustmentXlsx(
+    rows: ArLedger[],
+    options: {
+        incomingLabel: string
+        outgoingLabel: string
+        period: string
+    },
+) {
+    const exportRows: (string | number)[][] = []
+    const push = (cells: (string | number)[]) => exportRows.push(cells)
+
+    push(["ĐIỀU CHỈNH CÔNG NỢ"])
+    push([options.period])
+    push([])
+    push([
+        "Ngày",
+        "Chứng từ",
+        "Mã KH",
+        "Khách hàng",
+        "Diễn giải",
+        "TK đối ứng",
+        options.incomingLabel,
+        options.outgoingLabel,
+    ])
+
+    for (const row of rows) {
+        push([
+            formatDate(row.posting_date),
+            row.doc_no || "",
+            row.customer?.code || (row.customer_id ? `#${row.customer_id}` : ""),
+            row.customer?.name || row.customer_name || "",
+            row.description || "",
+            row.account_code || "",
+            Number(row.credit_amount || 0),
+            Number(row.debit_amount || 0),
+        ])
+    }
+
+    exportXlsx(`dieu-chinh-cong-no-${new Date().toISOString().slice(0, 10)}.xlsx`, [
+        { name: "Điều chỉnh công nợ", rows: exportRows },
+    ])
 }

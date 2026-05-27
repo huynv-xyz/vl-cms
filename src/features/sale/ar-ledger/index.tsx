@@ -1,10 +1,13 @@
 import { PageSection } from '@/components/page-section'
+import { Button } from '@/components/ui/button'
 import { usePaginatedList } from '@/hooks/use-paginated-list'
 import { listArLedgers } from '@/api/sale/ar-ledger'
 import { ArLedgerTable } from './components/ar-ledger-table'
 import { Route } from '@/routes/_authenticated/sales/ar-ledgers'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
+import { Link } from '@tanstack/react-router'
+import { ArrowLeft } from 'lucide-react'
 
 export default function ArLedgerPage() {
 
@@ -28,6 +31,8 @@ export default function ArLedgerPage() {
     )
 
     const sourceType = multiFilters.source_type?.[0] ?? ""
+    const showReturnToSummary = search.return_from === "ar-summary"
+    const today = todayYmd()
 
     const { data, isLoading, error } = usePaginatedList(
         [
@@ -58,6 +63,28 @@ export default function ArLedgerPage() {
             error={error}
             title="Công nợ phải thu"
             description="Sổ chi tiết công nợ phải thu khách hàng (tài khoản 131)."
+            actions={
+                showReturnToSummary ? (
+                    <Button asChild variant="outline">
+                        <Link
+                            to="/sales/ar-summary"
+                            search={{
+                                page: search.return_page ?? 1,
+                                size: search.return_size ?? 20,
+                                keyword: search.return_keyword ?? "",
+                                from_date: search.return_from_date ?? today,
+                                to_date: search.return_to_date ?? today,
+                                customer_id: search.return_customer_id
+                                    ? String(search.return_customer_id)
+                                    : undefined,
+                            }}
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            Trở lại
+                        </Link>
+                    </Button>
+                ) : null
+            }
             data={data}
         >
             {(data) => (
@@ -91,4 +118,12 @@ export default function ArLedgerPage() {
             )}
         </PageSection>
     )
+}
+
+function todayYmd() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, "0")
+    const day = String(now.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
 }

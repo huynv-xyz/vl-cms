@@ -22,6 +22,12 @@ export const Route = createFileRoute("/_authenticated/sales/deliveries/")({
                 ? Number(search.order_id)
                 : undefined,
 
+        customer_id:
+            search.customer_id !== undefined &&
+                !isNaN(Number(search.customer_id))
+                ? Number(search.customer_id)
+                : undefined,
+
         warehouse_id:
             search.warehouse_id !== undefined &&
                 !isNaN(Number(search.warehouse_id))

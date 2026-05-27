@@ -15,7 +15,7 @@ import { updateExportStatus } from "@/api/sale/export"
 import type { Export } from "../data/schema"
 import { ExportRowActions } from "./export-row-actions"
 import { EXPORT_STATUSES, exportStatusLabel } from "./export-status"
-import { FileText } from "lucide-react"
+import { FileText, User } from "lucide-react"
 
 export function useExportColumns() {
 
@@ -57,6 +57,28 @@ export function useExportColumns() {
         }),
 
         buildTextColumn({
+            accessorFn: (row) => row.order?.customer?.name,
+            title: "Khách hàng",
+            render: (row) => {
+                const customer = row.order?.customer
+                if (!customer) return <span className="text-muted-foreground">—</span>
+                return (
+                    <div className="inline-flex min-w-[180px] items-start gap-1.5 text-sm">
+                        <User className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0">
+                            <div className="truncate font-medium">{customer.name}</div>
+                            {customer.code ? (
+                                <div className="mt-0.5 font-mono text-xs text-muted-foreground">
+                                    {customer.code}
+                                </div>
+                            ) : null}
+                        </div>
+                    </div>
+                )
+            },
+        }),
+
+        buildTextColumn({
             accessorKey: "order_id",
             title: "Đơn hàng",
             render: (row) => (
@@ -64,11 +86,6 @@ export function useExportColumns() {
                     <div className="font-medium">
                         {row.order?.order_no ?? `#${row.order_id}`}
                     </div>
-                    {row.order?.customer?.name && (
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                            {row.order.customer.name}
-                        </div>
-                    )}
                 </div>
             ),
         }),

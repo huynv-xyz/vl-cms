@@ -11,6 +11,7 @@ export type DeliveryListParams = {
     keyword?: string
     status?: string
     order_id?: number
+    customer_id?: number
     warehouse_id?: number
     company_id?: number
     from_date?: string

@@ -24,7 +24,7 @@ export default function ExportPage() {
         search,
         navigate,
         ['status'],
-        ['order_id', 'delivery_id', 'warehouse_id']
+        ['order_id', 'customer_id', 'delivery_id', 'warehouse_id']
     )
 
     const { data, isLoading, error } = usePaginatedList(
@@ -35,6 +35,7 @@ export default function ExportPage() {
             keyword,
             multiFilters.status,
             singleFilters.order_id,
+            singleFilters.customer_id,
             singleFilters.delivery_id,
             singleFilters.warehouse_id,
         ],
@@ -46,6 +47,9 @@ export default function ExportPage() {
             status: requestFilters.status,
             order_id: requestFilters.order_id
                 ? Number(requestFilters.order_id)
+                : undefined,
+            customer_id: requestFilters.customer_id
+                ? Number(requestFilters.customer_id)
                 : undefined,
             delivery_id: requestFilters.delivery_id
                 ? Number(requestFilters.delivery_id)
@@ -76,6 +80,9 @@ export default function ExportPage() {
                         order_id: singleFilters.order_id
                             ? Number(singleFilters.order_id)
                             : undefined,
+                        customer_id: singleFilters.customer_id
+                            ? Number(singleFilters.customer_id)
+                            : undefined,
                         delivery_id: singleFilters.delivery_id
                             ? Number(singleFilters.delivery_id)
                             : undefined,
@@ -90,6 +97,7 @@ export default function ExportPage() {
 
                         setSingleFilters({
                             order_id: next.order_id ? String(next.order_id) : undefined,
+                            customer_id: next.customer_id ? String(next.customer_id) : undefined,
                             delivery_id: next.delivery_id ? String(next.delivery_id) : undefined,
                             warehouse_id: next.warehouse_id ? String(next.warehouse_id) : undefined,
                         })

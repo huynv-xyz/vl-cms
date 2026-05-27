@@ -7,6 +7,7 @@ import {
     CalendarDays,
     MapPin,
     Package,
+    User,
 } from "lucide-react"
 
 import { Delivery } from "../data/schema"
@@ -53,6 +54,28 @@ export function useDeliveryColumns() {
                             {r.order?.order_no || "Chưa có đơn"}
                         </span>
                     </button>
+                )
+            },
+        },
+
+        {
+            accessorKey: "customer_id",
+            header: "Khách hàng",
+            cell: ({ row }) => {
+                const customer = row.original.order?.customer
+                if (!customer) return <span className="text-muted-foreground">—</span>
+                return (
+                    <div className="inline-flex min-w-[180px] items-start gap-1.5 text-sm">
+                        <User className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0">
+                            <div className="truncate font-medium">{customer.name}</div>
+                            {customer.code ? (
+                                <div className="mt-0.5 font-mono text-xs text-muted-foreground">
+                                    {customer.code}
+                                </div>
+                            ) : null}
+                        </div>
+                    </div>
                 )
             },
         },

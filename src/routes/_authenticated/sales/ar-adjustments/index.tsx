@@ -2,13 +2,41 @@ import ArAdjustmentPage from "@/features/sale/ar-adjustment"
 import { createFileRoute } from "@tanstack/react-router"
 
 export const Route = createFileRoute("/_authenticated/sales/ar-adjustments/")({
-    validateSearch: (search) => ({
-        page: Number(search.page ?? 1),
-        size: Number(search.size ?? 20),
-        keyword: typeof search.keyword === "string" ? search.keyword : "",
-        from_date: typeof search.from_date === "string" ? search.from_date : undefined,
-        to_date: typeof search.to_date === "string" ? search.to_date : undefined,
-        customer_id: typeof search.customer_id === "string" ? search.customer_id : undefined,
-    }),
+    validateSearch: (search) => {
+        const today = todayYmd()
+        const fromDate = normalizeFromDate(search.from_date, today)
+        const toDate = normalizeToDate(search.to_date, fromDate, today)
+
+        return {
+            page: Number(search.page ?? 1),
+            size: Number(search.size ?? 20),
+            keyword: typeof search.keyword === "string" ? search.keyword : "",
+            from_date: fromDate,
+            to_date: toDate,
+            customer_id: typeof search.customer_id === "string" ? search.customer_id : undefined,
+        }
+    },
     component: ArAdjustmentPage,
 })
+
+function todayYmd() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, "0")
+    const day = String(now.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+}
+
+function validYmd(value: unknown): value is string {
+    return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
+function normalizeFromDate(value: unknown, today: string) {
+    if (!validYmd(value)) return today
+    return value > today ? today : value
+}
+
+function normalizeToDate(value: unknown, fromDate: string, today: string) {
+    if (!validYmd(value)) return today
+    return value < fromDate ? fromDate : value
+}

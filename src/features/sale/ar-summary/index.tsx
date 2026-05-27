@@ -1,4 +1,5 @@
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
+import { Link } from "@tanstack/react-router"
 import { BarChart3 } from "lucide-react"
 
 import { listArLedgerSummary, type ArLedgerSummary } from "@/api/sale/ar-ledger"
@@ -125,12 +126,23 @@ function ArSummaryTable({
 
     const setFilter = (key: keyof Filters, value: unknown) =>
         onFiltersChange({ ...filters, [key]: value })
+    const today = todayYmd()
 
     const setPageIndex = (pageIndex: number) => {
         onPaginationChange((prev) => ({
             ...prev,
             pageIndex: Math.min(Math.max(pageIndex, 0), Math.max(pageCount - 1, 0)),
         }))
+    }
+
+    const returnSearch = {
+        return_from: "ar-summary",
+        return_page: pagination.pageIndex + 1,
+        return_size: pagination.pageSize,
+        return_keyword: keyword,
+        return_from_date: filters.from_date ?? today,
+        return_to_date: filters.to_date ?? today,
+        return_customer_id: filters.customer_id,
     }
 
     return (
@@ -172,6 +184,10 @@ function ArSummaryTable({
                             )}
                             value={filters.from_date}
                             onChange={(value) => setFilter("from_date", value || undefined)}
+                            disabled={(date) => {
+                                const value = dateToYmd(date)
+                                return value > today || (!!filters.to_date && value > filters.to_date)
+                            }}
                             placeholder="Từ ngày"
                         />
                         <DatePicker
@@ -181,6 +197,10 @@ function ArSummaryTable({
                             )}
                             value={filters.to_date}
                             onChange={(value) => setFilter("to_date", value || undefined)}
+                            disabled={(date) => {
+                                const value = dateToYmd(date)
+                                return !!filters.from_date && value < filters.from_date
+                            }}
                             placeholder="Đến ngày"
                         />
                     </div>
@@ -221,8 +241,23 @@ function ArSummaryTable({
                                             {pagination.pageIndex * pagination.pageSize + index + 1}
                                         </td>
                                         <td className="px-3 py-3">
-                                            <div className="font-medium text-slate-950">{row.customer_name || "-"}</div>
-                                            <div className="mt-0.5 text-xs text-slate-500">{row.customer_code || "-"}</div>
+                                            <Link
+                                                to="/sales/ar-ledgers"
+                                                search={{
+                                                    page: 1,
+                                                    size: pagination.pageSize,
+                                                    keyword: "",
+                                                    source_type: undefined,
+                                                    from_date: filters.from_date ?? today,
+                                                    to_date: filters.to_date ?? today,
+                                                    customer_id: row.customer_id,
+                                                    ...returnSearch,
+                                                }}
+                                                className="inline-flex min-w-0 flex-col rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                            >
+                                                <span className="font-medium text-primary">{row.customer_name || "-"}</span>
+                                                <span className="mt-0.5 text-xs text-slate-500">{row.customer_code || "-"}</span>
+                                            </Link>
                                         </td>
                                         <MoneyCell value={row.opening_balance} />
                                         <MoneyCell value={row.debit_amount} tone="debit" />
@@ -232,6 +267,19 @@ function ArSummaryTable({
                                 ))
                             )}
                         </tbody>
+                        {data.length > 0 ? (
+                            <tfoot className="border-t bg-slate-50">
+                                <tr>
+                                    <td colSpan={2} className="px-3 py-3 text-right font-bold text-slate-950">
+                                        Tổng
+                                    </td>
+                                    <MoneyCell value={totals.opening} strong />
+                                    <MoneyCell value={totals.debit} tone="debit" strong />
+                                    <MoneyCell value={totals.credit} tone="credit" strong />
+                                    <MoneyCell value={totals.closing} strong />
+                                </tr>
+                            </tfoot>
+                        ) : null}
                     </table>
                 </div>
             </div>
@@ -295,4 +343,15 @@ function formatMoney(value?: number | string) {
     const amount = Number(value || 0)
     if (!amount) return "-"
     return amount.toLocaleString("vi-VN")
+}
+
+function todayYmd() {
+    return dateToYmd(new Date())
+}
+
+function dateToYmd(date: Date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
 }

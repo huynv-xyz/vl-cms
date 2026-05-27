@@ -3,6 +3,7 @@ import type { Export } from "../data/schema"
 import { useExportColumns } from "./export-columns"
 import { EXPORT_STATUSES } from "./export-status"
 import { AsyncSelect } from "@/components/rjsf/async-select"
+import { getCustomer, listCustomers } from "@/api/customer"
 import { getOrder, listOrders } from "@/api/sale/order"
 import { getDelivery, listDeliveries } from "@/api/sale/delivery"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
@@ -105,7 +106,7 @@ export function ExportTable({
                     <AsyncSelect
                         className={cn(
                             FILTER_CONTROL_CLASS,
-                            "min-w-[260px] flex-[1.8_1_0] py-0"
+                            "min-w-[240px] flex-[1.2_1_0] py-0"
                         )}
                         value={filters.order_id}
                         placeholder="Đơn hàng"
@@ -117,6 +118,24 @@ export function ExportTable({
                         mapOption={orderOption}
                         onChange={(orderId: any) =>
                             setFilter("order_id", orderId || undefined)
+                        }
+                    />
+
+                    <AsyncSelect
+                        className={cn(
+                            FILTER_CONTROL_CLASS,
+                            "min-w-[240px] flex-[1.2_1_0] py-0"
+                        )}
+                        value={filters.customer_id}
+                        placeholder="Khách hàng"
+                        dataSource={{
+                            getList: listCustomers,
+                            getById: getCustomer,
+                            params: { page: 1, size: 20 },
+                        }}
+                        mapOption={customerOption}
+                        onChange={(customerId: any) =>
+                            setFilter("customer_id", customerId || undefined)
                         }
                     />
                 </div>
@@ -177,6 +196,14 @@ export function ExportTable({
 
         </div>
     )
+}
+
+function customerOption(customer: { id: number; code?: string; name: string }) {
+    return {
+        value: customer.id,
+        label: `${customer.code ? `${customer.code} - ` : ""}${customer.name}`,
+        raw: customer,
+    }
 }
 
 function StatusFilter({

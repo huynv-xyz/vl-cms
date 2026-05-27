@@ -27,7 +27,7 @@ export default function DeliveryPage() {
         search,
         navigate,
         ['status'],
-        ['order_id', 'warehouse_id', 'company_id', 'from_date', 'to_date']
+        ['order_id', 'customer_id', 'warehouse_id', 'company_id', 'from_date', 'to_date']
     )
 
     const { data, isLoading, error } = usePaginatedList(
@@ -38,6 +38,7 @@ export default function DeliveryPage() {
             keyword,
             multiFilters.status,
             singleFilters.order_id,
+            singleFilters.customer_id,
             singleFilters.warehouse_id,
             singleFilters.company_id,
             singleFilters.from_date,
@@ -52,6 +53,10 @@ export default function DeliveryPage() {
 
             order_id: requestFilters.order_id
                 ? Number(requestFilters.order_id)
+                : undefined,
+
+            customer_id: requestFilters.customer_id
+                ? Number(requestFilters.customer_id)
                 : undefined,
 
             warehouse_id: requestFilters.warehouse_id
@@ -94,6 +99,9 @@ export default function DeliveryPage() {
                                 order_id: singleFilters.order_id
                                     ? Number(singleFilters.order_id)
                                     : undefined,
+                                customer_id: singleFilters.customer_id
+                                    ? Number(singleFilters.customer_id)
+                                    : undefined,
                                 warehouse_id: singleFilters.warehouse_id
                                     ? Number(singleFilters.warehouse_id)
                                     : undefined,
@@ -112,6 +120,10 @@ export default function DeliveryPage() {
                                 setSingleFilters({
                                     order_id: next.order_id
                                         ? String(next.order_id)
+                                        : undefined,
+
+                                    customer_id: next.customer_id
+                                        ? String(next.customer_id)
                                         : undefined,
 
                                     warehouse_id: next.warehouse_id
