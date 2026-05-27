@@ -178,9 +178,24 @@ export const sidebarData: SidebarData = {
                     icon: ReceiptText,
                 },
                 {
-                    title: 'Sổ công nợ',
-                    url: '/sales/ar-ledgers',
+                    title: 'Nợ đầu kỳ',
+                    url: '/sales/ar-openings',
+                    icon: DollarSign,
+                },
+                {
+                    title: 'Ngân hàng',
+                    url: '/sales/cash-bank-ledger',
+                    icon: ReceiptText,
+                },
+                {
+                    title: 'Tổng hợp công nợ',
+                    url: '/sales/ar-summary',
                     icon: BarChart3,
+                },
+                {
+                    title: 'Chi tiết công nợ',
+                    url: '/sales/ar-ledgers',
+                    icon: ListOrdered,
 
                 },
                 {

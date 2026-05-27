@@ -14,7 +14,6 @@ import {
     SelectContent,
     SelectItem,
 } from "@/components/ui/select"
-
 import { useInlineStatus } from "@/hooks/use-inline-status"
 import { updateOrderStatus } from "@/api/sale/order"
 import { CalendarDays, Package, User } from "lucide-react"
@@ -29,30 +28,32 @@ export function useOrderColumns() {
     const columns: ColumnDef<Order>[] = [
         buildIndexColumn(),
 
+        // ── Mã đơn hàng ──────────────────────────────────────────────
         {
             accessorKey: "order_no",
             header: "Mã đơn hàng",
             cell: ({ row }) => {
                 const order = row.original
                 return (
-                    <div className="min-w-[180px]">
+                    <div className="min-w-[160px]">
                         <Link
                             to="/sales/orders/$id"
                             params={{ id: String(order.id) }}
-                            className="text-primary hover:bg-primary/10 group inline-flex items-center gap-1.5 rounded-md font-mono text-sm font-bold transition-colors"
+                            className="text-primary inline-flex items-center gap-1.5 rounded-md font-mono text-sm font-bold hover:underline"
                         >
-                            <Package className="h-3.5 w-3.5 opacity-70 transition-opacity group-hover:opacity-100" />
-                            <span className="group-hover:underline">{order.order_no}</span>
+                            <Package className="h-3.5 w-3.5 opacity-60" />
+                            {order.order_no}
                         </Link>
-                        <div className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
+                        <div className="text-muted-foreground mt-0.5 flex items-center gap-1 text-[11px]">
                             <CalendarDays className="h-3 w-3" />
-                            <span className="tabular-nums">{formatDate(order.order_date)}</span>
+                            {formatDate(order.order_date)}
                         </div>
                     </div>
                 )
             },
         },
 
+        // ── Khách hàng ───────────────────────────────────────────────
         {
             accessorKey: "customer_id",
             header: "Khách hàng",
@@ -61,13 +62,15 @@ export function useOrderColumns() {
                 const employee = row.original.employee
                 const initials = getInitials(customer?.name)
                 return (
-                    <div className="flex min-w-[200px] items-start gap-2.5">
-                        <div className="bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+                    <div className="flex min-w-[180px] items-center gap-2.5">
+                        <div className="bg-primary/10 text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
                             {initials}
                         </div>
                         <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold">{customer?.name ?? "-"}</div>
-                            <div className="text-muted-foreground mt-0.5 flex items-center gap-1 truncate text-xs">
+                            <div className="truncate text-sm font-semibold leading-snug">
+                                {customer?.name ?? "—"}
+                            </div>
+                            <div className="text-muted-foreground mt-0.5 flex items-center gap-1 text-[11px]">
                                 <User className="h-3 w-3 shrink-0" />
                                 <span className="truncate">{employee?.name ?? "Chưa gán"}</span>
                             </div>
@@ -77,133 +80,148 @@ export function useOrderColumns() {
             },
         },
 
+        // ── Hàng hoá ─────────────────────────────────────────────────
         {
             id: "items",
-            header: "Hàng bán",
+            header: "Hàng hoá",
             cell: ({ row }) => {
                 const items = row.original.items ?? []
-                const preview = items.slice(0, 2)
+                const normalItems = items.filter((i: any) => i.line_type !== "PROMOTION")
+                const promoCount = items.length - normalItems.length
+                const totalQty = normalItems.reduce(
+                    (s: number, i: any) => s + Number(i.quantity || 0),
+                    0
+                )
 
                 if (!items.length) {
-                    return <span className="text-muted-foreground text-xs italic">Chưa có hàng</span>
+                    return (
+                        <span className="text-muted-foreground text-xs italic">
+                            Chưa có hàng
+                        </span>
+                    )
                 }
 
                 return (
-                    <div className="min-w-[220px] space-y-1">
-                        {preview.map((item: any, idx: number) => (
-                            <div
-                                key={`${item.product_id}-${idx}`}
-                                className="flex items-center gap-2 text-sm"
+                    <div className="min-w-[140px] space-y-1">
+                        <div className="flex items-center gap-1.5">
+                            <Badge
+                                variant="secondary"
+                                className="px-2 py-0 text-[11px] font-semibold"
                             >
-                                <span className="bg-muted/60 text-foreground rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold">
-                                    {item.product?.code || `#${item.product_id}`}
-                                </span>
-                                <span className="text-muted-foreground tabular-nums text-xs">
-                                    {formatNumber(Number(item.quantity || 0))} {item.product?.unit || ""}
-                                </span>
-                                {item.line_type === "PROMOTION" && (
-                                    <Badge className="bg-emerald-100 px-1.5 py-0 text-[10px] text-emerald-700 hover:bg-emerald-100" variant="secondary">
-                                        KM
-                                    </Badge>
-                                )}
-                            </div>
-                        ))}
-                        {items.length > preview.length && (
-                            <div className="text-muted-foreground text-xs">
-                                +{items.length - preview.length} dòng khác
-                            </div>
-                        )}
+                                {normalItems.length} sản phẩm
+                            </Badge>
+                            {promoCount > 0 && (
+                                <Badge
+                                    variant="secondary"
+                                    className="bg-emerald-100 px-2 py-0 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100"
+                                >
+                                    +{promoCount} KM
+                                </Badge>
+                            )}
+                        </div>
+                        <div className="text-muted-foreground text-xs tabular-nums">
+                            {formatNumber(totalQty)} đặt
+                        </div>
                     </div>
                 )
             },
         },
 
+        // ── Tiến độ xuất ─────────────────────────────────────────────
         {
             id: "progress",
             header: "Tiến độ xuất",
             cell: ({ row }) => {
                 const items = row.original.items ?? []
-                const totalQty = items.reduce((sum: number, item: any) => sum + Number(item.quantity || 0), 0)
-                const exportedQty = items.reduce((sum: number, item: any) => sum + Number(item.exported_quantity || 0), 0)
-                const remainQty = items.reduce((sum: number, item: any) => sum + Number(item.remain_quantity || 0), 0)
-                const percent = totalQty > 0 ? Math.min(100, Math.round((exportedQty / totalQty) * 100)) : 0
+                const totalQty = items.reduce(
+                    (s: number, i: any) => s + Number(i.quantity || 0),
+                    0
+                )
+                const exportedQty = items.reduce(
+                    (s: number, i: any) => s + Number(i.exported_quantity || 0),
+                    0
+                )
+                const remainQty = items.reduce(
+                    (s: number, i: any) => s + Number(i.remain_quantity || 0),
+                    0
+                )
+                const percent =
+                    totalQty > 0 ? Math.min(100, Math.round((exportedQty / totalQty) * 100)) : 0
                 const isDone = remainQty <= 0 && totalQty > 0
 
+                if (!totalQty) {
+                    return (
+                        <span className="text-muted-foreground text-xs italic">—</span>
+                    )
+                }
+
                 return (
-                    <div className="min-w-[180px] space-y-1.5">
-                        <div className="flex items-baseline justify-between gap-2 text-xs">
+                    <div className="min-w-[150px] space-y-1.5">
+                        <div className="flex items-center justify-between gap-3 text-xs">
                             <span className="text-muted-foreground tabular-nums">
-                                {formatNumber(exportedQty)} / {formatNumber(totalQty)}
+                                {formatNumber(exportedQty)}/{formatNumber(totalQty)}
                             </span>
                             <span
                                 className={cn(
                                     "font-bold tabular-nums",
-                                    isDone ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
+                                    isDone
+                                        ? "text-emerald-600 dark:text-emerald-400"
+                                        : "text-foreground"
                                 )}
                             >
                                 {percent}%
                             </span>
                         </div>
-                        <div className="bg-muted relative h-1.5 w-full overflow-hidden rounded-full">
+                        <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
                             <div
                                 className={cn(
                                     "h-full rounded-full transition-all",
-                                    isDone ? "bg-emerald-500" : remainQty > 0 ? "bg-amber-500" : "bg-muted-foreground/30"
+                                    isDone
+                                        ? "bg-emerald-500"
+                                        : remainQty > 0
+                                          ? "bg-amber-400"
+                                          : "bg-muted-foreground/30"
                                 )}
                                 style={{ width: `${percent}%` }}
                             />
                         </div>
-                        {remainQty > 0 ? (
-                            <div className="text-amber-600 dark:text-amber-400 text-xs font-medium">
-                                Còn {formatNumber(remainQty)} chưa xuất
-                            </div>
-                        ) : isDone ? (
-                            <div className="text-emerald-600 dark:text-emerald-400 text-xs font-medium">
-                                Đã xuất đủ
-                            </div>
-                        ) : (
-                            <div className="text-muted-foreground text-xs italic">Chưa xuất</div>
-                        )}
                     </div>
                 )
             },
         },
 
+        // ── Trạng thái ───────────────────────────────────────────────
         {
             accessorKey: "status",
             header: "Trạng thái",
             cell: ({ row }) => {
                 const status = row.original.status || "NEW"
-                const isLocked = status === "DONE"
+                const isLocked = status === "DONE" || status === "CANCELLED"
                 const meta = getOrderStatusMeta(status)
                 const Icon = meta.icon
 
                 return (
-                    <div className="min-w-[150px]">
+                    <div className="min-w-[145px]">
                         <Select
                             value={status}
                             onValueChange={(v) =>
-                                mutation.mutate({
-                                    row: row.original,
-                                    value: v,
-                                })
+                                mutation.mutate({ row: row.original, value: v })
                             }
                             disabled={mutation.isPending || isLocked}
                         >
                             <SelectTrigger
                                 className={cn(
-                                    "h-9 w-[150px] gap-2 border font-medium",
+                                    "h-8 w-[145px] gap-2 border text-xs font-semibold",
                                     meta.badgeClass
                                 )}
                             >
                                 <SelectValue>
-                                    <div className="flex items-center gap-2">
+                                    <span className="flex items-center gap-1.5">
                                         <Icon className="h-3.5 w-3.5" />
-                                        <span className="text-xs font-semibold">{meta.label}</span>
-                                    </div>
+                                        {meta.label}
+                                    </span>
                                 </SelectValue>
                             </SelectTrigger>
-
                             <SelectContent>
                                 {ORDER_STATUSES.map((s) => {
                                     const sm = getOrderStatusMeta(s.value)
@@ -214,10 +232,10 @@ export function useOrderColumns() {
                                             value={s.value}
                                             disabled={isLocked}
                                         >
-                                            <div className="flex items-center gap-2">
+                                            <span className="flex items-center gap-2">
                                                 <SIcon className={cn("h-3.5 w-3.5", sm.tone)} />
                                                 {s.label}
-                                            </div>
+                                            </span>
                                         </SelectItem>
                                     )
                                 })}
@@ -228,24 +246,27 @@ export function useOrderColumns() {
             },
         },
 
+        // ── Tổng tiền ────────────────────────────────────────────────
         {
             accessorKey: "total_amount",
             header: () => <div className="text-right">Tổng tiền</div>,
             cell: ({ row }) => (
-                <div className="min-w-[130px] text-right">
-                    <div className="whitespace-nowrap text-base font-bold tabular-nums">
+                <div className="min-w-[120px] text-right">
+                    <div className="text-sm font-bold tabular-nums">
                         {formatCurrency(row.original.total_amount ?? 0)}
                     </div>
-                    <Badge variant="outline" className="mt-1 text-[10px] font-medium">
-                        VND
-                    </Badge>
+                    <div className="text-muted-foreground mt-0.5 text-[10px] font-medium">VND</div>
                 </div>
             ),
         },
 
         buildActionsColumn({
             renderActions: (_, row) => {
-                if (row.original.status === "DONE") return null
+                if (
+                    row.original.status === "DONE" ||
+                    row.original.status === "CANCELLED"
+                )
+                    return null
                 return <OrderRowActions row={row} />
             },
         }),
@@ -254,8 +275,10 @@ export function useOrderColumns() {
     return columns
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────
+
 function formatDate(value?: string) {
-    if (!value) return "-"
+    if (!value) return "—"
     const [date] = value.split("T")
     const parts = date.split("-")
     if (parts.length === 3) {

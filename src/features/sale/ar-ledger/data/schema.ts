@@ -37,7 +37,7 @@ export type ArLedger = {
     // số dư lũy kế tới dòng này (do backend tính)
     running_balance?: number
 
-    source_type?: "EXPORT" | "RECEIPT" | "ADJUST" | "IMPORT" | "RETURN"
+    source_type?: "EXPORT" | "RECEIPT" | "ADJUST" | "IMPORT" | "RETURN" | "BANK" | "OPENING"
     source_id?: number
 
     created_at: string

@@ -1,6 +1,6 @@
 import { createCrudApi } from "@/api/crud"
 import type { ArLedger } from "@/features/sale/ar-ledger/data/schema"
-import { apiPostMultipart } from "@/api/client"
+import { apiGet, apiPostMultipart, type PagedResult } from "@/api/client"
 
 export type ArLedgerListParams = {
     page: number
@@ -28,6 +28,19 @@ export const createArLedger = api.create
 export const updateArLedger = api.update
 export const deleteArLedger = api.delete
 
+export type ArLedgerSummary = {
+    customer_id: number
+    customer_code?: string
+    customer_name?: string
+    opening_balance: number
+    debit_amount: number
+    credit_amount: number
+    closing_balance: number
+}
+
+export function listArLedgerSummary(params: ArLedgerListParams) {
+    return apiGet<PagedResult<ArLedgerSummary>>("/sales/ar-ledgers/summary", params)
+}
 
 export async function importArLedgers(file: File) {
     const formData = new FormData()
@@ -35,6 +48,16 @@ export async function importArLedgers(file: File) {
 
     return apiPostMultipart<number>(
         "/sales/ar-ledgers/import",
+        formData
+    )
+}
+
+export async function importBankArLedgers(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<number>(
+        "/sales/ar-ledgers/import-bank-excel",
         formData
     )
 }

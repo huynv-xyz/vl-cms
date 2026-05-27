@@ -22,6 +22,8 @@ export type OrderItem = {
     line_type?: string
     line_total?: number
     exported_quantity: number
+    returned_quantity?: number
+    remain_quantity?: number
     stock_quantity?: number
 }
 
