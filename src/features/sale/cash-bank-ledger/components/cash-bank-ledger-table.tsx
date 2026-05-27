@@ -72,6 +72,7 @@ type FormState = {
     customer_name?: string
     direction: "IN" | "OUT"
     amount: string
+    account_code: string
     description: string
 }
 
@@ -83,6 +84,7 @@ const emptyForm = (): FormState => ({
     customer_name: "",
     direction: "IN",
     amount: "",
+    account_code: "131",
     description: "",
 })
 
@@ -133,7 +135,7 @@ export function CashBankLedgerTable({
                 customer_id: form.customer_id,
                 customer_name: form.customer_name,
                 description: form.description,
-                account_code: "131",
+                account_code: form.account_code.trim() || "131",
                 debit_amount: form.direction === "OUT" ? amount : 0,
                 credit_amount: form.direction === "IN" ? amount : 0,
                 source_type: sourceType as any,
@@ -225,6 +227,7 @@ export function CashBankLedgerTable({
             customer_name: row.customer?.name || row.customer_name || "",
             direction: debit > 0 ? "OUT" : "IN",
             amount: String(debit > 0 ? debit : credit),
+            account_code: row.account_code || "131",
             description: row.description || "",
         })
         setOpen(true)
@@ -312,6 +315,7 @@ export function CashBankLedgerTable({
                                 params: { page: 1, size: 20 },
                             }}
                             mapOption={customerOption}
+                            wrapLabel
                         />
                     </div>
 
@@ -364,7 +368,7 @@ export function CashBankLedgerTable({
                                 <th className="w-12 px-3 py-3 text-center">#</th>
                                 <th className="px-3 py-3 text-left">Ngày</th>
                                 <th className="px-3 py-3 text-left">Chứng từ</th>
-                                <th className="px-3 py-3 text-left">Mã KH</th>
+                                <th className="min-w-[170px] px-3 py-3 text-left">Mã KH</th>
                                 <th className="px-3 py-3 text-left">Khách hàng</th>
                                 <th className="px-3 py-3 text-left">Diễn giải</th>
                                 <th className="px-3 py-3 text-left">TK đối ứng</th>
@@ -394,8 +398,8 @@ export function CashBankLedgerTable({
                                                 {row.doc_no || `#${row.id}`}
                                             </div>
                                         </td>
-                                        <td className="whitespace-nowrap px-3 py-3">
-                                            <span className="inline-flex rounded border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs font-semibold text-slate-700">
+                                        <td className="px-3 py-3">
+                                            <span className="inline-flex max-w-[220px] whitespace-normal break-words rounded border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs font-semibold leading-snug text-slate-700">
                                                 {row.customer?.code || `#${row.customer_id}`}
                                             </span>
                                         </td>
@@ -546,6 +550,7 @@ function BankLedgerDialog({
                                 params: { page: 1, size: 20 },
                             }}
                             mapOption={customerOption}
+                            wrapLabel
                         />
                     </Field>
                     <Field label="Số tiền">
@@ -557,8 +562,12 @@ function BankLedgerDialog({
                             className="text-right tabular-nums"
                         />
                     </Field>
-                    <Field label="Tài khoản">
-                        <Input value="131" disabled />
+                    <Field label="TK đối ứng">
+                        <Input
+                            value={form.account_code}
+                            onChange={(event) => update({ account_code: event.target.value })}
+                            placeholder="VD: 131, 641, 711..."
+                        />
                     </Field>
                     <Field label="Nội dung" className="md:col-span-2">
                         <Textarea

@@ -26,6 +26,7 @@ export const AsyncSelect = React.memo(function AsyncSelect({
     disabled,
     required,
     className,
+    wrapLabel = false,
 }: any) {
     const [open, setOpen] = React.useState(false)
     const [keyword, setKeyword] = React.useState("")
@@ -109,10 +110,19 @@ export const AsyncSelect = React.memo(function AsyncSelect({
             <PopoverTrigger asChild>
                 <Button
                     variant="outline"
-                    className={cn("min-w-0 w-full justify-between", className)}
+                    className={cn(
+                        "min-w-0 w-full justify-between",
+                        wrapLabel && "h-auto min-h-10 items-start py-2",
+                        className,
+                    )}
                     disabled={disabled}
                 >
-                    <span className="min-w-0 flex-1 truncate text-left">
+                    <span
+                        className={cn(
+                            "min-w-0 flex-1 text-left",
+                            wrapLabel ? "whitespace-normal break-words leading-snug" : "truncate",
+                        )}
+                    >
                         {selected ? selected.label : placeholder}
                     </span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -164,7 +174,14 @@ export const AsyncSelect = React.memo(function AsyncSelect({
                                             : "opacity-0"
                                     )}
                                 />
-                                <span className="min-w-0 truncate">{item.label}</span>
+                                <span
+                                    className={cn(
+                                        "min-w-0",
+                                        wrapLabel ? "whitespace-normal break-words leading-snug" : "truncate",
+                                    )}
+                                >
+                                    {item.label}
+                                </span>
                             </CommandItem>
                         ))}
                     </CommandList>

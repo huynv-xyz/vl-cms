@@ -1,0 +1,1 @@
+import{j as s,B as e}from"./index-BpQU8ZxE.js";import{P as o}from"./plus-DkytbCu_.js";function i({label:r="Tạo mới",onClick:t}){return s.jsxs(e,{className:"space-x-1",onClick:t,children:[s.jsx("span",{children:r}),s.jsx(o,{size:18})]})}export{i as C};

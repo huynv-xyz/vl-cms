@@ -120,8 +120,11 @@ function ArSummaryTable({
             debit: acc.debit + Number(row.debit_amount || 0),
             credit: acc.credit + Number(row.credit_amount || 0),
             closing: acc.closing + Number(row.closing_balance || 0),
+            sales: acc.sales + Number(row.sales_amount || 0),
+            adjust: acc.adjust + Number(row.adjust_amount || 0),
+            payment: acc.payment + Number(row.payment_amount || 0),
         }),
-        { opening: 0, debit: 0, credit: 0, closing: 0 },
+        { opening: 0, debit: 0, credit: 0, closing: 0, sales: 0, adjust: 0, payment: 0 },
     )
 
     const setFilter = (key: keyof Filters, value: unknown) =>
@@ -214,23 +217,30 @@ function ArSummaryTable({
                 <Summary label="Cuối kỳ" value={formatMoney(totals.closing)} strong />
             </div>
 
+            <div className="grid gap-3 md:grid-cols-3">
+                <Summary label="Doanh thu bán hàng" value={formatMoney(totals.sales)} tone="debit" hint="EXPORT" />
+                <Summary label="Điều chỉnh công nợ" value={formatMoney(totals.adjust)} tone="neutral" hint="ADJUST" />
+                <Summary label="Thanh toán" value={formatMoney(totals.payment)} tone="credit" hint="BANK + RECEIPT" />
+            </div>
+
             <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[920px] text-sm">
+                    <table className="w-full min-w-[1100px] text-sm">
                         <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500">
                             <tr>
                                 <th className="w-12 px-3 py-3 text-center">#</th>
                                 <th className="px-3 py-3 text-left">Khách hàng</th>
                                 <th className="px-3 py-3 text-right">Đầu kỳ</th>
-                                <th className="px-3 py-3 text-right">Phát sinh nợ</th>
-                                <th className="px-3 py-3 text-right">Phát sinh có</th>
+                                <th className="px-3 py-3 text-right">Doanh thu</th>
+                                <th className="px-3 py-3 text-right">Điều chỉnh</th>
+                                <th className="px-3 py-3 text-right">Thanh toán</th>
                                 <th className="px-3 py-3 text-right">Cuối kỳ</th>
                             </tr>
                         </thead>
                         <tbody>
                             {data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500">
+                                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-500">
                                         Không có dữ liệu công nợ.
                                     </td>
                                 </tr>
@@ -260,8 +270,9 @@ function ArSummaryTable({
                                             </Link>
                                         </td>
                                         <MoneyCell value={row.opening_balance} />
-                                        <MoneyCell value={row.debit_amount} tone="debit" />
-                                        <MoneyCell value={row.credit_amount} tone="credit" />
+                                        <MoneyCell value={row.sales_amount} tone="debit" />
+                                        <MoneyCell value={row.adjust_amount} tone="neutral" />
+                                        <MoneyCell value={row.payment_amount} tone="credit" />
                                         <MoneyCell value={row.closing_balance} strong />
                                     </tr>
                                 ))
@@ -302,7 +313,7 @@ function MoneyCell({
     strong,
 }: {
     value?: number
-    tone?: "debit" | "credit"
+    tone?: "debit" | "credit" | "neutral"
     strong?: boolean
 }) {
     return (
@@ -312,6 +323,7 @@ function MoneyCell({
                 strong ? "font-bold text-slate-950" : "font-semibold",
                 tone === "debit" && "text-rose-700",
                 tone === "credit" && "text-emerald-700",
+                tone === "neutral" && "text-amber-700",
                 !tone && !strong && "text-slate-800",
             )}
         >
@@ -320,13 +332,35 @@ function MoneyCell({
     )
 }
 
-function Summary({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function Summary({
+    label,
+    value,
+    strong,
+    tone,
+    hint,
+}: {
+    label: string
+    value: string
+    strong?: boolean
+    tone?: "debit" | "credit" | "neutral"
+    hint?: string
+}) {
     return (
         <div className="rounded-lg border bg-white p-4 shadow-sm">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
-            <div className={cn("mt-1 text-xl tabular-nums", strong ? "font-bold text-slate-950" : "font-semibold text-slate-800")}>
+            <div
+                className={cn(
+                    "mt-1 text-xl tabular-nums",
+                    strong ? "font-bold text-slate-950" : "font-semibold",
+                    tone === "debit" && "text-rose-700",
+                    tone === "credit" && "text-emerald-700",
+                    tone === "neutral" && "text-amber-700",
+                    !tone && !strong && "text-slate-800",
+                )}
+            >
                 {value}
             </div>
+            {hint ? <div className="mt-0.5 text-xs text-slate-400">{hint}</div> : null}
         </div>
     )
 }

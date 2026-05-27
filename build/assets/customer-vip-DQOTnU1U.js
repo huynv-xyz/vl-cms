@@ -1,0 +1,1 @@
+import{c as s}from"./crud-rGyMoTOb.js";import{P as i}from"./index-BpQU8ZxE.js";const r=s("/vip/customers"),o=r.list;async function a(t){return r.detail(t)}async function p(t){return i("/vip/customers/recalc",{})}export{a as g,o as l,p as t};

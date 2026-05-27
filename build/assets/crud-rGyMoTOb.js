@@ -1,0 +1,1 @@
+import{ao as u,ap as i,P as p,Q as t}from"./index-BpQU8ZxE.js";function a(e){return{detail(r){return t(`${e}/${r}`)},list(r){return t(e,r)},create(r){return p(e,r)},update(r){return i(`${e}/${r.id}`,r)},delete(r){return u(`${e}/${r}`,{id:r})}}}export{a as c};

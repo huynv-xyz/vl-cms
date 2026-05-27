@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { buildIndexColumn } from "@/components/crud/build-index-column"
@@ -142,26 +143,40 @@ export const arLedgerColumns: ColumnDef<ArLedger>[] = [
     {
         accessorKey: "description",
         header: "Diễn giải",
-        cell: ({ row }) => (
-            <div className="max-w-[360px]">
-                <div className="line-clamp-2 text-sm">
-                    {row.original.description || "-"}
-                </div>
-                {row.original.source_id && (
-                    <div className="mt-1 text-xs text-muted-foreground">
-                        Nguồn #{row.original.source_id}
+        cell: ({ row }) => {
+            const item = row.original
+
+            return (
+                <div className="max-w-[360px]">
+                    <div className="line-clamp-2 text-sm">
+                        {item.description || "-"}
                     </div>
-                )}
-            </div>
-        ),
+                    {item.order_id ? (
+                        <Link
+                            to="/sales/orders/$id"
+                            params={{ id: String(item.order_id) }}
+                            className="mt-1 block text-xs font-medium text-primary hover:underline"
+                        >
+                            Đơn hàng #{item.order_id}
+                        </Link>
+                    ) : item.source_id ? (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                            Nguồn #{item.source_id}
+                        </div>
+                    ) : null}
+                </div>
+            )
+        },
     },
 ]
 
 export const AR_SOURCE_TYPES = [
     { value: "EXPORT", label: "Bán hàng" },
     { value: "RECEIPT", label: "Thu tiền" },
+    { value: "BANK", label: "Ngân hàng" },
     { value: "RETURN", label: "Trả hàng" },
     { value: "ADJUST", label: "Điều chỉnh" },
+    { value: "OPENING", label: "Nợ đầu kỳ" },
     { value: "IMPORT", label: "Import" },
 ] as const
 
@@ -171,10 +186,14 @@ export function getSourceTypeMeta(sourceType?: string) {
             return { label: "Bán hàng", variant: "default" as const }
         case "RECEIPT":
             return { label: "Thu tiền", variant: "secondary" as const }
+        case "BANK":
+            return { label: "Ngân hàng", variant: "secondary" as const }
         case "RETURN":
             return { label: "Trả hàng", variant: "outline" as const }
         case "ADJUST":
             return { label: "Điều chỉnh", variant: "outline" as const }
+        case "OPENING":
+            return { label: "Nợ đầu kỳ", variant: "outline" as const }
         case "IMPORT":
             return { label: "Import", variant: "secondary" as const }
         default:

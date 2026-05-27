@@ -220,25 +220,25 @@ export function ExportItems({ data, items }: Props) {
             </div>
 
             {/* ── Signature section ── */}
-            <div className="border border-t-0 border-gray-400 px-3 pt-2 pb-4">
-                <div className="text-right text-[11px] italic text-muted-foreground mb-6 mr-10">
+            <div className="border border-t-0 border-gray-400 px-4 pt-3 pb-5">
+                <div className="mb-7 mr-10 text-right text-[11px] italic text-muted-foreground">
                     Ngày ...... tháng ...... năm .........
                 </div>
-                <div className="grid grid-cols-5 text-center text-[12px]">
+                <div className="grid grid-cols-5 gap-2 text-center text-[12px]">
                     {[
                         { role: "Người lập biểu", sign: "(Ký, họ tên)" },
                         { role: "Người nhận hàng", sign: "(Ký, họ tên)" },
                         { role: "Thủ kho", sign: "(Ký, họ tên)" },
                         { role: "Kế toán trưởng", sign: "(Ký, họ tên)" },
-                        { role: "Giám đốc", sign: "(Ký, họ tên, đóng dấu)" },
+                        { role: "Quản lý nhà máy", sign: "(Ký, họ tên)" },
                     ].map(({ role, sign }) => (
-                        <div key={role} className="px-1">
-                            <div className="font-semibold">{role}</div>
+                        <div key={role} className="px-1 leading-tight">
+                            <div className="min-h-[30px] font-semibold">{role}</div>
                             <div className="text-[11px] italic text-muted-foreground mt-0.5">
                                 {sign}
                             </div>
                             {/* Signature space */}
-                            <div className="mt-14 text-[11px] text-muted-foreground">
+                            <div className="mt-16 text-[11px] text-muted-foreground">
                                 &nbsp;
                             </div>
                         </div>

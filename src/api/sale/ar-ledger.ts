@@ -36,6 +36,10 @@ export type ArLedgerSummary = {
     debit_amount: number
     credit_amount: number
     closing_balance: number
+    // Breakdown theo nguồn phát sinh (kỳ được chọn)
+    sales_amount?: number    // Doanh thu bán hàng (EXPORT debit)
+    adjust_amount?: number   // Điều chỉnh công nợ (ADJUST net = debit - credit)
+    payment_amount?: number  // Thanh toán (BANK + RECEIPT credit)
 }
 
 export function listArLedgerSummary(params: ArLedgerListParams) {
