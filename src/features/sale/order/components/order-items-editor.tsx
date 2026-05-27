@@ -138,7 +138,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                             dataSource={{
                                                 getList: listProducts,
                                                 getById: getProduct,
-                                                params: { page: 1, size: 20 },
+                                                params: { page: 1, size: 20, nature: "HANG_HOA" },
                                             }}
                                             mapOption={(x: any) => ({
                                                 value: x.id,

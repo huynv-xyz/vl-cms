@@ -31,7 +31,7 @@ import {
 import { cn } from "@/lib/utils"
 import { exportXlsx } from "@/lib/xlsx-export"
 import type { ArLedger } from "../data/schema"
-import { AR_SOURCE_TYPES, getSourceTypeMeta } from "./ar-ledger-columns"
+import { AR_SOURCE_TYPES } from "./ar-ledger-columns"
 import { ImportArLedgerButton } from "./ar-ledger-import-button"
 
 type Filters = {
@@ -279,24 +279,31 @@ export function ArLedgerTable({
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1180px] border-collapse text-sm">
+                    <table className="w-full min-w-[1500px] border-collapse text-sm">
                         <thead>
                             <tr className="border-b bg-slate-50 text-xs uppercase text-slate-500">
-                                <Th className="w-[108px]">Ngày</Th>
-                                <Th className="w-[150px]">Chứng từ</Th>
-                                <Th className="min-w-[260px]">Khách hàng / diễn giải</Th>
-                                <Th className="w-[130px]">Nghiệp vụ</Th>
-                                <Th className="w-[90px] text-right">SL</Th>
-                                <Th className="w-[110px] text-right">Đơn giá</Th>
-                                <Th className="w-[130px] text-right">Nợ</Th>
+                                <Th rowSpan={2} className="w-[130px] align-middle">Mã khách hàng</Th>
+                                <Th rowSpan={2} className="w-[120px] align-middle">Mã số thuế</Th>
+                                <Th rowSpan={2} className="w-[100px] align-middle">Ngày hạch toán</Th>
+                                <Th rowSpan={2} className="w-[130px] align-middle">Số chứng từ</Th>
+                                <Th rowSpan={2} className="min-w-[280px] align-middle">Diễn giải</Th>
+                                <Th rowSpan={2} className="w-[70px] text-center align-middle">ĐVT</Th>
+                                <Th rowSpan={2} className="w-[100px] text-right align-middle">Số lượng</Th>
+                                <Th rowSpan={2} className="w-[110px] text-right align-middle">Đơn giá</Th>
+                                <Th colSpan={2} className="border-l text-center">Phát sinh</Th>
+                                <Th colSpan={2} className="border-l text-center">Số dư</Th>
+                            </tr>
+                            <tr className="border-b bg-slate-50 text-xs uppercase text-slate-500">
+                                <Th className="w-[125px] border-l text-right">Nợ</Th>
+                                <Th className="w-[125px] text-right">Có</Th>
+                                <Th className="w-[130px] border-l text-right">Nợ</Th>
                                 <Th className="w-[130px] text-right">Có</Th>
-                                <Th className="w-[140px] text-right">Số dư</Th>
                             </tr>
                         </thead>
                         <tbody>
                             {groups.length === 0 ? (
                                 <tr>
-                                    <td colSpan={9} className="px-4 py-14 text-center text-sm text-slate-500">
+                                    <td colSpan={12} className="px-4 py-14 text-center text-sm text-slate-500">
                                         Không có dữ liệu công nợ phù hợp với bộ lọc.
                                     </td>
                                 </tr>
@@ -359,81 +366,144 @@ function MetricCard({
 function CustomerGroup({ group }: { group: Group }) {
     return (
         <>
+            {/* Customer header row */}
             <tr className="border-y bg-slate-100/80">
-                <td colSpan={4} className="px-4 py-2.5">
+                <td colSpan={5} className="px-4 py-2.5">
                     <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs uppercase tracking-wide text-slate-500">Tên khách hàng:</span>
                         <span className="font-semibold text-slate-950">{group.name}</span>
-                        {group.code ? (
-                            <Badge variant="outline" className="rounded-sm font-mono text-[11px]">
-                                {group.code}
-                            </Badge>
-                        ) : null}
                     </div>
                 </td>
+                <td className="px-3 py-2.5 text-center" />
                 <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{fmtQty(group.qtyTotal)}</td>
                 <td />
-                <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-rose-700">
+                <td className="border-l px-3 py-2.5 text-right font-semibold tabular-nums text-rose-700">
                     {fmtCurrency(group.debitTotal)}
                 </td>
                 <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-emerald-700">
                     {fmtCurrency(group.creditTotal)}
                 </td>
-                <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
-                    {formatBalance(group.closing)}
-                </td>
+                <td className="border-l" />
+                <td />
             </tr>
 
+            {/* Opening balance row */}
+            {group.opening !== 0 || group.hasOpeningRow ? (
+                <tr className="border-b bg-slate-50/60 italic">
+                    <Td className="font-mono text-xs text-slate-700">{group.code}</Td>
+                    <Td className="font-mono text-xs text-slate-600">{group.taxCode || ""}</Td>
+                    <Td />
+                    <Td />
+                    <Td className="text-slate-700">Số dư đầu kỳ</Td>
+                    <Td />
+                    <Td />
+                    <Td />
+                    <Td className="border-l" />
+                    <Td />
+                    <Td className="border-l text-right font-medium tabular-nums text-slate-900">
+                        {group.opening > 0 ? fmtCurrency(group.opening) : ""}
+                    </Td>
+                    <Td className="text-right font-medium tabular-nums text-slate-900">
+                        {group.opening < 0 ? fmtCurrency(Math.abs(group.opening)) : ""}
+                    </Td>
+                </tr>
+            ) : null}
+
+            {/* Detail rows */}
             {group.items.map((item, index) => {
-                const source = getSourceTypeMeta(item.source_type)
                 const balance = group.running[index]
+                const unit = item.unit || item.product?.unit || ""
 
                 return (
                     <tr key={item.id} className="border-b transition-colors hover:bg-slate-50">
+                        <Td className="font-mono text-xs text-slate-700">{group.code}</Td>
+                        <Td className="font-mono text-xs text-slate-600">{group.taxCode || ""}</Td>
                         <Td className="whitespace-nowrap text-slate-600">{fmtDate(item.posting_date)}</Td>
-                        <Td>
-                            <div className="font-mono text-xs font-semibold text-sky-700">{item.doc_no || `#${item.id}`}</div>
-                            {item.account_code ? <div className="mt-1 text-xs text-slate-400">TK {item.account_code}</div> : null}
-                        </Td>
+                        <Td className="font-mono text-xs font-semibold text-sky-700">{item.doc_no || `#${item.id}`}</Td>
                         <Td>
                             <div className="font-medium text-slate-950">{lineDescription(item) || productLabel(item) || "-"}</div>
-                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-                                <span>{productLabel(item) || group.name}</span>
-                                {item.product?.code ? <span className="font-mono">{item.product.code}</span> : null}
-                            </div>
                         </Td>
-                        <Td>
-                            <Badge variant={source.variant} className="rounded-sm">{source.label}</Badge>
-                        </Td>
+                        <Td className="text-center text-xs text-slate-600">{unit || "-"}</Td>
                         <Td className="text-right tabular-nums">{fmtQty(num(item.quantity))}</Td>
                         <Td className="text-right tabular-nums">{fmtNumber(num(item.unit_price))}</Td>
-                        <Td className="text-right font-medium tabular-nums text-rose-700">
+                        <Td className="border-l text-right font-medium tabular-nums text-rose-700">
                             {fmtCurrency(num(item.debit_amount))}
                         </Td>
                         <Td className="text-right font-medium tabular-nums text-emerald-700">
                             {fmtCurrency(num(item.credit_amount))}
                         </Td>
-                        <Td className="text-right font-semibold tabular-nums text-slate-950">{formatBalance(balance)}</Td>
+                        <Td className="border-l text-right font-semibold tabular-nums text-slate-950">
+                            {balance > 0 ? fmtCurrency(balance) : ""}
+                        </Td>
+                        <Td className="text-right font-semibold tabular-nums text-slate-950">
+                            {balance < 0 ? fmtCurrency(Math.abs(balance)) : ""}
+                        </Td>
                     </tr>
                 )
             })}
+
+            {/* Subtotal row "Cộng" */}
+            <tr className="border-y-2 border-slate-300 bg-slate-50 font-semibold">
+                <Td className="font-mono text-xs text-slate-700">{group.code}</Td>
+                <Td className="font-mono text-xs text-slate-600">{group.taxCode || ""}</Td>
+                <Td />
+                <Td />
+                <Td className="text-slate-950">Cộng</Td>
+                <Td />
+                <Td className="text-right tabular-nums">{fmtQty(group.qtyTotal)}</Td>
+                <Td />
+                <Td className="border-l text-right tabular-nums text-rose-700">
+                    {fmtCurrency(group.debitTotal)}
+                </Td>
+                <Td className="text-right tabular-nums text-emerald-700">
+                    {fmtCurrency(group.creditTotal)}
+                </Td>
+                <Td className="border-l text-right tabular-nums text-slate-950">
+                    {group.closing > 0 ? fmtCurrency(group.closing) : ""}
+                </Td>
+                <Td className="text-right tabular-nums text-slate-950">
+                    {group.closing < 0 ? fmtCurrency(Math.abs(group.closing)) : ""}
+                </Td>
+            </tr>
         </>
     )
 }
 
-function Th({ className, children }: { className?: string; children: React.ReactNode }) {
-    return <th className={cn("px-3 py-3 text-left font-semibold", className)}>{children}</th>
+function Th({
+    className,
+    children,
+    colSpan,
+    rowSpan,
+}: {
+    className?: string
+    children: React.ReactNode
+    colSpan?: number
+    rowSpan?: number
+}) {
+    return (
+        <th
+            colSpan={colSpan}
+            rowSpan={rowSpan}
+            className={cn("px-3 py-3 text-left font-semibold", className)}
+        >
+            {children}
+        </th>
+    )
 }
 
-function Td({ className, children }: { className?: string; children: React.ReactNode }) {
+function Td({ className, children }: { className?: string; children?: React.ReactNode }) {
     return <td className={cn("px-3 py-3 align-top", className)}>{children}</td>
 }
 
 type Group = {
     key: string
     code: string
+    taxCode: string
     name: string
     items: ArLedger[]
     running: number[]
+    opening: number
+    hasOpeningRow: boolean
     closing: number
     qtyTotal: number
     debitTotal: number
@@ -451,23 +521,37 @@ function buildGroups(rows: ArLedger[]): Group[] {
     return [...grouped.entries()].map(([key, items]) => makeGroup(key, items))
 }
 
-function makeGroup(key: string, items: ArLedger[]): Group {
-    let runningValue = 0
+function isOpeningRow(item: ArLedger): boolean {
+    return item.source_type === "OPENING" || item.line_type === "OPENING"
+}
+
+function makeGroup(key: string, allItems: ArLedger[]): Group {
+    const openingRow = allItems.find(isOpeningRow)
+    const items = allItems.filter((item) => !isOpeningRow(item))
+
+    let runningValue = openingRow
+        ? num(openingRow.running_balance ?? net(openingRow))
+        : 0
+    const openingBalance = runningValue
+
     const running = items.map((item) => {
         if (typeof item.running_balance === "number") return num(item.running_balance)
         runningValue += net(item)
         return runningValue
     })
 
-    const first = items[0]
+    const first = allItems[0]
 
     return {
         key,
         code: first.customer?.code ?? (first.customer_id ? `#${first.customer_id}` : ""),
+        taxCode: first.customer?.tax_code ?? "",
         name: first.customer?.name ?? first.customer_name ?? "Chưa gắn khách hàng",
         items,
         running,
-        closing: running.length ? running[running.length - 1] : 0,
+        opening: openingBalance,
+        hasOpeningRow: Boolean(openingRow),
+        closing: running.length ? running[running.length - 1] : openingBalance,
         qtyTotal: items.reduce((sum, item) => sum + num(item.quantity), 0),
         debitTotal: items.reduce((sum, item) => sum + num(item.debit_amount), 0),
         creditTotal: items.reduce((sum, item) => sum + num(item.credit_amount), 0),
@@ -506,11 +590,6 @@ function fmtQty(value: number): string {
     return value.toLocaleString("vi-VN", { maximumFractionDigits: 2 })
 }
 
-function formatBalance(value: number): string {
-    if (!value) return "-"
-    return `${value >= 0 ? "Nợ" : "Có"} ${fmtCurrency(Math.abs(value))}`
-}
-
 function fmtDate(value?: string): string {
     if (!value) return "-"
     const date = value.split("T")[0]
@@ -547,27 +626,93 @@ function exportReportXlsx(groups: Group[], period: string) {
     const rows: (string | number)[][] = []
     const push = (cells: (string | number)[]) => rows.push(cells)
 
-    push(["SỔ CHI TIẾT CÔNG NỢ PHẢI THU"])
-    push([`Tài khoản: ${AR_ACCOUNT} - VND - ${period}`])
+    push(["CHI TIẾT CÔNG NỢ PHẢI THU KHÁCH HÀNG"])
+    push([`Tài khoản: ${AR_ACCOUNT}, Loại tiền: <<Tổng hợp>>, ${period}`])
     push([])
-    push(["Khách hàng", "Ngày", "Chứng từ", "Diễn giải", "Nghiệp vụ", "SL", "Đơn giá", "Nợ", "Có", "Số dư"])
+    push([
+        "Mã khách hàng",
+        "Mã số thuế",
+        "Ngày hạch toán",
+        "Số chứng từ",
+        "Diễn giải",
+        "ĐVT",
+        "Số lượng",
+        "Đơn giá",
+        "Phát sinh Nợ",
+        "Phát sinh Có",
+        "Số dư Nợ",
+        "Số dư Có",
+    ])
 
     for (const group of groups) {
-        push([group.name, "", "", "Cộng", "", group.qtyTotal, "", group.debitTotal, group.creditTotal, group.closing])
-        group.items.forEach((item, index) => {
+        // Customer header
+        push([
+            `Tên khách hàng: ${group.name}`,
+            "",
+            "",
+            "",
+            "",
+            "",
+            group.qtyTotal,
+            "",
+            group.debitTotal,
+            group.creditTotal,
+            "",
+            "",
+        ])
+
+        // Opening balance
+        if (group.opening !== 0 || group.hasOpeningRow) {
             push([
-                group.name,
+                group.code,
+                group.taxCode,
+                "",
+                "",
+                "Số dư đầu kỳ",
+                "",
+                "",
+                "",
+                "",
+                "",
+                group.opening > 0 ? group.opening : "",
+                group.opening < 0 ? Math.abs(group.opening) : "",
+            ])
+        }
+
+        // Details
+        group.items.forEach((item, index) => {
+            const balance = group.running[index]
+            push([
+                group.code,
+                group.taxCode,
                 fmtDate(item.posting_date),
                 item.doc_no || "",
                 lineDescription(item),
-                getSourceTypeMeta(item.source_type).label,
+                item.unit || item.product?.unit || "",
                 num(item.quantity),
                 num(item.unit_price),
                 num(item.debit_amount),
                 num(item.credit_amount),
-                group.running[index],
+                balance > 0 ? balance : "",
+                balance < 0 ? Math.abs(balance) : "",
             ])
         })
+
+        // Subtotal "Cộng"
+        push([
+            group.code,
+            group.taxCode,
+            "",
+            "",
+            "Cộng",
+            "",
+            group.qtyTotal,
+            "",
+            group.debitTotal,
+            group.creditTotal,
+            group.closing > 0 ? group.closing : "",
+            group.closing < 0 ? Math.abs(group.closing) : "",
+        ])
     }
 
     exportXlsx(`cong-no-phai-thu-${new Date().toISOString().slice(0, 10)}.xlsx`, [
