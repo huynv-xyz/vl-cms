@@ -44,12 +44,12 @@ export function getPageNumbers(currentPage: number, totalPages: number) {
 
 export function formatNumber(value?: number) {
     if (value == null) return "-"
-    return value.toLocaleString()
+    return value.toLocaleString("en-US")
 }
 
 export function formatCurrency(value?: number) {
     if (value == null) return "-"
-    return value.toLocaleString("vi-VN")
+    return value.toLocaleString("en-US")
 }
 
 export function normalizeDate(d?: string) {

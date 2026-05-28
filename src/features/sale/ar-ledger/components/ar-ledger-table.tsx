@@ -741,9 +741,7 @@ function makeGroup(key: string, allItems: ArLedger[]): Group {
         .filter((item) => !isOpeningRow(item))
         .sort(compareLedgerDateAsc)
 
-    let runningValue = openingRow
-        ? num(openingRow.running_balance ?? net(openingRow))
-        : 0
+    let runningValue = resolveOpeningBalance(openingRow, items)
     const openingBalance = runningValue
 
     const running = items.map((item) => {
@@ -767,6 +765,19 @@ function makeGroup(key: string, allItems: ArLedger[]): Group {
         debitTotal: items.reduce((sum, item) => sum + num(item.debit_amount), 0),
         creditTotal: items.reduce((sum, item) => sum + num(item.credit_amount), 0),
     }
+}
+
+function resolveOpeningBalance(openingRow: ArLedger | undefined, items: ArLedger[]): number {
+    if (openingRow) {
+        return num(openingRow.running_balance ?? net(openingRow))
+    }
+
+    const firstItem = items[0]
+    if (!firstItem || firstItem.running_balance == null) {
+        return 0
+    }
+
+    return num(firstItem.running_balance) - net(firstItem)
 }
 
 function net(row: ArLedger): number {

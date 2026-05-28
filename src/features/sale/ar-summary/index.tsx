@@ -319,7 +319,7 @@ function ArSummaryTable({
                         {data.length > 0 ? (
                             <tfoot className="border-t bg-slate-50 font-bold">
                                 <tr>
-                                    <ReportTd colSpan={4} className="text-right text-slate-950">
+                                    <ReportTd colSpan={3} className="text-right text-slate-950">
                                         Tổng
                                     </ReportTd>
                                     <ReportMoneyCell value={tableTotals.openingDebit} strong />

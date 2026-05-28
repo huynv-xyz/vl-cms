@@ -138,14 +138,19 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                             dataSource={{
                                                 getList: listProducts,
                                                 getById: getProduct,
-                                                params: { page: 1, size: 20, nature: "HANG_HOA" },
+                                                params: { page: 1, size: 50 },
                                             }}
                                             mapOption={(x: any) => ({
                                                 value: x.id,
-                                                label: `${x.code} - ${x.name}`,
+                                                label: productOptionLabel(x),
                                                 raw: x,
                                             })}
+                                            optionWrapLabel
+                                            wrapLabel
                                             className="min-w-0"
+                                            popoverContentClassName="w-[min(720px,calc(100vw-2rem))]"
+                                            searchPlaceholder="Tìm mã hàng, mã báo giá, mã MISA, tên hàng..."
+                                            emptyText="Không tìm thấy sản phẩm phù hợp"
                                         />
                                         {row.product && (
                                             <div className="text-muted-foreground mt-1.5 flex min-w-0 items-center gap-2 text-xs">
@@ -214,14 +219,15 @@ export function OrderItemsEditor({ items, setItems }: Props) {
 
                                     <td className="px-3 py-3 align-top">
                                         <Input
-                                            type="number"
+                                            type="text"
+                                            inputMode="decimal"
                                             min={0}
                                             className="text-right tabular-nums"
-                                            value={row.quantity}
+                                            value={formatOrderInput(row.quantity)}
                                             onKeyDown={(event) => addRowOnEnter(event, i)}
                                             onChange={(e) =>
                                                 updateRow(i, {
-                                                    quantity: Number(e.target.value),
+                                                    quantity: parseOrderInput(e.target.value),
                                                 })
                                             }
                                         />
@@ -229,14 +235,15 @@ export function OrderItemsEditor({ items, setItems }: Props) {
 
                                     <td className="px-3 py-3 align-top">
                                         <Input
-                                            type="number"
+                                            type="text"
+                                            inputMode="decimal"
                                             min={0}
                                             className="text-right tabular-nums"
-                                            value={row.unit_price}
+                                            value={formatOrderInput(row.unit_price)}
                                             onKeyDown={(event) => addRowOnEnter(event, i)}
                                             onChange={(e) =>
                                                 updateRow(i, {
-                                                    unit_price: Number(e.target.value),
+                                                    unit_price: parseOrderInput(e.target.value),
                                                 })
                                             }
                                         />
@@ -244,15 +251,16 @@ export function OrderItemsEditor({ items, setItems }: Props) {
 
                                     <td className="px-3 py-3 align-top">
                                         <Input
-                                            type="number"
+                                            type="text"
+                                            inputMode="decimal"
                                             min={0}
                                             className="text-right tabular-nums"
-                                            value={row.discount ?? 0}
+                                            value={formatOrderInput(row.discount ?? 0)}
                                             disabled={isPromotion}
                                             onKeyDown={(event) => addRowOnEnter(event, i)}
                                             onChange={(e) =>
                                                 updateRow(i, {
-                                                    discount: Number(e.target.value),
+                                                    discount: parseOrderInput(e.target.value),
                                                 })
                                             }
                                         />
@@ -322,6 +330,30 @@ export function OrderItemsEditor({ items, setItems }: Props) {
             )}
         </div>
     )
+}
+
+function productOptionLabel(product: any) {
+    return [
+        product.code,
+        product.quote_code,
+        product.misa_material_code,
+        product.name,
+    ].filter(Boolean).join(" - ")
+}
+
+function parseOrderInput(value: string) {
+    const normalized = value.replace(/,/g, "").trim()
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : 0
+}
+
+function formatOrderInput(value?: number) {
+    const numeric = Number(value ?? 0)
+    if (!Number.isFinite(numeric)) return "0"
+    return numeric.toLocaleString("en-US", {
+        maximumFractionDigits: 6,
+        useGrouping: true,
+    })
 }
 
 // re-export for potential external consumers, currently unused

@@ -116,16 +116,15 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
         title: "SL bán",
         width: 110,
     }),
-
-    moneyCell("unit_price", "Đơn giá", { width: 140, className: "text-slate-700" }),
-    moneyCell("discount", "Chiết khấu", { width: 130, className: "text-amber-700" }),
-    moneyCell("revenue", "Doanh số", { width: 160, className: "font-semibold text-emerald-700" }),
-
     buildNumberColumn<Transaction>({
         accessorKey: "return_qty",
         title: "SL trả",
         width: 100,
     }),
+
+    moneyCell("unit_price", "Đơn giá", { width: 140, className: "text-slate-700" }),
+    moneyCell("discount", "Chiết khấu", { width: 130, className: "text-amber-700" }),
+    moneyCell("revenue", "Doanh số", { width: 160, className: "font-semibold text-emerald-700" }),
 
     buildTextColumn<Transaction>({
         accessorKey: "sale_user_name",

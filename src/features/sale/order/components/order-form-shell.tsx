@@ -103,5 +103,5 @@ function SummaryStat({
 }
 
 function formatNumber(value: number) {
-    return new Intl.NumberFormat("vi-VN").format(Number(value || 0))
+    return new Intl.NumberFormat("en-US").format(Number(value || 0))
 }

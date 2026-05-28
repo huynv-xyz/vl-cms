@@ -136,13 +136,23 @@ export function CreateOrderItemDialog({ order, open, onOpenChange }: Props) {
                             dataSource={{
                                 getList: listProducts,
                                 getById: getProduct,
-                                params: { page: 1, size: 20 },
+                                params: { page: 1, size: 50 },
                             }}
                             mapOption={(x: any) => ({
                                 value: x.id,
-                                label: `${x.code} - ${x.name}`,
+                                label: [
+                                    x.code,
+                                    x.quote_code,
+                                    x.misa_material_code,
+                                    x.name,
+                                ].filter(Boolean).join(" - "),
                                 raw: x,
                             })}
+                            optionWrapLabel
+                            wrapLabel
+                            popoverContentClassName="w-[min(720px,calc(100vw-2rem))]"
+                            searchPlaceholder="Tìm mã hàng, mã báo giá, mã MISA, tên hàng..."
+                            emptyText="Không tìm thấy sản phẩm phù hợp"
                             menuPortalTarget={document.body}
                             styles={{
                                 menuPortal: (base: any) => ({

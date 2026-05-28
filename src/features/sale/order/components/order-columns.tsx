@@ -290,7 +290,7 @@ function formatDate(value?: string) {
 }
 
 function formatNumber(value: number) {
-    return new Intl.NumberFormat("vi-VN").format(value || 0)
+    return new Intl.NumberFormat("en-US").format(value || 0)
 }
 
 function getInitials(name?: string) {

@@ -5,6 +5,7 @@ import {
     AlertCircle,
     Boxes,
     CalendarDays,
+    Download,
     Filter,
     Inbox,
     Package,
@@ -33,6 +34,7 @@ import { getEmployee, listEmployees } from "@/api/employee"
 import { updateOrderStatus } from "@/api/sale/order"
 
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
+import { exportXlsx } from "@/lib/xlsx-export"
 
 const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
 
@@ -121,9 +123,19 @@ export function OrderTable({
                                 Theo dõi trạng thái, tiến độ xuất hàng và tổng giá trị bán ra.
                             </CardDescription>
                         </div>
-                        <Badge variant="outline" className="w-fit font-mono">
-                            Trang {formatNumber(currentPage)} / {formatNumber(Math.max(pageCount, 1))}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button
+                                type="button"
+                                className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold shadow-xs hover:bg-muted/60"
+                                onClick={() => exportOrdersXlsx(data)}
+                            >
+                                <Download className="h-3.5 w-3.5" />
+                                Xuất Excel
+                            </button>
+                            <Badge variant="outline" className="w-fit font-mono">
+                                Trang {formatNumber(currentPage)} / {formatNumber(Math.max(pageCount, 1))}
+                            </Badge>
+                        </div>
                     </div>
 
                     {/* Filter strip */}
@@ -623,6 +635,76 @@ function buildSummary(data: Order[]) {
         },
         { count: 0, amount: 0, totalQty: 0, exportedQty: 0, remainQty: 0 }
     )
+}
+
+function exportOrdersXlsx(data: Order[]) {
+    const rows: (string | number)[][] = [
+        [
+            "Ngày đặt hàng",
+            "Tình trạng giao hàng",
+            "Người thực hiện",
+            "Số đơn hàng",
+            "Mã khách hàng",
+            "Tên khách hàng",
+            "Mã hàng hóa",
+            "Diễn giải",
+            "Mô tả HH",
+            "Đơn vị",
+            "Số lượng",
+            "Đơn giá bán",
+            "Ghi chú",
+        ],
+    ]
+
+    data.forEach((order: any) => {
+        const items = order.items?.length ? order.items : [null]
+
+        items.forEach((item: any) => {
+            const quantity = Number(item?.quantity || 0)
+            const unitPrice = Number(item?.unit_price || 0)
+
+            rows.push([
+                formatDate(order.order_date),
+                getDeliveryStatusLabel(order),
+                formatEmployee(order.employee),
+                order.order_no || "",
+                order.customer?.code || "",
+                order.customer?.name || "",
+                item?.product?.code || item?.product?.quote_code || "",
+                item?.product?.name || item?.product_name || "",
+                item?.description || "",
+                item?.product?.unit || item?.unit || "",
+                quantity,
+                unitPrice,
+                order.note || "",
+            ])
+        })
+    })
+
+    exportXlsx(`don-hang-${new Date().toISOString().slice(0, 10)}.xlsx`, [
+        { name: "Don hang", rows },
+    ])
+}
+
+function getDeliveryStatusLabel(order: Order) {
+    const items = order.items ?? []
+    const totalQty = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+    const exportedQty = items.reduce((sum, item) => sum + Number(item.exported_quantity || 0), 0)
+
+    if (order.status === "DONE" || (totalQty > 0 && exportedQty >= totalQty)) {
+        return "Đã giao hàng"
+    }
+
+    if (exportedQty > 0) {
+        return "Giao một phần"
+    }
+
+    return "Chưa giao hàng"
+}
+
+function formatEmployee(employee?: Order["employee"]) {
+    if (!employee) return ""
+    return employee.code ? `${employee.name} (${employee.code})` : employee.name || ""
 }
 
 function formatDate(value?: string) {
