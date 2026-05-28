@@ -110,7 +110,10 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
         },
 
         onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ["deliveries"] })
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["deliveries"] }),
+                queryClient.invalidateQueries({ queryKey: ["order-detail", formData.order_id] }),
+            ])
             toast.success("Tạo phiếu giao thành công")
             onOpenChange(false)
             setItems([])
