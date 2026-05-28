@@ -159,9 +159,14 @@ export function UpdateDeliveryDialog({
         },
 
         onSuccess: async () => {
-            await queryClient.invalidateQueries({
-                queryKey: ["deliveries"],
-            })
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: ["deliveries"],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: ["order-detail", orderId],
+                }),
+            ])
             toast.success("Cập nhật phiếu giao thành công")
             onOpenChange(false)
         },
