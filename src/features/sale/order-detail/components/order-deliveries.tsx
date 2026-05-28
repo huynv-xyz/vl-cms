@@ -36,6 +36,7 @@ import { UpdateDeliveryDialog } from "../../delivery/components/update-delivery-
 import {
     deliveryStatusMeta,
     DELIVERY_STATUSES,
+    getNextDeliveryStatuses,
 } from "../../delivery/components/delivery-status"
 
 export function OrderDeliveries({ order, deliveries }: any) {
@@ -118,7 +119,8 @@ export function OrderDeliveries({ order, deliveries }: any) {
                 <div className="space-y-3 p-4">
                     {deliveries.map((delivery: any) => {
                         const meta = getDeliveryStatusMeta(delivery.status)
-                        const isRowLocked = !isEditable || delivery.status === "DONE"
+                        const allowedNextStatuses = getNextDeliveryStatuses(delivery.status)
+                        const isRowLocked = !isEditable || allowedNextStatuses.length === 0
                         const totalQty = sumBy(delivery.items ?? [], (item: any) => item.quantity)
 
                         return (
@@ -173,7 +175,10 @@ export function OrderDeliveries({ order, deliveries }: any) {
                                                     <SelectItem
                                                         key={status.value}
                                                         value={status.value}
-                                                        disabled={isRowLocked}
+                                                        disabled={
+                                                            status.value !== delivery.status &&
+                                                            !allowedNextStatuses.includes(status.value)
+                                                        }
                                                     >
                                                         {status.label}
                                                     </SelectItem>

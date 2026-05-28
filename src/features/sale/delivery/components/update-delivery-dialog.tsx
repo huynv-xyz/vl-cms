@@ -166,6 +166,9 @@ export function UpdateDeliveryDialog({
                 queryClient.invalidateQueries({
                     queryKey: ["order-detail", orderId],
                 }),
+                queryClient.invalidateQueries({
+                    queryKey: ["exports"],
+                }),
             ])
             toast.success("Cập nhật phiếu giao thành công")
             onOpenChange(false)

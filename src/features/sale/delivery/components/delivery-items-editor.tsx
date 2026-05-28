@@ -16,8 +16,6 @@ import { warehouseOption } from "@/lib/option-mapper"
 import { QuantityInputCell } from "./delivery-quantity-input-cell"
 import { Badge } from "@/components/ui/badge"
 
-const DEFAULT_WAREHOUSE_ID = 12
-
 type Props = {
     orderItems: any[]
     items: any[]
@@ -65,7 +63,7 @@ export function DeliveryItemsEditor({
                 ...o,
                 selected: existing?.selected ?? false,
                 quantity_delivery: existing?.quantity ?? 0,
-                warehouse_id: existing?.warehouse_id,
+                warehouse_id: existing?.warehouse_id ?? o.product?.default_warehouse_id,
             }
         })
     }, [orderItems, items])
@@ -81,7 +79,7 @@ export function DeliveryItemsEditor({
                             selected: !!checked,
                             quantity: checked ? row.original.max_quantity : 0,
                             warehouse_id: checked
-                                ? row.original.warehouse_id ?? DEFAULT_WAREHOUSE_ID
+                                ? row.original.warehouse_id
                                 : row.original.warehouse_id,
                         })
                     }

@@ -26,6 +26,8 @@ export const AsyncSelect = React.memo(function AsyncSelect({
     disabled,
     required,
     className,
+    popoverContentClassName,
+    optionWrapLabel = false,
     wrapLabel = false,
 }: any) {
     const [open, setOpen] = React.useState(false)
@@ -36,6 +38,7 @@ export const AsyncSelect = React.memo(function AsyncSelect({
 
     const cacheRef = React.useRef<Map<string, any[]>>(new Map())
     const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+    const dataSourceParamsKey = JSON.stringify(dataSource?.params ?? {})
 
     React.useEffect(() => {
         if (!open || !dataSource?.getList) return
@@ -45,8 +48,10 @@ export const AsyncSelect = React.memo(function AsyncSelect({
         }
 
         debounceRef.current = setTimeout(async () => {
-            if (cacheRef.current.has(keyword)) {
-                setOptions(cacheRef.current.get(keyword)!)
+            const cacheKey = `${dataSourceParamsKey}::${keyword}`
+
+            if (cacheRef.current.has(cacheKey)) {
+                setOptions(cacheRef.current.get(cacheKey)!)
                 return
             }
 
@@ -58,7 +63,7 @@ export const AsyncSelect = React.memo(function AsyncSelect({
                 })
 
                 const mapped = getItems(res).map(mapOption)
-                cacheRef.current.set(keyword, mapped)
+                cacheRef.current.set(cacheKey, mapped)
                 setOptions(mapped)
             } finally {
                 setLoading(false)
@@ -70,7 +75,7 @@ export const AsyncSelect = React.memo(function AsyncSelect({
                 clearTimeout(debounceRef.current)
             }
         }
-    }, [keyword, open, dataSource, mapOption])
+    }, [keyword, open, dataSource, dataSourceParamsKey, mapOption])
 
     const fetchedRef = React.useRef<any>(null)
 
@@ -129,7 +134,12 @@ export const AsyncSelect = React.memo(function AsyncSelect({
                 </Button>
             </PopoverTrigger>
 
-            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-80 overflow-hidden">
+            <PopoverContent
+                className={cn(
+                    "w-[var(--radix-popover-trigger-width)] p-0 max-h-80 overflow-hidden",
+                    popoverContentClassName,
+                )}
+            >
                 <Command shouldFilter={false}>
                     <CommandInput
                         placeholder={searchPlaceholder}
@@ -177,7 +187,9 @@ export const AsyncSelect = React.memo(function AsyncSelect({
                                 <span
                                     className={cn(
                                         "min-w-0",
-                                        wrapLabel ? "whitespace-normal break-words leading-snug" : "truncate",
+                                        optionWrapLabel || wrapLabel
+                                            ? "whitespace-normal break-words leading-snug"
+                                            : "truncate",
                                     )}
                                 >
                                     {item.label}

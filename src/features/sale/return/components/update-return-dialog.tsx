@@ -54,6 +54,7 @@ export function UpdateReturnDialog({
 
     // ===== FORM (CHỈ GIỮ FIELD CẦN)
     const [formData, setFormData] = useState<any>({
+        customer_id: undefined,
         export_id: undefined,
         reason: "",
         status: "NEW",
@@ -69,6 +70,7 @@ export function UpdateReturnDialog({
         if (!open || !detail) return
 
         setFormData({
+            customer_id: detail.customer?.id ?? detail.order?.customer_id,
             export_id: detail.export_id,
             reason: detail.reason ?? "",
             status: detail.status ?? "NEW",

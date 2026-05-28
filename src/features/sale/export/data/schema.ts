@@ -12,6 +12,7 @@ export type ExportItem = {
     warehouse_id?: number
     warehouse?: Warehouse
     quantity: number
+    unit_price?: number
     returned_quantity?: number
 }
 

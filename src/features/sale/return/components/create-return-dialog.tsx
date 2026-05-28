@@ -25,6 +25,7 @@ export function CreateReturnDialog({ open, onOpenChange }: any) {
     const initializedRef = useRef(false)
 
     const [formData, setFormData] = useState<any>({
+        customer_id: undefined,
         export_id: undefined,
         status: "NEW",
         reason: "",
@@ -57,6 +58,12 @@ export function CreateReturnDialog({ open, onOpenChange }: any) {
     useEffect(() => {
         if (!open) {
             initializedRef.current = false
+            setFormData({
+                customer_id: undefined,
+                export_id: undefined,
+                status: "NEW",
+                reason: "",
+            })
             setItems([])
         }
     }, [open])

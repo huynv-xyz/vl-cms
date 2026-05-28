@@ -737,7 +737,9 @@ function isOpeningRow(item: ArLedger): boolean {
 
 function makeGroup(key: string, allItems: ArLedger[]): Group {
     const openingRow = allItems.find(isOpeningRow)
-    const items = allItems.filter((item) => !isOpeningRow(item))
+    const items = allItems
+        .filter((item) => !isOpeningRow(item))
+        .sort(compareLedgerDateAsc)
 
     let runningValue = openingRow
         ? num(openingRow.running_balance ?? net(openingRow))
@@ -745,7 +747,6 @@ function makeGroup(key: string, allItems: ArLedger[]): Group {
     const openingBalance = runningValue
 
     const running = items.map((item) => {
-        if (typeof item.running_balance === "number") return num(item.running_balance)
         runningValue += net(item)
         return runningValue
     })
@@ -770,6 +771,35 @@ function makeGroup(key: string, allItems: ArLedger[]): Group {
 
 function net(row: ArLedger): number {
     return num(row.debit_amount) - num(row.credit_amount)
+}
+
+function compareLedgerDateAsc(a: ArLedger, b: ArLedger): number {
+    const byDate = dateValue(a.posting_date) - dateValue(b.posting_date)
+    if (byDate !== 0) return byDate
+
+    return num(a.id) - num(b.id)
+}
+
+function dateValue(value?: string): number {
+    if (!value) return 0
+
+    const date = value.split("T")[0]
+    const parts = date.split("-")
+
+    if (parts.length === 3) {
+        const [first, second, third] = parts.map((part) => Number(part))
+
+        if (parts[0].length === 4) {
+            return new Date(first, second - 1, third).getTime()
+        }
+
+        if (parts[2].length === 4) {
+            return new Date(third, second - 1, first).getTime()
+        }
+    }
+
+    const time = new Date(date).getTime()
+    return Number.isFinite(time) ? time : 0
 }
 
 function lineDescription(item: ArLedger): string {
