@@ -33,9 +33,11 @@ export function OrderHeaderFields({ value, onChange, showStatus = true }: Props)
                     onChange={(customerId: any) => update({ customer_id: customerId })}
                     required
                     dataSource={{ getList: listCustomers, getById: getCustomer }}
+                    popoverContentClassName="w-[520px] max-w-[calc(100vw-2rem)]"
+                    optionWrapLabel
                     mapOption={(x: any) => ({
                         value: x.id,
-                        label: x.name || x.code || `#${x.id}`,
+                        label: formatCustomerLabel(x),
                         raw: x,
                     })}
                 />
@@ -100,6 +102,14 @@ export function OrderHeaderFields({ value, onChange, showStatus = true }: Props)
             </Field>
         </div>
     )
+}
+
+function formatCustomerLabel(customer: any) {
+    const code = String(customer?.code ?? "").trim()
+    const name = String(customer?.name ?? "").trim()
+
+    if (code && name) return `${code} - ${name}`
+    return name || code || `#${customer?.id}`
 }
 
 function Field({

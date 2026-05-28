@@ -111,8 +111,12 @@ export function CashBankLedgerTable({
     const [form, setForm] = useState<FormState>(emptyForm)
     const [exporting, setExporting] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
-    const incomingLabel = sourceType === "ADJUST" ? "Giảm nợ" : "Tiền vào"
-    const outgoingLabel = sourceType === "ADJUST" ? "Tăng nợ" : "Tiền ra"
+    const incomingLabel = sourceType === "OPENING"
+        ? "Có đầu kỳ"
+        : sourceType === "ADJUST" ? "Giảm nợ" : "Tiền vào"
+    const outgoingLabel = sourceType === "OPENING"
+        ? "Nợ đầu kỳ"
+        : sourceType === "ADJUST" ? "Tăng nợ" : "Tiền ra"
     const today = todayYmd()
     const shouldConstrainDateFilters = sourceType === "ADJUST"
 
@@ -532,10 +536,10 @@ function BankLedgerDialog({
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="IN">
-                                    {sourceType === "BANK" ? "Tiền vào - giảm công nợ" : sourceType === "ADJUST" ? "Giảm nợ" : "Giảm công nợ"}
+                                    {sourceType === "BANK" ? "Tiền vào - giảm công nợ" : sourceType === "ADJUST" ? "Giảm nợ" : sourceType === "OPENING" ? "Có đầu kỳ" : "Giảm công nợ"}
                                 </SelectItem>
                                 <SelectItem value="OUT">
-                                    {sourceType === "BANK" ? "Tiền ra / hoàn - tăng công nợ" : sourceType === "ADJUST" ? "Tăng nợ" : "Tăng công nợ"}
+                                    {sourceType === "BANK" ? "Tiền ra / hoàn - tăng công nợ" : sourceType === "ADJUST" ? "Tăng nợ" : sourceType === "OPENING" ? "Nợ đầu kỳ" : "Tăng công nợ"}
                                 </SelectItem>
                             </SelectContent>
                         </Select>

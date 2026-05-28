@@ -1,3 +1,4 @@
+import { getCustomer, listCustomers } from "@/api/customer"
 import { getExport, listExports } from "@/api/sale/export"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Label } from "@/components/ui/label"
@@ -11,6 +12,12 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { exportOption } from "@/lib/option-mapper"
 import { RETURN_STATUSES } from "./return-status"
+
+const customerOption = (customer: any) => ({
+    value: customer.id,
+    label: `${customer.code ? `${customer.code} - ` : ""}${customer.name ?? `#${customer.id}`}`,
+    raw: customer,
+})
 
 type Props = {
     value: any
@@ -29,6 +36,32 @@ export function ReturnHeaderFields({
 
     return (
         <div className="grid gap-x-5 gap-y-4 md:grid-cols-2">
+            <Field label="Khách hàng">
+                <AsyncSelect
+                    placeholder="Chọn khách hàng"
+                    searchPlaceholder="Tìm khách hàng..."
+                    value={value.customer_id}
+                    onChange={(customerId: any) =>
+                        update({
+                            customer_id: customerId,
+                            export_id:
+                                customerId === value.customer_id
+                                    ? value.export_id
+                                    : undefined,
+                        })
+                    }
+                    disabled={lockedExport}
+                    dataSource={{
+                        getList: listCustomers,
+                        getById: getCustomer,
+                        params: { page: 1, size: 20 },
+                    }}
+                    mapOption={customerOption}
+                    popoverContentClassName="w-[520px] max-w-[calc(100vw-2rem)]"
+                    optionWrapLabel
+                />
+            </Field>
+
             <Field label="Phiếu xuất" required>
                 <AsyncSelect
                     placeholder="Chọn phiếu xuất"
@@ -36,7 +69,15 @@ export function ReturnHeaderFields({
                     onChange={(exportId: any) => update({ export_id: exportId })}
                     required
                     disabled={lockedExport}
-                    dataSource={{ getList: listExports, getById: getExport }}
+                    dataSource={{
+                        getList: listExports,
+                        getById: getExport,
+                        params: {
+                            page: 1,
+                            size: 20,
+                            customer_id: value.customer_id || undefined,
+                        },
+                    }}
                     mapOption={exportOption}
                 />
             </Field>

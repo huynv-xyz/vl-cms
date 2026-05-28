@@ -179,6 +179,11 @@ export function ReturnItemsEditor({
         },
 
         {
+            header: "Đơn giá",
+            cell: ({ row }) => formatNumber(row.original.unit_price ?? 0),
+        },
+
+        {
             header: "Đã xuất",
             cell: ({ row }) => formatNumber(row.original.quantity),
         },
