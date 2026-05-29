@@ -107,24 +107,12 @@ export function ExportInfo({ data }: Props) {
                 </div>
                 <div>
                     <span className="text-muted-foreground">- Địa chỉ (bộ phận):&nbsp;</span>
-                    <span className="font-medium">{deliveryAddress}</span>
+                    <span className="font-medium" />
                 </div>
                 {/*<div>
                     <span className="text-muted-foreground">- Lý do xuất kho:&nbsp;</span>
                     <span className="font-medium">{reason}</span>
                 </div>*/}
-                <div className="flex flex-wrap gap-x-8">
-                    <div>
-                        <span className="text-muted-foreground">- Xuất tại kho (ngăn lô):&nbsp;</span>
-                        <span className="font-medium">{warehouseName}</span>
-                    </div>
-                    <div>
-                        <span className="text-muted-foreground">Địa điểm:&nbsp;</span>
-                        <span className="font-medium">
-                            {(data as any).delivery?.delivery_address ?? ""}
-                        </span>
-                    </div>
-                </div>
             </div>
 
         </div>
