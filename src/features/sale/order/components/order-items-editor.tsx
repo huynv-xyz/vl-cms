@@ -1,4 +1,5 @@
 import type React from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -218,51 +219,27 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                     </td>
 
                                     <td className="px-3 py-3 align-top">
-                                        <Input
-                                            type="text"
-                                            inputMode="decimal"
-                                            min={0}
-                                            className="text-right tabular-nums"
-                                            value={formatOrderInput(row.quantity)}
+                                        <DecimalInput
+                                            value={row.quantity}
                                             onKeyDown={(event) => addRowOnEnter(event, i)}
-                                            onChange={(e) =>
-                                                updateRow(i, {
-                                                    quantity: parseOrderInput(e.target.value),
-                                                })
-                                            }
+                                            onChange={(quantity) => updateRow(i, { quantity })}
                                         />
                                     </td>
 
                                     <td className="px-3 py-3 align-top">
-                                        <Input
-                                            type="text"
-                                            inputMode="decimal"
-                                            min={0}
-                                            className="text-right tabular-nums"
-                                            value={formatOrderInput(row.unit_price)}
+                                        <DecimalInput
+                                            value={row.unit_price}
                                             onKeyDown={(event) => addRowOnEnter(event, i)}
-                                            onChange={(e) =>
-                                                updateRow(i, {
-                                                    unit_price: parseOrderInput(e.target.value),
-                                                })
-                                            }
+                                            onChange={(unit_price) => updateRow(i, { unit_price })}
                                         />
                                     </td>
 
                                     <td className="px-3 py-3 align-top">
-                                        <Input
-                                            type="text"
-                                            inputMode="decimal"
-                                            min={0}
-                                            className="text-right tabular-nums"
-                                            value={formatOrderInput(row.discount ?? 0)}
+                                        <DecimalInput
+                                            value={row.discount ?? 0}
                                             disabled={isPromotion}
                                             onKeyDown={(event) => addRowOnEnter(event, i)}
-                                            onChange={(e) =>
-                                                updateRow(i, {
-                                                    discount: parseOrderInput(e.target.value),
-                                                })
-                                            }
+                                            onChange={(discount) => updateRow(i, { discount })}
                                         />
                                     </td>
 
@@ -341,12 +318,6 @@ function productOptionLabel(product: any) {
     ].filter(Boolean).join(" - ")
 }
 
-function parseOrderInput(value: string) {
-    const normalized = value.replace(/,/g, "").trim()
-    const parsed = Number(normalized)
-    return Number.isFinite(parsed) ? parsed : 0
-}
-
 function formatOrderInput(value?: number) {
     const numeric = Number(value ?? 0)
     if (!Number.isFinite(numeric)) return "0"
@@ -354,6 +325,66 @@ function formatOrderInput(value?: number) {
         maximumFractionDigits: 6,
         useGrouping: true,
     })
+}
+
+function DecimalInput({
+    value,
+    disabled,
+    onKeyDown,
+    onChange,
+}: {
+    value?: number
+    disabled?: boolean
+    onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>
+    onChange: (value: number) => void
+}) {
+    const [focused, setFocused] = useState(false)
+    const [raw, setRaw] = useState(formatOrderInput(value))
+
+    useEffect(() => {
+        if (!focused) {
+            setRaw(formatOrderInput(value))
+        }
+    }, [focused, value])
+
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const next = event.target.value
+
+        if (next.includes(",")) return
+        if (!/^\d*\.?\d*$/.test(next)) return
+
+        setRaw(next)
+
+        if (!next || next === ".") {
+            onChange(0)
+            return
+        }
+
+        const parsed = Number(next)
+        if (Number.isFinite(parsed)) {
+            onChange(parsed)
+        }
+    }
+
+    return (
+        <Input
+            type="text"
+            inputMode="decimal"
+            className="text-right tabular-nums"
+            value={focused ? raw : formatOrderInput(value)}
+            disabled={disabled}
+            onFocus={() => {
+                setFocused(true)
+                setRaw(value ? String(value) : "")
+            }}
+            onBlur={() => {
+                setFocused(false)
+                setRaw(formatOrderInput(value))
+            }}
+            onKeyDown={onKeyDown}
+            onChange={handleChange}
+        />
+    )
 }
 
 // re-export for potential external consumers, currently unused
