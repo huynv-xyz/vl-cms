@@ -1,6 +1,7 @@
 import { getCustomer, listCustomers } from "@/api/customer"
 import { getExport, listExports } from "@/api/sale/export"
 import { AsyncSelect } from "@/components/rjsf/async-select"
+import { DatePicker } from "@/components/date-picker"
 import { Label } from "@/components/ui/label"
 import {
     Select,
@@ -82,6 +83,19 @@ export function ReturnHeaderFields({
                 />
             </Field>
 
+            <Field label="Ngày trả" required>
+                <DatePicker
+                    value={value.return_date}
+                    onChange={(returnDate) => update({ return_date: returnDate })}
+                    placeholder="Chọn ngày trả"
+                    disabled={(date) => {
+                        const minDate = dateOnly(value.export_created_at)
+                        if (!minDate) return false
+                        return dateToYmd(date) <= minDate
+                    }}
+                />
+            </Field>
+
             {showStatus && (
                 <Field label="Trạng thái">
                     <Select
@@ -134,4 +148,21 @@ function Field({
             {children}
         </div>
     )
+}
+
+function dateOnly(value?: string | number[]) {
+    if (Array.isArray(value)) {
+        const [year, month, day] = value
+        if (!year || !month || !day) return ""
+        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    }
+
+    return value ? value.split("T")[0].split(" ")[0] : ""
+}
+
+function dateToYmd(date: Date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
 }

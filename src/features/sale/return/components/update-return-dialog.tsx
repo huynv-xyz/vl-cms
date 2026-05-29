@@ -56,6 +56,8 @@ export function UpdateReturnDialog({
     const [formData, setFormData] = useState<any>({
         customer_id: undefined,
         export_id: undefined,
+        return_date: "",
+        export_created_at: undefined,
         reason: "",
         status: "NEW",
     })
@@ -72,10 +74,20 @@ export function UpdateReturnDialog({
         setFormData({
             customer_id: detail.customer?.id ?? detail.order?.customer_id,
             export_id: detail.export_id,
+            return_date: dateOnly(detail.created_at),
             reason: detail.reason ?? "",
             status: detail.status ?? "NEW",
         })
     }, [open, detail])
+
+    useEffect(() => {
+        if (!open || !exportDetail) return
+
+        setFormData((current: any) => ({
+            ...current,
+            export_created_at: exportDetail.created_at,
+        }))
+    }, [open, exportDetail])
 
     // ========================
     // INIT ITEMS
@@ -136,6 +148,7 @@ export function UpdateReturnDialog({
                 id: returnData.id,
                 export_id: formData.export_id,
                 order_id: exportDetail?.order_id,
+                return_date: formData.return_date,
                 status: formData.status,
                 reason: formData.reason,
                 items: selected.map(i => ({
@@ -231,4 +244,14 @@ export function UpdateReturnDialog({
             </DialogContent>
         </Dialog>
     )
+}
+
+function dateOnly(value?: string | number[]) {
+    if (Array.isArray(value)) {
+        const [year, month, day] = value
+        if (!year || !month || !day) return ""
+        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    }
+
+    return value ? value.split("T")[0].split(" ")[0] : ""
 }

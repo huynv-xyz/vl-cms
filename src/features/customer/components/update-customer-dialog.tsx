@@ -29,8 +29,10 @@ export function UpdateCustomerDialog({
             defaultValues={{
                 code: customer.code,
                 name: customer.name,
+                address: customer.address ?? "",
                 type: customer.type,
                 region: customer.region,
+                employee_id: customer.employee_id,
                 note: customer.note ?? "",
                 status: customer.status === 1,
             }}
@@ -42,8 +44,10 @@ export function UpdateCustomerDialog({
                 id: customer.id,
                 code: values.code,
                 name: values.name,
+                address: values.address?.trim() ? values.address.trim() : "",
                 type: values.type,
                 region: values.region,
+                employee_id: values.employee_id,
                 note: values.note?.trim() ? values.note.trim() : "",
                 status: values.status === false ? 0 : 1,
             })}

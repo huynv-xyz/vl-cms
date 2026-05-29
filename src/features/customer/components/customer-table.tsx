@@ -67,6 +67,20 @@ export function CustomerTable({
             bulkActions={bulkActions}
             filters={[
                 {
+                    columnId: 'type',
+                    title: 'Loại khách hàng',
+                    options: [
+                        { label: 'B2B', value: 'B2B' },
+                        { label: 'B2C', value: 'B2C' },
+                    ],
+                    values: filters.types ?? [],
+                    onChange: (values) =>
+                        onFiltersChange({
+                            ...filters,
+                            types: values,
+                        }),
+                },
+                {
                     columnId: 'region',
                     title: 'Khu vực',
                     options: [

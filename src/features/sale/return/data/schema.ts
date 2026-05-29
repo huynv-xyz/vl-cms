@@ -24,6 +24,9 @@ export type Return = {
 
     status: string
     reason?: string
+    return_date?: string
+    created_at?: string | number[]
+    updated_at?: string | number[]
 
     items?: ReturnItem[]
 }

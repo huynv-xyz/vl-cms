@@ -26,8 +26,10 @@ export function CreateCustomerDialog({
             defaultValues={{
                 code: "",
                 name: "",
+                address: "",
                 type: "B2B",
                 region: "MB",
+                employee_id: undefined,
                 note: "",
                 status: true,
             }}
@@ -38,8 +40,10 @@ export function CreateCustomerDialog({
             mapFormToRequest={(values) => ({
                 code: values.code,
                 name: values.name,
+                address: values.address?.trim() ? values.address.trim() : "",
                 type: values.type,
                 region: values.region,
+                employee_id: values.employee_id,
                 note: values.note?.trim() ? values.note.trim() : "",
                 status: values.status === false ? 0 : 1,
             })}

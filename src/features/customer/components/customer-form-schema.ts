@@ -1,4 +1,10 @@
 import type { RJSFSchema, UiSchema } from "@rjsf/utils"
+import { getEmployee, listEmployees } from "@/api/employee"
+
+const employeeDataSource = {
+    getList: listEmployees,
+    getById: getEmployee,
+}
 
 export const customerSchema: RJSFSchema = {
     type: "object",
@@ -20,6 +26,10 @@ export const customerSchema: RJSFSchema = {
                 minLength: "Tên khách hàng không được để trống",
             },
         },
+        address: {
+            type: "string",
+            title: "Địa chỉ",
+        },
         type: {
             type: "string",
             title: "Loại",
@@ -38,6 +48,10 @@ export const customerSchema: RJSFSchema = {
             ],
             default: "MB",
         },
+        employee_id: {
+            type: "integer",
+            title: "Nhân viên phụ trách",
+        },
         note: {
             type: "string",
             title: "Ghi chú",
@@ -54,6 +68,27 @@ export const customerSchema: RJSFSchema = {
 } as any
 
 export const customerUiSchema: UiSchema = {
+    employee_id: {
+        "ui:widget": "asyncSelect",
+        "ui:options": {
+            placeholder: "Chọn nhân viên phụ trách",
+            dataSource: employeeDataSource,
+            mapOption: (x: any) => ({
+                value: x.id,
+                label: x.code ? `${x.code} - ${x.name}` : x.name,
+                raw: x,
+            }),
+            popoverContentClassName: "w-[420px]",
+            optionWrapLabel: true,
+            wrapLabel: true,
+        },
+    },
+    address: {
+        "ui:widget": "textarea",
+        "ui:options": {
+            rows: 2,
+        },
+    },
     note: {
         "ui:widget": "textarea",
         "ui:options": {

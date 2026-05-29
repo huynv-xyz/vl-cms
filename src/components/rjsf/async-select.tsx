@@ -136,7 +136,7 @@ export const AsyncSelect = React.memo(function AsyncSelect({
 
             <PopoverContent
                 className={cn(
-                    "w-[var(--radix-popover-trigger-width)] p-0 max-h-80 overflow-hidden",
+                    "w-[var(--radix-popover-trigger-width)] max-h-[calc(var(--radix-popover-content-available-height)-8px)] overflow-hidden p-0",
                     popoverContentClassName,
                 )}
             >
@@ -147,7 +147,7 @@ export const AsyncSelect = React.memo(function AsyncSelect({
                         onValueChange={setKeyword}
                     />
 
-                    <CommandList className="max-h-80 overflow-y-auto">
+                    <CommandList className="max-h-[calc(var(--radix-popover-content-available-height)-3.5rem)] overflow-y-auto">
                         <CommandEmpty>
                             {loading ? "Đang tải..." : emptyText}
                         </CommandEmpty>

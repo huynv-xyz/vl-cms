@@ -27,6 +27,8 @@ export function CreateReturnDialog({ open, onOpenChange }: any) {
     const [formData, setFormData] = useState<any>({
         customer_id: undefined,
         export_id: undefined,
+        return_date: todayYmd(),
+        export_created_at: undefined,
         status: "NEW",
         reason: "",
     })
@@ -61,6 +63,8 @@ export function CreateReturnDialog({ open, onOpenChange }: any) {
             setFormData({
                 customer_id: undefined,
                 export_id: undefined,
+                return_date: todayYmd(),
+                export_created_at: undefined,
                 status: "NEW",
                 reason: "",
             })
@@ -78,6 +82,23 @@ export function CreateReturnDialog({ open, onOpenChange }: any) {
         }
 
     }, [open, exportId, isLoading, mappedItems])
+
+    useEffect(() => {
+        if (!open || !exportDetail) return
+
+        const exportCreatedAt = exportDetail.created_at
+        const exportDate = dateOnly(exportCreatedAt)
+        const currentReturnDate = formData.return_date || todayYmd()
+        const nextReturnDate = exportDate && currentReturnDate <= exportDate
+            ? nextDayYmd(exportDate)
+            : currentReturnDate
+
+        setFormData((current: any) => ({
+            ...current,
+            export_created_at: exportCreatedAt,
+            return_date: nextReturnDate,
+        }))
+    }, [open, exportDetail])
 
     // submit
     const { mutate, isPending } = useMutation({
@@ -99,6 +120,7 @@ export function CreateReturnDialog({ open, onOpenChange }: any) {
             return createReturn({
                 export_id: exportId,
                 order_id: exportDetail?.order_id, // 👈 lấy từ export
+                return_date: formData.return_date,
                 status: formData.status,
                 reason: formData.reason,
                 items: selected.map(i => ({
@@ -199,4 +221,32 @@ export function CreateReturnDialog({ open, onOpenChange }: any) {
             </DialogContent>
         </Dialog>
     )
+}
+
+function todayYmd() {
+    const now = new Date()
+    return dateToYmd(now)
+}
+
+function nextDayYmd(value: string) {
+    const date = new Date(`${value}T00:00:00`)
+    date.setDate(date.getDate() + 1)
+    return dateToYmd(date)
+}
+
+function dateToYmd(date: Date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+}
+
+function dateOnly(value?: string | number[]) {
+    if (Array.isArray(value)) {
+        const [year, month, day] = value
+        if (!year || !month || !day) return ""
+        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    }
+
+    return value ? value.split("T")[0].split(" ")[0] : ""
 }

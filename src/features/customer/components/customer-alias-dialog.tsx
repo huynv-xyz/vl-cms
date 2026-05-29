@@ -55,6 +55,9 @@ const emptyForm = (): FormState => ({
     note: "",
 })
 
+const normalizeAliasType = (type?: string | null) =>
+    type === "BANK" || type === "TAX" || type === "OTHER" ? type : "OTHER"
+
 export function CustomerAliasDialog({
     customer,
     open,
@@ -100,7 +103,7 @@ export function CustomerAliasDialog({
                 bank_account: form.bank_account.trim() || undefined,
                 bank_account_name: form.bank_account_name.trim() || undefined,
                 bank_name: form.bank_name.trim() || undefined,
-                type: form.type,
+                type: form.type === "OTHER" ? undefined : form.type,
                 is_default: Number(form.is_default),
                 status: 1,
                 note: form.note.trim() || undefined,
@@ -136,7 +139,7 @@ export function CustomerAliasDialog({
             bank_account: alias.bank_account || "",
             bank_account_name: alias.bank_account_name || "",
             bank_name: alias.bank_name || "",
-            type: alias.type || "BANK",
+            type: normalizeAliasType(alias.type),
             is_default: String(alias.is_default ?? 0),
             note: alias.note || "",
         })

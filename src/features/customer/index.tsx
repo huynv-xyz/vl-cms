@@ -5,6 +5,8 @@ import { CustomerTable } from './components/customer-table'
 import { CustomerDialogs } from './components/customer-dialogs'
 import { CustomersProvider } from './components/customers-provider'
 import { CreateCustomerButton } from './components/create-customer-button'
+import { ImportCustomersButton } from './components/import-customers-button'
+import { ImportInvoiceAliasesButton } from './components/import-invoice-aliases-button'
 import { Route } from '@/routes/_authenticated/customers'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
@@ -37,7 +39,13 @@ export default function CustomerPage() {
                 isLoading={isLoading}
                 error={error}
                 title='Khách hàng'
-                actions={<CreateCustomerButton />}
+                actions={
+                    <div className="flex flex-wrap items-center gap-2">
+                        <ImportCustomersButton />
+                        <ImportInvoiceAliasesButton />
+                        <CreateCustomerButton />
+                    </div>
+                }
                 data={data}
             >
                 {(data) => (
