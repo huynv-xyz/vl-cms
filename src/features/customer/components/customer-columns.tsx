@@ -28,6 +28,25 @@ export const customerColumns: ColumnDef<Customer>[] = [
         maxWidth: 320,
     }),
 
+    buildTextColumn<Customer>({
+        accessorKey: 'address',
+        title: 'Địa chỉ',
+        width: 260,
+        maxWidth: 260,
+    }),
+
+    buildTextColumn<Customer>({
+        title: 'Nhân viên phụ trách',
+        width: 190,
+        maxWidth: 190,
+        accessorFn: (row) =>
+            row.employee
+                ? row.employee.code
+                    ? `${row.employee.code} - ${row.employee.name}`
+                    : row.employee.name
+                : row.employee_id,
+    }),
+
     buildBadgeColumn<Customer>({
         accessorKey: 'type',
         title: 'Loại khách hàng',
@@ -52,6 +71,13 @@ export const customerColumns: ColumnDef<Customer>[] = [
         mapValueToVariant: (value) => (Number(value) === 1 ? 'default' : 'outline'),
         mapValueToClassName: (value) =>
             Number(value) === 1 ? 'text-xs' : 'text-xs text-muted-foreground',
+    }),
+
+    buildTextColumn<Customer>({
+        accessorKey: 'note',
+        title: 'Ghi chú',
+        width: 220,
+        maxWidth: 220,
     }),
 
     buildActionsColumn<Customer>({

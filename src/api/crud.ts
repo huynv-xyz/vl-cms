@@ -19,7 +19,10 @@ export function createCrudApi<
         },
 
         list(params: TListParams) {
-            return apiGet<PagedResult<TEntity>>(basePath, params)
+            return apiGet<PagedResult<TEntity>>(basePath, {
+                ...params,
+                limit: params.size,
+            })
         },
 
         create(body: TCreateRequest) {

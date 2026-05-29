@@ -91,6 +91,12 @@ export function useReturnColumns() {
         }),
 
         {
+            accessorKey: "created_at",
+            header: "Ngày trả",
+            cell: ({ row }) => formatReturnDate(row.original.created_at),
+        },
+
+        {
             accessorKey: "status",
             header: "Trạng thái",
             cell: ({ row }) => {
@@ -151,4 +157,19 @@ export function useReturnColumns() {
             />
         ),
     }
+}
+
+function formatReturnDate(value?: string | number[]) {
+    if (!value) return "-"
+    if (Array.isArray(value)) {
+        const [year, month, day] = value
+        if (!year || !month || !day) return "-"
+        return `${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}-${year}`
+    }
+
+    const [datePart] = value.split("T")
+    const normalized = datePart.includes(" ") ? datePart.split(" ")[0] : datePart
+    const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (!match) return value
+    return `${match[3]}-${match[2]}-${match[1]}`
 }

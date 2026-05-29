@@ -14,7 +14,7 @@ import {
     updateArLedger,
     type ArLedgerListParams,
 } from "@/api/sale/ar-ledger"
-import { getCustomer, listCustomers } from "@/api/customer"
+import { getCustomerAlias, listCustomerAliases, type CustomerAlias } from "@/api/customer-alias"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
@@ -69,6 +69,7 @@ type FormState = {
     posting_date: string
     doc_date: string
     doc_no: string
+    alias_id?: number
     customer_id?: number
     customer_name?: string
     direction: "IN" | "OUT"
@@ -81,6 +82,7 @@ const emptyForm = (): FormState => ({
     posting_date: new Date().toISOString().slice(0, 10),
     doc_date: new Date().toISOString().slice(0, 10),
     doc_no: "",
+    alias_id: undefined,
     customer_id: undefined,
     customer_name: "",
     direction: "IN",
@@ -109,6 +111,7 @@ export function CashBankLedgerTable({
     const queryClient = useQueryClient()
     const [open, setOpen] = useState(false)
     const [form, setForm] = useState<FormState>(emptyForm)
+    const [filterAliasId, setFilterAliasId] = useState<number | undefined>(undefined)
     const [exporting, setExporting] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const incomingLabel = sourceType === "OPENING"
@@ -233,6 +236,7 @@ export function CashBankLedgerTable({
             posting_date: dateOnly(row.posting_date) || new Date().toISOString().slice(0, 10),
             doc_date: dateOnly(row.doc_date) || dateOnly(row.posting_date) || new Date().toISOString().slice(0, 10),
             doc_no: row.doc_no || "",
+            alias_id: undefined,
             customer_id: row.customer_id,
             customer_name: row.customer?.name || row.customer_name || "",
             direction: debit > 0 ? "OUT" : "IN",
@@ -314,17 +318,18 @@ export function CashBankLedgerTable({
 
                         <AsyncSelect
                             className={cn(controlClass, "min-w-[260px] flex-[1.6_1_0] py-0")}
-                            value={filters.customer_id}
-                            onChange={(value: number | undefined) =>
-                                setFilter("customer_id", value || undefined)
-                            }
-                            placeholder="Khách hàng"
+                            value={filterAliasId}
+                            onChange={(value: number | undefined, option: any) => {
+                                setFilterAliasId(value || undefined)
+                                setFilter("customer_id", option?.raw?.customer_id || undefined)
+                            }}
+                            placeholder="Mã KH chứng từ"
                             dataSource={{
-                                getList: listCustomers,
-                                getById: getCustomer,
+                                getList: listCustomerAliases,
+                                getById: getCustomerAlias,
                                 params: { page: 1, size: 20 },
                             }}
-                            mapOption={customerOption}
+                            mapOption={aliasCustomerOption}
                             wrapLabel
                         />
                     </div>
@@ -544,22 +549,23 @@ function BankLedgerDialog({
                             </SelectContent>
                         </Select>
                     </Field>
-                    <Field label="Khách hàng" className="md:col-span-2">
+                    <Field label="Mã KH chứng từ" className="md:col-span-2">
                         <AsyncSelect
-                            value={form.customer_id}
+                            value={form.alias_id}
                             onChange={(value: number | undefined, option: any) =>
                                 update({
-                                    customer_id: value,
-                                    customer_name: option?.raw?.name,
+                                    alias_id: value,
+                                    customer_id: option?.raw?.customer_id,
+                                    customer_name: option?.raw?.customer?.name || option?.raw?.alias_name,
                                 })
                             }
-                            placeholder="Chọn khách hàng"
+                            placeholder="Chọn mã KH chứng từ"
                             dataSource={{
-                                getList: listCustomers,
-                                getById: getCustomer,
+                                getList: listCustomerAliases,
+                                getById: getCustomerAlias,
                                 params: { page: 1, size: 20 },
                             }}
-                            mapOption={customerOption}
+                            mapOption={aliasOption}
                             wrapLabel
                         />
                     </Field>
@@ -641,12 +647,27 @@ function Summary({
     )
 }
 
-function customerOption(customer: { id: number; code?: string; name: string }) {
+function aliasOption(alias: CustomerAlias) {
     return {
-        value: customer.id,
-        label: `${customer.code ? `${customer.code} - ` : ""}${customer.name}`,
-        raw: customer,
+        value: alias.id,
+        label: aliasLabel(alias),
+        raw: alias,
     }
+}
+
+function aliasCustomerOption(alias: CustomerAlias) {
+    return {
+        value: alias.id,
+        label: aliasLabel(alias),
+        raw: alias,
+    }
+}
+
+function aliasLabel(alias: CustomerAlias) {
+    const aliasCode = alias.alias_code || `#${alias.id}`
+    const aliasName = alias.alias_name || alias.customer?.name || ""
+    const customerCode = alias.customer?.code ? ` (${alias.customer.code})` : ""
+    return `${aliasCode} - ${aliasName}${customerCode}`
 }
 
 function dateOnly(value?: string) {

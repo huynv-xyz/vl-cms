@@ -1,8 +1,11 @@
+import { apiPostMultipart } from "@/api/client"
 import { createCrudApi } from "@/api/crud"
+import type { Customer } from "@/features/customer/data/schema"
 
 export type CustomerAlias = {
     id: number
     customer_id: number
+    customer?: Customer
     alias_code?: string
     alias_name: string
     tax_code?: string
@@ -38,3 +41,10 @@ export const getCustomerAlias = api.detail
 export const createCustomerAlias = api.create
 export const updateCustomerAlias = api.update
 export const deleteCustomerAlias = api.delete
+
+export async function importInvoiceCustomerAliasesExcel(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<number>("/customer-aliases/import-invoice-excel", formData)
+}

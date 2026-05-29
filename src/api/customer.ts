@@ -1,3 +1,4 @@
+import { apiPostMultipart } from "@/api/client"
 import { createCrudApi } from "@/api/crud"
 import type { Customer } from "@/features/customer/data/schema"
 
@@ -13,8 +14,10 @@ export type CustomerListParams = {
 export type CreateCustomerRequest = {
     code: string
     name: string
+    address?: string
     type: string
     region: string
+    employee_id?: number
     status?: number
     note?: string
 }
@@ -23,8 +26,10 @@ export type UpdateCustomerRequest = {
     id: number
     code: string
     name: string
+    address?: string
     type: string
     region: string
+    employee_id?: number
     status?: number
     note?: string
 }
@@ -41,3 +46,10 @@ export const getCustomer = customerApi.detail
 export const createCustomer = customerApi.create
 export const updateCustomer = customerApi.update
 export const deleteCustomer = customerApi.delete
+
+export async function importCustomersExcel(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<number>("/customers/import-excel", formData)
+}

@@ -31,6 +31,8 @@ export type Export = {
 
     status: string
     note?: string
+    created_at?: string
+    updated_at?: string
 
     items?: ExportItem[]
 }

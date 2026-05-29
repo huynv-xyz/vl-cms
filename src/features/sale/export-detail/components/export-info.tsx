@@ -18,6 +18,8 @@ type Props = {
 export function ExportInfo({ data }: Props) {
     const customerName: string =
         (data as any).order?.customer?.name ?? ""
+    const customerAddress: string =
+        (data as any).order?.customer?.address ?? ""
 
     // Địa chỉ: ưu tiên delivery_address, fallback warehouse item đầu tiên
     const deliveryAddress: string =
@@ -107,7 +109,7 @@ export function ExportInfo({ data }: Props) {
                 </div>
                 <div>
                     <span className="text-muted-foreground">- Địa chỉ (bộ phận):&nbsp;</span>
-                    <span className="font-medium" />
+                    <span className="font-medium">{customerAddress}</span>
                 </div>
                 {/*<div>
                     <span className="text-muted-foreground">- Lý do xuất kho:&nbsp;</span>

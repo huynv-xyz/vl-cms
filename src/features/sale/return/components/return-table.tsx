@@ -9,6 +9,7 @@ import { getCustomer, listCustomers } from "@/api/customer"
 import { exportOption, orderOption } from "@/lib/option-mapper"
 import { cn, formatNumber } from "@/lib/utils"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
+import { DatePicker } from "@/components/date-picker"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -51,6 +52,7 @@ export function ReturnTable({
     )
     const totalCount = data.length
     const donePct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
+    const today = todayYmd()
 
     const setFilter = (key: string, value: any) => {
         onFiltersChange?.({
@@ -165,6 +167,34 @@ export function ReturnTable({
                             setFilter("export_id", exportId || undefined)
                         }
                     />
+
+                    <DatePicker
+                        className={cn(
+                            "h-10 min-w-[170px] flex-1",
+                            "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
+                        )}
+                        value={filters.from_date}
+                        onChange={(value) => setFilter("from_date", value || undefined)}
+                        placeholder="Từ ngày"
+                        disabled={(date) => {
+                            const value = dateToYmd(date)
+                            return value > today || Boolean(filters.to_date && value > filters.to_date)
+                        }}
+                    />
+
+                    <DatePicker
+                        className={cn(
+                            "h-10 min-w-[170px] flex-1",
+                            "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
+                        )}
+                        value={filters.to_date}
+                        onChange={(value) => setFilter("to_date", value || undefined)}
+                        placeholder="Đến ngày"
+                        disabled={(date) => {
+                            const value = dateToYmd(date)
+                            return Boolean(filters.from_date && value < filters.from_date)
+                        }}
+                    />
                 </div>
             </div>
 
@@ -180,6 +210,18 @@ export function ReturnTable({
             {dialog}
         </div>
     )
+}
+
+function dateToYmd(date: Date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+}
+
+function todayYmd() {
+    const now = new Date()
+    return dateToYmd(now)
 }
 
 function StatusFilter({

@@ -9,6 +9,8 @@ export type ReturnListParams = {
     order_id?: number
     export_id?: number
     customer_id?: number
+    from_date?: string
+    to_date?: string
     status?: string
 }
 
