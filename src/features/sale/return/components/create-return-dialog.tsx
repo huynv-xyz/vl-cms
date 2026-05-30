@@ -19,16 +19,16 @@ import { getExport } from "@/api/sale/export"
 import { ReturnItemsEditor } from "./return-items-editor"
 import { ReturnHeaderFields } from "./return-header-fields"
 
-export function CreateReturnDialog({ open, onOpenChange }: any) {
+export function CreateReturnDialog({ open, onOpenChange, order }: any) {
 
     const queryClient = useQueryClient()
     const initializedRef = useRef(false)
 
     const [formData, setFormData] = useState<any>({
-        customer_id: undefined,
+        customer_id: order?.customer_id,
         export_id: undefined,
         return_date: todayYmd(),
-        export_created_at: undefined,
+        export_date: undefined,
         status: "NEW",
         reason: "",
     })
@@ -61,16 +61,16 @@ export function CreateReturnDialog({ open, onOpenChange }: any) {
         if (!open) {
             initializedRef.current = false
             setFormData({
-                customer_id: undefined,
+                customer_id: order?.customer_id,
                 export_id: undefined,
                 return_date: todayYmd(),
-                export_created_at: undefined,
+                export_date: undefined,
                 status: "NEW",
                 reason: "",
             })
             setItems([])
         }
-    }, [open])
+    }, [open, order?.customer_id])
 
     // init items
     useEffect(() => {
@@ -86,16 +86,16 @@ export function CreateReturnDialog({ open, onOpenChange }: any) {
     useEffect(() => {
         if (!open || !exportDetail) return
 
-        const exportCreatedAt = exportDetail.created_at
-        const exportDate = dateOnly(exportCreatedAt)
+        const exportDateValue = exportDetail.export_date || exportDetail.created_at
+        const exportDate = dateOnly(exportDateValue)
         const currentReturnDate = formData.return_date || todayYmd()
-        const nextReturnDate = exportDate && currentReturnDate <= exportDate
-            ? nextDayYmd(exportDate)
+        const nextReturnDate = exportDate && currentReturnDate < exportDate
+            ? exportDate
             : currentReturnDate
 
         setFormData((current: any) => ({
             ...current,
-            export_created_at: exportCreatedAt,
+            export_date: exportDateValue,
             return_date: nextReturnDate,
         }))
     }, [open, exportDetail])
@@ -119,7 +119,7 @@ export function CreateReturnDialog({ open, onOpenChange }: any) {
 
             return createReturn({
                 export_id: exportId,
-                order_id: exportDetail?.order_id, // 👈 lấy từ export
+                order_id: order?.id ?? exportDetail?.order_id,
                 return_date: formData.return_date,
                 status: formData.status,
                 reason: formData.reason,
@@ -132,6 +132,9 @@ export function CreateReturnDialog({ open, onOpenChange }: any) {
 
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["returns"] })
+            if (order?.id) {
+                await queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] })
+            }
             toast.success("Tạo phiếu trả thành công")
             onOpenChange(false)
         },
@@ -170,6 +173,8 @@ export function CreateReturnDialog({ open, onOpenChange }: any) {
                             </div>
                             <ReturnHeaderFields
                                 value={formData}
+                                order={order}
+                                lockedCustomer={!!order?.id}
                                 onChange={(next) => {
                                     const changed = next.export_id !== exportId
                                     setFormData(next)
@@ -228,12 +233,6 @@ function todayYmd() {
     return dateToYmd(now)
 }
 
-function nextDayYmd(value: string) {
-    const date = new Date(`${value}T00:00:00`)
-    date.setDate(date.getDate() + 1)
-    return dateToYmd(date)
-}
-
 function dateToYmd(date: Date) {
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, "0")
@@ -248,5 +247,14 @@ function dateOnly(value?: string | number[]) {
         return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
     }
 
-    return value ? value.split("T")[0].split(" ")[0] : ""
+    if (!value) return ""
+
+    const datePart = value.split("T")[0].split(" ")[0]
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart
+
+    const match = datePart.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+    if (!match) return datePart
+
+    const [, day, month, year] = match
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`
 }

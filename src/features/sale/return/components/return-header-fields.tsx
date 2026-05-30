@@ -24,6 +24,8 @@ type Props = {
     value: any
     onChange: (value: any) => void
     lockedExport?: boolean
+    lockedCustomer?: boolean
+    order?: any
     showStatus?: boolean
 }
 
@@ -31,6 +33,8 @@ export function ReturnHeaderFields({
     value,
     onChange,
     lockedExport,
+    lockedCustomer,
+    order,
     showStatus = false,
 }: Props) {
     const update = (patch: any) => onChange({ ...value, ...patch })
@@ -51,7 +55,7 @@ export function ReturnHeaderFields({
                                     : undefined,
                         })
                     }
-                    disabled={lockedExport}
+                    disabled={lockedExport || lockedCustomer}
                     dataSource={{
                         getList: listCustomers,
                         getById: getCustomer,
@@ -76,6 +80,7 @@ export function ReturnHeaderFields({
                         params: {
                             page: 1,
                             size: 20,
+                            order_id: order?.id || undefined,
                             customer_id: value.customer_id || undefined,
                         },
                     }}
@@ -89,9 +94,9 @@ export function ReturnHeaderFields({
                     onChange={(returnDate) => update({ return_date: returnDate })}
                     placeholder="Chọn ngày trả"
                     disabled={(date) => {
-                        const minDate = dateOnly(value.export_created_at)
+                        const minDate = dateOnly(value.export_date)
                         if (!minDate) return false
-                        return dateToYmd(date) <= minDate
+                        return dateToYmd(date) < minDate
                     }}
                 />
             </Field>
@@ -157,7 +162,16 @@ function dateOnly(value?: string | number[]) {
         return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
     }
 
-    return value ? value.split("T")[0].split(" ")[0] : ""
+    if (!value) return ""
+
+    const datePart = value.split("T")[0].split(" ")[0]
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart
+
+    const match = datePart.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+    if (!match) return datePart
+
+    const [, day, month, year] = match
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`
 }
 
 function dateToYmd(date: Date) {

@@ -57,7 +57,7 @@ export function UpdateReturnDialog({
         customer_id: undefined,
         export_id: undefined,
         return_date: "",
-        export_created_at: undefined,
+        export_date: undefined,
         reason: "",
         status: "NEW",
     })
@@ -85,7 +85,7 @@ export function UpdateReturnDialog({
 
         setFormData((current: any) => ({
             ...current,
-            export_created_at: exportDetail.created_at,
+            export_date: exportDetail.export_date || exportDetail.created_at,
         }))
     }, [open, exportDetail])
 
@@ -208,6 +208,7 @@ export function UpdateReturnDialog({
                                 <ReturnHeaderFields
                                     value={formData}
                                     lockedExport
+                                    lockedCustomer
                                     showStatus
                                     onChange={setFormData}
                                 />
