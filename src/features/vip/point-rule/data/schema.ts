@@ -6,6 +6,7 @@ export type VipPointRule = {
     he_so_mb: number
     he_so_mn: number
     group_code?: string
+    nhom_tinh_diem?: string
     unit?: string
     description?: string
     status: number

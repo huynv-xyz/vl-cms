@@ -27,6 +27,13 @@ export const vipProductMappingColumns: ColumnDef<VipProductMapping>[] = [
     }),
 
     buildTextColumn<VipProductMapping>({
+        accessorKey: "customer_code",
+        title: "Mã KH riêng",
+        width: 140,
+        maxWidth: 150,
+    }),
+
+    buildTextColumn<VipProductMapping>({
         accessorKey: "group_code",
         title: "Mã chung",
         width: 130,
@@ -57,6 +64,18 @@ export const vipProductMappingColumns: ColumnDef<VipProductMapping>[] = [
     buildNumberColumn<VipProductMapping>({
         accessorKey: "conversion_factor",
         title: "Hệ số QĐ",
+        width: 110,
+    }),
+
+    buildNumberColumn<VipProductMapping>({
+        accessorKey: "he_so_mb",
+        title: "Hệ số MB",
+        width: 110,
+    }),
+
+    buildNumberColumn<VipProductMapping>({
+        accessorKey: "he_so_mn",
+        title: "Hệ số MN",
         width: 110,
     }),
 

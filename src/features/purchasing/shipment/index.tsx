@@ -25,7 +25,7 @@ export default function ShipmentPage() {
     } = useUrlListFilters(
         search,
         navigate,
-        ["status", "product_ids", "port_ids"],
+        ["status", "product_ids", "port_ids", "supplier_ids"],
         ["date_type", "date_from", "date_to"]
     )
 
@@ -39,6 +39,7 @@ export default function ShipmentPage() {
             multiFilters.status,
             multiFilters.product_ids,
             multiFilters.port_ids,
+            multiFilters.supplier_ids,
 
             singleFilters.date_type,
             singleFilters.date_from,
@@ -58,6 +59,7 @@ export default function ShipmentPage() {
 
             product_ids: requestFilters.product_ids,
             port_ids: requestFilters.port_ids,
+            supplier_ids: requestFilters.supplier_ids,
         },
         20,
         true,
@@ -71,6 +73,7 @@ export default function ShipmentPage() {
         date_to: requestFilters.date_to,
         product_ids: requestFilters.product_ids,
         port_ids: requestFilters.port_ids,
+        supplier_ids: requestFilters.supplier_ids,
     }
 
     return (
@@ -104,6 +107,7 @@ export default function ShipmentPage() {
 
                             product_ids: multiFilters.product_ids,
                             port_ids: multiFilters.port_ids,
+                            supplier_ids: multiFilters.supplier_ids,
 
                         }}
 
@@ -118,6 +122,7 @@ export default function ShipmentPage() {
                                 status: next.status,
                                 product_ids: next.product_ids,
                                 port_ids: next.port_ids,
+                                supplier_ids: next.supplier_ids,
 
                             })
 

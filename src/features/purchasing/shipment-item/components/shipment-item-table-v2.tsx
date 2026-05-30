@@ -25,6 +25,7 @@ import { useCrudDelete } from "@/hooks/use-crud-delete"
 import { getPort, listPorts } from "@/api/purchasing/port"
 import { getProduct } from "@/api/product"
 import { listContractItems } from "@/api/purchasing/contract-item"
+import { getSupplier, listSuppliers } from "@/api/purchasing/supplier"
 import { deleteShipmentItem } from "@/api/purchasing/shipment_items"
 import { useShipments } from "../../shipment/components/shipments-provider"
 import { formatNumber, getPageNumbers } from "@/lib/utils"
@@ -37,6 +38,7 @@ import {
     ChevronsRight,
     Clock,
     Container,
+    Globe2,
     StickyNote,
     Warehouse,
 } from "lucide-react"
@@ -54,6 +56,7 @@ type Filters = {
     product_ids?: string[]
     status?: string[]
     port_ids?: string[]
+    supplier_ids?: string[]
 }
 
 type FilterIdList = string[]
@@ -68,6 +71,12 @@ const DATE_FILTER_OPTIONS: { value: DateFilterType; label: string }[] = [
 type PortOptionSource = {
     id: string | number
     name: string
+}
+
+type SupplierOptionSource = {
+    id: string | number
+    name: string
+    nation?: { name?: string }
 }
 
 type ProductOptionSource = {
@@ -145,6 +154,25 @@ export function ShipmentItemTableV2({
                 </div>
 
                 <div className="flex w-full flex-wrap items-center gap-2">
+                    <AsyncMultiSelect
+                        className="h-10 min-w-[320px] flex-[1.5_1_0] border-slate-300 bg-white shadow-xs"
+                        value={filters.supplier_ids}
+                        onChange={(v: FilterIdList) => setFilter("supplier_ids", v)}
+                        placeholder="Quốc gia / Nhà cung cấp"
+                        searchPlaceholder="Tìm theo quốc gia hoặc nhà cung cấp..."
+                        dataSource={{
+                            getList: listSuppliers,
+                            getById: getSupplier,
+                            params: { page: 1, size: 20 },
+                        }}
+                        mapOption={(x: SupplierOptionSource) => ({
+                            value: x.id,
+                            label: x.nation?.name
+                                ? `${x.nation.name} · ${x.name}`
+                                : x.name,
+                        })}
+                    />
+
                     <AsyncMultiSelect
                         className="h-10 min-w-[170px] flex-1 border-slate-300 bg-white shadow-xs"
                         value={filters.port_ids}
@@ -371,10 +399,18 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
                     <DotRow color="amber" label="Về kho" value={shipment?.warehouse_at || ''} />
                 </Cell>
 
-                {/* KHO / CẢNG */}
-                <Cell label="KHO / CẢNG">
+                {/* KHO / CẢNG / QUỐC GIA */}
+                <Cell label="KHO / CẢNG / QUỐC GIA">
                     <IconRow icon={Warehouse} value={shipment?.warehouse?.name ?? "—"} />
                     <IconRow icon={Anchor} value={shipment?.destination_port?.name ?? "—"} />
+                    <IconRow
+                        icon={Globe2}
+                        value={
+                            shipment?.supplier?.nation?.name
+                                ? `${shipment.supplier.nation.name} · ${shipment.supplier.name}`
+                                : shipment?.supplier?.name ?? "—"
+                        }
+                    />
                 </Cell>
 
                 {/* TÌNH TRẠNG CẬP CẢNG */}

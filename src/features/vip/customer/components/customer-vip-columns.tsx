@@ -93,6 +93,24 @@ export const customerVipColumns: ColumnDef<CustomerVip>[] = [
         width: 130,
     }),
 
+    buildNumberColumn<CustomerVip>({
+        accessorKey: "common_group_point",
+        title: "Điểm nhóm chung",
+        width: 140,
+    }),
+
+    buildNumberColumn<CustomerVip>({
+        accessorKey: "ma_vthh_point",
+        title: "Điểm MA VTHH",
+        width: 130,
+    }),
+
+    buildNumberColumn<CustomerVip>({
+        accessorKey: "ma_rieng_point",
+        title: "Điểm mã riêng",
+        width: 130,
+    }),
+
     // ── Hạng VIP (tier + next tier arrow) ────────────────────────────
     {
         accessorKey: "tier_name",

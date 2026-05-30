@@ -63,9 +63,9 @@ export default function CustomerVipDetailPage() {
                         <Metric
                             icon={Award}
                             tone="info"
-                            label="Thưởng riêng"
-                            value={formatCurrency(Number(detail.private_bonus_amount ?? 0))}
-                            sub={`Thưởng/điểm: ${formatCurrency(Number(detail.reward_amount ?? 0))}`}
+                            label="Điểm mã riêng"
+                            value={formatNumber(Number(detail.ma_rieng_point ?? 0))}
+                            sub={`MA VTHH: ${formatNumber(Number(detail.ma_vthh_point ?? 0))}`}
                         />
                     </div>
 

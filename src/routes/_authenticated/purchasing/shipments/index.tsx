@@ -30,6 +30,12 @@ export const Route = createFileRoute(
                 ? search.port_ids
                 : undefined,
 
+        // ===== SUPPLIER (kèm quốc gia) =====
+        supplier_ids:
+            typeof search.supplier_ids === "string"
+                ? search.supplier_ids
+                : undefined,
+
         // ===== DATE FILTER =====
         date_type:
             typeof search.date_type === "string"

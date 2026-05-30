@@ -1,6 +1,7 @@
 import { Warehouse } from "@/features/warehouse/data/schema"
 import { Port } from "../../port/data/schema"
 import { ShipmentItem } from "../../shipment-item/data/schema"
+import type { Supplier } from "../../supplier/data/schema"
 import type { ShipmentStatus } from "./shipment-status"
 
 export type { ShipmentStatus }
@@ -24,6 +25,9 @@ export type Shipment = {
     destination_port_id?: number
 
     destination_port?: Port
+
+    // Backend đã enrich từ contract.supplier_id (kèm nation) khi list shipment-items
+    supplier?: Supplier
 
     exchange_rate?: number
     total_amount?: number

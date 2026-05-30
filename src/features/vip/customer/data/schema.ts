@@ -7,6 +7,9 @@ export type CustomerVip = {
     region: string
     group_code: string
     total_vip_point: number
+    common_group_point: number
+    ma_vthh_point: number
+    ma_rieng_point: number
     tier_code: string
     tier_name: string
     reward_amount: number

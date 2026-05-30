@@ -20,6 +20,10 @@ export const vipProductMappingSchema: RJSFSchema = {
                 minLength: "VTHH Con không được để trống",
             },
         },
+        customer_code: {
+            type: "string",
+            title: "Mã khách hàng riêng",
+        },
         group_code: {
             type: "string",
             title: "Mã chung",
@@ -40,6 +44,16 @@ export const vipProductMappingSchema: RJSFSchema = {
             type: "number",
             title: "Hệ số quy đổi",
             default: 1,
+        },
+        he_so_mb: {
+            type: "number",
+            title: "Hệ số MB",
+            default: 0,
+        },
+        he_so_mn: {
+            type: "number",
+            title: "Hệ số MN",
+            default: 0,
         },
         calc_point: {
             type: "integer",

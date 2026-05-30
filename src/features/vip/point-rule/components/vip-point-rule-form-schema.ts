@@ -36,6 +36,10 @@ export const vipPointRuleSchema: RJSFSchema = {
             type: "string",
             title: "Mã chung (VD: SMART 60)",
         },
+        nhom_tinh_diem: {
+            type: "string",
+            title: "Nhóm tính điểm",
+        },
         unit: {
             type: "string",
             title: "Đơn vị tính",

@@ -28,6 +28,13 @@ export const vipPointRuleColumns: ColumnDef<VipPointRule>[] = [
     }),
 
     buildTextColumn<VipPointRule>({
+        accessorKey: "nhom_tinh_diem",
+        title: "Nhóm tính điểm",
+        width: 150,
+        maxWidth: 170,
+    }),
+
+    buildTextColumn<VipPointRule>({
         accessorKey: "unit",
         title: "ĐVT",
         width: 80,
