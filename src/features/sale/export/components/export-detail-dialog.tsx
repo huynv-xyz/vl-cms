@@ -25,21 +25,24 @@ const EXPORT_DIALOG_PRINT_CSS = `
   #export-dialog-print-document, #export-dialog-print-document * { visibility: visible !important; }
   #export-dialog-print-document {
     display: block !important;
-    position: fixed !important;
-    left: 0 !important;
+    position: absolute !important;
+    left: 50% !important;
     top: 0 !important;
-    width: 100% !important;
+    width: 200mm !important;
+    max-width: 200mm !important;
     margin: 0 !important;
     padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
     background: white !important;
-    transform: none !important;
+    transform: translateX(-50%) !important;
     overflow: visible !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
   #export-dialog-print-document table { page-break-inside: auto; }
   #export-dialog-print-document tr { page-break-inside: avoid; page-break-after: auto; }
-  @page { size: A4 portrait; margin: 8mm; }
+  @page { size: 210mm 148mm; margin: 5mm; }
 }
 `
 

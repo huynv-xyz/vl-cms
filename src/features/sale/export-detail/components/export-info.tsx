@@ -73,30 +73,15 @@ export function ExportInfo({ data }: Props) {
                 </div>
             </div>
 
-            {/* ── Title row: PHIẾU XUẤT KHO | Nợ/Có ── */}
+            {/* ── Title row: PHIẾU XUẤT KHO ── */}
             <div className="flex border border-b-0 border-gray-400">
-                {/* Left: title + date */}
-                <div className="flex-1 text-center py-3 border-r border-gray-400">
+                {/* Title + date */}
+                <div className="flex-1 text-center py-3">
                     <div className="text-[22px] font-extrabold uppercase tracking-wide">
                         PHIẾU XUẤT KHO
                     </div>
                     <div className="text-[12px] italic text-muted-foreground mt-0.5">
                         {formatViDate(data.export_date)}
-                    </div>
-                </div>
-                {/* Right: accounting reference */}
-                <div className="w-[220px] shrink-0 text-[12px] px-3 py-2 space-y-0.5">
-                    <div className="flex gap-2">
-                        <span className="text-muted-foreground w-6">Nợ:</span>
-                        <span className="font-semibold">131</span>
-                    </div>
-                    <div className="flex gap-2">
-                        <span className="text-muted-foreground w-6">Có:</span>
-                        <span className="font-semibold">156</span>
-                    </div>
-                    <div className="flex gap-1 text-[11px] text-muted-foreground pt-1 border-t border-gray-200">
-                        <span>Số:</span>
-                        <span className="font-medium text-foreground">{data.export_no}</span>
                     </div>
                 </div>
             </div>

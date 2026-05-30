@@ -61,6 +61,19 @@ export function OrderItemsEditor({ items, setItems }: Props) {
         setItems(newItems)
     }
 
+    const selectProduct = (index: number, value: number | undefined, option: any) => {
+        if (value && items.some((x, idx) => idx !== index && x.product_id === value)) {
+            return
+        }
+
+        updateRow(index, {
+            product_id: value,
+            product: option?.raw,
+            unit_price: option?.raw?.price ?? 0,
+            unit: option?.raw?.unit,
+        })
+    }
+
     return (
         <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -73,10 +86,11 @@ export function OrderItemsEditor({ items, setItems }: Props) {
             </div>
 
             <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full min-w-[1360px] table-fixed text-sm">
+                <table className="w-full min-w-[1520px] table-fixed text-sm">
                     <colgroup>
                         <col className="w-12" />
-                        <col className="w-[520px]" />
+                        <col className="w-[260px]" />
+                        <col className="w-[420px]" />
                         <col className="w-[220px]" />
                         <col className="w-[130px]" />
                         <col className="w-[120px]" />
@@ -88,7 +102,8 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                     <thead className="bg-muted/50 text-muted-foreground text-[10px] uppercase tracking-wider">
                         <tr>
                             <th className="px-3 py-2.5 text-center font-semibold">#</th>
-                            <th className="px-3 py-2.5 text-left font-semibold">Sản phẩm</th>
+                            <th className="px-3 py-2.5 text-left font-semibold">Mã sản phẩm</th>
+                            <th className="px-3 py-2.5 text-left font-semibold">Tên sản phẩm</th>
                             <th className="px-3 py-2.5 text-left font-semibold">Mô tả HH</th>
                             <th className="px-3 py-2.5 text-center font-semibold">Khuyến mãi</th>
                             <th className="px-3 py-2.5 text-right font-semibold">Số lượng</th>
@@ -125,32 +140,50 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                         <AsyncSelect
                                             value={row.product_id}
                                             onChange={(value: any, option: any) => {
-                                                if (items.some((x, idx) => idx !== i && x.product_id === value)) {
-                                                    return
-                                                }
-
-                                                updateRow(i, {
-                                                    product_id: value,
-                                                    product: option?.raw,
-                                                    unit_price: option?.raw?.price ?? 0,
-                                                    unit: option?.raw?.unit,
-                                                })
+                                                selectProduct(i, value, option)
                                             }}
                                             dataSource={{
-                                                getList: listProducts,
+                                                getList: listProductsByCode,
                                                 getById: getProduct,
                                                 params: { page: 1, size: 50 },
                                             }}
                                             mapOption={(x: any) => ({
                                                 value: x.id,
-                                                label: productOptionLabel(x),
+                                                label: productCodeOptionLabel(x),
+                                                raw: x,
+                                            })}
+                                            optionWrapLabel
+                                            wrapLabel
+                                            className="min-w-0"
+                                            popoverContentClassName="w-[min(420px,calc(100vw-2rem))]"
+                                            placeholder="Chọn mã"
+                                            searchPlaceholder="Tìm theo mã sản phẩm..."
+                                            emptyText="Không tìm thấy sản phẩm phù hợp"
+                                        />
+                                    </td>
+
+                                    <td className="min-w-0 px-3 py-3 align-top">
+                                        <AsyncSelect
+                                            value={row.product_id}
+                                            onChange={(value: any, option: any) => {
+                                                selectProduct(i, value, option)
+                                            }}
+                                            dataSource={{
+                                                getList: listProductsByName,
+                                                getById: getProduct,
+                                                params: { page: 1, size: 50 },
+                                            }}
+                                            mapOption={(x: any) => ({
+                                                value: x.id,
+                                                label: productNameOptionLabel(x),
                                                 raw: x,
                                             })}
                                             optionWrapLabel
                                             wrapLabel
                                             className="min-w-0"
                                             popoverContentClassName="w-[min(720px,calc(100vw-2rem))]"
-                                            searchPlaceholder="Tìm mã hàng, mã báo giá, mã MISA, tên hàng..."
+                                            placeholder="Chọn tên sản phẩm"
+                                            searchPlaceholder="Tìm theo tên sản phẩm..."
                                             emptyText="Không tìm thấy sản phẩm phù hợp"
                                         />
                                         {row.product && (
@@ -274,7 +307,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
 
                         {!items.length && (
                             <tr>
-                                <td colSpan={9} className="px-4 py-14">
+                                <td colSpan={10} className="px-4 py-14">
                                     <div
                                         className="text-muted-foreground flex flex-col items-center gap-3 text-center text-sm"
                                         tabIndex={0}
@@ -309,13 +342,30 @@ export function OrderItemsEditor({ items, setItems }: Props) {
     )
 }
 
-function productOptionLabel(product: any) {
-    return [
-        product.code,
-        product.quote_code,
-        product.misa_material_code,
-        product.name,
-    ].filter(Boolean).join(" - ")
+function listProductsByCode(params: any) {
+    const { keyword, ...rest } = params ?? {}
+    return listProducts({
+        ...rest,
+        keyword: undefined,
+        code: keyword || undefined,
+    })
+}
+
+function listProductsByName(params: any) {
+    const { keyword, ...rest } = params ?? {}
+    return listProducts({
+        ...rest,
+        keyword: undefined,
+        name: keyword || undefined,
+    })
+}
+
+function productCodeOptionLabel(product: any) {
+    return product.code || `#${product.id}`
+}
+
+function productNameOptionLabel(product: any) {
+    return product.name || `#${product.id}`
 }
 
 function formatOrderInput(value?: number) {

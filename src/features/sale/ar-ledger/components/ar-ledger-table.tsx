@@ -293,7 +293,7 @@ export function ArLedgerTable({
                         dataSource={{
                             getList: listCustomers,
                             getById: getCustomer,
-                            params: { page: 1, size: 20 },
+                            params: { page: 1, size: 20, keyword_scope: "code_name" },
                         }}
                         mapOption={(customer: { id: number; code?: string; name: string }) => ({
                             value: customer.id,
@@ -814,11 +814,11 @@ function dateValue(value?: string): number {
 }
 
 function lineDescription(item: ArLedger): string {
-    return item.description || item.product?.quote_name || item.product?.name || ""
+    return item.description || item.product?.name || ""
 }
 
 function productLabel(item: ArLedger): string {
-    return item.product?.quote_name || item.product?.name || (item.product_id ? `#${item.product_id}` : "")
+    return item.product?.name || (item.product_id ? `#${item.product_id}` : "")
 }
 
 function num(value: unknown): number {

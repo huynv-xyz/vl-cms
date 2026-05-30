@@ -49,9 +49,6 @@ export function ExportItems({ data, items }: Props) {
         0
     )
 
-    // Padding rows so table has at least 5 data rows
-    const padCount = Math.max(0, 5 - items.length)
-
     return (
         <div>
 
@@ -179,19 +176,6 @@ export function ExportItems({ data, items }: Props) {
                         )
                     })}
 
-                    {/* Padding rows */}
-                    {Array.from({ length: padCount }).map((_, i) => (
-                        <tr key={`pad-${i}`} className="h-8">
-                            {Array.from({ length: 8 }).map((_, j) => (
-                                <td
-                                    key={j}
-                                    className="border border-gray-400 px-2 py-1"
-                                >
-                                    &nbsp;
-                                </td>
-                            ))}
-                        </tr>
-                    ))}
                 </tbody>
 
                 <tfoot>
