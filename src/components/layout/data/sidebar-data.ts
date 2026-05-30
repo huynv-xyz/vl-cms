@@ -28,6 +28,7 @@ import {
     SlidersHorizontal,
     GitMerge,
     History,
+    Building2,
 } from 'lucide-react'
 import { SidebarData } from '../types'
 import { Logo } from '@/assets/logo'
@@ -98,6 +99,11 @@ export const sidebarData: SidebarData = {
                     title: 'Tiền tệ',
                     url: '/currencies',
                     icon: DollarSign,
+                },
+                {
+                    title: 'Công ty',
+                    url: '/companies',
+                    icon: Building2,
                 },
             ],
         },

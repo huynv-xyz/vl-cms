@@ -10,20 +10,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { useUpdateStatus } from "@/hooks/use-update-status"
-import { updateExportStatus } from "@/api/sale/export"
 import type { Export } from "../data/schema"
 import { ExportRowActions } from "./export-row-actions"
 import { EXPORT_STATUSES, exportStatusLabel } from "./export-status"
 import { FileText, User } from "lucide-react"
 
 export function useExportColumns() {
-
-    const statusMutation = useUpdateStatus<Export>({
-        queryKey: ["exports"],
-        mutationFn: updateExportStatus,
-        getId: (x) => x.id,
-    })
 
     const columns: ColumnDef<Export>[] = [
 
@@ -108,18 +100,10 @@ export function useExportColumns() {
             header: "Trạng thái",
             cell: ({ row }) => {
                 const status = row.original.status || "NEW"
-                const isLocked = status === "DONE"
-
                 return (
                     <Select
                         value={status}
-                        onValueChange={(value) =>
-                            statusMutation.mutate({
-                                id: row.original.id,
-                                status: value,
-                            })
-                        }
-                        disabled={statusMutation.isPending || isLocked}
+                        disabled
                     >
                         <SelectTrigger className="w-[140px]">
                             <SelectValue>
@@ -128,7 +112,7 @@ export function useExportColumns() {
                         </SelectTrigger>
                         <SelectContent>
                             {EXPORT_STATUSES.map((s) => (
-                                <SelectItem key={s.value} value={s.value} disabled={isLocked}>
+                                <SelectItem key={s.value} value={s.value} disabled>
                                     {s.label}
                                 </SelectItem>
                             ))}

@@ -6,6 +6,7 @@ export type CustomerListParams = {
     page: number
     size: number
     keyword?: string
+    keyword_scope?: "code_name"
     type?: string
     region?: string
     status?: string

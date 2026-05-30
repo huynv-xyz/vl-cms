@@ -6,6 +6,8 @@ export type ProductListParams = {
     page: number
     size: number
     keyword?: string
+    code?: string
+    name?: string
     status?: string
     nature?: string
     group_code?: string

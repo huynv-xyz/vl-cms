@@ -8,21 +8,33 @@ import { Printer } from "lucide-react"
 
 const EXPORT_PRINT_CSS = `
 @media print {
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
   body * { visibility: hidden !important; }
   #export-print-area, #export-print-area * { visibility: visible !important; }
   #export-print-area {
     position: absolute !important;
-    left: 0 !important;
+    left: 50% !important;
     top: 0 !important;
-    width: 100% !important;
+    width: 200mm !important;
+    max-width: 200mm !important;
     margin: 0 !important;
     padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
+    background: white !important;
+    transform: translateX(-50%) !important;
+    overflow: visible !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
   #export-print-area table { page-break-inside: auto; }
   #export-print-area tr { page-break-inside: avoid; page-break-after: auto; }
-  @page { size: A4 portrait; margin: 8mm; }
+  @page { size: 210mm 148mm; margin: 5mm; }
 }
 `
 
@@ -54,7 +66,7 @@ export default function ExportDetailPage({ id }: { id: number }) {
             }
         >
             {(data) => (
-                <div className="max-w-5xl mx-auto">
+                <div className="max-w-5xl mx-auto print:m-0 print:max-w-none">
                     <style>{EXPORT_PRINT_CSS}</style>
                     <div
                         id="export-print-area"

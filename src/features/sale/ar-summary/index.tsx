@@ -248,11 +248,13 @@ function ArSummaryTable({
 
             <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1380px] border-collapse text-sm">
+                    <table className="w-full min-w-[1680px] border-collapse text-sm">
                         <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500">
                             <tr>
                                 <ReportTh rowSpan={2} className="w-[170px]">Mã khách hàng</ReportTh>
                                 <ReportTh rowSpan={2} className="w-[240px]">Tên khách hàng</ReportTh>
+                                <ReportTh rowSpan={2} className="w-[150px]">Mã nhân viên</ReportTh>
+                                <ReportTh rowSpan={2} className="w-[220px]">Tên nhân viên</ReportTh>
                                 <ReportTh rowSpan={2} className="min-w-[320px]">Địa chỉ</ReportTh>
                                 <ReportTh colSpan={2} className="text-center">Số dư đầu kỳ</ReportTh>
                                 <ReportTh colSpan={2} className="text-center">Phát sinh</ReportTh>
@@ -270,7 +272,7 @@ function ArSummaryTable({
                         <tbody>
                             {data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={10} className="border border-slate-300 px-4 py-12 text-center text-sm text-slate-500">
+                                    <td colSpan={11} className="border border-slate-300 px-4 py-12 text-center text-sm text-slate-500">
                                         Không có dữ liệu công nợ.
                                     </td>
                                 </tr>
@@ -302,8 +304,14 @@ function ArSummaryTable({
                                                     <span className="font-medium text-slate-950">{row.customer_name || "-"}</span>
                                                 </Link>
                                             </ReportTd>
+                                            <ReportTd className="font-mono text-xs text-slate-700">
+                                                {row.employee_code || "-"}
+                                            </ReportTd>
+                                            <ReportTd className="text-slate-800">
+                                                {row.employee_name || "-"}
+                                            </ReportTd>
                                             <ReportTd className="text-slate-700">
-                                                {row.customer_region || ""}
+                                                {row.customer_address || ""}
                                             </ReportTd>
                                             <ReportMoneyCell value={Math.max(opening, 0)} />
                                             <ReportMoneyCell value={Math.max(-opening, 0)} />
@@ -319,7 +327,7 @@ function ArSummaryTable({
                         {data.length > 0 ? (
                             <tfoot className="border-t bg-slate-50 font-bold">
                                 <tr>
-                                    <ReportTd colSpan={3} className="text-right text-slate-950">
+                                    <ReportTd colSpan={5} className="text-right text-slate-950">
                                         Tổng
                                     </ReportTd>
                                     <ReportMoneyCell value={tableTotals.openingDebit} strong />

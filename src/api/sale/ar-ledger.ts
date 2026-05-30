@@ -33,6 +33,9 @@ export type ArLedgerSummary = {
     customer_code?: string
     customer_name?: string
     customer_region?: string
+    customer_address?: string
+    employee_code?: string
+    employee_name?: string
     opening_balance: number
     debit_amount: number
     credit_amount: number
