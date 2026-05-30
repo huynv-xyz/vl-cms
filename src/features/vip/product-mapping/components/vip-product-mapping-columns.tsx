@@ -62,12 +62,6 @@ export const vipProductMappingColumns: ColumnDef<VipProductMapping>[] = [
     }),
 
     buildNumberColumn<VipProductMapping>({
-        accessorKey: "conversion_factor",
-        title: "Hệ số QĐ",
-        width: 110,
-    }),
-
-    buildNumberColumn<VipProductMapping>({
         accessorKey: "he_so_mb",
         title: "Hệ số MB",
         width: 110,
@@ -83,14 +77,6 @@ export const vipProductMappingColumns: ColumnDef<VipProductMapping>[] = [
         accessorKey: "calc_point",
         title: "Tính điểm",
         width: 100,
-        mapValueToLabel: (v) => v === 1 ? "Có" : "Không",
-        mapValueToVariant: (v) => v === 1 ? "default" : "secondary",
-    }),
-
-    buildBadgeColumn<VipProductMapping>({
-        accessorKey: "calc_reward",
-        title: "Tính thưởng",
-        width: 110,
         mapValueToLabel: (v) => v === 1 ? "Có" : "Không",
         mapValueToVariant: (v) => v === 1 ? "default" : "secondary",
     }),

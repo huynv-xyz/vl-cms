@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
     CalendarDays,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 
 import { deleteDelivery, updateDeliveryStatus } from "@/api/sale/delivery"
+import { getMyPermissions } from "@/api/auth/permission"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -47,6 +48,14 @@ export function OrderDeliveries({ order, deliveries }: any) {
     const [selectedId, setSelectedId] = useState<number | null>(null)
 
     const isEditable = order?.status === "CONFIRMED"
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canCreateDelivery = hasPermission(permissions, "sales.deliveries", "create")
+    const canUpdateDelivery = hasPermission(permissions, "sales.deliveries", "update")
+    const canUpdateDeliveryStatus =
+        hasPermission(permissions, "sales.deliveries", "status.update") || canUpdateDelivery
 
     const { mutate: removeDelivery, isPending } = useMutation({
         mutationFn: deleteDelivery,
@@ -101,7 +110,7 @@ export function OrderDeliveries({ order, deliveries }: any) {
                     </div>
                 </div>
 
-                {isEditable && (
+                {isEditable && canCreateDelivery && (
                     <Button size="sm" onClick={() => setCreateOpen(true)}>
                         <Plus className="mr-1.5 h-4 w-4" />
                         Tạo phiếu giao
@@ -163,7 +172,7 @@ export function OrderDeliveries({ order, deliveries }: any) {
                                             onValueChange={(status) =>
                                                 changeStatus({ id: delivery.id, status })
                                             }
-                                            disabled={isUpdating || isRowLocked}
+                                            disabled={isUpdating || isRowLocked || !canUpdateDeliveryStatus}
                                         >
                                             <SelectTrigger className="h-8 w-[150px]">
                                                 <SelectValue>
@@ -193,7 +202,7 @@ export function OrderDeliveries({ order, deliveries }: any) {
                                         >
                                             <Eye className="h-4 w-4" />
                                         </Button>
-                                        {!isRowLocked && (
+                                        {!isRowLocked && canUpdateDelivery && (
                                             <>
                                                 <Button
                                                     size="icon"
@@ -228,7 +237,7 @@ export function OrderDeliveries({ order, deliveries }: any) {
                 </div>
             )}
 
-            {isEditable && (
+            {isEditable && canCreateDelivery && (
                 <CreateDeliveryDialog
                     order={order}
                     open={createOpen}
@@ -254,6 +263,10 @@ export function OrderDeliveries({ order, deliveries }: any) {
             />
         </div>
     )
+}
+
+function hasPermission(permissions: any[], module: string, action: string) {
+    return permissions.some((p: any) => p.module === module && p.action === action)
 }
 
 function ItemsTable({ items }: { items: any[] }) {

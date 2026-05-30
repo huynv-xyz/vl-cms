@@ -28,7 +28,7 @@ const transactionApi = createCrudApi<
 
 export const listTransactions = transactionApi.list
 
-export function importTransactionsCsv(file: File) {
+export function importTransactionsFile(file: File) {
     const formData = new FormData()
     formData.append("file", file)
 
@@ -37,3 +37,5 @@ export function importTransactionsCsv(file: File) {
         formData
     )
 }
+
+export const importTransactionsCsv = importTransactionsFile

@@ -1,5 +1,6 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Link } from "@tanstack/react-router"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
 import { buildActionsColumn } from "@/components/crud/build-actions-column"
@@ -11,11 +12,30 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import type { Export } from "../data/schema"
+import { getMyPermissions } from "@/api/auth/permission"
+import { updateExportStatus } from "@/api/sale/export"
 import { ExportRowActions } from "./export-row-actions"
 import { EXPORT_STATUSES, exportStatusLabel } from "./export-status"
 import { FileText, User } from "lucide-react"
 
 export function useExportColumns() {
+    const queryClient = useQueryClient()
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canUpdateStatus = permissions.some(
+        (p: any) =>
+            p.module === "sales.exports" &&
+            (p.action === "status.update" || p.action === "update")
+    )
+    const { mutate: changeStatus, isPending } = useMutation({
+        mutationFn: ({ id, status }: { id: number; status: string }) =>
+            updateExportStatus(id, status),
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["exports"] })
+        },
+    })
 
     const columns: ColumnDef<Export>[] = [
 
@@ -103,7 +123,15 @@ export function useExportColumns() {
                 return (
                     <Select
                         value={status}
-                        disabled
+                        disabled={
+                            !canUpdateStatus ||
+                            isPending ||
+                            status === "DONE" ||
+                            status === "CANCELLED"
+                        }
+                        onValueChange={(next) =>
+                            changeStatus({ id: row.original.id, status: next })
+                        }
                     >
                         <SelectTrigger className="w-[140px]">
                             <SelectValue>

@@ -32,9 +32,19 @@ const EXPORT_PRINT_CSS = `
     break-inside: avoid;
     page-break-inside: avoid;
   }
+  #export-print-area .export-print-title { font-size: 17px !important; }
+  #export-print-area .export-print-company { margin-bottom: 4px !important; }
+  #export-print-area .export-print-info-lines { padding-top: 5px !important; padding-bottom: 5px !important; }
+  #export-print-area table { font-size: 10px !important; line-height: 1.2 !important; }
+  #export-print-area th,
+  #export-print-area td { padding: 3px 5px !important; }
+  #export-print-area .export-print-note { padding-top: 4px !important; padding-bottom: 4px !important; }
+  #export-print-area .export-print-signatures { padding-top: 6px !important; padding-bottom: 6px !important; }
+  #export-print-area .export-print-sign-date { margin-bottom: 10px !important; }
+  #export-print-area .export-print-sign-space { margin-top: 32px !important; }
   #export-print-area table { page-break-inside: auto; }
   #export-print-area tr { page-break-inside: avoid; page-break-after: auto; }
-  @page { size: 210mm 148mm; margin: 5mm; }
+  @page { size: A5 landscape; margin: 3mm; }
 }
 `
 

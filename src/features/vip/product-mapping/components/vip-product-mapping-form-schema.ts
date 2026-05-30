@@ -40,11 +40,6 @@ export const vipProductMappingSchema: RJSFSchema = {
             type: "string",
             title: "Đơn vị tính",
         },
-        conversion_factor: {
-            type: "number",
-            title: "Hệ số quy đổi",
-            default: 1,
-        },
         he_so_mb: {
             type: "number",
             title: "Hệ số MB",
@@ -59,20 +54,6 @@ export const vipProductMappingSchema: RJSFSchema = {
             type: "integer",
             title: "Tính điểm",
             default: 1,
-            enum: [0, 1],
-            enumNames: ["Không", "Có"],
-        },
-        calc_reward: {
-            type: "integer",
-            title: "Tính thưởng",
-            default: 1,
-            enum: [0, 1],
-            enumNames: ["Không", "Có"],
-        },
-        is_promotion: {
-            type: "integer",
-            title: "Hàng khuyến mãi",
-            default: 0,
             enum: [0, 1],
             enumNames: ["Không", "Có"],
         },

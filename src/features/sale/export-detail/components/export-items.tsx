@@ -64,6 +64,12 @@ export function ExportItems({ data, items }: Props) {
                             STT
                         </th>
                         <th
+                            className="border border-gray-400 px-2 py-1.5 align-middle w-[92px]"
+                            rowSpan={2}
+                        >
+                            Mã hàng
+                        </th>
+                        <th
                             className="border border-gray-400 px-2 py-1.5 align-middle"
                             rowSpan={2}
                         >
@@ -101,6 +107,12 @@ export function ExportItems({ data, items }: Props) {
                         >
                             Xuất tại kho
                         </th>
+                        <th
+                            className="border border-gray-400 px-2 py-1.5 align-middle w-[100px]"
+                            rowSpan={2}
+                        >
+                            Lô hàng
+                        </th>
                     </tr>
                     {/* Row 2: Yêu cầu / Thực xuất */}
                     <tr className="bg-gray-100 text-center font-semibold">
@@ -113,7 +125,7 @@ export function ExportItems({ data, items }: Props) {
                     </tr>
                     {/* Column reference row A–4 */}
                     <tr className="bg-gray-50 text-center text-[11px] text-muted-foreground italic">
-                        {["A", "B", "C", "D", "1", "2", "3", "4"].map((label) => (
+                        {["A", "B", "C", "D", "E", "1", "2", "3", "4", "5"].map((label) => (
                             <td
                                 key={label}
                                 className="border border-gray-400 px-1 py-0.5"
@@ -149,6 +161,9 @@ export function ExportItems({ data, items }: Props) {
                                 <td className="border border-gray-400 px-2 py-1.5 text-center">
                                     {idx + 1}
                                 </td>
+                                <td className="border border-gray-400 px-2 py-1.5 font-mono text-[11px]">
+                                    {item.product?.code ?? ""}
+                                </td>
                                 <td className="border border-gray-400 px-2 py-1.5">
                                     {item.product?.name}
                                 </td>
@@ -170,7 +185,12 @@ export function ExportItems({ data, items }: Props) {
                                     {lineTypeLabel(oi?.line_type)}
                                 </td>
                                 <td className="border border-gray-400 px-2 py-1.5">
-                                    {item.warehouse?.name ?? ""}
+                                    {item.warehouse?.code
+                                        ? `${item.warehouse.code} - ${item.warehouse.name}`
+                                        : item.warehouse?.name ?? ""}
+                                </td>
+                                <td className="border border-gray-400 px-2 py-1.5">
+                                    {item.lot_no || item.lot_nos || ""}
                                 </td>
                             </tr>
                         )
@@ -181,7 +201,7 @@ export function ExportItems({ data, items }: Props) {
                 <tfoot>
                     <tr className="font-semibold bg-gray-100">
                         <td
-                            colSpan={4}
+                            colSpan={5}
                             className="border border-gray-400 px-2 py-1.5 text-right"
                         >
                             Cộng
@@ -194,18 +214,19 @@ export function ExportItems({ data, items }: Props) {
                         </td>
                         <td className="border border-gray-400 px-2 py-1.5" />
                         <td className="border border-gray-400 px-2 py-1.5" />
+                        <td className="border border-gray-400 px-2 py-1.5" />
                     </tr>
                 </tfoot>
             </table>
 
             {/* ── Footer note ── */}
-            <div className="border border-t-0 border-gray-400 px-3 py-1.5 text-xs text-muted-foreground">
+            <div className="export-print-note border border-t-0 border-gray-400 px-3 py-1.5 text-xs text-muted-foreground">
                 - Số chứng từ gốc kèm theo: .......................................
             </div>
 
             {/* ── Signature section ── */}
-            <div className="border border-t-0 border-gray-400 px-4 pt-3 pb-5">
-                <div className="mb-7 mr-10 text-right text-[11px] italic text-muted-foreground">
+            <div className="export-print-signatures border border-t-0 border-gray-400 px-4 pt-3 pb-5">
+                <div className="export-print-sign-date mb-7 mr-10 text-right text-[11px] italic text-muted-foreground">
                     Ngày ...... tháng ...... năm .........
                 </div>
                 <div className="grid grid-cols-5 gap-2 text-center text-[12px]">
@@ -222,7 +243,7 @@ export function ExportItems({ data, items }: Props) {
                                 {sign}
                             </div>
                             {/* Signature space */}
-                            <div className="mt-16 text-[11px] text-muted-foreground">
+                            <div className="export-print-sign-space mt-16 text-[11px] text-muted-foreground">
                                 &nbsp;
                             </div>
                         </div>

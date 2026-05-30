@@ -29,3 +29,13 @@ export const deleteExport = exportApi.delete
 export function updateExportStatus(id: number, status: string) {
     return apiPut(`/sales/exports/${id}/status`, { status })
 }
+
+export function updateExportItemWarehouse(
+    exportId: number,
+    itemId: number,
+    warehouseId: number
+) {
+    return apiPut(`/sales/exports/${exportId}/items/${itemId}/warehouse`, {
+        warehouse_id: warehouseId,
+    })
+}

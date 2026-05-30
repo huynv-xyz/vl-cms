@@ -1,7 +1,7 @@
 import { useRef } from "react"
 import { Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { importTransactionsCsv, type ImportTransactionsResponse } from "@/api/transactions"
+import { importTransactionsFile, type ImportTransactionsResponse } from "@/api/transactions"
 
 type ImportTransactionButtonProps = {
     disabled?: boolean
@@ -32,7 +32,7 @@ export function ImportTransactionButton({
 
         try {
             onUploadingChange?.(true)
-            const result = await importTransactionsCsv(file)
+            const result = await importTransactionsFile(file)
             onSuccess?.(result)
         } catch (error) {
             onError?.(error as Error)
@@ -46,14 +46,14 @@ export function ImportTransactionButton({
             <input
                 ref={inputRef}
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv,.xlsx,.xls,.xlsb,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 className="hidden"
                 onChange={handleFileChange}
             />
 
             <Button variant="outline" onClick={handleOpenFilePicker} disabled={disabled}>
                 <Upload className="size-4" />
-                Import
+                Import Excel
             </Button>
         </>
     )

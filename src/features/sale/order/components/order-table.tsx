@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
     AlertCircle,
@@ -31,6 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { getCustomer, listCustomers } from "@/api/customer"
 import { getEmployee, listEmployees } from "@/api/employee"
+import { getMyPermissions } from "@/api/auth/permission"
 import { updateOrderStatus } from "@/api/sale/order"
 
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
@@ -52,6 +53,13 @@ export function OrderTable({
     onFiltersChange,
 }: any) {
     const summary = buildSummary(data)
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canUpdateOrder =
+        hasPermission(permissions, "sales.orders", "update") ||
+        hasPermission(permissions, "sales.orders", "status.update")
 
     const setFilter = (key: string, value: any) =>
         onFiltersChange?.({ ...filters, [key]: value })
@@ -248,6 +256,7 @@ export function OrderTable({
                                 key={order.id}
                                 index={pagination.pageIndex * pagination.pageSize + index + 1}
                                 order={order}
+                                canUpdateOrder={canUpdateOrder}
                             />
                         ))
                     )}
@@ -270,7 +279,15 @@ export function OrderTable({
 // ─────────────────────────────────────────────────────────────────────────────
 // OrderCard
 // ─────────────────────────────────────────────────────────────────────────────
-function OrderCard({ index, order }: { index: number; order: Order }) {
+function OrderCard({
+    index,
+    order,
+    canUpdateOrder,
+}: {
+    index: number
+    order: Order
+    canUpdateOrder: boolean
+}) {
     const { openEdit } = useOrders()
     const queryClient = useQueryClient()
 
@@ -348,7 +365,7 @@ function OrderCard({ index, order }: { index: number; order: Order }) {
                     <Select
                         value={status}
                         onValueChange={(v) => changeStatus({ id: order.id, status: v })}
-                        disabled={isPending || isLocked}
+                        disabled={isPending || isLocked || !canUpdateOrder}
                     >
                         <SelectTrigger
                             className={cn(
@@ -379,7 +396,7 @@ function OrderCard({ index, order }: { index: number; order: Order }) {
                         </SelectContent>
                     </Select>
 
-                    {!isLocked && (
+                    {!isLocked && canUpdateOrder && (
                         <CrudRowActions
                             row={order}
                             onEdit={() => openEdit(order)}
@@ -637,10 +654,15 @@ function buildSummary(data: Order[]) {
     )
 }
 
-function exportOrdersXlsx(data: Order[]) {
+function hasPermission(permissions: any[], module: string, action: string) {
+    return permissions.some((p: any) => p.module === module && p.action === action)
+}
+
+export function exportOrdersXlsx(data: Order[], filename?: string) {
     const rows: (string | number)[][] = [
         [
             "Ngày đặt hàng",
+            "Trạng thái đơn",
             "Tình trạng giao hàng",
             "Người thực hiện",
             "Số đơn hàng",
@@ -649,9 +671,12 @@ function exportOrdersXlsx(data: Order[]) {
             "Mã hàng hóa",
             "Diễn giải",
             "Mô tả HH",
+            "Loại dòng",
             "Đơn vị",
             "Số lượng",
             "Đơn giá bán",
+            "Chiết khấu",
+            "Thành tiền",
             "Ghi chú",
         ],
     ]
@@ -662,9 +687,12 @@ function exportOrdersXlsx(data: Order[]) {
         items.forEach((item: any) => {
             const quantity = Number(item?.quantity || 0)
             const unitPrice = Number(item?.unit_price || 0)
+            const discount = Number(item?.discount || 0)
+            const amount = Math.max(quantity * unitPrice - discount, 0)
 
             rows.push([
                 formatDate(order.order_date),
+                getOrderStatusMeta(order.status || "NEW").label,
                 getDeliveryStatusLabel(order),
                 formatEmployee(order.employee),
                 order.order_no || "",
@@ -673,17 +701,31 @@ function exportOrdersXlsx(data: Order[]) {
                 item?.product?.code || item?.product?.quote_code || "",
                 item?.product?.name || item?.product_name || "",
                 item?.description || "",
+                lineTypeLabel(item?.line_type),
                 item?.product?.unit || item?.unit || "",
                 quantity,
                 unitPrice,
+                discount,
+                amount,
                 order.note || "",
             ])
         })
     })
 
-    exportXlsx(`don-hang-${new Date().toISOString().slice(0, 10)}.xlsx`, [
+    exportXlsx(filename || `don-hang-${new Date().toISOString().slice(0, 10)}.xlsx`, [
         { name: "Don hang", rows },
     ])
+}
+
+export function exportOrderXlsx(order: Order) {
+    const safeOrderNo = (order as any).order_no || `don-${order.id}`
+    exportOrdersXlsx([order], `phieu-don-dat-hang-${safeOrderNo}.xlsx`)
+}
+
+function lineTypeLabel(value?: string) {
+    if (value === "PROMOTION") return "Hàng tặng"
+    if (value === "SAMPLE") return "Hàng mẫu"
+    return "Hàng bán"
 }
 
 function getDeliveryStatusLabel(order: Order) {

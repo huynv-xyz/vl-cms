@@ -1,1 +1,0 @@
-import{N as o}from"./index-BLfqKhgo.js";const n=o;export{n as component};

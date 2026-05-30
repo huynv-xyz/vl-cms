@@ -1,12 +1,15 @@
 import type { Export } from "../../export/data/schema"
 
-/** Format "dd-MM-yyyy" → "Ngày DD tháng MM năm YYYY" */
+/** Format "dd-MM-yyyy" hoặc "yyyy-MM-dd" → "Ngày DD tháng MM năm YYYY" */
 function formatViDate(dateStr?: string): string {
     if (!dateStr) return "Ngày ...... tháng ...... năm ........."
-    // BE trả về "dd-MM-yyyy"
     const parts = dateStr.split("-")
     if (parts.length === 3) {
-        return `Ngày ${parts[0]} tháng ${parts[1]} năm ${parts[2]}`
+        const [a, b, c] = parts
+        if (a.length === 4) {
+            return `Ngày ${c} tháng ${b} năm ${a}`
+        }
+        return `Ngày ${a} tháng ${b} năm ${c}`
     }
     return dateStr
 }
@@ -44,7 +47,7 @@ export function ExportInfo({ data }: Props) {
         <div className="print:shadow-none text-[13px]">
 
             {/* ── Company header ── */}
-            <div className="text-center mb-2">
+            <div className="export-print-company text-center mb-2">
                 <div className="font-bold text-sm uppercase tracking-wide">
                     CÔNG TY CỔ PHẦN QUỐC TẾ CUỘC SỐNG VIỆT
                 </div>
@@ -77,7 +80,7 @@ export function ExportInfo({ data }: Props) {
             <div className="flex border border-b-0 border-gray-400">
                 {/* Title + date */}
                 <div className="flex-1 text-center py-3">
-                    <div className="text-[22px] font-extrabold uppercase tracking-wide">
+                    <div className="export-print-title text-[22px] font-extrabold uppercase tracking-wide">
                         PHIẾU XUẤT KHO
                     </div>
                     <div className="text-[12px] italic text-muted-foreground mt-0.5">
@@ -87,7 +90,7 @@ export function ExportInfo({ data }: Props) {
             </div>
 
             {/* ── Info lines ── */}
-            <div className="border border-b-0 border-gray-400 px-3 py-2 space-y-1 text-[13px]">
+            <div className="export-print-info-lines border border-b-0 border-gray-400 px-3 py-2 space-y-1 text-[13px]">
                 <div>
                     <span className="text-muted-foreground">- Họ và tên người nhận hàng:&nbsp;</span>
                     <span className="font-semibold">{customerName || ".................................."}</span>

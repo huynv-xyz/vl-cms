@@ -1,5 +1,7 @@
 import { formatCurrency } from "@/lib/utils"
+import { useQuery } from "@tanstack/react-query"
 import { updateOrderStatus } from "@/api/sale/order"
+import { getMyPermissions } from "@/api/auth/permission"
 import { InlineStatus } from "@/components/inline-status"
 import { getOrderStatusMeta, ORDER_STATUSES } from "../../order/components/order-status"
 import {
@@ -18,6 +20,15 @@ type Props = { order: any }
 export function OrderInfo({ order }: Props) {
     const statusMeta = getOrderStatusMeta(order.status)
     const StatusIcon = statusMeta.icon
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canUpdateStatus = permissions.some(
+        (p: any) =>
+            p.module === "sales.orders" &&
+            (p.action === "status.update" || p.action === "update")
+    )
 
     return (
         <div className="overflow-hidden rounded-xl border bg-gradient-to-br from-background to-muted/30 shadow-sm">
@@ -66,6 +77,7 @@ export function OrderInfo({ order }: Props) {
                         queryKey={["order-detail", order.id]}
                         mutationFn={updateOrderStatus}
                         getId={(x) => x.id}
+                        disabled={!canUpdateStatus}
                     />
                 </div>
             </div>

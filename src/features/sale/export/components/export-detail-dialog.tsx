@@ -40,9 +40,19 @@ const EXPORT_DIALOG_PRINT_CSS = `
     break-inside: avoid;
     page-break-inside: avoid;
   }
+  #export-dialog-print-document .export-print-title { font-size: 17px !important; }
+  #export-dialog-print-document .export-print-company { margin-bottom: 4px !important; }
+  #export-dialog-print-document .export-print-info-lines { padding-top: 5px !important; padding-bottom: 5px !important; }
+  #export-dialog-print-document table { font-size: 10px !important; line-height: 1.2 !important; }
+  #export-dialog-print-document th,
+  #export-dialog-print-document td { padding: 3px 5px !important; }
+  #export-dialog-print-document .export-print-note { padding-top: 4px !important; padding-bottom: 4px !important; }
+  #export-dialog-print-document .export-print-signatures { padding-top: 6px !important; padding-bottom: 6px !important; }
+  #export-dialog-print-document .export-print-sign-date { margin-bottom: 10px !important; }
+  #export-dialog-print-document .export-print-sign-space { margin-top: 32px !important; }
   #export-dialog-print-document table { page-break-inside: auto; }
   #export-dialog-print-document tr { page-break-inside: avoid; page-break-after: auto; }
-  @page { size: 210mm 148mm; margin: 5mm; }
+  @page { size: A5 landscape; margin: 3mm; }
 }
 `
 

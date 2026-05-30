@@ -111,6 +111,41 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
         maxWidth: 80,
     }),
 
+    {
+        accessorKey: "warehouse_name",
+        enableSorting: false,
+        header: ({ column }) => (
+            <DataTableColumnHeader column={column} title="Kho xuất" />
+        ),
+        cell: ({ row }) => {
+            const tx = row.original
+            const name = tx.warehouse_name
+            const code = tx.warehouse_code
+
+            if (!name && !code) {
+                return <span className="text-slate-400">-</span>
+            }
+
+            return (
+                <div className="min-w-[160px] max-w-[220px]">
+                    <div className="truncate text-sm font-medium">
+                        {name || code}
+                    </div>
+                    {name && code ? (
+                        <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+                            {code}
+                        </div>
+                    ) : null}
+                </div>
+            )
+        },
+        size: 180,
+        meta: {
+            thClassName: "w-[180px] whitespace-nowrap",
+            tdClassName: "w-[180px]",
+        },
+    },
+
     buildNumberColumn<Transaction>({
         accessorKey: "sale_qty",
         title: "SL bán",

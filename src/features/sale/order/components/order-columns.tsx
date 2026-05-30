@@ -1,5 +1,6 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Link } from "@tanstack/react-router"
+import { useQuery } from "@tanstack/react-query"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildActionsColumn } from "@/components/crud/build-actions-column"
 import type { Order } from "../data/schema"
@@ -15,10 +16,19 @@ import {
     SelectItem,
 } from "@/components/ui/select"
 import { useInlineStatus } from "@/hooks/use-inline-status"
+import { getMyPermissions } from "@/api/auth/permission"
 import { updateOrderStatus } from "@/api/sale/order"
 import { CalendarDays, Package, User } from "lucide-react"
 
 export function useOrderColumns() {
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canUpdateOrder =
+        hasPermission(permissions, "sales.orders", "update") ||
+        hasPermission(permissions, "sales.orders", "status.update")
+
     const mutation = useInlineStatus<Order>({
         queryKey: ["orders"],
         mutationFn: updateOrderStatus,
@@ -207,7 +217,7 @@ export function useOrderColumns() {
                             onValueChange={(v) =>
                                 mutation.mutate({ row: row.original, value: v })
                             }
-                            disabled={mutation.isPending || isLocked}
+                            disabled={mutation.isPending || isLocked || !canUpdateOrder}
                         >
                             <SelectTrigger
                                 className={cn(
@@ -230,7 +240,7 @@ export function useOrderColumns() {
                                         <SelectItem
                                             key={s.value}
                                             value={s.value}
-                                            disabled={isLocked}
+                                            disabled={isLocked || !canUpdateOrder}
                                         >
                                             <span className="flex items-center gap-2">
                                                 <SIcon className={cn("h-3.5 w-3.5", sm.tone)} />
@@ -264,7 +274,8 @@ export function useOrderColumns() {
             renderActions: (_, row) => {
                 if (
                     row.original.status === "DONE" ||
-                    row.original.status === "CANCELLED"
+                    row.original.status === "CANCELLED" ||
+                    !canUpdateOrder
                 )
                     return null
                 return <OrderRowActions row={row} />
@@ -276,6 +287,10 @@ export function useOrderColumns() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
+
+function hasPermission(permissions: any[], module: string, action: string) {
+    return permissions.some((p: any) => p.module === module && p.action === action)
+}
 
 function formatDate(value?: string) {
     if (!value) return "—"

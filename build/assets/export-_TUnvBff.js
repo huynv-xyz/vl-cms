@@ -1,1 +1,0 @@
-import{c as r}from"./crud-C-R-tLM4.js";import{ap as a}from"./index-BLfqKhgo.js";const t=r("/sales/exports"),i=t.list,u=t.detail;function x(s,o){return a(`/sales/exports/${s}/status`,{status:o})}export{u as g,i as l,x as u};

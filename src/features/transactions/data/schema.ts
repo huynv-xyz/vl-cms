@@ -9,6 +9,9 @@ export type Transaction = {
     product_code: string
     product_name: string
     unit: string
+    warehouse_id?: number
+    warehouse_code?: string
+    warehouse_name?: string
     sale_qty: number
     return_qty: number
     unit_price: number

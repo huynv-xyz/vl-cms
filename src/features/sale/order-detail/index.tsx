@@ -15,6 +15,7 @@ import {
     RotateCcw,
     Wallet,
     Coins,
+    Download,
     PackageCheck,
     PackageX,
     type LucideIcon,
@@ -26,6 +27,8 @@ import {
     TabsTrigger,
 } from "@/components/ui/tabs"
 import { PageSection } from "@/components/page-section"
+import { Button } from "@/components/ui/button"
+import { exportOrderXlsx } from "../order/components/order-table"
 
 type Props = { id: number }
 
@@ -47,6 +50,19 @@ export default function OrderDetailPage({ id }: Props) {
             title="Chi tiết đơn hàng"
             description="Theo dõi tiến độ giao hàng, xuất kho, trả hàng và công nợ cho đơn."
             showBack
+            actions={
+                data ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() => exportOrderXlsx(data)}
+                    >
+                        <Download className="h-4 w-4" />
+                        Xuất Excel phiếu đặt hàng
+                    </Button>
+                ) : null
+            }
         >
             {(data) => {
                 const isEditable = data.status === "CONFIRMED"

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
     AlertTriangle,
     CalendarDays,
@@ -11,6 +11,7 @@ import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { AsyncSelect } from "@/components/rjsf/async-select"
 import {
     Select,
     SelectContent,
@@ -29,7 +30,10 @@ import {
 } from "@/components/ui/table"
 
 import { ExportDetailDialog } from "../../export/components/export-detail-dialog"
-import { updateExportStatus } from "@/api/sale/export"
+import { getMyPermissions } from "@/api/auth/permission"
+import { updateExportItemWarehouse, updateExportStatus } from "@/api/sale/export"
+import { getWarehouse, listWarehouses } from "@/api/warehouse"
+import { warehouseOption } from "@/lib/option-mapper"
 
 const EXPORT_STATUSES = [
     { value: "NEW", label: "Mới" },
@@ -49,6 +53,15 @@ const exportStatusMeta: Record<
 export function OrderExports({ exports, order }: any) {
     const queryClient = useQueryClient()
     const [selectedId, setSelectedId] = useState<number | null>(null)
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canUpdateStatus = permissions.some(
+        (p: any) =>
+            p.module === "sales.exports" &&
+            (p.action === "status.update" || p.action === "update")
+    )
 
     const { mutate: changeStatus, isPending } = useMutation({
         mutationFn: ({ id, status }: any) => updateExportStatus(id, status),
@@ -145,7 +158,7 @@ export function OrderExports({ exports, order }: any) {
                                         <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                                             <span className="flex items-center gap-1">
                                                 <CalendarDays className="h-3.5 w-3.5" />
-                                                {formatDate(exportDoc.export_date)}
+                                                {exportDoc.export_date}
                                             </span>
 
                                             {exportDoc.delivery?.delivery_no && (
@@ -184,7 +197,8 @@ export function OrderExports({ exports, order }: any) {
                                             disabled={
                                                 isPending ||
                                                 isRowLocked ||
-                                                missingWarehouseRows > 0
+                                                missingWarehouseRows > 0 ||
+                                                !canUpdateStatus
                                             }
                                         >
                                             <SelectTrigger
@@ -192,7 +206,9 @@ export function OrderExports({ exports, order }: any) {
                                                 title={
                                                     missingWarehouseRows > 0
                                                         ? "Chưa có kho xuất — không thể chuyển trạng thái"
-                                                        : undefined
+                                                        : !canUpdateStatus
+                                                            ? "Bạn không có quyền đổi trạng thái phiếu xuất"
+                                                            : undefined
                                                 }
                                             >
                                                 <SelectValue>
@@ -234,6 +250,7 @@ export function OrderExports({ exports, order }: any) {
                                 <ItemsTable
                                     items={exportDoc.items ?? []}
                                     exportDoc={exportDoc}
+                                    orderId={order.id}
                                 />
                             </div>
                         )
@@ -253,10 +270,23 @@ export function OrderExports({ exports, order }: any) {
 function ItemsTable({
     items,
     exportDoc,
+    orderId,
 }: {
     items: any[]
     exportDoc: any
+    orderId: number
 }) {
+    const queryClient = useQueryClient()
+    const { mutate: changeWarehouse, isPending } = useMutation({
+        mutationFn: ({ itemId, warehouseId }: { itemId: number; warehouseId: number }) =>
+            updateExportItemWarehouse(exportDoc.id, itemId, warehouseId),
+        onSuccess: () => {
+            toast.success("Đã cập nhật kho xuất")
+            queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] })
+        },
+        onError: () => toast.error("Cập nhật kho xuất thất bại"),
+    })
+
     if (!items.length) {
         return (
             <div className="px-4 py-5 text-center text-xs text-muted-foreground">
@@ -273,8 +303,11 @@ function ItemsTable({
                 <TableHeader className="bg-muted/30">
                     <TableRow className="hover:bg-transparent">
                         <TableHead className="text-xs font-semibold uppercase">Sản phẩm</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase">Mã</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Số lượng</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Đơn vị</TableHead>
+                        <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Kho xuất</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase">Lô hàng</TableHead>
                     </TableRow>
                 </TableHeader>
 
@@ -293,22 +326,75 @@ function ItemsTable({
                             >
                                 <TableCell>
                                     <div className="font-medium">{item.product?.name}</div>
-                                    <div className="mt-0.5 font-mono text-xs text-muted-foreground">
-                                        {item.product?.code}
-                                    </div>
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-muted-foreground">
+                                    {item.product?.code || "—"}
                                 </TableCell>
                                 <TableCell className="text-right font-medium tabular-nums">
                                     {formatNumber(item.quantity)}
                                 </TableCell>
                                 <TableCell className="text-right text-sm text-muted-foreground">
+                                    {item.product?.unit}
+                                </TableCell>
+                                <TableCell>
                                     {missingWarehouse ? (
-                                        <span className="inline-flex items-center justify-end gap-1 font-medium text-rose-600 dark:text-rose-400">
-                                            <AlertTriangle className="h-3.5 w-3.5" />
-                                            Chưa có kho xuất
-                                        </span>
+                                        <div className="space-y-1">
+                                            <AsyncSelect
+                                                className="h-8 min-h-8 bg-white py-0"
+                                                placeholder="Chọn kho xuất"
+                                                value={item.warehouse_id}
+                                                disabled={isPending}
+                                                onChange={(v: any) => {
+                                                    if (v) {
+                                                        changeWarehouse({
+                                                            itemId: item.id,
+                                                            warehouseId: Number(v),
+                                                        })
+                                                    }
+                                                }}
+                                                dataSource={{
+                                                    getList: listWarehouses,
+                                                    getById: getWarehouse,
+                                                    params: { page: 1, size: 20 },
+                                                }}
+                                                mapOption={warehouseOption}
+                                            />
+                                            <span className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 dark:text-rose-400">
+                                                <AlertTriangle className="h-3.5 w-3.5" />
+                                                Chưa có kho xuất
+                                            </span>
+                                        </div>
+                                    ) : isNew ? (
+                                        <AsyncSelect
+                                            className="h-8 min-h-8 bg-white py-0"
+                                            placeholder="Chọn kho xuất"
+                                            value={item.warehouse_id}
+                                            disabled={isPending}
+                                            onChange={(v: any) => {
+                                                if (v) {
+                                                    changeWarehouse({
+                                                        itemId: item.id,
+                                                        warehouseId: Number(v),
+                                                    })
+                                                }
+                                            }}
+                                            dataSource={{
+                                                getList: listWarehouses,
+                                                getById: getWarehouse,
+                                                params: { page: 1, size: 20 },
+                                            }}
+                                            mapOption={warehouseOption}
+                                        />
                                     ) : (
-                                        item.product?.unit
+                                        <span className="text-sm">
+                                            {item.warehouse?.code
+                                                ? `${item.warehouse.code} - ${item.warehouse.name}`
+                                                : item.warehouse?.name || "—"}
+                                        </span>
                                     )}
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                    {item.lot_no || item.lot_nos || "—"}
                                 </TableCell>
                             </TableRow>
                         )
