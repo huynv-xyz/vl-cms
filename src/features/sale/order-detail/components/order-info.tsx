@@ -1,9 +1,12 @@
+﻿import { useState } from "react"
 import { formatCurrency } from "@/lib/utils"
 import { useQuery } from "@tanstack/react-query"
 import { updateOrderStatus } from "@/api/sale/order"
 import { getMyPermissions } from "@/api/auth/permission"
+import { Button } from "@/components/ui/button"
 import { InlineStatus } from "@/components/inline-status"
 import { getOrderStatusMeta, ORDER_STATUSES } from "../../order/components/order-status"
+import { OrderDocumentDialog } from "../../order/components/order-document-dialog"
 import {
     CalendarDays,
     Clock,
@@ -18,6 +21,7 @@ import {
 type Props = { order: any }
 
 export function OrderInfo({ order }: Props) {
+    const [documentOpen, setDocumentOpen] = useState(false)
     const statusMeta = getOrderStatusMeta(order.status)
     const StatusIcon = statusMeta.icon
     const { data: permissions = [] } = useQuery({
@@ -69,18 +73,35 @@ export function OrderInfo({ order }: Props) {
                     </div>
                 </div>
 
-                <div className="min-w-[170px]">
+                <div className="flex min-w-[170px] items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 gap-1.5"
+                        onClick={() => setDocumentOpen(true)}
+                    >
+                        <FileText className="h-3.5 w-3.5" />
+                        Đơn đặt hàng
+                    </Button>
                     <InlineStatus
                         row={order}
                         value={order.status}
                         options={[...ORDER_STATUSES]}
                         queryKey={["order-detail", order.id]}
+                        invalidateQueryKeys={[["orders"], ["deliveries"], ["exports"]]}
                         mutationFn={updateOrderStatus}
                         getId={(x) => x.id}
                         disabled={!canUpdateStatus}
                     />
                 </div>
             </div>
+
+            <OrderDocumentDialog
+                open={documentOpen}
+                order={order}
+                onClose={() => setDocumentOpen(false)}
+            />
 
             {/* INFO GRID */}
             <div className="grid gap-3 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -181,3 +202,6 @@ function formatDateTime(value?: string) {
     if (!value) return "-"
     return value.replace("T", " ").slice(0, 16)
 }
+
+
+

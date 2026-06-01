@@ -155,7 +155,8 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                             optionWrapLabel
                                             wrapLabel
                                             className="min-w-0"
-                                            popoverContentClassName="w-[min(420px,calc(100vw-2rem))]"
+                                            popoverContentClassName="w-[420px] max-w-[calc(100vw-2rem)] max-h-[460px]"
+                                            commandListClassName="max-h-[390px]"
                                             placeholder="Chọn mã"
                                             searchPlaceholder="Tìm theo mã sản phẩm..."
                                             emptyText="Không tìm thấy sản phẩm phù hợp"
@@ -181,7 +182,8 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                             optionWrapLabel
                                             wrapLabel
                                             className="min-w-0"
-                                            popoverContentClassName="w-[min(720px,calc(100vw-2rem))]"
+                                            popoverContentClassName="w-[720px] max-w-[calc(100vw-2rem)] max-h-[520px]"
+                                            commandListClassName="max-h-[450px]"
                                             placeholder="Chọn tên sản phẩm"
                                             searchPlaceholder="Tìm theo tên sản phẩm..."
                                             emptyText="Không tìm thấy sản phẩm phù hợp"

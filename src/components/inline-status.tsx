@@ -13,6 +13,7 @@ type Props<T> = {
     options: { value: string; label: string }[]
 
     queryKey: any[]
+    invalidateQueryKeys?: any[][]
     mutationFn: (id: number, value: string) => Promise<any>
     getId: (row: T) => number
 
@@ -25,6 +26,7 @@ export function InlineStatus<T>({
     value,
     options,
     queryKey,
+    invalidateQueryKeys,
     mutationFn,
     getId,
     disabled,
@@ -33,6 +35,7 @@ export function InlineStatus<T>({
 
     const mutation = useInlineStatus<T>({
         queryKey,
+        invalidateQueryKeys,
         mutationFn,
         getId,
     })

@@ -27,7 +27,7 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
     const [formData, setFormData] = useState<any>({
         order_id: order?.id, // FIX
         delivery_date: new Date().toISOString().slice(0, 10),
-        company_id: undefined,
+        company_id: 1,
         status: "NEW",
         note: "",
         delivery_address: "",
@@ -41,10 +41,24 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
         enabled: open && !!orderId,
     })
 
-    const mappedItems: DeliveryFormItem[] = useMemo(() => {
+    const availableOrderItems = useMemo(() => {
         if (!orderDetail?.items) return []
 
-        return orderDetail.items.map((i: any) => ({
+        return orderDetail.items.map((item: any) => {
+            const reservedQuantity = getReservedQuantity(orderDetail.deliveries, item.product_id)
+            const maxQuantity = Math.max(0, Number(item.quantity ?? 0) - reservedQuantity)
+
+            return {
+                ...item,
+                remain_quantity: maxQuantity,
+            }
+        })
+    }, [orderDetail])
+
+    const mappedItems: DeliveryFormItem[] = useMemo(() => {
+        if (!availableOrderItems.length) return []
+
+        return availableOrderItems.map((i: any) => ({
             product_id: i.product_id,
             product: i.product,
             selected: false,
@@ -52,7 +66,7 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
             remain_quantity: i.remain_quantity ?? i.quantity,
             note: "",
         }))
-    }, [orderDetail])
+    }, [availableOrderItems])
 
     const [items, setItems] = useState<DeliveryFormItem[]>([])
 
@@ -96,6 +110,13 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
                 if (!item.warehouse_id) {
                     throw new Error("Vui lòng chọn kho xuất cho từng sản phẩm")
                 }
+            }
+
+            const overLimitItem = selectedItems.find(
+                (item) => Number(item.quantity || 0) > Number(item.remain_quantity || 0)
+            )
+            if (overLimitItem) {
+                throw new Error("So luong giao khong duoc vuot so luong con phai giao")
             }
 
             return createDelivery({
@@ -174,7 +195,7 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
                             </div>
                         ) : (
                             <DeliveryItemsEditor
-                                orderItems={orderDetail?.items ?? []}
+                                orderItems={availableOrderItems}
                                 items={items}
                                 onChange={setItems}
                             />
@@ -187,7 +208,16 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                         Hủy
                     </Button>
-                    <Button type="submit" form="delivery-create-form" disabled={isPending}>
+                    <Button
+                        type="submit"
+                        form="delivery-create-form"
+                        disabled={isPending}
+                        onPointerDown={() => {
+                            if (document.activeElement instanceof HTMLElement) {
+                                document.activeElement.blur()
+                            }
+                        }}
+                    >
                         <Save className="mr-2 h-4 w-4" />
                         {isPending ? "Đang tạo..." : "Tạo phiếu giao"}
                     </Button>
@@ -195,4 +225,12 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
             </DialogContent>
         </Dialog>
     )
+}
+
+function getReservedQuantity(deliveries: any[] | undefined, productId: number) {
+    return (deliveries ?? [])
+        .filter((delivery: any) => delivery?.status !== "CANCELLED")
+        .flatMap((delivery: any) => delivery?.items ?? [])
+        .filter((item: any) => item?.product_id === productId)
+        .reduce((sum: number, item: any) => sum + Number(item?.quantity || 0), 0)
 }

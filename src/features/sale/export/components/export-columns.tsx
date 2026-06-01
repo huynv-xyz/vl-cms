@@ -1,4 +1,4 @@
-import { ColumnDef } from "@tanstack/react-table"
+﻿import { ColumnDef } from "@tanstack/react-table"
 import { Link } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
@@ -30,10 +30,15 @@ export function useExportColumns() {
             (p.action === "status.update" || p.action === "update")
     )
     const { mutate: changeStatus, isPending } = useMutation({
-        mutationFn: ({ id, status }: { id: number; status: string }) =>
+        mutationFn: ({ id, status }: { id: number; status: string; orderId?: number }) =>
             updateExportStatus(id, status),
-        onSettled: () => {
+        onSettled: (_data, _error, variables) => {
             queryClient.invalidateQueries({ queryKey: ["exports"] })
+            queryClient.invalidateQueries({ queryKey: ["deliveries"] })
+            queryClient.invalidateQueries({ queryKey: ["orders"] })
+            if (variables?.orderId) {
+                queryClient.invalidateQueries({ queryKey: ["order-detail", variables.orderId] })
+            }
         },
     })
 
@@ -130,7 +135,11 @@ export function useExportColumns() {
                             status === "CANCELLED"
                         }
                         onValueChange={(next) =>
-                            changeStatus({ id: row.original.id, status: next })
+                            changeStatus({
+                                id: row.original.id,
+                                status: next,
+                                orderId: row.original.order_id,
+                            })
                         }
                     >
                         <SelectTrigger className="w-[140px]">
@@ -140,7 +149,7 @@ export function useExportColumns() {
                         </SelectTrigger>
                         <SelectContent>
                             {EXPORT_STATUSES.map((s) => (
-                                <SelectItem key={s.value} value={s.value} disabled>
+                                <SelectItem key={s.value} value={s.value}>
                                     {s.label}
                                 </SelectItem>
                             ))}
@@ -160,3 +169,4 @@ export function useExportColumns() {
 
     return { columns }
 }
+

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
-import { toast } from "sonner"
 
 type QuantityInputCellProps = {
     productId: number
@@ -17,24 +16,21 @@ export function QuantityInputCell({
     max,
     onCommit,
 }: QuantityInputCellProps) {
-
     const [localValue, setLocalValue] = useState(String(value ?? 0))
 
     useEffect(() => {
         setLocalValue(String(value ?? 0))
     }, [value])
 
+    const updateValue = (rawValue: string) => {
+        setLocalValue(rawValue)
+    }
+
     const commitValue = () => {
         let nextValue = Number(localValue)
 
         if (Number.isNaN(nextValue) || nextValue < 0) {
             nextValue = 0
-        }
-
-        // Chỉ giới hạn theo số lượng còn phải giao, không kiểm tra tồn kho.
-        if (nextValue > max) {
-            nextValue = max
-            toast.warning("Vượt số lượng còn phải giao")
         }
 
         setLocalValue(String(nextValue))
@@ -44,9 +40,11 @@ export function QuantityInputCell({
     return (
         <Input
             type="number"
+            min={0}
+            max={max}
             value={localValue}
             disabled={disabled}
-            onChange={(e) => setLocalValue(e.target.value)}
+            onChange={(e) => updateValue(e.target.value)}
             onBlur={commitValue}
             onKeyDown={(e) => {
                 if (e.key === "Enter") {

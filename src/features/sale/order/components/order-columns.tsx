@@ -31,6 +31,7 @@ export function useOrderColumns() {
 
     const mutation = useInlineStatus<Order>({
         queryKey: ["orders"],
+        invalidateQueryKeys: [["deliveries"], ["exports"], ["order-detail"]],
         mutationFn: updateOrderStatus,
         getId: (x) => x.id,
     })

@@ -11,17 +11,11 @@ export type EmployeeListParams = {
 export type CreateEmployeeRequest = {
     code: string
     name: string
-    birth_date: string
-    gender: string
-    permanent_address: string
-    identity_no: string
-    identity_issue_date: string
-    identity_issue_place: string
-    dependent_count: number
-    insurance_base: number
-    basic_salary: number
-    allowance_salary: number
-    is_union_member: number
+    birth_date?: string | null
+    permanent_address?: string
+    identity_no?: string
+    identity_issue_date?: string | null
+    identity_issue_place?: string
     status?: number
 }
 
@@ -29,17 +23,11 @@ export type UpdateEmployeeRequest = {
     id: number
     code: string
     name: string
-    gender?: string
-    birth_date?: string
+    birth_date?: string | null
     permanent_address?: string
     identity_no?: string
-    identity_issue_date?: string
+    identity_issue_date?: string | null
     identity_issue_place?: string
-    dependent_count?: number
-    insurance_base?: number
-    basic_salary?: number
-    allowance_salary?: number
-    is_union_member?: number
     status?: number
 }
 

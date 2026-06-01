@@ -18,16 +18,16 @@ const EXPORT_PRINT_CSS = `
   #export-print-area, #export-print-area * { visibility: visible !important; }
   #export-print-area {
     position: absolute !important;
-    left: 50% !important;
+    left: 0 !important;
     top: 0 !important;
-    width: 200mm !important;
-    max-width: 200mm !important;
+    width: 100% !important;
+    max-width: none !important;
     margin: 0 !important;
     padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
     background: white !important;
-    transform: translateX(-50%) !important;
+    transform: none !important;
     overflow: visible !important;
     break-inside: avoid;
     page-break-inside: avoid;
@@ -47,7 +47,6 @@ const EXPORT_PRINT_CSS = `
   #export-print-area .export-print-sign-space { margin-top: 32px !important; }
   #export-print-area table { page-break-inside: auto; }
   #export-print-area tr { page-break-inside: avoid; page-break-after: auto; }
-  @page { size: A5 landscape; margin: 3mm; }
 }
 `
 

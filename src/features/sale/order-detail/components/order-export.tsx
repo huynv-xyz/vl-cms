@@ -95,6 +95,9 @@ export function OrderExports({ exports, order }: any) {
 
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] })
+            queryClient.invalidateQueries({ queryKey: ["exports"] })
+            queryClient.invalidateQueries({ queryKey: ["deliveries"] })
+            queryClient.invalidateQueries({ queryKey: ["orders"] })
         },
     })
 

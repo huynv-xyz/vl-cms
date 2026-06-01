@@ -29,17 +29,11 @@ export function UpdateEmployeeDialog({
             defaultValues={{
                 code: employee.code,
                 name: employee.name,
-                gender: employee.gender,
                 birth_date: employee.birth_date,
                 permanent_address: employee.permanent_address ?? "",
                 identity_no: employee.identity_no ?? "",
                 identity_issue_date: employee.identity_issue_date,
                 identity_issue_place: employee.identity_issue_place ?? "",
-                dependent_count: employee.dependent_count ?? 0,
-                insurance_base: employee.insurance_base ?? 0,
-                basic_salary: employee.basic_salary ?? 0,
-                allowance_salary: employee.allowance_salary ?? 0,
-                is_union_member: employee.is_union_member === 1 ? 1 : 0,
                 status: employee.status === 1 ? 1 : 0,
             }}
             submitText="Lưu"
@@ -50,23 +44,17 @@ export function UpdateEmployeeDialog({
                 id: employee.id,
                 code: values.code,
                 name: values.name,
-                gender: values.gender,
-                birth_date: values.birth_date,
+                birth_date: values.birth_date || null,
                 permanent_address: values.permanent_address?.trim()
                     ? values.permanent_address.trim()
                     : "",
                 identity_no: values.identity_no?.trim()
                     ? values.identity_no.trim()
                     : "",
-                identity_issue_date: values.identity_issue_date,
+                identity_issue_date: values.identity_issue_date || null,
                 identity_issue_place: values.identity_issue_place?.trim()
                     ? values.identity_issue_place.trim()
                     : "",
-                dependent_count: values.dependent_count ?? 0,
-                insurance_base: values.insurance_base ?? 0,
-                basic_salary: values.basic_salary ?? 0,
-                allowance_salary: values.allowance_salary ?? 0,
-                is_union_member: values.is_union_member === 1 ? 1 : 0,
                 status: values.status === 0 ? 0 : 1,
             })}
         />
