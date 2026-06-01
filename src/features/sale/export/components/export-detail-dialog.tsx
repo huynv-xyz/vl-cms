@@ -46,6 +46,9 @@ const EXPORT_DIALOG_PRINT_CSS = `
   #export-dialog-print-document table { font-size: 10px !important; line-height: 1.2 !important; }
   #export-dialog-print-document th,
   #export-dialog-print-document td { padding: 3px 5px !important; }
+  #export-dialog-print-document .export-print-hide { display: none !important; }
+  #export-dialog-print-document .export-screen-footer { display: none !important; }
+  #export-dialog-print-document .export-print-footer { display: table-row !important; }
   #export-dialog-print-document .export-print-note { padding-top: 4px !important; padding-bottom: 4px !important; }
   #export-dialog-print-document .export-print-signatures { padding-top: 6px !important; padding-bottom: 6px !important; }
   #export-dialog-print-document .export-print-sign-date { margin-bottom: 10px !important; }

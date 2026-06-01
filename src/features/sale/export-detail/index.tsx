@@ -38,6 +38,9 @@ const EXPORT_PRINT_CSS = `
   #export-print-area table { font-size: 10px !important; line-height: 1.2 !important; }
   #export-print-area th,
   #export-print-area td { padding: 3px 5px !important; }
+  #export-print-area .export-print-hide { display: none !important; }
+  #export-print-area .export-screen-footer { display: none !important; }
+  #export-print-area .export-print-footer { display: table-row !important; }
   #export-print-area .export-print-note { padding-top: 4px !important; padding-bottom: 4px !important; }
   #export-print-area .export-print-signatures { padding-top: 6px !important; padding-bottom: 6px !important; }
   #export-print-area .export-print-sign-date { margin-bottom: 10px !important; }

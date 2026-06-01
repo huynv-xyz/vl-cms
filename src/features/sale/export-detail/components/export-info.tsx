@@ -57,7 +57,7 @@ export function ExportInfo({ data }: Props) {
             </div>
 
             {/* ── Row: Số phiếu XK | Lần giao ── */}
-            <div className="flex justify-between items-center border border-b-0 border-gray-400 px-3 py-1.5 bg-gray-50/60">
+            <div className="flex justify-between items-center px-3 py-1.5 bg-gray-50/60">
                 <div className="flex items-center gap-3">
                     <span className="font-semibold text-[12px] text-muted-foreground">
                         Số phiếu XK
@@ -77,7 +77,7 @@ export function ExportInfo({ data }: Props) {
             </div>
 
             {/* ── Title row: PHIẾU XUẤT KHO ── */}
-            <div className="flex border border-b-0 border-gray-400">
+            <div className="flex">
                 {/* Title + date */}
                 <div className="flex-1 text-center py-3">
                     <div className="export-print-title text-[22px] font-extrabold uppercase tracking-wide">
@@ -90,7 +90,7 @@ export function ExportInfo({ data }: Props) {
             </div>
 
             {/* ── Info lines ── */}
-            <div className="export-print-info-lines border border-b-0 border-gray-400 px-3 py-2 space-y-1 text-[13px]">
+            <div className="export-print-info-lines px-3 py-2 space-y-1 text-[13px]">
                 <div>
                     <span className="text-muted-foreground">- Họ và tên người nhận hàng:&nbsp;</span>
                     <span className="font-semibold">{customerName || ".................................."}</span>
