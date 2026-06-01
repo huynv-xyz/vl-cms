@@ -23,6 +23,7 @@ import type { ExportItem } from "../../export/data/schema"
 import type { ReturnFormItem } from "./types"
 
 type RowData = ExportItem & {
+    order_item_id: number
     selected: boolean
     quantity_return: number
     remain_quantity: number // 🔥 thêm
@@ -38,7 +39,7 @@ type Props = {
 // INPUT CELL
 // ========================
 function QuantityInputCell({
-    productId,
+    orderItemId,
     value,
     disabled,
     max,
@@ -58,7 +59,7 @@ function QuantityInputCell({
         if (next > max) next = max
 
         setLocalValue(String(next))
-        onCommit(productId, next)
+        onCommit(orderItemId, next)
     }
 
     return (
@@ -87,21 +88,23 @@ export function ReturnItemsEditor({
 }: Props) {
 
     const updateRow = (
-        productId: number,
+        orderItemId: number | undefined,
         patch: Partial<ReturnFormItem>
     ) => {
+        if (orderItemId == null) return
 
-        const map = new Map(items.map(i => [i.product_id, i]))
+        const map = new Map(items.map(i => [i.order_item_id, i]))
 
         const current: ReturnFormItem =
-            map.get(productId) ?? {
-                product_id: productId,
+            map.get(orderItemId) ?? {
+                order_item_id: orderItemId,
+                product_id: exportItems.find(x => x.order_item_id === orderItemId)?.product_id ?? 0,
                 quantity: 0,
                 selected: false,
                 note: "",
             }
 
-        const exportItem = exportItems.find(x => x.product_id === productId)
+        const exportItem = exportItems.find(x => x.order_item_id === orderItemId)
 
         const remain =
             (exportItem?.quantity ?? 0) -
@@ -116,13 +119,14 @@ export function ReturnItemsEditor({
         if (next.quantity > remain) next.quantity = remain
         if (next.quantity < 0) next.quantity = 0
 
-        map.set(productId, next)
+        map.set(orderItemId, next)
         onChange(Array.from(map.values()))
     }
 
     const data: RowData[] = useMemo(() => {
 
         return exportItems
+            .filter(e => e.order_item_id != null)
             // 🔥 CHỈ LẤY ITEM CÒN RETURN ĐƯỢC
             .map(e => {
 
@@ -131,11 +135,12 @@ export function ReturnItemsEditor({
 
                 return {
                     ...e,
+                    order_item_id: e.order_item_id!,
                     remain_quantity: remain,
                     selected:
-                        items.find(i => i.product_id === e.product_id)?.selected ?? false,
+                        items.find(i => i.order_item_id === e.order_item_id)?.selected ?? false,
                     quantity_return:
-                        items.find(i => i.product_id === e.product_id)?.quantity ?? 0,
+                        items.find(i => i.order_item_id === e.order_item_id)?.quantity ?? 0,
                 }
             })
             .filter(e => e.remain_quantity > 0) // 🔥 key quan trọng
@@ -150,7 +155,7 @@ export function ReturnItemsEditor({
                 <Checkbox
                     checked={row.original.selected}
                     onCheckedChange={(checked) =>
-                        updateRow(row.original.product_id, {
+                        updateRow(row.original.order_item_id, {
                             selected: !!checked,
                             quantity: checked ? row.original.remain_quantity : 0,
                         })
@@ -207,12 +212,12 @@ export function ReturnItemsEditor({
             header: "SL trả",
             cell: ({ row }) => (
                 <QuantityInputCell
-                    productId={row.original.product_id}
+                    orderItemId={row.original.order_item_id}
                     value={row.original.quantity_return}
                     disabled={!row.original.selected}
                     max={row.original.remain_quantity}
-                    onCommit={(productId: number, quantity: number) =>
-                        updateRow(productId, { quantity })
+                    onCommit={(orderItemId: number, quantity: number) =>
+                        updateRow(orderItemId, { quantity })
                     }
                 />
             ),

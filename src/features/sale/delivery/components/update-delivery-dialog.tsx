@@ -63,7 +63,7 @@ export function UpdateDeliveryDialog({
         return orderDetail.items.map((item: any) => {
             const reservedQuantity = getReservedQuantity(
                 (orderDetail as any).deliveries,
-                item.product_id,
+                item.id,
                 detail?.id
             )
             const maxQuantity = Math.max(0, Number(item.quantity ?? 0) - reservedQuantity)
@@ -110,14 +110,15 @@ export function UpdateDeliveryDialog({
         if (!open || !orderDetail || !detail || initializedRef.current) return
 
         const existingMap = new Map(
-            (detail.items ?? []).map((i: any) => [i.product_id, i])
+            (detail.items ?? []).map((i: any) => [i.order_item_id, i])
         )
 
         const mapped: DeliveryFormItem[] = orderItems.map((o: any) => {
-            const existing = existingMap.get(o.product_id)
+            const existing = existingMap.get(o.id)
             const existingQuantity = Number(existing?.quantity ?? 0)
 
             return {
+                order_item_id: o.id,
                 product_id: o.product_id,
                 product: o.product,
                 selected: !!existing,
@@ -172,6 +173,7 @@ export function UpdateDeliveryDialog({
                 ...headerFormData,
 
                 items: selectedItems.map((i) => ({
+                    order_item_id: i.order_item_id,
                     product_id: i.product_id,
                     warehouse_id: i.warehouse_id!,
                     quantity: i.quantity,
@@ -278,13 +280,13 @@ export function UpdateDeliveryDialog({
 
 function getReservedQuantity(
     deliveries: any[] | undefined,
-    productId: number,
+    orderItemId: number,
     excludeDeliveryId?: number
 ) {
     return (deliveries ?? [])
         .filter((delivery: any) => delivery?.id !== excludeDeliveryId)
         .filter((delivery: any) => delivery?.status !== "CANCELLED")
         .flatMap((delivery: any) => delivery?.items ?? [])
-        .filter((item: any) => item?.product_id === productId)
+        .filter((item: any) => item?.order_item_id === orderItemId)
         .reduce((sum: number, item: any) => sum + Number(item?.quantity || 0), 0)
 }

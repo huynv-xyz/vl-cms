@@ -96,13 +96,14 @@ export function UpdateReturnDialog({
         if (!open || !detail || !exportDetail || initializedRef.current) return
 
         const existingMap = new Map(
-            (detail.items ?? []).map((i: any) => [i.product_id, i])
+            (detail.items ?? []).map((i: any) => [i.order_item_id, i])
         )
 
         const mapped = exportItems.map((e: any) => {
-            const existing = existingMap.get(e.product_id)
+            const existing = existingMap.get(e.order_item_id)
 
             return {
+                order_item_id: e.order_item_id,
                 product_id: e.product_id,
                 product: e.product,
                 selected: !!existing,
@@ -152,6 +153,7 @@ export function UpdateReturnDialog({
                 status: formData.status,
                 reason: formData.reason,
                 items: selected.map(i => ({
+                    order_item_id: i.order_item_id,
                     product_id: i.product_id,
                     quantity: i.quantity,
                     note: i.note ?? "",

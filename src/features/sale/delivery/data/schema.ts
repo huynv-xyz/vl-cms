@@ -34,6 +34,7 @@ export type Delivery = {
 export type DeliveryItem = {
     id?: number
 
+    order_item_id?: number
     product_id: number
     product?: Product
 

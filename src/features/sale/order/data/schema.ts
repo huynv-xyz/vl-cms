@@ -10,6 +10,7 @@ import { Return } from "../../return/data/schema"
 // ITEM
 // ========================
 export type OrderItem = {
+    id?: number
     product_id: number
     product?: Product
 

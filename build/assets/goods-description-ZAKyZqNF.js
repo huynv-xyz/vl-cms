@@ -1,0 +1,1 @@
+import{c as e}from"./crud-YM2R8XpY.js";import{x as i}from"./index-CyY-5yQ4.js";const o=e("/sales/goods-descriptions"),c=o.list,p=o.create,n=o.update,d=o.delete;async function l(t){const s=new FormData;return s.append("file",t),i("/sales/goods-descriptions/import-excel",s)}export{p as c,d,l as i,c as l,n as u};

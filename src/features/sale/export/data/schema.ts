@@ -7,6 +7,8 @@ export type ExportItem = {
     id: number
     export_id: number
     export?: Export
+    order_item_id?: number
+    order_item?: any
     product_id: number
     product?: Product
     warehouse_id?: number

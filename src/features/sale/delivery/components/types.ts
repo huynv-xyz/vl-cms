@@ -10,6 +10,7 @@ export type DeliveryFormValues = {
 }
 
 export type DeliveryFormItem = {
+    order_item_id: number
     product_id: number
     product?: Product
 

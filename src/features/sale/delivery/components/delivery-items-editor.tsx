@@ -29,19 +29,19 @@ export function DeliveryItemsEditor({
     onChange,
 }: Props) {
 
-    const updateRow = (productId: number, patch: any) => {
+    const updateRow = (orderItemId: number, patch: any) => {
 
-        const map = new Map(items.map(i => [i.product_id, i]))
+        const map = new Map(items.map(i => [i.order_item_id, i]))
 
-        const current = map.get(productId) ?? {
-            product_id: productId,
+        const order = orderItems.find(o => o.id === orderItemId)
+        const current = map.get(orderItemId) ?? {
+            order_item_id: orderItemId,
+            product_id: order?.product_id,
             quantity: 0,
             selected: false,
         }
 
         const next = { ...current, ...patch }
-
-        const order = orderItems.find(o => o.product_id === productId)
 
         if (order) {
             // Chỉ giới hạn theo số lượng còn phải giao của đơn hàng,
@@ -49,16 +49,17 @@ export function DeliveryItemsEditor({
             if (next.quantity < 0) next.quantity = 0
         }
 
-        map.set(productId, next)
+        map.set(orderItemId, next)
         onChange(Array.from(map.values()))
     }
 
     const data = useMemo(() => {
         return orderItems.map(o => {
-            const existing = items.find(i => i.product_id === o.product_id)
+            const existing = items.find(i => i.order_item_id === o.id)
 
             return {
                 ...o,
+                order_item_id: o.id,
                 selected: existing?.selected ?? false,
                 quantity_delivery: existing?.quantity ?? 0,
                 warehouse_id: existing?.warehouse_id ?? o.product?.default_warehouse_id,
@@ -73,7 +74,7 @@ export function DeliveryItemsEditor({
                 <Checkbox
                     checked={row.original.selected}
                     onCheckedChange={(checked) =>
-                        updateRow(row.original.product_id, {
+                        updateRow(row.original.order_item_id, {
                             selected: !!checked,
                             quantity: checked ? row.original.max_quantity : 0,
                             warehouse_id: checked
@@ -114,7 +115,7 @@ export function DeliveryItemsEditor({
                         value={row.original.warehouse_id}
                         disabled={!row.original.selected}
                         onChange={(warehouseId: number | undefined) =>
-                            updateRow(row.original.product_id, {
+                            updateRow(row.original.order_item_id, {
                                 warehouse_id: warehouseId || undefined,
                             })
                         }
@@ -134,7 +135,7 @@ export function DeliveryItemsEditor({
 
                 return (
                     <QuantityInputCell
-                        productId={row.original.product_id}
+                        productId={row.original.order_item_id}
                         value={row.original.quantity_delivery}
                         disabled={!row.original.selected}
                         max={row.original.max_quantity}

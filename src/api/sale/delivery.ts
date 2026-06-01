@@ -22,6 +22,7 @@ export type DeliveryListParams = {
 // ITEM
 // ========================
 export type DeliveryItemRequest = {
+    order_item_id: number
     product_id: number
     warehouse_id: number
     quantity: number

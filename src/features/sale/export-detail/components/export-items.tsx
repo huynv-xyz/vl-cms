@@ -30,18 +30,18 @@ type Props = {
 
 export function ExportItems({ data, items }: Props) {
 
-    // Build product_id → order item map for enrichment
+    // Build order_item_id → order item map for enrichment
     const orderItemMap = new Map<number, OrderItem>()
     const orderItems: OrderItem[] = (data as any).order?.items ?? []
     for (const oi of orderItems) {
-        if (oi.product_id != null) {
-            orderItemMap.set(oi.product_id, oi)
+        if (oi.id != null) {
+            orderItemMap.set(oi.id, oi)
         }
     }
 
     // Totals
     const totalRequired = items.reduce((sum, item) => {
-        const oi = item.product_id != null ? orderItemMap.get(item.product_id) : undefined
+        const oi = item.order_item_id != null ? orderItemMap.get(item.order_item_id) : undefined
         return sum + Number(oi?.quantity ?? item.quantity ?? 0)
     }, 0)
 
@@ -127,8 +127,8 @@ export function ExportItems({ data, items }: Props) {
                 <tbody>
                     {items.map((item, idx) => {
                         const oi =
-                            item.product_id != null
-                                ? orderItemMap.get(item.product_id)
+                            item.order_item_id != null
+                                ? orderItemMap.get(item.order_item_id)
                                 : undefined
 
                         // Display name: prefer order item description, then quote_name, then name

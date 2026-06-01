@@ -1,1 +1,0 @@
-import{c as s}from"./crud-DjVUIRQU.js";import{Q as i}from"./index-CD38V6hl.js";const r=s("/vip/customers"),o=r.list;async function a(t){return r.detail(t)}async function p(t){return i("/vip/customers/recalc",{})}export{a as g,o as l,p as t};

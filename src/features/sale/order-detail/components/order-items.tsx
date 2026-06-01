@@ -109,7 +109,7 @@ export function OrderItems({ order, items }: any) {
                                 const isRowLocked = !isEditable
 
                                 return (
-                                    <TableRow key={i.product_id} className="hover:bg-muted/30">
+                                    <TableRow key={i.id ?? `${i.product_id}-${idx}`} className="hover:bg-muted/30">
                                         <TableCell className="text-center text-sm font-semibold text-muted-foreground">
                                             {idx + 1}
                                         </TableCell>

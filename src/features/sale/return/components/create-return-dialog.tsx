@@ -47,6 +47,7 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
         if (!exportDetail?.items) return []
 
         return exportDetail.items.map((i: any) => ({
+            order_item_id: i.order_item_id,
             product_id: i.product_id,
             product: i.product,
             selected: false,
@@ -124,6 +125,7 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
                 status: formData.status,
                 reason: formData.reason,
                 items: selected.map(i => ({
+                    order_item_id: i.order_item_id,
                     product_id: i.product_id,
                     quantity: i.quantity,
                 })) as any,

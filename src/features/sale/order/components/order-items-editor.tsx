@@ -12,6 +12,7 @@ import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import { PackageOpen, Trash2 } from "lucide-react"
 
 type OrderItem = {
+    id?: number
     product_id?: number
     product?: any
     quantity: number
@@ -62,14 +63,12 @@ export function OrderItemsEditor({ items, setItems }: Props) {
     }
 
     const selectProduct = (index: number, value: number | undefined, option: any) => {
-        if (value && items.some((x, idx) => idx !== index && x.product_id === value)) {
-            return
-        }
+        const isPromotion = items[index]?.line_type === "PROMOTION"
 
         updateRow(index, {
             product_id: value,
             product: option?.raw,
-            unit_price: option?.raw?.price ?? 0,
+            unit_price: isPromotion ? 0 : option?.raw?.price ?? 0,
             unit: option?.raw?.unit,
         })
     }
@@ -245,6 +244,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                                 onCheckedChange={(checked) =>
                                                     updateRow(i, {
                                                         line_type: checked ? "PROMOTION" : "NORMAL",
+                                                        unit_price: checked ? 0 : row.product?.price ?? row.unit_price,
                                                         discount: checked ? 0 : row.discount,
                                                     })
                                                 }
@@ -264,6 +264,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                     <td className="px-3 py-3 align-top">
                                         <DecimalInput
                                             value={row.unit_price}
+                                            disabled={isPromotion}
                                             onKeyDown={(event) => addRowOnEnter(event, i)}
                                             onChange={(unit_price) => updateRow(i, { unit_price })}
                                         />

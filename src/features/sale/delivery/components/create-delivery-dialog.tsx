@@ -45,7 +45,7 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
         if (!orderDetail?.items) return []
 
         return orderDetail.items.map((item: any) => {
-            const reservedQuantity = getReservedQuantity(orderDetail.deliveries, item.product_id)
+            const reservedQuantity = getReservedQuantity(orderDetail.deliveries, item.id)
             const maxQuantity = Math.max(0, Number(item.quantity ?? 0) - reservedQuantity)
 
             return {
@@ -59,6 +59,7 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
         if (!availableOrderItems.length) return []
 
         return availableOrderItems.map((i: any) => ({
+            order_item_id: i.id,
             product_id: i.product_id,
             product: i.product,
             selected: false,
@@ -122,6 +123,7 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
             return createDelivery({
                 ...formData,
                 items: selectedItems.map(i => ({
+                    order_item_id: i.order_item_id,
                     product_id: i.product_id,
                     warehouse_id: i.warehouse_id,
                     quantity: i.quantity,
@@ -227,10 +229,10 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
     )
 }
 
-function getReservedQuantity(deliveries: any[] | undefined, productId: number) {
+function getReservedQuantity(deliveries: any[] | undefined, orderItemId: number) {
     return (deliveries ?? [])
         .filter((delivery: any) => delivery?.status !== "CANCELLED")
         .flatMap((delivery: any) => delivery?.items ?? [])
-        .filter((item: any) => item?.product_id === productId)
+        .filter((item: any) => item?.order_item_id === orderItemId)
         .reduce((sum: number, item: any) => sum + Number(item?.quantity || 0), 0)
 }
