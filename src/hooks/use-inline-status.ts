@@ -3,10 +3,12 @@ import { toast } from "sonner"
 
 export function useInlineStatus<T>({
     queryKey,
+    invalidateQueryKeys = [],
     mutationFn,
     getId,
 }: {
     queryKey: any[]
+    invalidateQueryKeys?: any[][]
     mutationFn: (id: number, value: string) => Promise<any>
     getId: (row: T) => number
 }) {
@@ -24,14 +26,20 @@ export function useInlineStatus<T>({
             queryClient.setQueryData(queryKey, (old: any) => {
                 if (!old) return old
 
-                return {
-                    ...old,
-                    items: old.items.map((x: any) =>
-                        x.id === getId(row)
-                            ? { ...x, status: value }
-                            : x
-                    ),
+                if (Array.isArray(old.items)) {
+                    return {
+                        ...old,
+                        items: old.items.map((x: any) =>
+                            x.id === getId(row)
+                                ? { ...x, status: value }
+                                : x
+                        ),
+                    }
                 }
+
+                return getId(old) === getId(row)
+                    ? { ...old, status: value }
+                    : old
             })
 
             return { prev }
@@ -48,6 +56,9 @@ export function useInlineStatus<T>({
 
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey })
+            invalidateQueryKeys.forEach((key) => {
+                queryClient.invalidateQueries({ queryKey: key })
+            })
         },
     })
 }

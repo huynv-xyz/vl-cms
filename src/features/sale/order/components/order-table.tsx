@@ -1,3 +1,4 @@
+﻿import { useState } from "react"
 import { Link } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -7,6 +8,7 @@ import {
     CalendarDays,
     Download,
     Filter,
+    FileText,
     Inbox,
     Package,
     PackageCheck,
@@ -36,6 +38,7 @@ import { updateOrderStatus } from "@/api/sale/order"
 
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import { exportXlsx } from "@/lib/xlsx-export"
+import { OrderDocumentDialog } from "./order-document-dialog"
 
 const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
 
@@ -290,6 +293,7 @@ function OrderCard({
 }) {
     const { openEdit } = useOrders()
     const queryClient = useQueryClient()
+    const [documentOpen, setDocumentOpen] = useState(false)
 
     const { mutate: changeStatus, isPending } = useMutation({
         mutationFn: ({ id, status }: { id: number; status: string }) =>
@@ -314,6 +318,9 @@ function OrderCard({
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ["orders"] })
+            queryClient.invalidateQueries({ queryKey: ["deliveries"] })
+            queryClient.invalidateQueries({ queryKey: ["exports"] })
+            queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] })
         },
     })
 
@@ -362,6 +369,15 @@ function OrderCard({
 
                 {/* Status + Actions */}
                 <div className="flex items-center gap-2 px-4 py-3">
+                    <button
+                        type="button"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold shadow-xs hover:bg-muted/60"
+                        onClick={() => setDocumentOpen(true)}
+                    >
+                        <FileText className="h-3.5 w-3.5" />
+                        Đơn đặt hàng
+                    </button>
+
                     <Select
                         value={status}
                         onValueChange={(v) => changeStatus({ id: order.id, status: v })}
@@ -515,6 +531,11 @@ function OrderCard({
                     </div>
                 </div>
             </div>
+            <OrderDocumentDialog
+                open={documentOpen}
+                order={order}
+                onClose={() => setDocumentOpen(false)}
+            />
         </div>
     )
 }
@@ -765,3 +786,6 @@ function getInitials(name?: string) {
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
+
+
+

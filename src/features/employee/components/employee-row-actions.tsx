@@ -7,6 +7,6 @@ export function EmployeeRowActions({ row }: { row: Row<Employee> }) {
     const { openEdit } = useEmployees()
 
     return (
-        <CrudRowActions onEdit={() => openEdit(row.original)} />
+        <CrudRowActions row={row.original} onEdit={openEdit} />
     )
 }

@@ -45,11 +45,11 @@ export const sidebarData: SidebarData = {
         {
             title: 'Dữ liệu',
             items: [
-                /*{
+                {
                     title: 'Nhân viên',
                     url: '/employees',
-                    icon: UserCircle, 
-                },*/
+                    icon: UserCircle,
+                },
                 {
                     title: 'Khách hàng',
                     url: '/customers',

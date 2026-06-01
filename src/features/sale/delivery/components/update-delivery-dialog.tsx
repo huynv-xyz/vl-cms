@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
@@ -57,7 +57,23 @@ export function UpdateDeliveryDialog({
         enabled: open && !!orderId,
     })
 
-    const orderItems = orderDetail?.items ?? []
+    const orderItems = useMemo(() => {
+        if (!orderDetail?.items) return []
+
+        return orderDetail.items.map((item: any) => {
+            const reservedQuantity = getReservedQuantity(
+                (orderDetail as any).deliveries,
+                item.product_id,
+                detail?.id
+            )
+            const maxQuantity = Math.max(0, Number(item.quantity ?? 0) - reservedQuantity)
+
+            return {
+                ...item,
+                remain_quantity: maxQuantity,
+            }
+        })
+    }, [orderDetail, detail?.id])
 
     const [headerFormData, setHeaderFormData] =
         useState<DeliveryFormValues>({
@@ -100,14 +116,13 @@ export function UpdateDeliveryDialog({
         const mapped: DeliveryFormItem[] = orderItems.map((o: any) => {
             const existing = existingMap.get(o.product_id)
             const existingQuantity = Number(existing?.quantity ?? 0)
-            const remainingQuantity = Number(o.remain_quantity ?? o.quantity ?? 0)
 
             return {
                 product_id: o.product_id,
                 product: o.product,
                 selected: !!existing,
                 quantity: existingQuantity,
-                remain_quantity: remainingQuantity + existingQuantity,
+                remain_quantity: Number(o.remain_quantity ?? o.quantity ?? 0),
                 warehouse_id: existing?.warehouse_id,
                 note: existing?.note ?? "",
             }
@@ -142,6 +157,13 @@ export function UpdateDeliveryDialog({
                 if (!i.warehouse_id) {
                     throw new Error("Vui lòng chọn kho xuất cho từng sản phẩm")
                 }
+            }
+
+            const overLimitItem = selectedItems.find(
+                (item) => Number(item.quantity || 0) > Number(item.remain_quantity || 0)
+            )
+            if (overLimitItem) {
+                throw new Error("So luong giao khong duoc vuot so luong con phai giao")
             }
 
             return updateDelivery({
@@ -233,7 +255,16 @@ export function UpdateDeliveryDialog({
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             Hủy
                         </Button>
-                        <Button type="submit" form="delivery-update-form" disabled={isPending}>
+                        <Button
+                            type="submit"
+                            form="delivery-update-form"
+                            disabled={isPending}
+                            onPointerDown={() => {
+                                if (document.activeElement instanceof HTMLElement) {
+                                    document.activeElement.blur()
+                                }
+                            }}
+                        >
                             <Save className="mr-2 h-4 w-4" />
                             {isPending ? "Đang lưu..." : "Lưu thay đổi"}
                         </Button>
@@ -243,4 +274,17 @@ export function UpdateDeliveryDialog({
             </DialogContent>
         </Dialog>
     )
+}
+
+function getReservedQuantity(
+    deliveries: any[] | undefined,
+    productId: number,
+    excludeDeliveryId?: number
+) {
+    return (deliveries ?? [])
+        .filter((delivery: any) => delivery?.id !== excludeDeliveryId)
+        .filter((delivery: any) => delivery?.status !== "CANCELLED")
+        .flatMap((delivery: any) => delivery?.items ?? [])
+        .filter((item: any) => item?.product_id === productId)
+        .reduce((sum: number, item: any) => sum + Number(item?.quantity || 0), 0)
 }

@@ -169,6 +169,9 @@ function DeliveryStatusSelect({ delivery }: { delivery: Delivery }) {
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ["deliveries"] })
+            queryClient.invalidateQueries({ queryKey: ["exports"] })
+            queryClient.invalidateQueries({ queryKey: ["orders"] })
+            queryClient.invalidateQueries({ queryKey: ["order-detail", delivery.order_id] })
         },
     })
 

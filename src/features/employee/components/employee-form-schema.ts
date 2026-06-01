@@ -20,14 +20,6 @@ export const employeeSchema: RJSFSchema = {
                 minLength: "Tên nhân viên không được để trống",
             },
         },
-        gender: {
-            type: "string",
-            title: "Giới tính",
-            oneOf: [
-                { const: "Nam", title: "Nam" },
-                { const: "Nữ", title: "Nữ" },
-            ],
-        },
         birth_date: {
             type: "string",
             title: "Ngày sinh",
@@ -47,35 +39,6 @@ export const employeeSchema: RJSFSchema = {
         identity_issue_place: {
             type: "string",
             title: "Nơi cấp",
-        },
-        dependent_count: {
-            type: "integer",
-            title: "Số người phụ thuộc",
-            default: 0,
-        },
-        insurance_base: {
-            type: "number",
-            title: "Lương BH",
-            default: 0,
-        },
-        basic_salary: {
-            type: "number",
-            title: "Lương cơ bản",
-            default: 0,
-        },
-        allowance_salary: {
-            type: "number",
-            title: "Phụ cấp",
-            default: 0,
-        },
-        is_union_member: {
-            type: "integer",
-            title: "Công đoàn",
-            oneOf: [
-                { const: 1, title: "Có" },
-                { const: 0, title: "Không" },
-            ],
-            default: 0,
         },
         status: {
             type: "integer",
@@ -107,9 +70,6 @@ export const employeeUiSchema: UiSchema = {
     },
     identity_issue_date: {
         "ui:widget": "date",
-    },
-    is_union_member: {
-        "ui:widget": "select",
     },
     status: {
         "ui:widget": "select",

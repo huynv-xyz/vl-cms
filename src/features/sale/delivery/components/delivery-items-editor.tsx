@@ -1,4 +1,5 @@
 import { useMemo } from "react"
+import { flushSync } from "react-dom"
 import {
     flexRender,
     getCoreRowModel,
@@ -45,9 +46,6 @@ export function DeliveryItemsEditor({
         if (order) {
             // Chỉ giới hạn theo số lượng còn phải giao của đơn hàng,
             // không kiểm tra tồn kho.
-            const remain = Number(order.remain_quantity ?? order.quantity ?? 0)
-
-            if (next.quantity > remain) next.quantity = remain
             if (next.quantity < 0) next.quantity = 0
         }
 
@@ -141,7 +139,7 @@ export function DeliveryItemsEditor({
                         disabled={!row.original.selected}
                         max={row.original.max_quantity}
                         onCommit={(productId, quantity) =>
-                            updateRow(productId, { quantity })
+                            flushSync(() => updateRow(productId, { quantity }))
                         }
                     />
                 )

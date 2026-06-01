@@ -91,6 +91,9 @@ export function OrderDeliveries({ order, deliveries }: any) {
         onSuccess: () => toast.success("Cập nhật trạng thái thành công"),
         onSettled: () => {
             void queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] })
+            void queryClient.invalidateQueries({ queryKey: ["deliveries"] })
+            void queryClient.invalidateQueries({ queryKey: ["exports"] })
+            void queryClient.invalidateQueries({ queryKey: ["orders"] })
         },
     })
 

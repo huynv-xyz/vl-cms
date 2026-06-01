@@ -26,16 +26,16 @@ const EXPORT_DIALOG_PRINT_CSS = `
   #export-dialog-print-document {
     display: block !important;
     position: absolute !important;
-    left: 50% !important;
+    left: 0 !important;
     top: 0 !important;
-    width: 200mm !important;
-    max-width: 200mm !important;
+    width: 100% !important;
+    max-width: none !important;
     margin: 0 !important;
     padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
     background: white !important;
-    transform: translateX(-50%) !important;
+    transform: none !important;
     overflow: visible !important;
     break-inside: avoid;
     page-break-inside: avoid;
@@ -55,7 +55,6 @@ const EXPORT_DIALOG_PRINT_CSS = `
   #export-dialog-print-document .export-print-sign-space { margin-top: 32px !important; }
   #export-dialog-print-document table { page-break-inside: auto; }
   #export-dialog-print-document tr { page-break-inside: avoid; page-break-after: auto; }
-  @page { size: A5 landscape; margin: 3mm; }
 }
 `
 
@@ -80,8 +79,6 @@ export function ExportDetailDialog({
         <Dialog open={open} onOpenChange={onClose}>
             <style>{EXPORT_DIALOG_PRINT_CSS}</style>
             <DialogContent className="flex max-h-[92vh] w-[min(96vw,900px)] !max-w-none flex-col gap-0 overflow-hidden p-0 print:hidden">
-
-                {/* ── Dialog header ── */}
                 <DialogHeader className="flex-row items-center justify-between border-b bg-muted/20 px-5 py-3.5 space-y-0">
                     <DialogTitle className="text-base font-semibold">
                         Phiếu xuất kho
@@ -117,14 +114,11 @@ export function ExportDetailDialog({
                     </div>
                 </DialogHeader>
 
-                {/* ── Body ── */}
                 <div className="min-h-0 flex-1 overflow-y-auto p-5">
                     {query.isLoading && <DialogLoadingState />}
 
                     {!query.isLoading && data && (
-                        <div
-                            className="bg-white rounded border border-gray-200 p-4"
-                        >
+                        <div className="bg-white rounded border border-gray-200 p-4">
                             <ExportInfo data={data} />
                             <ExportItems data={data} items={data.items ?? []} />
                         </div>
@@ -142,7 +136,6 @@ export function ExportDetailDialog({
                         </div>
                     )}
                 </div>
-
             </DialogContent>
 
             {data && (
