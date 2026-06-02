@@ -265,6 +265,6 @@ function EmptyState({ title, desc }: { title: string; desc: string }) {
 }
 
 function formatQty(value: number, unit?: string) {
-    const text = new Intl.NumberFormat("vi-VN").format(value || 0)
+    const text = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(value || 0)
     return unit ? `${text} ${unit}` : text
 }

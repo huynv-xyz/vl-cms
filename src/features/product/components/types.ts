@@ -7,6 +7,7 @@ export type ProductFormValues = {
     unit?: string
     nature?: string
     group_id?: number
+    pricing_group_id?: number
     base_unit_code?: string
     sale_unit_code?: string
     sale_unit_name?: string
@@ -19,5 +20,7 @@ export type ProductFormValues = {
     description?: string
     default_warehouse_id?: number
     inventory_account_code?: string
+    price_method_override?: string
+    manual_price_vnd?: number
     status?: 0 | 1
 }

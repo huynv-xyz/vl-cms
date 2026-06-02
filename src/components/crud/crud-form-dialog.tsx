@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import Form from "@rjsf/shadcn"
-import type { RJSFSchema, UiSchema } from "@rjsf/utils"
+import type { ObjectFieldTemplateProps, RJSFSchema, UiSchema } from "@rjsf/utils"
 import { toast } from "sonner"
 
 import {
@@ -33,6 +33,7 @@ type CrudFormDialogProps<TFormValues, TRequest, TResponse> = {
     dialogClassName?: string
     formWrapperClassName?: string
     formClassName?: string
+    objectFieldClassName?: string
     onSuccess?: (response: TResponse) => void
     successMessage?: string
     errorMessage?: string
@@ -58,6 +59,7 @@ export function CrudFormDialog<TFormValues, TRequest, TResponse>({
     dialogClassName = "sm:max-w-2xl",
     formWrapperClassName,
     formClassName,
+    objectFieldClassName,
     onSuccess,
     successMessage = "Thao tác thành công",
     errorMessage = "Thao tác thất bại",
@@ -117,7 +119,19 @@ export function CrudFormDialog<TFormValues, TRequest, TResponse>({
                         uiSchema={uiSchema}
                         widgets={widgets}
                         formData={formData}
-                        templates={{ FieldTemplate: ShadcnFieldTemplate }}
+                        templates={{
+                            FieldTemplate: ShadcnFieldTemplate,
+                            ...(objectFieldClassName
+                                ? {
+                                    ObjectFieldTemplate: (props: ObjectFieldTemplateProps) => (
+                                        <GridObjectFieldTemplate
+                                            {...props}
+                                            className={objectFieldClassName}
+                                        />
+                                    ),
+                                }
+                                : {}),
+                        }}
                         noHtml5Validate
                         showErrorList={false}
                         disabled={isPending}
@@ -148,5 +162,28 @@ export function CrudFormDialog<TFormValues, TRequest, TResponse>({
                 </div>
             </DialogContent>
         </Dialog>
+    )
+}
+
+function GridObjectFieldTemplate({
+    properties,
+    title,
+    description,
+    className,
+}: ObjectFieldTemplateProps & { className: string }) {
+    return (
+        <div className={className}>
+            {title ? <div className="col-span-full text-sm font-semibold">{title}</div> : null}
+            {description ? <div className="col-span-full">{description}</div> : null}
+            {properties.map((property) =>
+                property.hidden ? (
+                    <div key={property.name} className="hidden">
+                        {property.content}
+                    </div>
+                ) : (
+                    property.content
+                )
+            )}
+        </div>
     )
 }

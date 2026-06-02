@@ -1,6 +1,8 @@
 import type { RJSFSchema, UiSchema } from "@rjsf/utils"
-import { listProductGroups } from "@/api/product-group"
+import { getProductGroup, listProductGroups } from "@/api/product-group"
+import { pricingGroupsApi } from "@/api/pricing"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
+import { PRODUCT_NATURE_OPTIONS } from "./product-nature"
 
 export const productSchema: RJSFSchema = {
     type: "object",
@@ -46,6 +48,10 @@ export const productSchema: RJSFSchema = {
         group_id: {
             type: "integer",
             title: "Nhóm tính giá",
+        },
+        pricing_group_id: {
+            type: "integer",
+            title: "Ma nhom bao gia",
         },
         base_unit_code: {
             type: "string",
@@ -106,6 +112,20 @@ export const productSchema: RJSFSchema = {
             type: "string",
             title: "TK kho",
         },
+        price_method_override: {
+            type: "string",
+            title: "Cach lay gia mua",
+            oneOf: [
+                { const: "WAVG", title: "Binh quan" },
+                { const: "LATEST", title: "Gia moi nhat" },
+                { const: "FIFO", title: "FIFO" },
+                { const: "MANUAL", title: "Nhap tay" },
+            ],
+        },
+        manual_price_vnd: {
+            type: "number",
+            title: "Gia mua nhap tay",
+        },
         description: {
             type: "string",
             title: "Mô tả",
@@ -138,6 +158,7 @@ export const productUiSchema: UiSchema = {
         "unit",
         "nature",
         "group_id",
+        "pricing_group_id",
         "base_unit_code",
         "sale_unit_code",
         "sale_unit_name",
@@ -149,6 +170,8 @@ export const productUiSchema: UiSchema = {
         "vat_rate",
         "default_warehouse_id",
         "inventory_account_code",
+        "price_method_override",
+        "manual_price_vnd",
         "description",
         "status",
     ],
@@ -166,8 +189,24 @@ export const productUiSchema: UiSchema = {
             searchPlaceholder: "Tìm mã hoặc tên nhóm...",
             dataSource: {
                 getList: listProductGroups,
-                getById: getProductGroupById,
+                getById: getProductGroup,
                 params: { page: 1, size: 20 },
+            },
+            mapOption: (g: any) => ({
+                value: g.id,
+                label: `${g.code || `#${g.id}`} - ${g.name || ""}`,
+            }),
+        },
+    },
+    pricing_group_id: {
+        "ui:widget": "asyncSelect",
+        "ui:options": {
+            placeholder: "Chon ma nhom bao gia",
+            searchPlaceholder: "Tim ma hoac ten nhom bao gia...",
+            dataSource: {
+                getList: pricingGroupsApi.list,
+                getById: pricingGroupsApi.detail,
+                params: { page: 1, size: 20, active: true },
             },
             mapOption: (g: any) => ({
                 value: g.id,
@@ -197,6 +236,7 @@ export const productUiSchema: UiSchema = {
         },
     },
     description: {
+        "ui:classNames": "md:col-span-2 xl:col-span-3",
         "ui:widget": "textarea",
         "ui:options": {
             rows: 3,
@@ -204,8 +244,3 @@ export const productUiSchema: UiSchema = {
     },
 }
 
-async function getProductGroupById(id: number | string) {
-    const res: any = await listProductGroups({ page: 1, size: 20, keyword: String(id) })
-    const items = res?.items ?? res?.data?.items ?? []
-    return items.find((item: any) => Number(item.id) === Number(id)) ?? items[0]
-}

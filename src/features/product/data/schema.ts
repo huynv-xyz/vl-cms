@@ -15,6 +15,12 @@ export type Product = {
         code?: string
         name?: string
     } | null
+    pricing_group_id?: number
+    pricing_group?: {
+        id: number
+        code?: string
+        name?: string
+    } | null
     base_unit_code?: string
     sale_unit_code?: string
     sale_unit_name?: string
@@ -31,6 +37,8 @@ export type Product = {
         name: string
     } | null
     inventory_account_code?: string
+    price_method_override?: string
+    manual_price_vnd?: number
     status: number
     created_at?: string
     updated_at?: string

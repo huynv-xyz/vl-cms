@@ -2,6 +2,7 @@ import { CrudFormDialog } from "@/components/crud/crud-form-dialog"
 import { updateProduct, type UpdateProductRequest } from "@/api/product"
 import type { Product } from "../data/schema"
 import { productSchema, productUiSchema } from "./product-form-schema"
+import { formatProductNature, toProductNatureValue } from "./product-nature"
 import type { ProductFormValues } from "./types"
 
 export function UpdateProductDialog({ product, open, onOpenChange }: any) {
@@ -20,8 +21,9 @@ export function UpdateProductDialog({ product, open, onOpenChange }: any) {
                 quote_code: product.quote_code ?? "",
                 misa_material_code: product.misa_material_code ?? "",
                 unit: product.unit ?? "",
-                nature: product.nature ?? "",
+                nature: product.nature ? formatProductNature(product.nature) : "",
                 group_id: product.group_id,
+                pricing_group_id: product.pricing_group_id,
                 base_unit_code: product.base_unit_code ?? "KG",
                 sale_unit_code: product.sale_unit_code ?? "",
                 sale_unit_name: product.sale_unit_name ?? "",
@@ -34,12 +36,15 @@ export function UpdateProductDialog({ product, open, onOpenChange }: any) {
                 description: product.description ?? "",
                 default_warehouse_id: product.default_warehouse_id,
                 inventory_account_code: product.inventory_account_code ?? "",
+                price_method_override: product.price_method_override ?? undefined,
+                manual_price_vnd: product.manual_price_vnd,
                 status: product.status === 1 ? 1 : 0,
             }}
             submitText="Lưu"
             loadingText="Đang lưu..."
-            dialogClassName="max-h-[86vh] !w-[calc(100vw-32px)] !max-w-[820px]"
-            formClassName="space-y-4 md:[&>div:first-child]:grid md:[&>div:first-child]:grid-cols-2 md:[&>div:first-child]:gap-x-5"
+            dialogClassName="max-h-[86vh] !w-[calc(100vw-32px)] !max-w-6xl"
+            formClassName="space-y-4"
+            objectFieldClassName="grid grid-cols-1 gap-x-5 gap-y-1 md:grid-cols-2 xl:grid-cols-3"
             queryKeyToInvalidate={["product"]}
             mutationFn={updateProduct}
             mapFormToRequest={(v) => ({
@@ -50,8 +55,9 @@ export function UpdateProductDialog({ product, open, onOpenChange }: any) {
                 quote_code: v.quote_code?.trim() || undefined,
                 misa_material_code: v.misa_material_code?.trim() || undefined,
                 unit: v.unit?.trim() || "",
-                nature: v.nature?.trim() || undefined,
+                nature: toProductNatureValue(v.nature?.trim()),
                 group_id: v.group_id,
+                pricing_group_id: v.pricing_group_id,
                 base_unit_code: v.base_unit_code?.trim() || "KG",
                 sale_unit_code: v.sale_unit_code?.trim() || undefined,
                 sale_unit_name: v.sale_unit_name?.trim() || undefined,
@@ -64,6 +70,8 @@ export function UpdateProductDialog({ product, open, onOpenChange }: any) {
                 description: v.description?.trim() || undefined,
                 default_warehouse_id: v.default_warehouse_id,
                 inventory_account_code: v.inventory_account_code?.trim() || undefined,
+                price_method_override: v.price_method_override?.trim() || undefined,
+                manual_price_vnd: v.manual_price_vnd,
                 status: v.status === 0 ? 0 : 1,
             })}
         />
