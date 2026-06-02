@@ -23,25 +23,25 @@ export function QuantityInputCell({
     }, [value])
 
     const updateValue = (rawValue: string) => {
+        if (rawValue.includes(",")) return
+        if (!/^\d*\.?\d*$/.test(rawValue)) return
         setLocalValue(rawValue)
     }
 
     const commitValue = () => {
-        let nextValue = Number(localValue)
+        let nextValue = Number(localValue || 0)
 
         if (Number.isNaN(nextValue) || nextValue < 0) {
             nextValue = 0
         }
-
         setLocalValue(String(nextValue))
         onCommit(productId, nextValue)
     }
 
     return (
         <Input
-            type="number"
-            min={0}
-            max={max}
+            type="text"
+            inputMode="decimal"
             value={localValue}
             disabled={disabled}
             onChange={(e) => updateValue(e.target.value)}

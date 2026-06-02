@@ -287,5 +287,5 @@ function EmptyState({ title, desc }: { title: string; desc: string }) {
 }
 
 function formatNumber(value: unknown) {
-    return new Intl.NumberFormat("vi-VN").format(Number(value || 0))
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(Number(value || 0))
 }

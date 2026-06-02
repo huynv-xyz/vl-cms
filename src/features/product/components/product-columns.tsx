@@ -6,6 +6,7 @@ import { buildBadgeColumn } from "@/components/crud/build-badge-column"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
 import type { Product } from "../data/schema"
+import { formatProductNature } from "./product-nature"
 import { ProductRowActions } from "./product-row-actions"
 import { useProducts } from "./products-provider"
 
@@ -20,7 +21,7 @@ export const productColumns: ColumnDef<Product>[] = [
     buildTextColumn<Product>({
         title: "Tính chất",
         width: 150,
-        render: (product) => product.nature || "-",
+        render: (product) => formatProductNature(product.nature),
     }),
 
     buildTextColumn<Product>({

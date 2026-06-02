@@ -300,5 +300,5 @@ function TabTrigger({
 }
 
 function formatNumber(value: number) {
-    return new Intl.NumberFormat("vi-VN").format(value || 0)
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(value || 0)
 }

@@ -1,4 +1,4 @@
-import type { Export, ExportItem } from "../../export/data/schema"
+﻿import type { Export, ExportItem } from "../../export/data/schema"
 import type { OrderItem } from "@/features/sale/order/data/schema"
 import { cn } from "@/lib/utils"
 
@@ -25,6 +25,32 @@ type Props = {
     data: Export
     items: ExportItem[]
 }
+
+const SIGNATURES = [
+    {
+        role: "Ng\u01b0\u1eddi l\u1eadp bi\u1ec3u",
+        sign: "(K\u00fd, h\u1ecd t\u00ean)",
+        name: "Tr\u1ea7n Th\u1ecb Ch\u00e2u Loan",
+    },
+    {
+        role: "Ng\u01b0\u1eddi nh\u1eadn h\u00e0ng",
+        sign: "(K\u00fd, h\u1ecd t\u00ean)",
+    },
+    {
+        role: "Th\u1ee7 kho",
+        sign: "(K\u00fd, h\u1ecd t\u00ean)",
+        name: "Ph\u1ea1m V\u0103n Ch\u00ed Linh",
+    },
+    {
+        role: "K\u1ebf to\u00e1n tr\u01b0\u1edfng",
+        sign: "(K\u00fd, h\u1ecd t\u00ean)",
+    },
+    {
+        role: "Qu\u1ea3n l\u00fd nh\u00e0 m\u00e1y",
+        sign: "(K\u00fd, h\u1ecd t\u00ean)",
+        name: "Nguy\u1ec5n T\u1ea5n Th\u1ecbnh",
+    },
+]
 
 // ── component ─────────────────────────────────────────────────────────────
 
@@ -234,21 +260,14 @@ export function ExportItems({ data, items }: Props) {
                     Ngày ...... tháng ...... năm .........
                 </div>
                 <div className="grid grid-cols-5 gap-2 text-center text-[12px]">
-                    {[
-                        { role: "Người lập biểu", sign: "(Ký, họ tên)" },
-                        { role: "Người nhận hàng", sign: "(Ký, họ tên)" },
-                        { role: "Thủ kho", sign: "(Ký, họ tên)" },
-                        { role: "Kế toán trưởng", sign: "(Ký, họ tên)" },
-                        { role: "Quản lý nhà máy", sign: "(Ký, họ tên)" },
-                    ].map(({ role, sign }) => (
+                    {SIGNATURES.map(({ role, sign, name }) => (
                         <div key={role} className="px-1 leading-tight">
-                            <div className="min-h-[30px] font-semibold">{role}</div>
-                            <div className="text-[11px] italic text-muted-foreground mt-0.5">
+                            <div className="min-h-[18px] font-semibold">{role}</div>
+                            <div className="text-[11px] italic text-muted-foreground">
                                 {sign}
                             </div>
-                            {/* Signature space */}
-                            <div className="export-print-sign-space mt-16 text-[11px] text-muted-foreground">
-                                &nbsp;
+                            <div className="export-print-sign-space mt-12 text-[12px] font-semibold text-foreground">
+                                {name || "\u00a0"}
                             </div>
                         </div>
                     ))}
