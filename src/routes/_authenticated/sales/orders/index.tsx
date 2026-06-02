@@ -37,6 +37,11 @@ export const Route = createFileRoute("/_authenticated/sales/orders/")({
             typeof search.to_date === "string"
                 ? search.to_date
                 : undefined,
+
+        order_date_sort:
+            search.order_date_sort === "asc" || search.order_date_sort === "desc"
+                ? search.order_date_sort
+                : "desc",
     }),
     component: OrderPage,
 })

@@ -18,9 +18,12 @@ import {
     UsersRound,
 } from "lucide-react"
 
-type Props = { order: any }
+type Props = {
+    order: any
+    metrics?: React.ReactNode
+}
 
-export function OrderInfo({ order }: Props) {
+export function OrderInfo({ order, metrics }: Props) {
     const [documentOpen, setDocumentOpen] = useState(false)
     const statusMeta = getOrderStatusMeta(order.status)
     const StatusIcon = statusMeta.icon
@@ -37,14 +40,14 @@ export function OrderInfo({ order }: Props) {
     return (
         <div className="overflow-hidden rounded-xl border bg-gradient-to-br from-background to-muted/30 shadow-sm">
             {/* TOP STRIP */}
-            <div className="flex flex-wrap items-start justify-between gap-4 border-b bg-background/60 px-5 py-4 backdrop-blur">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b bg-background/60 px-5 py-3 backdrop-blur">
                 <div className="flex items-start gap-3 min-w-0">
-                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border ${statusMeta.badgeClass}`}>
-                        <StatusIcon className="h-5 w-5" />
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${statusMeta.badgeClass}`}>
+                        <StatusIcon className="h-4.5 w-4.5" />
                     </div>
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                            <h2 className="truncate text-2xl font-bold tracking-tight">
+                            <h2 className="truncate text-xl font-bold tracking-tight">
                                 {order.order_no}
                             </h2>
                             <span
@@ -54,7 +57,7 @@ export function OrderInfo({ order }: Props) {
                                 {statusMeta.label}
                             </span>
                         </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                             <span className="inline-flex items-center gap-1">
                                 <CalendarDays className="h-3.5 w-3.5" />
                                 Ngày đặt: <strong className="text-foreground">{formatDate(order.order_date)}</strong>
@@ -104,7 +107,7 @@ export function OrderInfo({ order }: Props) {
             />
 
             {/* INFO GRID */}
-            <div className="grid gap-3 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 px-5 py-3 sm:grid-cols-2 lg:grid-cols-4">
                 <Info
                     icon={<UsersRound className="h-4 w-4" />}
                     label="Khách hàng"
@@ -157,6 +160,12 @@ export function OrderInfo({ order }: Props) {
                     value={order.note || <span className="font-normal text-muted-foreground">Không có</span>}
                 />
             </div>
+
+            {metrics && (
+                <div className="border-t bg-background/45 px-5 py-3">
+                    {metrics}
+                </div>
+            )}
         </div>
     )
 }
@@ -173,12 +182,12 @@ function Info({
     sub?: React.ReactNode
 }) {
     return (
-        <div className="rounded-lg border bg-background/80 px-3.5 py-2.5 transition-colors hover:bg-background">
+        <div className="rounded-lg border bg-background/80 px-3 py-2 transition-colors hover:bg-background">
             <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {icon}
                 {label}
             </div>
-            <div className="mt-1 min-h-[1.25rem] truncate text-sm font-semibold">{value}</div>
+            <div className="mt-0.5 min-h-[1.15rem] truncate text-sm font-semibold">{value}</div>
             {sub && (
                 <div className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</div>
             )}

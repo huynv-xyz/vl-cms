@@ -46,8 +46,19 @@ export type ArLedgerSummary = {
     payment_amount?: number  // Thanh toán (BANK + RECEIPT credit)
 }
 
+export type ArLedgerTotals = {
+    debit_amount: number
+    credit_amount: number
+    net_amount: number
+    row_count: number
+}
+
 export function listArLedgerSummary(params: ArLedgerListParams) {
     return apiGet<PagedResult<ArLedgerSummary>>("/sales/ar-ledgers/summary", params)
+}
+
+export function getArLedgerTotals(params: Omit<ArLedgerListParams, "page" | "size">) {
+    return apiGet<ArLedgerTotals>("/sales/ar-ledgers/totals", params)
 }
 
 export async function importArLedgers(file: File) {

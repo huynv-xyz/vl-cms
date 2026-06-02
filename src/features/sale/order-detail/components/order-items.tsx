@@ -86,6 +86,7 @@ export function OrderItems({ order, items }: any) {
                             <TableRow className="hover:bg-transparent">
                                 <TableHead className="w-[56px] text-center text-xs font-semibold uppercase">#</TableHead>
                                 <TableHead className="min-w-[280px] text-xs font-semibold uppercase">Sản phẩm</TableHead>
+                                <TableHead className="w-[90px] text-center text-xs font-semibold uppercase">ĐVT</TableHead>
                                 <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Mô tả HH</TableHead>
                                 <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">Khuyến mãi</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">SL đặt</TableHead>
@@ -125,6 +126,10 @@ export function OrderItems({ order, items }: any) {
                                             </div>
                                         </TableCell>
 
+                                        <TableCell className="text-center text-sm font-medium text-muted-foreground">
+                                            {i.product?.unit || "-"}
+                                        </TableCell>
+
                                         <TableCell>
                                             {i.description ? (
                                                 <span className="inline-flex max-w-[260px] rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
@@ -146,15 +151,15 @@ export function OrderItems({ order, items }: any) {
                                         </TableCell>
 
                                         <TableCell className="text-right font-medium tabular-nums">
-                                            {formatQty(quantity, i.product?.unit)}
+                                            {formatQty(quantity)}
                                         </TableCell>
 
                                         <TableCell className="text-right font-medium tabular-nums text-blue-600 dark:text-blue-400">
-                                            {formatQty(exported, i.product?.unit)}
+                                            {formatQty(exported)}
                                         </TableCell>
 
                                         <TableCell className="text-right tabular-nums text-rose-500">
-                                            {returned > 0 ? formatQty(returned, i.product?.unit) : "—"}
+                                            {returned > 0 ? formatQty(returned) : "—"}
                                         </TableCell>
 
                                         <TableCell className="text-right tabular-nums">
@@ -165,7 +170,7 @@ export function OrderItems({ order, items }: any) {
                                                         : "font-semibold text-emerald-600 dark:text-emerald-400"
                                                 }
                                             >
-                                                {formatQty(remain, i.product?.unit)}
+                                                {formatQty(remain)}
                                             </span>
                                         </TableCell>
 
@@ -214,7 +219,7 @@ export function OrderItems({ order, items }: any) {
                         <TableFooter className="bg-muted/40">
                             <TableRow className="hover:bg-transparent">
                                 <TableCell
-                                    colSpan={9}
+                                    colSpan={10}
                                     className="text-right text-sm font-semibold uppercase tracking-wide text-muted-foreground"
                                 >
                                     Tổng cộng
@@ -264,7 +269,7 @@ function EmptyState({ title, desc }: { title: string; desc: string }) {
     )
 }
 
-function formatQty(value: number, unit?: string) {
+function formatQty(value: number) {
     const text = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(value || 0)
-    return unit ? `${text} ${unit}` : text
+    return text
 }

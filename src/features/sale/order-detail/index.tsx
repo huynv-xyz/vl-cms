@@ -84,53 +84,55 @@ export default function OrderDetailPage({ id }: Props) {
                 const exportPct = totalQty > 0 ? Math.min((exportedQty / totalQty) * 100, 100) : 0
 
                 return (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
 
-                        <OrderInfo order={data} />
-
-                        {/* KPI METRICS */}
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            <Metric
-                                icon={Coins}
-                                tone="primary"
-                                label="Tổng giá trị đơn"
-                                value={formatCurrency(totalAmount)}
-                                sub={`${formatNumber(items.length)} sản phẩm`}
-                            />
-                            <Metric
-                                icon={Wallet}
-                                tone={paidAmount >= totalAmount && totalAmount > 0 ? "ok" : "info"}
-                                label="Đã thu / Phải thu"
-                                value={formatCurrency(paidAmount)}
-                                sub={
-                                    remainAmount > 0
-                                        ? `Còn ${formatCurrency(remainAmount)}`
-                                        : "Đã thu đủ"
-                                }
-                                progress={paidPct}
-                                progressTone={paidAmount >= totalAmount && totalAmount > 0 ? "ok" : "info"}
-                            />
-                            <Metric
-                                icon={PackageCheck}
-                                tone={remainQty > 0 ? "warn" : "ok"}
-                                label="Đã xuất / Đặt"
-                                value={`${formatNumber(exportedQty)} / ${formatNumber(totalQty)}`}
-                                sub={
-                                    remainQty > 0
-                                        ? `Còn xuất ${formatNumber(remainQty)}`
-                                        : "Đã xuất đủ"
-                                }
-                                progress={exportPct}
-                                progressTone={remainQty > 0 ? "warn" : "ok"}
-                            />
-                            <Metric
-                                icon={PackageX}
-                                tone={returnedQty > 0 ? "danger" : "muted"}
-                                label="Đã trả hàng"
-                                value={formatNumber(returnedQty)}
-                                sub={`${formatNumber(returns.length)} phiếu trả`}
-                            />
-                        </div>
+                        <OrderInfo
+                            order={data}
+                            metrics={
+                                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                    <Metric
+                                        icon={Coins}
+                                        tone="primary"
+                                        label="Tổng giá trị đơn"
+                                        value={formatCurrency(totalAmount)}
+                                        sub={`${formatNumber(items.length)} sản phẩm`}
+                                    />
+                                    <Metric
+                                        icon={Wallet}
+                                        tone={paidAmount >= totalAmount && totalAmount > 0 ? "ok" : "info"}
+                                        label="Đã thu / Phải thu"
+                                        value={formatCurrency(paidAmount)}
+                                        sub={
+                                            remainAmount > 0
+                                                ? `Còn ${formatCurrency(remainAmount)}`
+                                                : "Đã thu đủ"
+                                        }
+                                        progress={paidPct}
+                                        progressTone={paidAmount >= totalAmount && totalAmount > 0 ? "ok" : "info"}
+                                    />
+                                    <Metric
+                                        icon={PackageCheck}
+                                        tone={remainQty > 0 ? "warn" : "ok"}
+                                        label="Đã xuất / Đặt"
+                                        value={`${formatNumber(exportedQty)} / ${formatNumber(totalQty)}`}
+                                        sub={
+                                            remainQty > 0
+                                                ? `Còn xuất ${formatNumber(remainQty)}`
+                                                : "Đã xuất đủ"
+                                        }
+                                        progress={exportPct}
+                                        progressTone={remainQty > 0 ? "warn" : "ok"}
+                                    />
+                                    <Metric
+                                        icon={PackageX}
+                                        tone={returnedQty > 0 ? "danger" : "muted"}
+                                        label="Đã trả hàng"
+                                        value={formatNumber(returnedQty)}
+                                        sub={`${formatNumber(returns.length)} phiếu trả`}
+                                    />
+                                </div>
+                            }
+                        />
 
                         {/* TABS */}
                         <Tabs defaultValue="items" className="space-y-4">
@@ -218,19 +220,19 @@ function Metric({
     progressTone?: Tone
 }) {
     return (
-        <div className="group rounded-xl border bg-background p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="group rounded-lg border bg-background p-3 shadow-sm transition-all hover:shadow-md">
             <div className="flex items-start justify-between gap-2">
                 <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {label}
                 </div>
                 {Icon && (
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${TONE_ICON_BG[tone]}`}>
-                        <Icon className="h-4 w-4" />
+                    <div className={`flex h-7 w-7 items-center justify-center rounded-md ${TONE_ICON_BG[tone]}`}>
+                        <Icon className="h-3.5 w-3.5" />
                     </div>
                 )}
             </div>
 
-            <div className={`mt-2 text-xl font-bold tracking-tight ${TONE_TEXT[tone]}`}>
+            <div className={`mt-1.5 text-lg font-bold tracking-tight ${TONE_TEXT[tone]}`}>
                 {value}
             </div>
 
@@ -239,7 +241,7 @@ function Metric({
             )}
 
             {typeof progress === "number" && (
-                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
                     <div
                         className={`h-full rounded-full transition-all ${TONE_PROGRESS[progressTone ?? tone]}`}
                         style={{ width: `${progress}%` }}

@@ -1,13 +1,14 @@
 import type React from "react"
-import { useMemo, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Download, Loader2, Plus, Upload, WalletCards } from "lucide-react"
 import { toast } from "sonner"
 
 import {
     createArLedger,
     deleteArLedger,
+    getArLedgerTotals,
     importBankArLedgers,
     importOpeningArLedgers,
     listArLedgers,
@@ -123,11 +124,35 @@ export function CashBankLedgerTable({
     const today = todayYmd()
     const shouldConstrainDateFilters = sourceType === "ADJUST"
 
-    const totals = useMemo(() => {
-        const incoming = data.reduce((sum, row) => sum + Number(row.credit_amount || 0), 0)
-        const outgoing = data.reduce((sum, row) => sum + Number(row.debit_amount || 0), 0)
-        return { incoming, outgoing, net: incoming - outgoing }
-    }, [data])
+    const totalsQuery = useQuery({
+        queryKey: [
+            "ar-ledgers",
+            "totals",
+            sourceType,
+            keyword,
+            filters.from_date,
+            filters.to_date,
+            filters.customer_id,
+        ],
+        queryFn: () =>
+            getArLedgerTotals({
+                keyword: keyword || undefined,
+                source_type: sourceType,
+                from_date: filters.from_date || undefined,
+                to_date: filters.to_date || undefined,
+                customer_id: filters.customer_id,
+            }),
+    })
+
+    const totalsData = totalsQuery.isError || totalsQuery.isRefetchError
+        ? undefined
+        : totalsQuery.data
+
+    const totals = {
+        incoming: Number(totalsData?.credit_amount || 0),
+        outgoing: Number(totalsData?.debit_amount || 0),
+        net: Number(totalsData?.credit_amount || 0) - Number(totalsData?.debit_amount || 0),
+    }
 
     const saveMutation = useMutation({
         mutationFn: async () => {
@@ -511,17 +536,15 @@ function BankLedgerDialog({
 
                 <div className="grid gap-4 md:grid-cols-2">
                     <Field label="Ngày hạch toán">
-                        <Input
-                            type="date"
+                        <DatePicker
                             value={form.posting_date}
-                            onChange={(event) => update({ posting_date: event.target.value })}
+                            onChange={(value) => update({ posting_date: value || "" })}
                         />
                     </Field>
                     <Field label="Ngày chứng từ">
-                        <Input
-                            type="date"
+                        <DatePicker
                             value={form.doc_date}
-                            onChange={(event) => update({ doc_date: event.target.value })}
+                            onChange={(value) => update({ doc_date: value || "" })}
                         />
                     </Field>
                     <Field label="Số chứng từ">
@@ -671,7 +694,7 @@ function aliasLabel(alias: CustomerAlias) {
 }
 
 function dateOnly(value?: string) {
-    return value ? value.split("T")[0] : ""
+    return value ? value.trim().split(/[T\s]/)[0] : ""
 }
 
 function todayYmd() {
@@ -688,11 +711,18 @@ function dateToYmd(date: Date) {
 
 function formatDate(value?: string) {
     if (!value) return "-"
-    const parts = dateOnly(value).split("-")
-    if (parts.length === 3 && parts[0].length === 4) {
-        return `${parts[2]}/${parts[1]}/${parts[0]}`
+    const date = dateOnly(value)
+    const ymd = date.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+    if (ymd) {
+        const [, year, month, day] = ymd
+        return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`
     }
-    return dateOnly(value)
+    const dmy = date.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+    if (dmy) {
+        const [, day, month, year] = dmy
+        return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`
+    }
+    return date
 }
 
 function periodLabel(from?: string, to?: string) {
@@ -705,7 +735,7 @@ function periodLabel(from?: string, to?: string) {
 function formatMoney(value?: number | string) {
     const amount = Number(value || 0)
     if (!amount) return "-"
-    return amount.toLocaleString("vi-VN")
+    return amount.toLocaleString("en-US", { maximumFractionDigits: 6 })
 }
 
 async function fetchAllRows(base: ArLedgerListParams): Promise<ArLedger[]> {

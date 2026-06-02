@@ -5,11 +5,10 @@ import { toast } from "sonner"
 import {
     AlertCircle,
     Boxes,
-    CalendarDays,
     Download,
-    Filter,
     FileText,
     Inbox,
+    MoreHorizontal,
     Package,
     PackageCheck,
     User,
@@ -28,7 +27,8 @@ import { CardPagination } from "@/components/table/card-pagination"
 import { CrudRowActions } from "@/components/crud/crud-row-actions"
 
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import { getCustomer, listCustomers } from "@/api/customer"
@@ -40,7 +40,7 @@ import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import { exportXlsx } from "@/lib/xlsx-export"
 import { OrderDocumentDialog } from "./order-document-dialog"
 
-const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
+const controlClass = "h-9 min-h-9 rounded-md border-slate-300 bg-white shadow-xs"
 const EXPORT_PAGE_SIZE = 500
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,7 +58,6 @@ export function OrderTable({
     onFiltersChange,
 }: any) {
     const [isExporting, setIsExporting] = useState(false)
-    const summary = buildSummary(data)
     const { data: permissions = [] } = useQuery({
         queryKey: ["my-permissions"],
         queryFn: getMyPermissions,
@@ -86,6 +85,7 @@ export function OrderTable({
     }
 
     const currentPage = pagination.pageIndex + 1
+    const summary = buildSummary(data)
 
     const handleExportAllPages = async () => {
         if (isExporting) return
@@ -110,37 +110,33 @@ export function OrderTable({
                     icon={Package}
                     label="Đơn đang xem"
                     value={formatNumber(summary.count)}
-                    hint="Số đơn theo bộ lọc hiện tại"
                     tone="muted"
                 />
                 <SummaryMetric
                     icon={Wallet}
-                    label="Tổng giá trị"
+                    label="Tổng giá trị (các đơn đang xem)"
                     value={formatCurrency(summary.amount)}
-                    hint="Tổng tiền các đơn đang xem"
                     tone="primary"
                 />
                 <SummaryMetric
                     icon={PackageCheck}
                     label="Đã xuất / SL đặt"
                     value={`${formatNumber(summary.exportedQty)} / ${formatNumber(summary.totalQty)}`}
-                    hint="Số lượng xuất kho so với đặt hàng"
                     tone="success"
                 />
                 <SummaryMetric
                     icon={summary.remainQty > 0 ? AlertCircle : Boxes}
                     label="Còn phải xuất"
                     value={formatNumber(summary.remainQty)}
-                    hint={summary.remainQty > 0 ? "Chưa xuất đủ hàng" : "Tất cả đã xuất đủ"}
                     tone={summary.remainQty > 0 ? "warn" : "muted"}
                 />
             </div>
 
             {/* ── Main card ───────────────────────────────────────── */}
-            <Card className="border-border/60 gap-0 overflow-hidden py-0 shadow-sm">
-                <CardHeader className="space-y-4 border-b py-5">
+            <Card className="border-border/60 gap-0 overflow-visible py-0 shadow-sm">
+                <CardHeader className="space-y-2 border-b px-3 py-3">
                     {/* Title row */}
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                         <div className="min-w-0">
                             <div className="flex items-center gap-2">
                                 <CardTitle className="text-lg">Danh sách đơn hàng</CardTitle>
@@ -148,14 +144,11 @@ export function OrderTable({
                                     {formatNumber(data.length)} đơn
                                 </Badge>
                             </div>
-                            <CardDescription className="mt-1">
-                                Theo dõi trạng thái, tiến độ xuất hàng và tổng giá trị bán ra.
-                            </CardDescription>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <button
                                 type="button"
-                                className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold shadow-xs hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold shadow-xs hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60"
                                 onClick={handleExportAllPages}
                                 disabled={isExporting}
                             >
@@ -169,12 +162,7 @@ export function OrderTable({
                     </div>
 
                     {/* Filter strip */}
-                    <div className="bg-muted/40 -mx-6 -mb-5 border-t px-6 py-4">
-                        <div className="text-muted-foreground mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
-                            <Filter className="h-3.5 w-3.5" />
-                            Bộ lọc đơn hàng
-                        </div>
-
+                    <div className="bg-muted/40 -mx-3 -mb-3 border-t px-3 py-2">
                         <div className="space-y-2">
                             {/* Row 1: Search + Customer */}
                             <div className="flex w-full flex-wrap items-center gap-2">
@@ -182,7 +170,7 @@ export function OrderTable({
                                     value={keyword}
                                     onChange={onKeywordChange}
                                     placeholder="Tìm theo mã đơn, khách hàng..."
-                                    wrapperClassName="relative h-10 min-w-[280px] flex-[1.2_1_0]"
+                                    wrapperClassName="relative h-9 min-w-[260px] flex-[1.2_1_0]"
                                     className={cn(controlClass, "pl-10")}
                                 />
                                 <AsyncSelect
@@ -216,7 +204,7 @@ export function OrderTable({
                                                 type="button"
                                                 onClick={() => toggleStatus(s.value)}
                                                 className={cn(
-                                                    "inline-flex h-10 items-center rounded-md border px-3 text-xs font-semibold transition-colors",
+                                                    "inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-semibold transition-colors",
                                                     active
                                                         ? meta.badgeClass
                                                         : "border-slate-300 bg-white text-muted-foreground hover:bg-muted/60"
@@ -248,7 +236,7 @@ export function OrderTable({
                                 <DatePicker
                                     className={cn(
                                         "min-w-[140px] flex-1",
-                                        "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
+                                        "[&_button]:h-9 [&_button]:min-h-9 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
                                     )}
                                     value={filters?.from_date}
                                     onChange={(v) => setFilter("from_date", v || undefined)}
@@ -257,35 +245,49 @@ export function OrderTable({
                                 <DatePicker
                                     className={cn(
                                         "min-w-[140px] flex-1",
-                                        "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
+                                        "[&_button]:h-9 [&_button]:min-h-9 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
                                     )}
                                     value={filters?.to_date}
                                     onChange={(v) => setFilter("to_date", v || undefined)}
                                     placeholder="Đến ngày"
                                 />
+                                <Select
+                                    value={filters?.order_date_sort || "desc"}
+                                    onValueChange={(v) => setFilter("order_date_sort", v)}
+                                >
+                                    <SelectTrigger className={cn(controlClass, "min-w-[190px] flex-1 text-sm")}>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="asc">Ngày đặt tăng dần</SelectItem>
+                                        <SelectItem value="desc">Ngày đặt giảm dần</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                     </div>
                 </CardHeader>
 
                 {/* ── Order list ──────────────────────────────────── */}
-                <div className="space-y-4 p-5">
+                <div className="space-y-2 p-2">
                     {data.length === 0 ? (
                         <EmptyState />
                     ) : (
-                        data.map((order: Order, index: number) => (
-                            <OrderCard
-                                key={order.id}
-                                index={pagination.pageIndex * pagination.pageSize + index + 1}
-                                order={order}
-                                canUpdateOrder={canUpdateOrder}
-                            />
-                        ))
+                        <>
+                            <OrderListHeader />
+                            {data.map((order: Order) => (
+                                <OrderCard
+                                    key={order.id}
+                                    order={order}
+                                    canUpdateOrder={canUpdateOrder}
+                                />
+                            ))}
+                        </>
                     )}
                 </div>
 
                 {/* ── Pagination ──────────────────────────────────── */}
-                <div className="bg-muted/30 border-t px-6 py-4">
+                <div className="bg-muted/30 border-t px-3 py-2">
                     <CardPagination
                         pageIndex={pagination.pageIndex}
                         pageCount={pageCount}
@@ -298,15 +300,27 @@ export function OrderTable({
     )
 }
 
+function OrderListHeader() {
+    return (
+        <div className="bg-muted/95 sticky top-16 z-40 hidden items-center gap-2 rounded-md border px-2.5 py-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground shadow-xs backdrop-blur xl:grid xl:grid-cols-[88px_150px_minmax(210px,1.5fr)_minmax(150px,1fr)_minmax(190px,1.15fr)_140px_330px]">
+            <div>Ngày đặt</div>
+            <div>Mã đơn</div>
+            <div>Khách hàng</div>
+            <div>Hàng hóa</div>
+            <div>Tiến độ xuất</div>
+            <div className="text-right">Tổng tiền</div>
+            <div className="text-center">Thao tác</div>
+        </div>
+    )
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // OrderCard
 // ─────────────────────────────────────────────────────────────────────────────
 function OrderCard({
-    index,
     order,
     canUpdateOrder,
 }: {
-    index: number
     order: Order
     canUpdateOrder: boolean
 }) {
@@ -359,38 +373,109 @@ function OrderCard({
 
     const customer = (order as any).customer
     const employee = (order as any).employee
-    const initials = getInitials(customer?.name)
-
     return (
-        <div className="bg-card overflow-hidden rounded-xl border shadow-sm transition-shadow hover:shadow-md">
-            {/* ── Header ──────────────────────────────────────────── */}
-            <div className="bg-muted/30 grid border-b lg:grid-cols-[56px_1fr_auto]">
-                {/* Index */}
-                <div className="bg-muted/50 text-muted-foreground hidden items-center justify-center border-r font-mono text-sm font-semibold lg:flex">
-                    #{index}
+        <div className="bg-card overflow-hidden rounded-lg border shadow-sm transition-shadow hover:shadow-md">
+            <div className="grid items-center gap-2 px-2.5 py-2 text-sm xl:grid-cols-[88px_150px_minmax(210px,1.5fr)_minmax(150px,1fr)_minmax(190px,1.15fr)_140px_330px]">
+                <div className="text-muted-foreground text-xs tabular-nums">
+                    {formatDate(order.order_date)}
                 </div>
 
-                {/* Order info */}
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+                <div className="min-w-0">
                     <Link
                         to="/sales/orders/$id"
                         params={{ id: String(order.id) }}
-                        className="text-primary inline-flex items-center gap-1.5 font-mono text-sm font-bold hover:underline"
+                        className="text-primary inline-flex min-w-0 items-center gap-1.5 font-mono text-xs font-bold hover:underline"
                     >
                         <Package className="h-3.5 w-3.5 opacity-70" />
-                        {order.order_no}
+                        <span className="truncate">{order.order_no}</span>
                     </Link>
-                    <span className="text-muted-foreground flex items-center gap-1 text-xs">
-                        <CalendarDays className="h-3.5 w-3.5" />
-                        {formatDate(order.order_date)}
-                    </span>
                 </div>
 
-                {/* Status + Actions */}
-                <div className="flex items-center gap-2 px-4 py-3">
+                <div className="min-w-0">
+                    {customer ? (
+                        <>
+                            <div className="truncate font-semibold">{customer.name}</div>
+                            {employee && (
+                                <div className="text-muted-foreground truncate text-xs">
+                                    NV: {employee.name}
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <span className="text-muted-foreground">—</span>
+                    )}
+                </div>
+
+                <div className="min-w-0">
+                    {items.length === 0 ? (
+                        <span className="text-muted-foreground text-sm italic">Chưa có hàng</span>
+                    ) : (
+                        <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <Badge variant="secondary" className="h-5 px-1.5 py-0 text-[11px] font-semibold">
+                                    {normalItems.length} sản phẩm
+                                </Badge>
+                                {promoCount > 0 && (
+                                    <Badge
+                                        variant="secondary"
+                                        className="h-5 bg-emerald-100 px-1.5 py-0 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100"
+                                    >
+                                        +{promoCount} KM
+                                    </Badge>
+                                )}
+                            </div>
+                            <div className="text-muted-foreground text-xs tabular-nums">
+                                {formatNumber(totalQty)} đơn vị đặt
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="min-w-0">
+                    {totalQty === 0 ? (
+                        <span className="text-muted-foreground text-sm italic">—</span>
+                    ) : (
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground tabular-nums">
+                                    {formatNumber(exportedQty)} / {formatNumber(totalQty)}
+                                </span>
+                                <span
+                                    className={cn(
+                                        "font-bold tabular-nums",
+                                        isDone
+                                            ? "text-emerald-600 dark:text-emerald-400"
+                                            : "text-foreground"
+                                    )}
+                                >
+                                    {percent}%
+                                </span>
+                            </div>
+                            <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
+                                <div
+                                    className={cn(
+                                        "h-full rounded-full transition-all",
+                                        isDone
+                                            ? "bg-emerald-500"
+                                            : remainQty > 0
+                                              ? "bg-amber-400"
+                                              : "bg-muted-foreground/30"
+                                    )}
+                                    style={{ width: `${percent}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="text-right text-sm font-bold tabular-nums">
+                    {formatCurrency((order as any).total_amount ?? 0)}
+                </div>
+
+                <div className="flex items-center justify-end gap-1.5">
                     <button
                         type="button"
-                        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold shadow-xs hover:bg-muted/60"
+                        className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold shadow-xs hover:bg-muted/60"
                         onClick={() => setDocumentOpen(true)}
                     >
                         <FileText className="h-3.5 w-3.5" />
@@ -404,7 +489,7 @@ function OrderCard({
                     >
                         <SelectTrigger
                             className={cn(
-                                "h-8 w-[148px] gap-1.5 border text-xs font-semibold",
+                                "h-8 w-[138px] gap-1.5 border text-xs font-semibold",
                                 meta.badgeClass
                             )}
                         >
@@ -431,125 +516,24 @@ function OrderCard({
                         </SelectContent>
                     </Select>
 
-                    {!isLocked && canUpdateOrder && (
+                    {!isLocked && canUpdateOrder ? (
                         <CrudRowActions
                             row={order}
                             onEdit={() => openEdit(order)}
                         />
+                    ) : (
+                        <Button
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            disabled
+                            aria-label="Không thể sửa đơn hàng"
+                        >
+                            <MoreHorizontal className="h-4 w-4" />
+                        </Button>
                     )}
                 </div>
             </div>
 
-            {/* ── Body: 3-col grid ────────────────────────────────── */}
-            <div className="grid divide-y lg:grid-cols-3 lg:divide-x lg:divide-y-0">
-                {/* Khách hàng */}
-                <InfoBlock title="Khách hàng" icon={User}>
-                    {customer ? (
-                        <div className="flex items-center gap-2.5">
-                            <div className="bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold">
-                                {initials}
-                            </div>
-                            <div className="min-w-0">
-                                <div className="truncate text-sm font-semibold">
-                                    {customer.name}
-                                </div>
-                                {employee && (
-                                    <div className="text-muted-foreground mt-0.5 truncate text-xs">
-                                        NV: {employee.name}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
-                    )}
-                </InfoBlock>
-
-                {/* Hàng hoá */}
-                <InfoBlock title="Hàng hoá" icon={Package}>
-                    {items.length === 0 ? (
-                        <span className="text-muted-foreground text-sm italic">Chưa có hàng</span>
-                    ) : (
-                        <div className="space-y-1.5">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                                <Badge variant="secondary" className="px-2 py-0 text-xs font-semibold">
-                                    {normalItems.length} sản phẩm
-                                </Badge>
-                                {promoCount > 0 && (
-                                    <Badge
-                                        variant="secondary"
-                                        className="bg-emerald-100 px-2 py-0 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
-                                    >
-                                        +{promoCount} KM
-                                    </Badge>
-                                )}
-                            </div>
-                            <div className="text-muted-foreground text-xs tabular-nums">
-                                {formatNumber(totalQty)} đơn vị đặt
-                            </div>
-                        </div>
-                    )}
-                </InfoBlock>
-
-                {/* Tiến độ xuất */}
-                <InfoBlock title="Tiến độ xuất" icon={PackageCheck}>
-                    {totalQty === 0 ? (
-                        <span className="text-muted-foreground text-sm italic">—</span>
-                    ) : (
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground tabular-nums">
-                                    {formatNumber(exportedQty)} / {formatNumber(totalQty)}
-                                </span>
-                                <span
-                                    className={cn(
-                                        "font-bold tabular-nums",
-                                        isDone
-                                            ? "text-emerald-600 dark:text-emerald-400"
-                                            : "text-foreground"
-                                    )}
-                                >
-                                    {percent}%
-                                </span>
-                            </div>
-                            <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
-                                <div
-                                    className={cn(
-                                        "h-full rounded-full transition-all",
-                                        isDone
-                                            ? "bg-emerald-500"
-                                            : remainQty > 0
-                                              ? "bg-amber-400"
-                                              : "bg-muted-foreground/30"
-                                    )}
-                                    style={{ width: `${percent}%` }}
-                                />
-                            </div>
-                            {remainQty > 0 ? (
-                                <div className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                                    Còn {formatNumber(remainQty)} chưa xuất
-                                </div>
-                            ) : (
-                                <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                                    Đã xuất đủ
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </InfoBlock>
-            </div>
-
-            {/* ── Footer: total ───────────────────────────────────── */}
-            <div className="bg-muted/20 flex items-center justify-end border-t px-4 py-3">
-                <div className="text-right">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Tổng tiền
-                    </div>
-                    <div className="text-base font-bold tabular-nums">
-                        {formatCurrency((order as any).total_amount ?? 0)}
-                    </div>
-                </div>
-            </div>
             <OrderDocumentDialog
                 open={documentOpen}
                 order={order}
@@ -560,31 +544,46 @@ function OrderCard({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// InfoBlock (same pattern as inventory)
+// EmptyState
 // ─────────────────────────────────────────────────────────────────────────────
-function InfoBlock({
-    title,
-    icon: Icon,
-    children,
-}: {
-    title: string
-    icon: LucideIcon
-    children: React.ReactNode
-}) {
+function EmptyState() {
     return (
-        <div className="p-4">
-            <div className="text-muted-foreground mb-2.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
-                <Icon className="h-3 w-3" />
-                {title}
+        <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
+            <div className="bg-muted text-muted-foreground flex h-12 w-12 items-center justify-center rounded-xl">
+                <Inbox className="h-6 w-6" />
             </div>
-            {children}
+            <div>
+                <div className="font-semibold">Không tìm thấy đơn hàng</div>
+                <div className="text-muted-foreground mt-1 text-sm">
+                    Thử đổi từ khoá hoặc điều chỉnh bộ lọc.
+                </div>
+            </div>
         </div>
     )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SummaryMetric (same as inventory)
+// Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+function hasPermission(permissions: any[], module: string, action: string) {
+    return permissions.some((p: any) => p.module === module && p.action === action)
+}
+
+function buildSummary(data: Order[]) {
+    return data.reduce(
+        (acc, order: any) => {
+            const items = order.items ?? []
+            acc.count += 1
+            acc.amount += Number(order.total_amount || 0)
+            acc.totalQty += items.reduce((s: number, i: any) => s + Number(i.quantity || 0), 0)
+            acc.exportedQty += items.reduce((s: number, i: any) => s + Number(i.exported_quantity || 0), 0)
+            acc.remainQty += items.reduce((s: number, i: any) => s + Number(i.remain_quantity || 0), 0)
+            return acc
+        },
+        { count: 0, amount: 0, totalQty: 0, exportedQty: 0, remainQty: 0 }
+    )
+}
+
 const SUMMARY_TONES = {
     info: {
         ring: "border-blue-200/60 dark:border-blue-900/40",
@@ -617,14 +616,12 @@ function SummaryMetric({
     icon: Icon,
     label,
     value,
-    hint,
     tone = "muted",
 }: {
     icon: LucideIcon
     label: string
     value: React.ReactNode
-    hint: string
-    tone?: keyof typeof SUMMARY_TONES
+    tone: keyof typeof SUMMARY_TONES
 }) {
     const styles = SUMMARY_TONES[tone]
     return (
@@ -650,52 +647,10 @@ function SummaryMetric({
                     >
                         {value}
                     </div>
-                    <div className="text-muted-foreground mt-1 truncate text-xs">{hint}</div>
                 </div>
             </CardContent>
         </Card>
     )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// EmptyState
-// ─────────────────────────────────────────────────────────────────────────────
-function EmptyState() {
-    return (
-        <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
-            <div className="bg-muted text-muted-foreground flex h-12 w-12 items-center justify-center rounded-xl">
-                <Inbox className="h-6 w-6" />
-            </div>
-            <div>
-                <div className="font-semibold">Không tìm thấy đơn hàng</div>
-                <div className="text-muted-foreground mt-1 text-sm">
-                    Thử đổi từ khoá hoặc điều chỉnh bộ lọc.
-                </div>
-            </div>
-        </div>
-    )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-function buildSummary(data: Order[]) {
-    return data.reduce(
-        (acc, order: any) => {
-            const items = order.items ?? []
-            acc.count += 1
-            acc.amount += Number(order.total_amount || 0)
-            acc.totalQty += items.reduce((s: number, i: any) => s + Number(i.quantity || 0), 0)
-            acc.exportedQty += items.reduce((s: number, i: any) => s + Number(i.exported_quantity || 0), 0)
-            acc.remainQty += items.reduce((s: number, i: any) => s + Number(i.remain_quantity || 0), 0)
-            return acc
-        },
-        { count: 0, amount: 0, totalQty: 0, exportedQty: 0, remainQty: 0 }
-    )
-}
-
-function hasPermission(permissions: any[], module: string, action: string) {
-    return permissions.some((p: any) => p.module === module && p.action === action)
 }
 
 async function fetchAllOrdersForExport(filters: Partial<OrderListParams>) {
@@ -809,14 +764,42 @@ function formatEmployee(employee?: Order["employee"]) {
     return employee.code ? `${employee.name} (${employee.code})` : employee.name || ""
 }
 
-function formatDate(value?: string) {
+function formatDate(value?: string | number | Date) {
     if (!value) return "—"
-    const [date] = value.split("T")
-    const parts = date.split("-")
-    if (parts.length === 3 && parts[0].length === 4) {
-        return `${parts[2]}/${parts[1]}/${parts[0]}`
+
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return formatDateParts(value.getFullYear(), value.getMonth() + 1, value.getDate())
     }
-    return date || value
+
+    const raw = String(value).trim()
+    if (!raw) return "—"
+
+    const datePart = raw.split(/[T\s]/)[0]
+    const ymd = datePart.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
+    if (ymd) {
+        return formatDateParts(Number(ymd[1]), Number(ymd[2]), Number(ymd[3]))
+    }
+
+    const dmy = datePart.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+    if (dmy) {
+        return formatDateParts(Number(dmy[3]), Number(dmy[2]), Number(dmy[1]))
+    }
+
+    const compactYmd = datePart.match(/^(\d{4})(\d{2})(\d{2})$/)
+    if (compactYmd) {
+        return formatDateParts(Number(compactYmd[1]), Number(compactYmd[2]), Number(compactYmd[3]))
+    }
+
+    const parsed = new Date(raw)
+    if (!Number.isNaN(parsed.getTime())) {
+        return formatDateParts(parsed.getFullYear(), parsed.getMonth() + 1, parsed.getDate())
+    }
+
+    return raw
+}
+
+function formatDateParts(year: number, month: number, day: number) {
+    return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`
 }
 
 function getInitials(name?: string) {
