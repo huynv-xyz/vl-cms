@@ -28,7 +28,7 @@ export default function OrderPage() {
         search,
         navigate,
         ['status'],
-        ['customer_id', 'employee_id', 'from_date', 'to_date']
+        ['customer_id', 'employee_id', 'from_date', 'to_date', 'order_date_sort']
     )
 
     const orderListParams = {
@@ -45,6 +45,7 @@ export default function OrderPage() {
 
         from_date: requestFilters.from_date,
         to_date: requestFilters.to_date,
+        order_date_sort: requestFilters.order_date_sort || "desc",
     }
 
     const { data, isLoading, error } = usePaginatedList(
@@ -58,6 +59,7 @@ export default function OrderPage() {
             singleFilters.employee_id,
             singleFilters.from_date,
             singleFilters.to_date,
+            singleFilters.order_date_sort,
         ],
         listOrders,
         orderListParams,
@@ -69,7 +71,6 @@ export default function OrderPage() {
                 isLoading={isLoading}
                 error={error}
                 title="Đơn hàng"
-                description="Danh sách đơn bán, theo dõi trạng thái giao hàng và tổng giá trị bán ra."
                 icon={ShoppingCart}
                 actions={<CreateOrderButton />}
                 data={data}
@@ -97,6 +98,7 @@ export default function OrderPage() {
                                     : undefined,
                                 from_date: singleFilters.from_date,
                                 to_date: singleFilters.to_date,
+                                order_date_sort: singleFilters.order_date_sort || "desc",
                             }}
 
                             onFiltersChange={(next) => {
@@ -115,6 +117,7 @@ export default function OrderPage() {
 
                                     from_date: next.from_date,
                                     to_date: next.to_date,
+                                    order_date_sort: next.order_date_sort || "desc",
                                 })
                             }}
                         />
