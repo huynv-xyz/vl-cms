@@ -31,6 +31,22 @@ export default function OrderPage() {
         ['customer_id', 'employee_id', 'from_date', 'to_date']
     )
 
+    const orderListParams = {
+        keyword,
+        status: requestFilters.status,
+
+        customer_id: requestFilters.customer_id
+            ? Number(requestFilters.customer_id)
+            : undefined,
+
+        employee_id: requestFilters.employee_id
+            ? Number(requestFilters.employee_id)
+            : undefined,
+
+        from_date: requestFilters.from_date,
+        to_date: requestFilters.to_date,
+    }
+
     const { data, isLoading, error } = usePaginatedList(
         [
             'orders',
@@ -44,23 +60,7 @@ export default function OrderPage() {
             singleFilters.to_date,
         ],
         listOrders,
-        {
-            page: search.page,
-            size: search.size,
-            keyword,
-            status: requestFilters.status,
-
-            customer_id: requestFilters.customer_id
-                ? Number(requestFilters.customer_id)
-                : undefined,
-
-            employee_id: requestFilters.employee_id
-                ? Number(requestFilters.employee_id)
-                : undefined,
-
-            from_date: requestFilters.from_date,
-            to_date: requestFilters.to_date,
-        },
+        orderListParams,
     )
 
     return (
@@ -85,6 +85,7 @@ export default function OrderPage() {
 
                             keyword={keyword}
                             onKeywordChange={setKeyword}
+                            exportFilters={orderListParams}
 
                             filters={{
                                 status: multiFilters.status,

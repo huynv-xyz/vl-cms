@@ -34,13 +34,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getCustomer, listCustomers } from "@/api/customer"
 import { getEmployee, listEmployees } from "@/api/employee"
 import { getMyPermissions } from "@/api/auth/permission"
-import { updateOrderStatus } from "@/api/sale/order"
+import { listOrders, updateOrderStatus, type OrderListParams } from "@/api/sale/order"
 
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import { exportXlsx } from "@/lib/xlsx-export"
 import { OrderDocumentDialog } from "./order-document-dialog"
 
 const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
+const EXPORT_PAGE_SIZE = 500
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main component
@@ -52,9 +53,11 @@ export function OrderTable({
     pageCount,
     keyword,
     onKeywordChange,
+    exportFilters,
     filters,
     onFiltersChange,
 }: any) {
+    const [isExporting, setIsExporting] = useState(false)
     const summary = buildSummary(data)
     const { data: permissions = [] } = useQuery({
         queryKey: ["my-permissions"],
@@ -83,6 +86,21 @@ export function OrderTable({
     }
 
     const currentPage = pagination.pageIndex + 1
+
+    const handleExportAllPages = async () => {
+        if (isExporting) return
+
+        setIsExporting(true)
+        try {
+            const allOrders = await fetchAllOrdersForExport(exportFilters ?? {})
+            exportOrdersXlsx(allOrders)
+            toast.success(`Đã xuất ${formatNumber(allOrders.length)} đơn hàng`)
+        } catch (error: any) {
+            toast.error(error?.message || "Xuất Excel thất bại")
+        } finally {
+            setIsExporting(false)
+        }
+    }
 
     return (
         <div className="space-y-5">
@@ -137,11 +155,12 @@ export function OrderTable({
                         <div className="flex flex-wrap items-center gap-2">
                             <button
                                 type="button"
-                                className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold shadow-xs hover:bg-muted/60"
-                                onClick={() => exportOrdersXlsx(data)}
+                                className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold shadow-xs hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60"
+                                onClick={handleExportAllPages}
+                                disabled={isExporting}
                             >
                                 <Download className="h-3.5 w-3.5" />
-                                Xuất Excel
+                                {isExporting ? "Đang xuất..." : "Xuất Excel"}
                             </button>
                             <Badge variant="outline" className="w-fit font-mono">
                                 Trang {formatNumber(currentPage)} / {formatNumber(Math.max(pageCount, 1))}
@@ -677,6 +696,26 @@ function buildSummary(data: Order[]) {
 
 function hasPermission(permissions: any[], module: string, action: string) {
     return permissions.some((p: any) => p.module === module && p.action === action)
+}
+
+async function fetchAllOrdersForExport(filters: Partial<OrderListParams>) {
+    const allOrders: Order[] = []
+    let page = 1
+    let totalPage = 1
+
+    do {
+        const result = await listOrders({
+            ...filters,
+            page,
+            size: EXPORT_PAGE_SIZE,
+        })
+
+        allOrders.push(...(result.items ?? []))
+        totalPage = Math.max(Number(result.total_page || 1), 1)
+        page += 1
+    } while (page <= totalPage)
+
+    return allOrders
 }
 
 export function exportOrdersXlsx(data: Order[], filename?: string) {

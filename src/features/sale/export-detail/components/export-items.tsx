@@ -39,7 +39,6 @@ const SIGNATURES = [
     {
         role: "Th\u1ee7 kho",
         sign: "(K\u00fd, h\u1ecd t\u00ean)",
-        name: "Ph\u1ea1m V\u0103n Ch\u00ed Linh",
     },
     {
         role: "K\u1ebf to\u00e1n tr\u01b0\u1edfng",
