@@ -10,6 +10,10 @@ export type TransactionListParams = {
     vthh_con?: string
     npp?: string
     process_month?: string
+    hdn_status?: string
+    region?: string
+    document_date_from?: string
+    document_date_to?: string
 }
 
 export type ImportTransactionsResponse = {

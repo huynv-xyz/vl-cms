@@ -44,6 +44,7 @@ const COLUMNS: Array<{ key: keyof Transaction; label: string }> = [
     { key: "process_month", label: "Tháng xử lý" },
     { key: "npp", label: "NPP" },
     { key: "valid_code", label: "Mã hợp lệ" },
+    { key: "hdn_status", label: "Tình trạng HDN" },
     { key: "common_group", label: "Nhóm chung" },
     { key: "sl_hdn_k0_ma_rieng", label: "SL HDN k0 mã riêng" },
 ]

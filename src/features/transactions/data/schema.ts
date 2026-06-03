@@ -32,6 +32,7 @@ export type Transaction = {
     process_month: number
     npp: string
     valid_code: string
+    hdn_status: string
     common_group: string
     sl_hdn_k0_ma_rieng: number
     status: number

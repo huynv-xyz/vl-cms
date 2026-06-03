@@ -266,19 +266,9 @@ export const sidebarData: SidebarData = {
                     icon: Layers3,
                 },
                 {
-                    title: 'Mapping hàng hóa',
+                    title: 'Điểm hàng hóa',
                     url: '/vip/product-mapping',
                     icon: GitMerge,
-                },
-                {
-                    title: 'Chỉ tiêu KH',
-                    url: '/vip/customer-target',
-                    icon: Target,
-                },
-                {
-                    title: 'Lịch sử tính VIP',
-                    url: '/vip/recalc-job',
-                    icon: History,
                 },
             ],
         },

@@ -24,8 +24,8 @@ export function VipProductMappingTable({
         <CrudTable<VipProductMapping>
             data={data}
             columns={vipProductMappingColumns}
-            entityName="mapping hàng hóa"
-            searchPlaceholder="Tìm theo mã MISA hoặc VTHH Con..."
+            entityName="quy tắc điểm hàng hóa"
+            searchPlaceholder="Tìm theo sản phẩm..."
             pagination={pagination}
             onPaginationChange={onPaginationChange}
             pageCount={pageCount}

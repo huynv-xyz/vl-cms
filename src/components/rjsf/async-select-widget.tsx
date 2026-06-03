@@ -15,6 +15,10 @@ export default function AsyncSelectWidget(props: any) {
             onChange={(nextValue: any) => onChange(nextValue)}
             disabled={disabled || readonly}
             required={required}
+            initialOption={
+                raw.initialOption ??
+                (value ? { value, label: String(value) } : undefined)
+            }
             {...raw}
         />
     )

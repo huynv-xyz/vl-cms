@@ -17,25 +17,49 @@ export default function TransactionPage() {
 
     const { pagination, setPagination } = useUrlPagination(search, navigate)
 
-    const { keyword, setKeyword, multiFilters, setMultiFilters, requestFilters } =
-        useUrlListFilters(search, navigate, [
-            'customer_type',
-            'vthh_con',
-            'npp',
-            'process_month',
-        ])
+    const {
+        keyword,
+        setKeyword,
+        multiFilters,
+        setMultiFilters,
+        singleFilters,
+        setSingleFilters,
+        requestFilters,
+    } = useUrlListFilters(
+        search,
+        navigate,
+        ['customer_type', 'hdn_status'],
+        ['vthh_con', 'npp', 'process_month', 'region', 'document_date_from', 'document_date_to'],
+    )
 
     const { data, isLoading, error } = usePaginatedList(
-        ['transactions'],
+        [
+            'transactions',
+            search.page,
+            search.size,
+            keyword,
+            multiFilters.customer_type,
+            multiFilters.hdn_status,
+            singleFilters.vthh_con,
+            singleFilters.npp,
+            singleFilters.process_month,
+            singleFilters.region,
+            singleFilters.document_date_from,
+            singleFilters.document_date_to,
+        ],
         listTransactions,
         {
             page: search.page,
             size: search.size,
             keyword,
             customer_type: requestFilters.customer_type,
+            hdn_status: requestFilters.hdn_status,
             vthh_con: requestFilters.vthh_con,
             npp: requestFilters.npp,
             process_month: requestFilters.process_month,
+            region: requestFilters.region,
+            document_date_from: requestFilters.document_date_from,
+            document_date_to: requestFilters.document_date_to,
         },
     )
 
@@ -71,27 +95,47 @@ export default function TransactionPage() {
             {(data) => (
                 <div className="space-y-4">
                     <TransactionSummaryStrip data={data.items} />
+
                     <TransactionTable
                         data={data.items}
                         pagination={pagination}
                         onPaginationChange={setPagination}
                         pageCount={data.total_page}
+
                         keyword={keyword}
-                        onKeywordChange={setKeyword}
-                        filters={{
-                            //customer_types: multiFilters.customer_type,
-                            //vthh_cons: multiFilters.vthh_con,
-                            //npps: multiFilters.npp,
-                            //process_months: multiFilters.process_month,
+                        onKeywordChange={(value) => {
+                            setPagination((p) => ({ ...p, pageIndex: 0 }))
+                            setKeyword(value)
                         }}
-                        onFiltersChange={(next) =>
+
+                        filters={{
+                            customer_type: multiFilters.customer_type,
+                            hdn_status: multiFilters.hdn_status,
+                            vthh_con: singleFilters.vthh_con,
+                            npp: singleFilters.npp,
+                            process_month: singleFilters.process_month,
+                            region: singleFilters.region,
+                            document_date_from: singleFilters.document_date_from,
+                            document_date_to: singleFilters.document_date_to,
+                        }}
+
+                        onFiltersChange={(next) => {
+                            setPagination((p) => ({ ...p, pageIndex: 0 }))
+
                             setMultiFilters({
-                                customer_type: next.customer_types,
-                                vthh_con: next.vthh_cons,
-                                npp: next.npps,
-                                process_month: next.process_months,
+                                customer_type: next.customer_type,
+                                hdn_status: next.hdn_status,
                             })
-                        }
+
+                            setSingleFilters({
+                                vthh_con: next.vthh_con,
+                                npp: next.npp,
+                                process_month: next.process_month,
+                                region: next.region,
+                                document_date_from: next.document_date_from,
+                                document_date_to: next.document_date_to,
+                            })
+                        }}
                     />
                 </div>
             )}

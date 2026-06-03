@@ -259,6 +259,13 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     }),
 
     buildTextColumn<Transaction>({
+        accessorKey: "hdn_status",
+        title: "Tình trạng HDN",
+        width: 140,
+        maxWidth: 140,
+    }),
+
+    buildTextColumn<Transaction>({
         accessorKey: "common_group",
         title: "Nhóm chung",
         width: 140,

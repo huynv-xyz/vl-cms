@@ -172,9 +172,9 @@ export const AsyncSelect = React.memo(function AsyncSelect({
                             </CommandItem>
                         )}
 
-                        {options.map((item) => (
+                        {options.map((item, index) => (
                             <CommandItem
-                                key={item.value}
+                                key={`${item.value}-${index}`}
                                 className="min-w-0"
                                 onSelect={() => {
                                     setSelected(item)
