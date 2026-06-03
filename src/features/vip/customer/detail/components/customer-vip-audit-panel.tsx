@@ -3,6 +3,7 @@ import {
     Table,
     TableBody,
     TableCell,
+    TableFooter,
     TableHead,
     TableHeader,
     TableRow,
@@ -10,15 +11,30 @@ import {
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import type { CustomerVipAudit, CustomerVipAuditLine } from "../../data/schema"
 import type React from "react"
+import { useMemo, useState } from "react"
 
 type Props = {
     data: CustomerVipAudit
 }
 
+const ALL_VALUE = "__ALL__"
+const EMPTY_VALUE = "__EMPTY__"
+
 export function CustomerVipAuditPanel({ data }: Props) {
     const lines = data.lines ?? []
     const groups = data.common_groups ?? []
     const thresholds = data.tier_thresholds ?? []
+    const [vthhFilter, setVthhFilter] = useState(ALL_VALUE)
+    const [calcTypeFilter, setCalcTypeFilter] = useState(ALL_VALUE)
+    const vthhOptions = useMemo(() => buildOptions(lines, (line) => line.vthh_con), [lines])
+    const calcTypeOptions = useMemo(() => buildOptions(lines, (line) => line.calc_type, labelCalcType), [lines])
+    const filteredLines = useMemo(
+        () => lines.filter((line) =>
+            optionMatches(line.vthh_con, vthhFilter)
+            && optionMatches(line.calc_type, calcTypeFilter)
+        ),
+        [lines, vthhFilter, calcTypeFilter]
+    )
     const isMatched =
         Math.abs(Number(data.diff_total_vip_point ?? 0)) < 0.01
         && String(data.result_tier_name ?? "") === String(data.audit_tier_name ?? "")
@@ -130,12 +146,47 @@ export function CustomerVipAuditPanel({ data }: Props) {
                                     </TableRow>
                                 ))}
                             </TableBody>
+                            <TableFooter>
+                                <TableRow>
+                                    <TableCell colSpan={6} className="font-semibold">Tổng điểm</TableCell>
+                                    <TableCell className="text-right tabular-nums font-bold">{formatNumber(sumPoints(groups))}</TableCell>
+                                </TableRow>
+                            </TableFooter>
                         </Table>
                     </div>
                 </AuditSection>
             )}
 
             <AuditSection title="Dòng giao dịch">
+                <div className="mb-2 flex flex-wrap items-end gap-2 px-2 pt-2">
+                    <AuditFilterSelect
+                        label="VTHH"
+                        value={vthhFilter}
+                        options={vthhOptions}
+                        onChange={setVthhFilter}
+                    />
+                    <AuditFilterSelect
+                        label="Loại tính"
+                        value={calcTypeFilter}
+                        options={calcTypeOptions}
+                        onChange={setCalcTypeFilter}
+                    />
+                    {(vthhFilter !== ALL_VALUE || calcTypeFilter !== ALL_VALUE) && (
+                        <button
+                            type="button"
+                            className="h-9 rounded-md border px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            onClick={() => {
+                                setVthhFilter(ALL_VALUE)
+                                setCalcTypeFilter(ALL_VALUE)
+                            }}
+                        >
+                            Xóa lọc
+                        </button>
+                    )}
+                    <div className="ml-auto text-xs text-muted-foreground">
+                        {formatNumber(filteredLines.length)} / {formatNumber(lines.length)} dòng
+                    </div>
+                </div>
                 <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
@@ -152,21 +203,62 @@ export function CustomerVipAuditPanel({ data }: Props) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {lines.map((line) => (
+                            {filteredLines.map((line) => (
                                 <AuditLineRow key={line.id} line={line} />
                             ))}
-                            {!lines.length && (
+                            {!filteredLines.length && (
                                 <TableRow>
                                     <TableCell colSpan={9} className="h-20 text-center text-muted-foreground">
-                                        Không có dòng giao dịch để audit
+                                        Không có dòng giao dịch phù hợp
                                     </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
+                        {filteredLines.length > 0 && (
+                            <TableFooter>
+                                <TableRow>
+                                    <TableCell colSpan={5} className="font-semibold">Tổng</TableCell>
+                                    <TableCell className="text-right tabular-nums font-bold">{formatNumber(sumSlHdn(filteredLines))}</TableCell>
+                                    <TableCell />
+                                    <TableCell className="text-right tabular-nums font-bold">{formatNumber(sumPoints(filteredLines))}</TableCell>
+                                    <TableCell />
+                                </TableRow>
+                            </TableFooter>
+                        )}
                     </Table>
                 </div>
             </AuditSection>
         </div>
+    )
+}
+
+function AuditFilterSelect({
+    label,
+    value,
+    options,
+    onChange,
+}: {
+    label: string
+    value: string
+    options: Array<{ value: string; label: string }>
+    onChange: (value: string) => void
+}) {
+    return (
+        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+            {label}
+            <select
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className="h-9 min-w-[160px] rounded-md border bg-background px-3 text-sm font-medium text-foreground shadow-sm outline-none transition-colors focus:border-primary"
+            >
+                <option value={ALL_VALUE}>Tất cả</option>
+                {options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
+        </label>
     )
 }
 
@@ -194,6 +286,47 @@ function AuditLineRow({ line }: { line: CustomerVipAuditLine }) {
             <TableCell className="min-w-[180px] text-xs">{line.reason || line.rule_code || "—"}</TableCell>
         </TableRow>
     )
+}
+
+function sumPoints(rows: Array<{ point?: number | null }>) {
+    return rows.reduce((sum, row) => sum + Number(row.point ?? 0), 0)
+}
+
+function sumSlHdn(rows: Array<{ sl_hdn?: number | null }>) {
+    return rows.reduce((sum, row) => sum + Number(row.sl_hdn ?? 0), 0)
+}
+
+function buildOptions(
+    lines: CustomerVipAuditLine[],
+    getValue: (line: CustomerVipAuditLine) => string | null | undefined,
+    getLabel?: (value?: string | null) => string
+) {
+    const seen = new Map<string, string>()
+    for (const line of lines) {
+        const raw = getValue(line)
+        const value = optionValue(raw)
+        if (!seen.has(value)) {
+            seen.set(value, getLabel ? getLabel(raw) : optionLabel(raw))
+        }
+    }
+
+    return Array.from(seen.entries())
+        .map(([value, label]) => ({ value, label }))
+        .sort((a, b) => a.label.localeCompare(b.label, "vi"))
+}
+
+function optionMatches(raw: string | null | undefined, filter: string) {
+    return filter === ALL_VALUE || optionValue(raw) === filter
+}
+
+function optionValue(raw: string | null | undefined) {
+    const value = String(raw ?? "").trim()
+    return value || EMPTY_VALUE
+}
+
+function optionLabel(raw: string | null | undefined) {
+    const value = String(raw ?? "").trim()
+    return value || "Rỗng"
 }
 
 function AuditMetric({
