@@ -38,7 +38,8 @@ export function importTransactionsFile(file: File) {
 
     return apiPostMultipart<ImportTransactionsResponse>(
         "/transactions/import",
-        formData
+        formData,
+        { signal: AbortSignal.timeout(60_000) }
     )
 }
 

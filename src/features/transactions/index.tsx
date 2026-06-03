@@ -5,7 +5,6 @@ import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
 import { listTransactions } from '@/api/transactions'
 import { TransactionTable } from './components/transaction-table'
-import { TransactionSummaryStrip } from './components/transaction-summary-strip'
 import { ImportTransactionButton } from './components/import-transaction-button'
 import { ExportTransactionButton } from './components/export-transaction-button'
 import { Route } from '@/routes/_authenticated/transactions'
@@ -94,8 +93,6 @@ export default function TransactionPage() {
         >
             {(data) => (
                 <div className="space-y-4">
-                    <TransactionSummaryStrip data={data.items} />
-
                     <TransactionTable
                         data={data.items}
                         pagination={pagination}

@@ -115,8 +115,13 @@ export function apiPostForm<T>(path: string, body?: Record<string, any>) {
     })
 }
 
-export function apiPostMultipart<T>(path: string, formData: FormData) {
+export function apiPostMultipart<T>(
+    path: string,
+    formData: FormData,
+    options: Omit<RequestOptions, "method" | "body" | "contentType"> = {}
+) {
     return request<T>(path, {
+        ...options,
         method: "POST",
         body: formData,
     })
