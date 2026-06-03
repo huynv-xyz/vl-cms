@@ -16,6 +16,7 @@ import {
     type ArLedgerListParams,
 } from "@/api/sale/ar-ledger"
 import { getCustomerAlias, listCustomerAliases, type CustomerAlias } from "@/api/customer-alias"
+import { getCustomer, listCustomers } from "@/api/customer"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
@@ -123,6 +124,7 @@ export function CashBankLedgerTable({
         : sourceType === "ADJUST" ? "Tăng nợ" : "Tiền ra"
     const today = todayYmd()
     const shouldConstrainDateFilters = sourceType === "ADJUST"
+    const useCustomerSelector = sourceType === "ADJUST"
 
     const totalsQuery = useQuery({
         queryKey: [
@@ -343,18 +345,28 @@ export function CashBankLedgerTable({
 
                         <AsyncSelect
                             className={cn(controlClass, "min-w-[260px] flex-[1.6_1_0] py-0")}
-                            value={filterAliasId}
+                            value={useCustomerSelector ? filters.customer_id : filterAliasId}
                             onChange={(value: number | undefined, option: any) => {
+                                if (useCustomerSelector) {
+                                    setFilter("customer_id", value || undefined)
+                                    return
+                                }
                                 setFilterAliasId(value || undefined)
                                 setFilter("customer_id", option?.raw?.customer_id || undefined)
                             }}
-                            placeholder="Mã KH chứng từ"
-                            dataSource={{
-                                getList: listCustomerAliases,
-                                getById: getCustomerAlias,
-                                params: { page: 1, size: 20 },
-                            }}
-                            mapOption={aliasCustomerOption}
+                            placeholder={useCustomerSelector ? "Khách hàng" : "Mã KH chứng từ"}
+                            dataSource={useCustomerSelector
+                                ? {
+                                    getList: listCustomers,
+                                    getById: getCustomer,
+                                    params: { page: 1, size: 20, keyword_scope: "code_name" },
+                                }
+                                : {
+                                    getList: listCustomerAliases,
+                                    getById: getCustomerAlias,
+                                    params: { page: 1, size: 20 },
+                                }}
+                            mapOption={useCustomerSelector ? customerOption : aliasCustomerOption}
                             wrapLabel
                         />
                     </div>
@@ -522,6 +534,7 @@ function BankLedgerDialog({
     pending: boolean
 }) {
     const update = (patch: Partial<FormState>) => onFormChange({ ...form, ...patch })
+    const useCustomerSelector = sourceType === "ADJUST"
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -572,23 +585,36 @@ function BankLedgerDialog({
                             </SelectContent>
                         </Select>
                     </Field>
-                    <Field label="Mã KH chứng từ" className="md:col-span-2">
+                    <Field label={useCustomerSelector ? "Khách hàng" : "Mã KH chứng từ"} className="md:col-span-2">
                         <AsyncSelect
-                            value={form.alias_id}
-                            onChange={(value: number | undefined, option: any) =>
+                            value={useCustomerSelector ? form.customer_id : form.alias_id}
+                            onChange={(value: number | undefined, option: any) => {
+                                if (useCustomerSelector) {
+                                    update({
+                                        customer_id: value,
+                                        customer_name: option?.raw?.name,
+                                    })
+                                    return
+                                }
                                 update({
                                     alias_id: value,
                                     customer_id: option?.raw?.customer_id,
                                     customer_name: option?.raw?.customer?.name || option?.raw?.alias_name,
                                 })
-                            }
-                            placeholder="Chọn mã KH chứng từ"
-                            dataSource={{
-                                getList: listCustomerAliases,
-                                getById: getCustomerAlias,
-                                params: { page: 1, size: 20 },
                             }}
-                            mapOption={aliasOption}
+                            placeholder={useCustomerSelector ? "Chọn khách hàng" : "Chọn mã KH chứng từ"}
+                            dataSource={useCustomerSelector
+                                ? {
+                                    getList: listCustomers,
+                                    getById: getCustomer,
+                                    params: { page: 1, size: 20, keyword_scope: "code_name" },
+                                }
+                                : {
+                                    getList: listCustomerAliases,
+                                    getById: getCustomerAlias,
+                                    params: { page: 1, size: 20 },
+                                }}
+                            mapOption={useCustomerSelector ? customerOption : aliasOption}
                             wrapLabel
                         />
                     </Field>
@@ -670,6 +696,15 @@ function Summary({
     )
 }
 
+function customerOption(customer: { id: number; code?: string; name?: string }) {
+    const code = customer.code ? `${customer.code} - ` : ""
+    const name = customer.name || `#${customer.id}`
+    return {
+        value: customer.id,
+        label: `${code}${name}`,
+        raw: customer,
+    }
+}
 function aliasOption(alias: CustomerAlias) {
     return {
         value: alias.id,

@@ -11,6 +11,11 @@ export const warehouseColumns: ColumnDef<Warehouse>[] = [
     buildIndexColumn(),
 
     buildTextColumn({
+        accessorKey: "code",
+        title: "Mã kho",
+    }),
+
+    buildTextColumn({
         accessorKey: "name",
         title: "Tên kho",
     }),

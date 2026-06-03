@@ -1,4 +1,4 @@
-
+﻿
 import { CrudTable } from "@/components/crud/crud-table"
 import type { Warehouse } from "../data/schema"
 import { warehouseColumns } from "./warehouse-columns"
@@ -9,7 +9,7 @@ export function WarehouseTable(props: any) {
             {...props}
             columns={warehouseColumns}
             entityName="kho"
-            searchPlaceholder="Tìm theo tên hoặc địa chỉ..."
+            searchPlaceholder="Tìm theo mã kho hoặc tên kho..."
         />
     )
 }

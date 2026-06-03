@@ -286,20 +286,29 @@ function ItemsTable({ items }: { items: any[] }) {
             <Table>
                 <TableHeader className="bg-muted/30">
                     <TableRow className="hover:bg-transparent">
+                        <TableHead className="w-[56px] text-center text-xs font-semibold uppercase">#</TableHead>
                         <TableHead className="text-xs font-semibold uppercase">Sản phẩm</TableHead>
+                        <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">ĐVT</TableHead>
                         <TableHead className="text-xs font-semibold uppercase">Kho xuất</TableHead>
                         <TableHead className="w-[140px] text-right text-xs font-semibold uppercase">Số lượng</TableHead>
-                        <TableHead className="w-[120px] text-right text-xs font-semibold uppercase">Đơn vị</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {items.map((item) => (
+                    {items.map((item, idx) => (
                         <TableRow key={`${item.product_id}-${item.id ?? ""}`}>
+                            <TableCell className="text-center text-sm font-semibold text-muted-foreground">
+                                {idx + 1}
+                            </TableCell>
                             <TableCell>
-                                <div className="font-medium">{item.product?.name || "-"}</div>
-                                <div className="mt-0.5 font-mono text-xs text-muted-foreground">
-                                    {item.product?.code || "-"}
+                                <div className="flex flex-col">
+                                    <span className="font-medium leading-tight">{item.product?.name || "-"}</span>
+                                    <span className="mt-0.5 font-mono text-xs text-muted-foreground">
+                                        {item.product?.code || "-"}
+                                    </span>
                                 </div>
+                            </TableCell>
+                            <TableCell className="text-center text-sm font-medium text-muted-foreground">
+                                {item.product?.unit || "-"}
                             </TableCell>
                             <TableCell className="text-sm">
                                 <span className="inline-flex items-center gap-1.5">
@@ -309,9 +318,6 @@ function ItemsTable({ items }: { items: any[] }) {
                             </TableCell>
                             <TableCell className="text-right font-medium tabular-nums">
                                 {formatNumber(item.quantity)}
-                            </TableCell>
-                            <TableCell className="text-right text-sm text-muted-foreground">
-                                {item.product?.unit || "-"}
                             </TableCell>
                         </TableRow>
                     ))}

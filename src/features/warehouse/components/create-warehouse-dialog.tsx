@@ -14,6 +14,7 @@ export function CreateWarehouseDialog({ open, onOpenChange }: any) {
             schema={warehouseSchema}
             uiSchema={warehouseUiSchema}
             defaultValues={{
+                code: "",
                 name: "",
                 address: "",
                 status: "ACTIVE",
@@ -23,7 +24,8 @@ export function CreateWarehouseDialog({ open, onOpenChange }: any) {
             queryKeyToInvalidate={["warehouse"]}
             mutationFn={createWarehouse}
             mapFormToRequest={(v) => ({
-                name: v.name,
+                code: v.code?.trim(),
+                name: v.name?.trim(),
                 address: v.address?.trim() || "",
                 status: v.status ?? "ACTIVE",
             })}
