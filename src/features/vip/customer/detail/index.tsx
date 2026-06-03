@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
 import { PageSection } from "@/components/page-section"
 import { Route } from "@/routes/_authenticated/vip/customer/$id"
-import { getCustomerVipDetail } from "@/api/customer-vip"
+import { getCustomerVipAudit, getCustomerVipDetail } from "@/api/customer-vip"
 import { CustomerVipSummary } from "./components/customer-vip-summary"
 import { CustomerVipDetailTable } from "./components/customer-vip-detail-table"
+import { CustomerVipAuditPanel } from "./components/customer-vip-audit-panel"
 import { formatCurrency, formatNumber } from "@/lib/utils"
 import {
     TrendingUp,
@@ -20,6 +21,11 @@ export default function CustomerVipDetailPage() {
     const { data, isLoading, error } = useQuery({
         queryKey: ["customer-vip-detail", id],
         queryFn: () => getCustomerVipDetail(id),
+    })
+
+    const auditQuery = useQuery({
+        queryKey: ["customer-vip-audit", id],
+        queryFn: () => getCustomerVipAudit(id),
     })
 
     return (
@@ -71,6 +77,18 @@ export default function CustomerVipDetailPage() {
 
                     {/* ── DETAIL TABLE ── */}
                     <CustomerVipDetailTable items={detail.items ?? []} />
+
+                    {auditQuery.isLoading ? (
+                        <div className="rounded-lg border bg-background p-4 text-sm text-muted-foreground">
+                            Đang tải audit điểm VIP...
+                        </div>
+                    ) : auditQuery.error ? (
+                        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                            Không tải được audit: {auditQuery.error instanceof Error ? auditQuery.error.message : "Lỗi không xác định"}
+                        </div>
+                    ) : auditQuery.data ? (
+                        <CustomerVipAuditPanel data={auditQuery.data} />
+                    ) : null}
 
                 </div>
             )}

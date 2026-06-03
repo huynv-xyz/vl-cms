@@ -5,7 +5,7 @@ import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildNumberColumn } from "@/components/crud/build-number-column"
 import { Link } from "@tanstack/react-router"
 import { formatCurrency } from "@/lib/utils"
-import { Crown, CalendarDays, MapPin, ArrowRight } from "lucide-react"
+import { Crown, CalendarDays, MapPin, ArrowRight, ShieldCheck } from "lucide-react"
 
 function buildCurrencyColumn<T>(opts: {
     accessorKey: keyof T & string
@@ -67,6 +67,15 @@ export const customerVipColumns: ColumnDef<CustomerVip>[] = [
                     <div className="mt-0.5 truncate text-sm font-medium text-foreground">
                         {customer_name || "—"}
                     </div>
+                    <Link
+                        to="/vip/customer/$id"
+                        params={{ id }}
+                        hash="vip-audit"
+                        className="mt-1 inline-flex items-center gap-1 rounded-md text-xs font-semibold text-blue-600 hover:underline"
+                    >
+                        <ShieldCheck className="h-3 w-3" />
+                        Audit điểm VIP
+                    </Link>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
                         {customer_type && <span>{customer_type}</span>}
                         {region && (

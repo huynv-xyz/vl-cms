@@ -1,0 +1,1 @@
+import{c as i}from"./crud-C6vjNfU0.js";import{Q as r,T as e}from"./index-1kzLaJ3v.js";const s=i("/vip/customers"),o=s.list;async function u(t){return s.detail(t)}async function p(t){return e(`/vip/customers/${t}/audit`)}async function n(t){return r("/vip/customers/recalc",{})}export{p as a,u as g,o as l,n as t};
