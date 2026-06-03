@@ -30,7 +30,6 @@ export default function ArLedgerPage() {
         ['from_date', 'to_date', 'customer_id'] // single
     )
 
-    const sourceType = multiFilters.source_type?.[0] ?? ""
     const showReturnToSummary = search.return_from === "ar-summary"
     const today = todayYmd()
 
@@ -40,7 +39,7 @@ export default function ArLedgerPage() {
             search.page,
             search.size,
             keyword,
-            sourceType,
+            multiFilters.source_type,
             singleFilters,
         ],
         listArLedgers,
@@ -48,7 +47,7 @@ export default function ArLedgerPage() {
             page: search.page,
             size: search.size,
             keyword,
-            source_type: sourceType,
+            source_type: multiFilters.source_type?.join(",") || undefined,
             from_date: singleFilters.from_date,
             to_date: singleFilters.to_date,
             customer_id: singleFilters.customer_id

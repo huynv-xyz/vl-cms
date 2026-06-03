@@ -53,8 +53,26 @@ export type ArLedgerTotals = {
     row_count: number
 }
 
+export type ArLedgerSummaryTotals = {
+    opening_balance: number
+    debit_amount: number
+    credit_amount: number
+    closing_balance: number
+    sales_amount: number
+    adjust_amount: number
+    payment_amount: number
+    opening_debit: number
+    opening_credit: number
+    closing_debit: number
+    closing_credit: number
+}
+
 export function listArLedgerSummary(params: ArLedgerListParams) {
     return apiGet<PagedResult<ArLedgerSummary>>("/sales/ar-ledgers/summary", params)
+}
+
+export function getArLedgerSummaryTotals(params: Omit<ArLedgerListParams, "page" | "size">) {
+    return apiGet<ArLedgerSummaryTotals>("/sales/ar-ledgers/summary/totals", params)
 }
 
 export function getArLedgerTotals(params: Omit<ArLedgerListParams, "page" | "size">) {

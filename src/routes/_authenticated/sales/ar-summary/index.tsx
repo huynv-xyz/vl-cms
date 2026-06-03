@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_authenticated/sales/ar-summary/")({
 
         return {
             page: Number(search.page ?? 1),
-            size: Number(search.size ?? 20),
+            size: Number(search.size ?? 100),
             keyword: typeof search.keyword === "string" ? search.keyword : "",
             from_date: fromDate,
             to_date: toDate,
