@@ -14,6 +14,7 @@ export function UpdateWarehouseDialog({ warehouse, open, onOpenChange }: any) {
             schema={warehouseSchema}
             uiSchema={warehouseUiSchema}
             defaultValues={{
+                code: warehouse.code ?? "",
                 name: warehouse.name,
                 address: warehouse.address ?? "",
                 status: warehouse.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
@@ -24,7 +25,8 @@ export function UpdateWarehouseDialog({ warehouse, open, onOpenChange }: any) {
             mutationFn={updateWarehouse}
             mapFormToRequest={(v) => ({
                 id: warehouse.id,
-                name: v.name,
+                code: v.code?.trim(),
+                name: v.name?.trim(),
                 address: v.address?.trim() || "",
                 status: v.status ?? "ACTIVE",
             })}

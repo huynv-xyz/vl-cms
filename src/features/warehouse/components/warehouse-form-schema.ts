@@ -3,8 +3,13 @@ import type { RJSFSchema, UiSchema } from "@rjsf/utils"
 
 export const warehouseSchema: RJSFSchema = {
     type: "object",
-    required: ["name"],
+    required: ["code", "name"],
     properties: {
+        code: {
+            type: "string",
+            title: "Mã kho",
+            minLength: 1,
+        },
         name: {
             type: "string",
             title: "Tên kho",

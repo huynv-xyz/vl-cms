@@ -34,6 +34,7 @@ import { getMyPermissions } from "@/api/auth/permission"
 import { updateExportItemWarehouse, updateExportStatus } from "@/api/sale/export"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { warehouseOption } from "@/lib/option-mapper"
+import { formatCurrency } from "@/lib/utils"
 
 const EXPORT_STATUSES = [
     { value: "NEW", label: "Mới" },
@@ -253,6 +254,7 @@ export function OrderExports({ exports, order }: any) {
                                 <ItemsTable
                                     items={exportDoc.items ?? []}
                                     exportDoc={exportDoc}
+                                    order={order}
                                     orderId={order.id}
                                 />
                             </div>
@@ -273,10 +275,12 @@ export function OrderExports({ exports, order }: any) {
 function ItemsTable({
     items,
     exportDoc,
+    order,
     orderId,
 }: {
     items: any[]
     exportDoc: any
+    order: any
     orderId: number
 }) {
     const queryClient = useQueryClient()
@@ -299,24 +303,36 @@ function ItemsTable({
     }
 
     const isNew = exportDoc?.status === "NEW"
+    const orderItemById = new Map<number, any>()
+    const orderItemByProductId = new Map<number, any>()
+    for (const orderItem of order?.items ?? []) {
+        if (orderItem?.id != null) orderItemById.set(Number(orderItem.id), orderItem)
+        if (orderItem?.product_id != null) orderItemByProductId.set(Number(orderItem.product_id), orderItem)
+    }
 
     return (
         <div className="overflow-x-auto">
             <Table>
                 <TableHeader className="bg-muted/30">
                     <TableRow className="hover:bg-transparent">
-                        <TableHead className="text-xs font-semibold uppercase">Sản phẩm</TableHead>
-                        <TableHead className="text-xs font-semibold uppercase">Mã</TableHead>
+                        <TableHead className="w-[56px] text-center text-xs font-semibold uppercase">#</TableHead>
+                        <TableHead className="min-w-[240px] text-xs font-semibold uppercase">Sản phẩm</TableHead>
+                        <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">ĐVT</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Số lượng</TableHead>
-                        <TableHead className="text-right text-xs font-semibold uppercase">Đơn vị</TableHead>
+                        <TableHead className="text-right text-xs font-semibold uppercase">Đơn giá</TableHead>
+                        <TableHead className="text-right text-xs font-semibold uppercase">Thành tiền</TableHead>
                         <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Kho xuất</TableHead>
                         <TableHead className="text-xs font-semibold uppercase">Lô hàng</TableHead>
                     </TableRow>
                 </TableHeader>
 
                 <TableBody>
-                    {items.map((item) => {
+                    {items.map((item, idx) => {
                         const missingWarehouse = isNew && !item?.warehouse_id
+                        const quantity = Number(item.quantity || 0)
+                        const orderItem = resolveOrderItem(item, orderItemById, orderItemByProductId)
+                        const unitPrice = resolveUnitPrice(orderItem)
+                        const amount = resolveExportItemAmount(item, orderItem, quantity, unitPrice)
 
                         return (
                             <TableRow
@@ -327,17 +343,28 @@ function ItemsTable({
                                         : undefined
                                 }
                             >
-                                <TableCell>
-                                    <div className="font-medium">{item.product?.name}</div>
+                                <TableCell className="text-center text-sm font-semibold text-muted-foreground">
+                                    {idx + 1}
                                 </TableCell>
-                                <TableCell className="font-mono text-xs text-muted-foreground">
-                                    {item.product?.code || "—"}
+                                <TableCell>
+                                    <div className="flex flex-col">
+                                        <span className="font-medium leading-tight">{item.product?.name || "-"}</span>
+                                        <span className="mt-0.5 font-mono text-xs text-muted-foreground">
+                                            {item.product?.code || "—"}
+                                        </span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-center text-sm font-medium text-muted-foreground">
+                                    {item.product?.unit || "-"}
                                 </TableCell>
                                 <TableCell className="text-right font-medium tabular-nums">
-                                    {formatNumber(item.quantity)}
+                                    {formatNumber(quantity)}
                                 </TableCell>
-                                <TableCell className="text-right text-sm text-muted-foreground">
-                                    {item.product?.unit}
+                                <TableCell className="text-right text-sm tabular-nums">
+                                    {formatCurrency(unitPrice)}
+                                </TableCell>
+                                <TableCell className="text-right text-sm font-medium tabular-nums">
+                                    {formatCurrency(amount)}
                                 </TableCell>
                                 <TableCell>
                                     {missingWarehouse ? (
@@ -437,6 +464,38 @@ function getExportStatusMeta(status?: string) {
 
 function sumBy(items: any[], fn: (item: any) => unknown) {
     return items.reduce((sum, item) => sum + Number(fn(item) || 0), 0)
+}
+
+function resolveOrderItem(
+    item: any,
+    orderItemById: Map<number, any>,
+    orderItemByProductId: Map<number, any>
+) {
+    const orderItemId = item?.order_item_id ?? item?.orderItemId
+    if (orderItemId != null) {
+        const orderItem = orderItemById.get(Number(orderItemId))
+        if (orderItem) return orderItem
+    }
+    const productId = item?.product_id ?? item?.productId
+    return productId != null ? orderItemByProductId.get(Number(productId)) : undefined
+}
+
+function resolveUnitPrice(orderItem?: any) {
+    return Number(orderItem?.unit_price ?? orderItem?.unitPrice ?? 0)
+}
+
+function resolveExportItemAmount(item: any, orderItem: any, quantity: number, unitPrice: number) {
+    const lineType =
+        item?.line_type ??
+        item?.lineType ??
+        item?.order_item?.line_type ??
+        item?.order_item?.lineType ??
+        item?.orderItem?.line_type ??
+        item?.orderItem?.lineType ??
+        orderItem?.line_type ??
+        orderItem?.lineType
+    if (lineType === "PROMOTION") return 0
+    return quantity * unitPrice
 }
 
 function formatNumber(value: unknown) {

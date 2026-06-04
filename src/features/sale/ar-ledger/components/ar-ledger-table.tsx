@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import {
     ArrowDownLeft,
@@ -28,13 +28,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { exportXlsx } from "@/lib/xlsx-export"
@@ -62,6 +56,7 @@ type Props = {
 
 const AR_ACCOUNT = "131"
 const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
+const numberFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 })
 
 export function ArLedgerTable({
     data,
@@ -74,6 +69,7 @@ export function ArLedgerTable({
     onFiltersChange,
 }: Props) {
     const [exporting, setExporting] = useState(false)
+    const [advancedOpen, setAdvancedOpen] = useState(false)
     const groups = useMemo(() => buildGroups(data), [data])
     const period = periodLabel(filters.from_date, filters.to_date)
     const today = todayYmd()
@@ -114,7 +110,7 @@ export function ArLedgerTable({
                 page: 1,
                 size: 200,
                 keyword: keyword || undefined,
-                source_type: filters.source_type?.[0] || undefined,
+                source_type: filters.source_type?.join(",") || undefined,
                 from_date: filters.from_date || undefined,
                 to_date: filters.to_date || undefined,
                 customer_id: filters.customer_id,
@@ -134,8 +130,8 @@ export function ArLedgerTable({
         }
     }
 
-    const sourceTypeValue = filters.source_type?.[0]
-    const advancedActiveCount = sourceTypeValue ? 1 : 0
+    const selectedSourceTypes = filters.source_type ?? []
+    const advancedActiveCount = selectedSourceTypes.length
     const activeChips: Array<{ key: string; label: string; onClear: () => void }> = []
 
     if (filters.from_date) {
@@ -159,11 +155,14 @@ export function ArLedgerTable({
             onClear: () => setFilter("customer_id", undefined),
         })
     }
-    if (sourceTypeValue) {
-        const meta = AR_SOURCE_TYPES.find((t) => t.value === sourceTypeValue)
+    if (selectedSourceTypes.length) {
+        const labels = selectedSourceTypes.map((value) => {
+            const meta = AR_SOURCE_TYPES.find((t) => t.value === value)
+            return meta?.label ?? value
+        })
         activeChips.push({
             key: "source_type",
-            label: `Nghiệp vụ: ${meta?.label ?? sourceTypeValue}`,
+            label: `Nghiệp vụ: ${labels.join(", ")}`,
             onClear: () => setFilter("source_type", undefined),
         })
     }
@@ -331,7 +330,7 @@ export function ArLedgerTable({
                         />
                     </div>
 
-                    <Popover>
+                    <Popover open={advancedOpen} onOpenChange={setAdvancedOpen}>
                         <PopoverTrigger asChild>
                             <Button type="button" variant="outline" className="h-10">
                                 <SlidersHorizontal className="mr-2 h-4 w-4" />
@@ -346,29 +345,18 @@ export function ArLedgerTable({
                                 ) : null}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent align="end" className="w-[320px] space-y-3 p-4">
+                        <PopoverContent
+                            align="end"
+                            className="max-h-[calc(100vh-48px)] w-[340px] space-y-3 overflow-y-auto p-4"
+                        >
                             <div>
                                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                                     Loại nghiệp vụ
                                 </div>
-                                <Select
-                                    value={sourceTypeValue ?? "ALL"}
-                                    onValueChange={(value) =>
-                                        setFilter("source_type", value === "ALL" ? undefined : [value])
-                                    }
-                                >
-                                    <SelectTrigger className={cn(controlClass, "mt-2 w-full")}>
-                                        <SelectValue placeholder="Tất cả nghiệp vụ" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="ALL">Tất cả nghiệp vụ</SelectItem>
-                                        {AR_SOURCE_TYPES.map((type) => (
-                                            <SelectItem key={type.value} value={type.value}>
-                                                {type.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <SourceTypeMultiSelect
+                                    value={selectedSourceTypes}
+                                    onChange={(value) => setFilter("source_type", value)}
+                                />
                             </div>
 
                             <Separator />
@@ -517,6 +505,73 @@ export function ArLedgerTable({
                     onPageChange={setPageIndex}
                     className="px-0"
                 />
+            </div>
+        </div>
+    )
+}
+
+function SourceTypeMultiSelect({
+    value,
+    onChange,
+}: {
+    value: string[]
+    onChange: (value?: string[]) => void
+}) {
+    const selected = value ?? []
+    const selectedKey = selected.join(",")
+    const [draft, setDraft] = useState<string[]>(() => selected)
+
+    useEffect(() => {
+        setDraft(selected)
+    }, [selectedKey])
+
+    const toggle = (sourceType: string) => {
+        setDraft((prev) =>
+            prev.includes(sourceType)
+                ? prev.filter((item) => item !== sourceType)
+                : [...prev, sourceType],
+        )
+    }
+
+    return (
+        <div className="mt-2 rounded-md border border-slate-200 bg-white p-2">
+            <div className="grid max-h-[420px] gap-1.5 overflow-y-auto pr-1">
+                {AR_SOURCE_TYPES.map((type) => (
+                    <label
+                        key={type.value}
+                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-slate-50"
+                    >
+                        <Checkbox
+                            checked={draft.includes(type.value)}
+                            onCheckedChange={() => toggle(type.value)}
+                        />
+                        <span>{type.label}</span>
+                    </label>
+                ))}
+            </div>
+            <Separator className="my-2" />
+            <div className="flex items-center justify-between gap-2">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2"
+                    disabled={!draft.length && !selected.length}
+                    onClick={() => {
+                        setDraft([])
+                        onChange(undefined)
+                    }}
+                >
+                    Xóa bộ lọc
+                </Button>
+                <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 px-3"
+                    onClick={() => onChange(draft.length ? draft : undefined)}
+                >
+                    Áp dụng
+                </Button>
             </div>
         </div>
     )
@@ -828,7 +883,7 @@ function num(value: unknown): number {
 
 function fmtCurrency(value: number): string {
     if (!value) return "-"
-    return value.toLocaleString("vi-VN", { maximumFractionDigits: 0 })
+    return numberFormatter.format(value)
 }
 
 function fmtMoneyBlank(value: number): string {
@@ -837,7 +892,7 @@ function fmtMoneyBlank(value: number): string {
 
 function fmtNumber(value: number): string {
     if (!value) return "-"
-    return value.toLocaleString("vi-VN", { maximumFractionDigits: 2 })
+    return numberFormatter.format(value)
 }
 
 function fmtNumberBlank(value: number): string {
@@ -846,7 +901,7 @@ function fmtNumberBlank(value: number): string {
 
 function fmtQty(value: number): string {
     if (!value) return "-"
-    return value.toLocaleString("vi-VN", { maximumFractionDigits: 2 })
+    return numberFormatter.format(value)
 }
 
 function fmtQtyBlank(value: number): string {

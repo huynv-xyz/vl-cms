@@ -1,15 +1,25 @@
+import { useState } from "react"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
+import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { BarChart3 } from "lucide-react"
+import { BarChart3, Download, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
-import { listArLedgerSummary, type ArLedgerSummary } from "@/api/sale/ar-ledger"
+import {
+    getArLedgerSummaryTotals,
+    listArLedgerSummary,
+    type ArLedgerSummary,
+    type ArLedgerSummaryTotals,
+} from "@/api/sale/ar-ledger"
 import { getCustomer, listCustomers } from "@/api/customer"
 import { DatePicker } from "@/components/date-picker"
 import { PageSection } from "@/components/page-section"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { exportXlsx } from "@/lib/xlsx-export"
 import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { useUrlListFilters } from "@/hooks/use-url-list-filters"
 import { useUrlPagination } from "@/hooks/use-url-pagination"
@@ -43,6 +53,12 @@ export default function ArSummaryPage() {
     const customerId = singleFilters.customer_id
         ? Number(singleFilters.customer_id)
         : undefined
+    const summaryFilters = {
+        keyword,
+        from_date: singleFilters.from_date,
+        to_date: singleFilters.to_date,
+        customer_id: customerId,
+    }
 
     const { data, isLoading, error } = usePaginatedList(
         [
@@ -56,12 +72,13 @@ export default function ArSummaryPage() {
         {
             page: search.page,
             size: search.size,
-            keyword,
-            from_date: singleFilters.from_date,
-            to_date: singleFilters.to_date,
-            customer_id: customerId,
+            ...summaryFilters,
         },
     )
+    const totalsQuery = useQuery({
+        queryKey: ["ar-summary-totals", summaryFilters],
+        queryFn: () => getArLedgerSummaryTotals(summaryFilters),
+    })
 
     return (
         <PageSection
@@ -79,6 +96,7 @@ export default function ArSummaryPage() {
                     pageCount={data.total_page}
                     keyword={keyword}
                     onKeywordChange={setKeyword}
+                    totals={totalsQuery.data}
                     filters={{ ...singleFilters, customer_id: customerId }}
                     onFiltersChange={(next) =>
                         setSingleFilters({
@@ -102,6 +120,7 @@ function ArSummaryTable({
     pageCount,
     keyword,
     onKeywordChange,
+    totals,
     filters,
     onFiltersChange,
 }: {
@@ -111,48 +130,54 @@ function ArSummaryTable({
     pageCount: number
     keyword: string
     onKeywordChange: (value: string) => void
+    totals?: ArLedgerSummaryTotals
     filters: Filters
     onFiltersChange: (filters: Filters) => void
 }) {
-    const totals = data.reduce(
-        (acc, row) => ({
-            opening: acc.opening + Number(row.opening_balance || 0),
-            debit: acc.debit + Number(row.debit_amount || 0),
-            credit: acc.credit + Number(row.credit_amount || 0),
-            closing: acc.closing + Number(row.closing_balance || 0),
-            sales: acc.sales + Number(row.sales_amount || 0),
-            adjust: acc.adjust + Number(row.adjust_amount || 0),
-            payment: acc.payment + Number(row.payment_amount || 0),
-        }),
-        { opening: 0, debit: 0, credit: 0, closing: 0, sales: 0, adjust: 0, payment: 0 },
-    )
-    const tableTotals = data.reduce(
-        (acc, row) => {
-            const opening = Number(row.opening_balance || 0)
-            const closing = Number(row.closing_balance || 0)
-
-            return {
-                openingDebit: acc.openingDebit + Math.max(opening, 0),
-                openingCredit: acc.openingCredit + Math.max(-opening, 0),
-                debit: acc.debit + Number(row.debit_amount || 0),
-                credit: acc.credit + Number(row.credit_amount || 0),
-                closingDebit: acc.closingDebit + Math.max(closing, 0),
-                closingCredit: acc.closingCredit + Math.max(-closing, 0),
-            }
-        },
-        {
-            openingDebit: 0,
-            openingCredit: 0,
-            debit: 0,
-            credit: 0,
-            closingDebit: 0,
-            closingCredit: 0,
-        },
-    )
+    const [exporting, setExporting] = useState(false)
+    const summaryTotals = {
+        opening: Number(totals?.opening_balance || 0),
+        debit: Number(totals?.debit_amount || 0),
+        credit: Number(totals?.credit_amount || 0),
+        closing: Number(totals?.closing_balance || 0),
+        sales: Number(totals?.sales_amount || 0),
+        adjust: Number(totals?.adjust_amount || 0),
+        payment: Number(totals?.payment_amount || 0),
+    }
+    const tableTotals = {
+        openingDebit: Number(totals?.opening_debit || 0),
+        openingCredit: Number(totals?.opening_credit || 0),
+        debit: Number(totals?.debit_amount || 0),
+        credit: Number(totals?.credit_amount || 0),
+        closingDebit: Number(totals?.closing_debit || 0),
+        closingCredit: Number(totals?.closing_credit || 0),
+    }
 
     const setFilter = (key: keyof Filters, value: unknown) =>
         onFiltersChange({ ...filters, [key]: value })
     const today = todayYmd()
+    const exportFilters = {
+        keyword,
+        from_date: filters.from_date,
+        to_date: filters.to_date,
+        customer_id: filters.customer_id,
+    }
+
+    const handleExport = async () => {
+        try {
+            setExporting(true)
+            const rows = await fetchAllArSummaries(exportFilters)
+            exportSummaryXlsx(rows, buildTotalsFromRows(rows), {
+                fromDate: filters.from_date ?? today,
+                toDate: filters.to_date ?? today,
+            })
+        } catch (err) {
+            console.error(err)
+            toast.error("Xuất Excel tổng hợp công nợ thất bại")
+        } finally {
+            setExporting(false)
+        }
+    }
 
     const setPageIndex = (pageIndex: number) => {
         onPaginationChange((prev) => ({
@@ -174,9 +199,19 @@ function ArSummaryTable({
     return (
         <div className="space-y-4">
             <div className="rounded-lg border bg-white shadow-sm">
-                <div className="flex items-center gap-2 border-b bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
-                    <BarChart3 className="h-4 w-4 text-slate-500" />
-                    Bộ lọc tổng hợp
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
+                    <div className="flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4 text-slate-500" />
+                        Bộ lọc tổng hợp
+                    </div>
+                    <Button type="button" size="sm" onClick={handleExport} disabled={exporting}>
+                        {exporting ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Download className="mr-2 h-4 w-4" />
+                        )}
+                        Xuất Excel
+                    </Button>
                 </div>
                 <div className="space-y-2 p-4">
                     <div className="flex w-full flex-wrap items-center gap-2">
@@ -234,55 +269,59 @@ function ArSummaryTable({
             </div>
 
             <div className="grid gap-3 md:grid-cols-4">
-                <Summary label="Đầu kỳ" value={formatMoney(totals.opening)} />
-                <Summary label="Phát sinh nợ" value={formatMoney(totals.debit)} />
-                <Summary label="Phát sinh có" value={formatMoney(totals.credit)} />
-                <Summary label="Cuối kỳ" value={formatMoney(totals.closing)} strong />
+                <Summary label="Đầu kỳ" value={formatMoney(summaryTotals.opening)} />
+                <Summary label="Phát sinh nợ" value={formatMoney(summaryTotals.debit)} />
+                <Summary label="Phát sinh có" value={formatMoney(summaryTotals.credit)} />
+                <Summary label="Cuối kỳ" value={formatMoney(summaryTotals.closing)} strong />
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-                <Summary label="Doanh thu bán hàng" value={formatMoney(totals.sales)} tone="debit" hint="EXPORT" />
-                <Summary label="Điều chỉnh công nợ" value={formatMoney(totals.adjust)} tone="neutral" hint="ADJUST" />
-                <Summary label="Thanh toán" value={formatMoney(totals.payment)} tone="credit" hint="BANK + RECEIPT" />
+                <Summary label="Doanh thu bán hàng" value={formatMoney(summaryTotals.sales)} tone="debit" hint="EXPORT" />
+                <Summary label="Điều chỉnh công nợ" value={formatMoney(summaryTotals.adjust)} tone="neutral" hint="ADJUST" />
+                <Summary label="Thanh toán" value={formatMoney(summaryTotals.payment)} tone="credit" hint="BANK + RECEIPT" />
             </div>
 
-            <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1680px] border-collapse text-sm">
+            <div className="rounded-lg border bg-white shadow-sm">
+                <div className="max-h-[calc(100vh-96px)] overflow-auto">
+                    <table className="w-full min-w-[1740px] border-collapse text-sm">
                         <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500">
                             <tr>
-                                <ReportTh rowSpan={2} className="w-[170px]">Mã khách hàng</ReportTh>
-                                <ReportTh rowSpan={2} className="w-[240px]">Tên khách hàng</ReportTh>
-                                <ReportTh rowSpan={2} className="w-[150px]">Mã nhân viên</ReportTh>
-                                <ReportTh rowSpan={2} className="w-[220px]">Tên nhân viên</ReportTh>
-                                <ReportTh rowSpan={2} className="min-w-[320px]">Địa chỉ</ReportTh>
-                                <ReportTh colSpan={2} className="text-center">Số dư đầu kỳ</ReportTh>
-                                <ReportTh colSpan={2} className="text-center">Phát sinh</ReportTh>
-                                <ReportTh colSpan={2} className="text-center">Số dư cuối kỳ</ReportTh>
+                                <ReportTh rowSpan={2} className="sticky top-0 z-30 w-[60px] bg-slate-50 text-center shadow-sm">STT</ReportTh>
+                                <ReportTh rowSpan={2} className="sticky top-0 z-30 w-[170px] bg-slate-50 shadow-sm">Mã khách hàng</ReportTh>
+                                <ReportTh rowSpan={2} className="sticky top-0 z-30 w-[240px] bg-slate-50 shadow-sm">Tên khách hàng</ReportTh>
+                                <ReportTh rowSpan={2} className="sticky top-0 z-30 w-[150px] bg-slate-50 shadow-sm">Mã nhân viên</ReportTh>
+                                <ReportTh rowSpan={2} className="sticky top-0 z-30 w-[220px] bg-slate-50 shadow-sm">Tên nhân viên</ReportTh>
+                                <ReportTh rowSpan={2} className="sticky top-0 z-30 min-w-[320px] bg-slate-50 shadow-sm">Địa chỉ</ReportTh>
+                                <ReportTh colSpan={2} className="sticky top-0 z-30 bg-slate-50 text-center shadow-sm">Số dư đầu kỳ</ReportTh>
+                                <ReportTh colSpan={2} className="sticky top-0 z-30 bg-slate-50 text-center shadow-sm">Phát sinh</ReportTh>
+                                <ReportTh colSpan={2} className="sticky top-0 z-30 bg-slate-50 text-center shadow-sm">Số dư cuối kỳ</ReportTh>
                             </tr>
                             <tr>
-                                <ReportTh className="w-[120px] text-right">Nợ</ReportTh>
-                                <ReportTh className="w-[120px] text-right">Có</ReportTh>
-                                <ReportTh className="w-[120px] text-right">Nợ</ReportTh>
-                                <ReportTh className="w-[120px] text-right">Có</ReportTh>
-                                <ReportTh className="w-[120px] text-right">Nợ</ReportTh>
-                                <ReportTh className="w-[120px] text-right">Có</ReportTh>
+                                <ReportTh className="sticky top-[41px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Nợ</ReportTh>
+                                <ReportTh className="sticky top-[41px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Có</ReportTh>
+                                <ReportTh className="sticky top-[41px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Nợ</ReportTh>
+                                <ReportTh className="sticky top-[41px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Có</ReportTh>
+                                <ReportTh className="sticky top-[41px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Nợ</ReportTh>
+                                <ReportTh className="sticky top-[41px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Có</ReportTh>
                             </tr>
                         </thead>
                         <tbody>
                             {data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={11} className="border border-slate-300 px-4 py-12 text-center text-sm text-slate-500">
+                                    <td colSpan={12} className="border border-slate-300 px-4 py-12 text-center text-sm text-slate-500">
                                         Không có dữ liệu công nợ.
                                     </td>
                                 </tr>
                             ) : (
-                                data.map((row) => {
+                                data.map((row, index) => {
                                     const opening = Number(row.opening_balance || 0)
                                     const closing = Number(row.closing_balance || 0)
 
                                     return (
                                         <tr key={row.customer_id} className="hover:bg-slate-50">
+                                            <ReportTd className="text-center tabular-nums text-slate-700">
+                                                {pagination.pageIndex * pagination.pageSize + index + 1}
+                                            </ReportTd>
                                             <ReportTd className="font-mono text-xs font-semibold text-slate-800">
                                                 {row.customer_code || "-"}
                                             </ReportTd>
@@ -327,7 +366,7 @@ function ArSummaryTable({
                         {data.length > 0 ? (
                             <tfoot className="border-t bg-slate-50 font-bold">
                                 <tr>
-                                    <ReportTd colSpan={5} className="text-right text-slate-950">
+                                    <ReportTd colSpan={6} className="text-right text-slate-950">
                                         Tổng
                                     </ReportTd>
                                     <ReportMoneyCell value={tableTotals.openingDebit} strong />
@@ -481,16 +520,137 @@ function customerOption(customer: { id: number; code?: string; name: string }) {
     }
 }
 
+async function fetchAllArSummaries(filters: {
+    keyword?: string
+    from_date?: string
+    to_date?: string
+    customer_id?: number
+}) {
+    const size = 200
+    let page = 1
+    const all: ArLedgerSummary[] = []
+
+    for (let guard = 0; guard < 300; guard++) {
+        const res = await listArLedgerSummary({
+            ...filters,
+            page,
+            size,
+        })
+        all.push(...res.items)
+        if (page >= (res.total_page || 1) || res.items.length === 0) break
+        page += 1
+    }
+
+    return all
+}
+
+function buildTotalsFromRows(rows: ArLedgerSummary[]) {
+    return rows.reduce(
+        (acc, row) => {
+            const opening = Number(row.opening_balance || 0)
+            const closing = Number(row.closing_balance || 0)
+
+            return {
+                openingDebit: acc.openingDebit + Math.max(opening, 0),
+                openingCredit: acc.openingCredit + Math.max(-opening, 0),
+                debit: acc.debit + Number(row.debit_amount || 0),
+                credit: acc.credit + Number(row.credit_amount || 0),
+                closingDebit: acc.closingDebit + Math.max(closing, 0),
+                closingCredit: acc.closingCredit + Math.max(-closing, 0),
+            }
+        },
+        {
+            openingDebit: 0,
+            openingCredit: 0,
+            debit: 0,
+            credit: 0,
+            closingDebit: 0,
+            closingCredit: 0,
+        },
+    )
+}
+
+function exportSummaryXlsx(
+    rows: ArLedgerSummary[],
+    totals: ReturnType<typeof buildTotalsFromRows>,
+    period: { fromDate: string; toDate: string },
+) {
+    const sheetRows: (string | number)[][] = [
+        ["TỔNG HỢP CÔNG NỢ"],
+        [`Từ ngày ${period.fromDate} đến ngày ${period.toDate}`],
+        [],
+        [
+            "STT",
+            "Mã khách hàng",
+            "Tên khách hàng",
+            "Mã nhân viên",
+            "Tên nhân viên",
+            "Địa chỉ",
+            "Số dư đầu kỳ Nợ",
+            "Số dư đầu kỳ Có",
+            "Phát sinh Nợ",
+            "Phát sinh Có",
+            "Số dư cuối kỳ Nợ",
+            "Số dư cuối kỳ Có",
+        ],
+    ]
+
+    rows.forEach((row, index) => {
+        const opening = Number(row.opening_balance || 0)
+        const closing = Number(row.closing_balance || 0)
+
+        sheetRows.push([
+            index + 1,
+            row.customer_code || "",
+            row.customer_name || "",
+            row.employee_code || "",
+            row.employee_name || "",
+            row.customer_address || "",
+            Math.max(opening, 0),
+            Math.max(-opening, 0),
+            Number(row.debit_amount || 0),
+            Number(row.credit_amount || 0),
+            Math.max(closing, 0),
+            Math.max(-closing, 0),
+        ])
+    })
+
+    sheetRows.push([
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Tổng",
+        totals.openingDebit,
+        totals.openingCredit,
+        totals.debit,
+        totals.credit,
+        totals.closingDebit,
+        totals.closingCredit,
+    ])
+
+    exportXlsx(`tong-hop-cong-no-${new Date().toISOString().slice(0, 10)}.xlsx`, [
+        { name: "Tổng hợp công nợ", rows: sheetRows },
+    ])
+}
+
 function formatMoney(value?: number | string) {
     const amount = Number(value || 0)
     if (!amount) return "-"
-    return amount.toLocaleString("vi-VN")
+    return formatNumber(amount)
 }
 
 function formatTableMoney(value?: number | string) {
     const amount = Number(value || 0)
     if (!amount) return ""
-    return amount.toLocaleString("vi-VN")
+    return formatNumber(amount)
+}
+
+function formatNumber(value: number) {
+    return value.toLocaleString("en-US", {
+        maximumFractionDigits: 6,
+    })
 }
 
 function todayYmd() {
