@@ -38,6 +38,7 @@ import { ImportArLedgerButton } from "./ar-ledger-import-button"
 
 type Filters = {
     source_type?: string[]
+    activity?: string[]
     from_date?: string
     to_date?: string
     customer_id?: number
@@ -57,6 +58,11 @@ type Props = {
 const AR_ACCOUNT = "131"
 const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
 const numberFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 })
+const ACTIVITY_FILTERS = [
+    { value: "debit", label: "Có phát sinh nợ" },
+    { value: "credit", label: "Có phát sinh có" },
+    { value: "none", label: "Không phát sinh" },
+] as const
 
 export function ArLedgerTable({
     data,
@@ -111,6 +117,7 @@ export function ArLedgerTable({
                 size: 200,
                 keyword: keyword || undefined,
                 source_type: filters.source_type?.join(",") || undefined,
+                activity: filters.activity?.join(",") || undefined,
                 from_date: filters.from_date || undefined,
                 to_date: filters.to_date || undefined,
                 customer_id: filters.customer_id,
@@ -131,8 +138,22 @@ export function ArLedgerTable({
     }
 
     const selectedSourceTypes = filters.source_type ?? []
+    const selectedActivities = filters.activity ?? []
     const advancedActiveCount = selectedSourceTypes.length
     const activeChips: Array<{ key: string; label: string; onClear: () => void }> = []
+    const toggleActivityFilter = (value: string) => {
+        if (value === "none") {
+            setFilter("activity", selectedActivities.includes("none") ? undefined : ["none"])
+            return
+        }
+
+        const withoutNone = selectedActivities.filter((item) => item !== "none")
+        const next = withoutNone.includes(value)
+            ? withoutNone.filter((item) => item !== value)
+            : [...withoutNone, value]
+
+        setFilter("activity", next.length ? next : undefined)
+    }
 
     if (filters.from_date) {
         activeChips.push({
@@ -166,6 +187,17 @@ export function ArLedgerTable({
             onClear: () => setFilter("source_type", undefined),
         })
     }
+    if (selectedActivities.length) {
+        const labels = selectedActivities.map((value) => {
+            const meta = ACTIVITY_FILTERS.find((t) => t.value === value)
+            return meta?.label ?? value
+        })
+        activeChips.push({
+            key: "activity",
+            label: `Phát sinh: ${labels.join(", ")}`,
+            onClear: () => setFilter("activity", undefined),
+        })
+    }
     if (keyword) {
         activeChips.push({
             key: "keyword",
@@ -181,6 +213,7 @@ export function ArLedgerTable({
             to_date: undefined,
             customer_id: undefined,
             source_type: undefined,
+            activity: undefined,
         })
     }
 
@@ -328,6 +361,31 @@ export function ArLedgerTable({
                             }}
                             placeholder="Đến ngày"
                         />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="px-1 text-xs font-semibold uppercase text-slate-500">
+                            Phát sinh trong kỳ
+                        </span>
+                        {ACTIVITY_FILTERS.map((item) => {
+                            const active = selectedActivities.includes(item.value)
+
+                            return (
+                                <Button
+                                    key={item.value}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => toggleActivityFilter(item.value)}
+                                    className={cn(
+                                        "h-8 rounded-full border-slate-300 bg-white px-3 text-xs font-medium text-slate-700",
+                                        active && "border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
+                                    )}
+                                >
+                                    {item.label}
+                                </Button>
+                            )
+                        })}
                     </div>
 
                     <Popover open={advancedOpen} onOpenChange={setAdvancedOpen}>

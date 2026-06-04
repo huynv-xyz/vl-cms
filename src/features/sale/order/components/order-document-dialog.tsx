@@ -6,8 +6,11 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import type { Borders, Cell, Worksheet } from "exceljs"
+import { Button } from "@/components/ui/button"
 import { listArLedgerSummary } from "@/api/sale/ar-ledger"
 import type { Order } from "../data/schema"
+import { Download } from "lucide-react"
 
 type Props = {
     open: boolean
@@ -35,13 +38,24 @@ export function OrderDocumentDialog({ open, order, onClose }: Props) {
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="flex max-h-[92vh] w-[min(96vw,980px)] !max-w-none flex-col gap-0 overflow-hidden p-0">
-                <DialogHeader className="flex-row items-center justify-between space-y-0 border-b bg-muted/20 px-5 py-3.5">
+                <DialogHeader className="flex-row items-center justify-between gap-3 space-y-0 border-b bg-muted/20 px-5 py-3.5 pr-14">
                     <DialogTitle className="text-base font-semibold">
                         Đơn đặt hàng
                         {order?.order_no && (
                             <span className="ml-2 font-mono text-primary">{order.order_no}</span>
                         )}
                     </DialogTitle>
+                    {order ? (
+                        <Button
+                            type="button"
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => void exportOrderDocumentXlsx(order, debtTotal)}
+                        >
+                            <Download className="h-4 w-4" />
+                            Xuất Excel
+                        </Button>
+                    ) : null}
                 </DialogHeader>
 
                 <div className="min-h-0 flex-1 overflow-y-auto bg-slate-100 p-5">
@@ -165,6 +179,239 @@ function SummaryRow({ label, value }: { label: string; value: number }) {
             <Td />
         </tr>
     )
+}
+
+async function exportOrderDocumentXlsx(order: Order, debtTotal: number) {
+    const { Workbook } = await import("exceljs")
+    const customer = order.customer
+    const items = order.items ?? []
+    const goodsTotal = items.reduce((sum, item: any) => sum + getLineAmount(item), 0)
+    const paymentTotal = goodsTotal + debtTotal
+
+    const workbook = new Workbook()
+    workbook.creator = "VLIFE"
+    workbook.created = new Date()
+    const sheet = workbook.addWorksheet("Đơn đặt hàng", {
+        pageSetup: {
+            paperSize: 9,
+            orientation: "portrait",
+            fitToPage: true,
+            fitToWidth: 1,
+            fitToHeight: 0,
+            margins: { left: 0.25, right: 0.25, top: 0.35, bottom: 0.35, header: 0.2, footer: 0.2 },
+        },
+    })
+
+    sheet.columns = [
+        { key: "stt", width: 5 },
+        { key: "name", width: 34 },
+        { key: "description", width: 13 },
+        { key: "unit", width: 8 },
+        { key: "quantity", width: 10 },
+        { key: "preVatPrice", width: 14 },
+        { key: "vatPrice", width: 14 },
+        { key: "amount", width: 16 },
+        { key: "note", width: 15 },
+    ]
+
+    sheet.mergeCells("A1:C3")
+    sheet.mergeCells("D1:I1")
+    sheet.mergeCells("D2:I2")
+    sheet.mergeCells("D3:I3")
+    sheet.getCell("D1").value = "CÔNG TY CỔ PHẦN QUỐC TẾ CUỘC SỐNG VIỆT"
+    sheet.getCell("D2").value = "Địa chỉ: 160/5 Linh Trung, Khu Phố 9, Phường Linh Xuân, TP.Hồ Chí Minh"
+    sheet.getCell("D3").value = "ĐT: +84 283 724 5995; Email: admin@vlife.com.vn; website: Vlife.com.vn"
+    setBlueCompanyStyle(sheet.getCell("D1"), true)
+    setBlueCompanyStyle(sheet.getCell("D2"))
+    setBlueCompanyStyle(sheet.getCell("D3"))
+    sheet.getRow(1).height = 23
+    sheet.getRow(2).height = 20
+    sheet.getRow(3).height = 20
+    sheet.getRow(3).border = { bottom: { style: "thin", color: { argb: "FF1D4F91" } } }
+
+    try {
+        const logoBuffer = await fetch("/images/cover.png").then((res) => res.arrayBuffer())
+        const imageId = workbook.addImage({ buffer: logoBuffer, extension: "png" })
+        sheet.addImage(imageId, { tl: { col: 0, row: 0 }, ext: { width: 190, height: 66 } })
+    } catch {
+        sheet.getCell("A1").value = "VLIFE"
+        sheet.getCell("A1").font = { name: "Arial", size: 28, bold: true, color: { argb: "FF00A99D" } }
+        sheet.getCell("A1").alignment = { vertical: "middle", horizontal: "center" }
+    }
+
+    sheet.mergeCells("A5:I5")
+    sheet.getCell("A5").value = "ĐƠN ĐẶT HÀNG"
+    sheet.getCell("A5").font = { name: "Times New Roman", size: 22, bold: true }
+    sheet.getCell("A5").alignment = { horizontal: "center", vertical: "middle" }
+    sheet.getRow(5).height = 30
+    sheet.getCell("H6").value = "Ngày:"
+    sheet.getCell("I6").value = formatDate(order.order_date)
+    sheet.getCell("H7").value = "Số:"
+    sheet.getCell("I7").value = order.order_no || ""
+    sheet.getCell("I7").font = { name: "Times New Roman", size: 12, bold: true }
+
+    const infoRows: Array<[string, string]> = [
+        ["Tên khách hàng:", customer?.name || "-"],
+        ["Địa chỉ:", customer?.address || ""],
+        ["Mã số thuế:", customer?.tax_code || ""],
+        ["Điện thoại:", (customer as any)?.phone || ""],
+        ["Email:", (customer as any)?.email || ""],
+        ["Ghi chú:", order.note || ""],
+    ]
+
+    infoRows.forEach(([label, value], index) => {
+        const rowNumber = 9 + index
+        sheet.mergeCells(`B${rowNumber}:I${rowNumber}`)
+        sheet.getCell(`A${rowNumber}`).value = label
+        sheet.getCell(`B${rowNumber}`).value = value
+        sheet.getCell(`A${rowNumber}`).font = { name: "Times New Roman", size: 12 }
+        sheet.getCell(`B${rowNumber}`).font = {
+            name: "Times New Roman",
+            size: index === 0 ? 16 : 12,
+            bold: index === 0,
+            color: index === 0 ? { argb: "FF0050A4" } : { argb: "FF000000" },
+        }
+    })
+
+    const headerRowNumber = 16
+    const headerRow = sheet.getRow(headerRowNumber)
+    headerRow.values = [
+        "STT",
+        "Tên hàng",
+        "Mô tả",
+        "ĐVT",
+        "SL",
+        "Đơn giá\nchưa VAT",
+        "Đơn giá\ngồm VAT",
+        "Thành tiền\ngồm VAT",
+        "Ghi chú",
+    ]
+    headerRow.height = 36
+    headerRow.eachCell((cell) => {
+        cell.font = { name: "Times New Roman", size: 12, bold: true }
+        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true }
+        cell.border = allBorders()
+    })
+
+    let rowNumber = headerRowNumber + 1
+    items.forEach((item: any, index) => {
+        const row = sheet.getRow(rowNumber)
+        row.values = [
+            index + 1,
+            item.product?.name || item.product_name || "",
+            item.description || "",
+            item.product?.unit || item.unit || "",
+            Number(item.quantity || 0),
+            getPreVatPrice(item.unit_price),
+            Number(item.unit_price || 0),
+            getLineAmount(item),
+            lineTypeLabel(item.line_type),
+        ]
+        row.height = 22
+        row.eachCell((cell, colNumber) => {
+            cell.font = { name: "Times New Roman", size: 12 }
+            cell.border = allBorders()
+            cell.alignment = {
+                vertical: "middle",
+                horizontal: [1, 4].includes(colNumber) ? "center" : colNumber >= 5 && colNumber <= 8 ? "right" : "left",
+                wrapText: true,
+            }
+            if (colNumber >= 5 && colNumber <= 8) {
+                cell.numFmt = '#,##0.00'
+            }
+        })
+        rowNumber += 1
+    })
+
+    addSummaryExcelRow(sheet, rowNumber++, "Cộng tiền hàng", goodsTotal)
+    addSummaryExcelRow(sheet, rowNumber++, "Cộng nợ cũ còn nợ", debtTotal)
+    addSummaryExcelRow(sheet, rowNumber++, "Tổng tiền thanh toán", paymentTotal)
+
+    rowNumber += 1
+    const redRows = [
+        "Thời hạn TT:",
+        "- 07 ngày kể từ ngày giao hàng.",
+        "- Sau 07 ngày đơn giá sẽ tăng 300đ/kg theo bảng giá công nợ 30 ngày",
+    ]
+    redRows.forEach((text) => {
+        sheet.mergeCells(`A${rowNumber}:I${rowNumber}`)
+        const cell = sheet.getCell(`A${rowNumber}`)
+        cell.value = text
+        cell.font = { name: "Times New Roman", size: 14, bold: true, italic: true, color: { argb: "FFFF0000" } }
+        cell.alignment = { horizontal: "left", vertical: "middle" }
+        rowNumber += 1
+    })
+
+    rowNumber += 1
+    const bankRows = [
+        "** Quý khách hàng thanh toán TM hoặc qua tài khoản công ty như sau:",
+        "- Công ty Cổ Phần Quốc Tế Cuộc Sống Việt",
+        "- STK: 3143 171 771",
+        "- Ngân hàng TMCP Đầu tư và Phát Triển Việt Nam BIDV",
+        "- Chi Nhánh Đông Sài Gòn",
+    ]
+    bankRows.forEach((text) => {
+        sheet.mergeCells(`A${rowNumber}:I${rowNumber}`)
+        const cell = sheet.getCell(`A${rowNumber}`)
+        cell.value = text
+        cell.font = { name: "Times New Roman", size: 14, bold: true }
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFA9D18E" } }
+        cell.alignment = { horizontal: "left", vertical: "middle", wrapText: true }
+        rowNumber += 1
+    })
+
+    sheet.eachRow((row) => {
+        row.eachCell((cell) => {
+            cell.font = { name: "Times New Roman", size: cell.font?.size || 12, ...cell.font }
+        })
+    })
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    const safeOrderNo = String(order.order_no || `don-${order.id}`).replace(/[\\/:*?"<>|]/g, "-")
+    a.href = url
+    a.download = `don-dat-hang-${safeOrderNo}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+}
+
+function setBlueCompanyStyle(cell: Cell, bold = false) {
+    cell.font = { name: "Times New Roman", size: bold ? 13 : 12, bold, color: { argb: "FF0050A4" } }
+    cell.alignment = { horizontal: "right", vertical: "middle", wrapText: true }
+}
+
+function allBorders(): Partial<Borders> {
+    return {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+    }
+}
+
+function addSummaryExcelRow(sheet: Worksheet, rowNumber: number, label: string, value: number) {
+    sheet.mergeCells(`A${rowNumber}:G${rowNumber}`)
+    const labelCell = sheet.getCell(`A${rowNumber}`)
+    const valueCell = sheet.getCell(`H${rowNumber}`)
+    const noteCell = sheet.getCell(`I${rowNumber}`)
+
+    labelCell.value = label
+    valueCell.value = value
+
+    ;[labelCell, valueCell, noteCell].forEach((cell) => {
+        cell.font = { name: "Times New Roman", size: 12, bold: true }
+        cell.border = allBorders()
+        cell.alignment = { vertical: "middle" }
+    })
+    labelCell.alignment = { horizontal: "left", vertical: "middle" }
+    valueCell.alignment = { horizontal: "right", vertical: "middle" }
+    valueCell.numFmt = '#,##0.00'
 }
 
 function formatDate(value?: string) {

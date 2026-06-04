@@ -14,6 +14,7 @@ export const Route = createFileRoute("/_authenticated/sales/ar-summary/")({
             from_date: fromDate,
             to_date: toDate,
             customer_id: typeof search.customer_id === "string" ? search.customer_id : undefined,
+            activity: normalizeActivity(search.activity),
         }
     },
     component: ArSummaryPage,
@@ -39,4 +40,16 @@ function normalizeFromDate(value: unknown, today: string) {
 function normalizeToDate(value: unknown, fromDate: string, today: string) {
     if (!validYmd(value)) return today
     return value < fromDate ? fromDate : value
+}
+
+function normalizeActivity(value: unknown) {
+    if (typeof value !== "string") return undefined
+
+    const allowed = new Set(["debit", "credit", "none"])
+    const items = value
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => allowed.has(item))
+
+    return items.length > 0 ? items.join(",") : undefined
 }

@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button"
 import { InlineStatus } from "@/components/inline-status"
 import { getOrderStatusMeta, ORDER_STATUSES } from "../../order/components/order-status"
 import { OrderDocumentDialog } from "../../order/components/order-document-dialog"
+import { UpdateOrderDialog } from "../../order/components/update-order-dialog"
 import {
     CalendarDays,
     Clock,
     FileText,
     MapPin,
+    Pencil,
     Phone,
     Receipt,
     UserRound,
@@ -25,6 +27,7 @@ type Props = {
 
 export function OrderInfo({ order, metrics }: Props) {
     const [documentOpen, setDocumentOpen] = useState(false)
+    const [editOpen, setEditOpen] = useState(false)
     const statusMeta = getOrderStatusMeta(order.status)
     const StatusIcon = statusMeta.icon
     const { data: permissions = [] } = useQuery({
@@ -36,6 +39,8 @@ export function OrderInfo({ order, metrics }: Props) {
             p.module === "sales.orders" &&
             (p.action === "status.update" || p.action === "update")
     )
+    const isLocked = order.status === "DONE" || order.status === "CANCELLED"
+    const canEditOrder = canUpdateStatus && !isLocked
 
     return (
         <div className="overflow-hidden rounded-xl border bg-gradient-to-br from-background to-muted/30 shadow-sm">
@@ -87,6 +92,17 @@ export function OrderInfo({ order, metrics }: Props) {
                         <FileText className="h-3.5 w-3.5" />
                         Đơn đặt hàng
                     </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 gap-1.5"
+                        onClick={() => setEditOpen(true)}
+                        disabled={!canEditOrder}
+                    >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Sửa đơn
+                    </Button>
                     <InlineStatus
                         row={order}
                         value={order.status}
@@ -104,6 +120,12 @@ export function OrderInfo({ order, metrics }: Props) {
                 open={documentOpen}
                 order={order}
                 onClose={() => setDocumentOpen(false)}
+            />
+
+            <UpdateOrderDialog
+                order={order}
+                open={editOpen}
+                onOpenChange={setEditOpen}
             />
 
             {/* INFO GRID */}

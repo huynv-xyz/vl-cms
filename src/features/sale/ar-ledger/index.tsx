@@ -26,7 +26,7 @@ export default function ArLedgerPage() {
     } = useUrlListFilters(
         search,
         navigate,
-        ['source_type'], // multi
+        ['source_type', 'activity'], // multi
         ['from_date', 'to_date', 'customer_id'] // single
     )
 
@@ -40,6 +40,7 @@ export default function ArLedgerPage() {
             search.size,
             keyword,
             multiFilters.source_type,
+            multiFilters.activity,
             singleFilters,
         ],
         listArLedgers,
@@ -48,6 +49,7 @@ export default function ArLedgerPage() {
             size: search.size,
             keyword,
             source_type: multiFilters.source_type?.join(",") || undefined,
+            activity: multiFilters.activity?.join(",") || undefined,
             from_date: singleFilters.from_date,
             to_date: singleFilters.to_date,
             customer_id: singleFilters.customer_id
@@ -76,6 +78,7 @@ export default function ArLedgerPage() {
                                 customer_id: search.return_customer_id
                                     ? String(search.return_customer_id)
                                     : undefined,
+                                activity: search.return_activity,
                             }}
                         >
                             <ArrowLeft className="h-4 w-4" />
@@ -98,6 +101,7 @@ export default function ArLedgerPage() {
                     filters={{
                         ...singleFilters,
                         source_type: multiFilters.source_type,
+                        activity: multiFilters.activity,
                         customer_id: singleFilters.customer_id
                             ? Number(singleFilters.customer_id)
                             : undefined,
@@ -111,6 +115,7 @@ export default function ArLedgerPage() {
 
                         setMultiFilters({
                             source_type: f.source_type,
+                            activity: f.activity,
                         })
                     }}
                 />
