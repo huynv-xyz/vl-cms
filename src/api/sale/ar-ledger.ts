@@ -13,6 +13,7 @@ export type ArLedgerListParams = {
     order_id?: number
     export_id?: number
     doc_type?: string
+    activity?: string
 }
 
 const api = createCrudApi<

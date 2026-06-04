@@ -125,6 +125,7 @@ export function CashBankLedgerTable({
     const today = todayYmd()
     const shouldConstrainDateFilters = sourceType === "ADJUST"
     const useCustomerSelector = sourceType === "ADJUST"
+    const canExport = sourceType === "ADJUST" || sourceType === "OPENING"
 
     const totalsQuery = useQuery({
         queryKey: [
@@ -246,8 +247,13 @@ export function CashBankLedgerTable({
                 incomingLabel,
                 outgoingLabel,
                 period: periodLabel(filters.from_date, filters.to_date),
+                sourceType,
             })
-            toast.success(`Đã xuất ${rows.length} dòng điều chỉnh công nợ`)
+            toast.success(
+                sourceType === "OPENING"
+                    ? `Đã xuất ${rows.length} dòng nợ đầu kỳ`
+                    : `Đã xuất ${rows.length} dòng điều chỉnh công nợ`,
+            )
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Xuất báo cáo thất bại")
         } finally {
@@ -316,7 +322,7 @@ export function CashBankLedgerTable({
                                 </Button>
                             </>
                         ) : null}
-                        {sourceType === "ADJUST" ? (
+                        {canExport ? (
                             <Button type="button" onClick={handleExport} disabled={exporting}>
                                 {exporting ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -794,12 +800,14 @@ function exportAdjustmentXlsx(
         incomingLabel: string
         outgoingLabel: string
         period: string
+        sourceType: "BANK" | "ADJUST" | "OPENING"
     },
 ) {
     const exportRows: (string | number)[][] = []
     const push = (cells: (string | number)[]) => exportRows.push(cells)
+    const isOpening = options.sourceType === "OPENING"
 
-    push(["ĐIỀU CHỈNH CÔNG NỢ"])
+    push([isOpening ? "NỢ ĐẦU KỲ" : "ĐIỀU CHỈNH CÔNG NỢ"])
     push([options.period])
     push([])
     push([
@@ -826,7 +834,8 @@ function exportAdjustmentXlsx(
         ])
     }
 
-    exportXlsx(`dieu-chinh-cong-no-${new Date().toISOString().slice(0, 10)}.xlsx`, [
-        { name: "Điều chỉnh công nợ", rows: exportRows },
+    const date = new Date().toISOString().slice(0, 10)
+    exportXlsx(`${isOpening ? "no-dau-ky" : "dieu-chinh-cong-no"}-${date}.xlsx`, [
+        { name: isOpening ? "Nợ đầu kỳ" : "Điều chỉnh công nợ", rows: exportRows },
     ])
 }

@@ -29,9 +29,15 @@ type Filters = {
     from_date?: string
     to_date?: string
     customer_id?: number
+    activity?: string[]
 }
 
 const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
+const ACTIVITY_FILTERS = [
+    { value: "debit", label: "Có phát sinh nợ" },
+    { value: "credit", label: "Có phát sinh có" },
+    { value: "none", label: "Không phát sinh" },
+] as const
 
 export default function ArSummaryPage() {
     const search = Route.useSearch()
@@ -41,12 +47,14 @@ export default function ArSummaryPage() {
     const {
         keyword,
         setKeyword,
+        multiFilters,
+        setMultiFilters,
         singleFilters,
         setSingleFilters,
     } = useUrlListFilters(
         search,
         navigate,
-        [],
+        ["activity"],
         ["from_date", "to_date", "customer_id"],
     )
 
@@ -58,6 +66,9 @@ export default function ArSummaryPage() {
         from_date: singleFilters.from_date,
         to_date: singleFilters.to_date,
         customer_id: customerId,
+        activity: multiFilters.activity.length > 0
+            ? multiFilters.activity.join(",")
+            : undefined,
     }
 
     const { data, isLoading, error } = usePaginatedList(
@@ -67,6 +78,7 @@ export default function ArSummaryPage() {
             search.size,
             keyword,
             singleFilters,
+            multiFilters.activity,
         ],
         listArLedgerSummary,
         {
@@ -97,8 +109,8 @@ export default function ArSummaryPage() {
                     keyword={keyword}
                     onKeywordChange={setKeyword}
                     totals={totalsQuery.data}
-                    filters={{ ...singleFilters, customer_id: customerId }}
-                    onFiltersChange={(next) =>
+                    filters={{ ...singleFilters, customer_id: customerId, activity: multiFilters.activity }}
+                    onFiltersChange={(next) => {
                         setSingleFilters({
                             from_date: next.from_date,
                             to_date: next.to_date,
@@ -106,7 +118,10 @@ export default function ArSummaryPage() {
                                 ? String(next.customer_id)
                                 : undefined,
                         })
-                    }
+                        setMultiFilters({
+                            activity: next.activity ?? [],
+                        })
+                    }}
                 />
             )}
         </PageSection>
@@ -155,12 +170,28 @@ function ArSummaryTable({
 
     const setFilter = (key: keyof Filters, value: unknown) =>
         onFiltersChange({ ...filters, [key]: value })
+    const toggleActivityFilter = (value: string) => {
+        const current = filters.activity ?? []
+        if (value === "none") {
+            setFilter("activity", current.includes("none") ? [] : ["none"])
+            return
+        }
+
+        const withoutNone = current.filter((item) => item !== "none")
+        const next = withoutNone.includes(value)
+            ? withoutNone.filter((item) => item !== value)
+            : [...withoutNone, value]
+        setFilter("activity", next)
+    }
     const today = todayYmd()
     const exportFilters = {
         keyword,
         from_date: filters.from_date,
         to_date: filters.to_date,
         customer_id: filters.customer_id,
+        activity: filters.activity && filters.activity.length > 0
+            ? filters.activity.join(",")
+            : undefined,
     }
 
     const handleExport = async () => {
@@ -194,6 +225,7 @@ function ArSummaryTable({
         return_from_date: filters.from_date ?? today,
         return_to_date: filters.to_date ?? today,
         return_customer_id: filters.customer_id,
+        return_activity: exportFilters.activity,
     }
 
     return (
@@ -265,6 +297,30 @@ function ArSummaryTable({
                             placeholder="Đến ngày"
                         />
                     </div>
+                    <div className="flex w-full flex-wrap items-center gap-2">
+                        <span className="text-xs font-semibold uppercase text-slate-500">
+                            Phát sinh trong kỳ
+                        </span>
+                        {ACTIVITY_FILTERS.map((item) => {
+                            const active = (filters.activity ?? []).includes(item.value)
+
+                            return (
+                                <Button
+                                    key={item.value}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => toggleActivityFilter(item.value)}
+                                    className={cn(
+                                        "h-8 rounded-full border-slate-300 bg-white px-3 text-xs font-medium text-slate-700",
+                                        active && "border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
+                                    )}
+                                >
+                                    {item.label}
+                                </Button>
+                            )
+                        })}
+                    </div>
                 </div>
             </div>
 
@@ -333,6 +389,7 @@ function ArSummaryTable({
                                                         size: pagination.pageSize,
                                                         keyword: "",
                                                         source_type: undefined,
+                                                        activity: exportFilters.activity,
                                                         from_date: filters.from_date ?? today,
                                                         to_date: filters.to_date ?? today,
                                                         customer_id: row.customer_id,
@@ -525,6 +582,7 @@ async function fetchAllArSummaries(filters: {
     from_date?: string
     to_date?: string
     customer_id?: number
+    activity?: string
 }) {
     const size = 200
     let page = 1
