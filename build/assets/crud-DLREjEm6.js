@@ -1,0 +1,1 @@
+import{al as i,am as u,Q as n,T as t}from"./index-BKFa1vH-.js";function l(r){return{detail(e){return t(`${r}/${e}`)},list(e){return t(r,{...e,limit:e.size})},create(e){return n(r,e)},update(e){return u(`${r}/${e.id}`,e)},delete(e){return i(`${r}/${e}`,{id:e})}}}export{l as c};

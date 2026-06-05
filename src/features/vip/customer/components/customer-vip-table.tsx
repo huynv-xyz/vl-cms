@@ -4,6 +4,7 @@ import { CrudTable } from '@/components/crud/crud-table'
 import type { CustomerVip } from '../data/schema'
 import { customerVipColumns } from './customer-vip-columns'
 import { listCustomerVips, type CustomerVipListParams } from '@/api/customer-vip'
+import { DatePicker } from '@/components/date-picker'
 import { SearchOnBlurInput } from '@/components/search-on-blur-input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -37,13 +38,6 @@ import {
     AlertCircle,
     type LucideIcon,
 } from 'lucide-react'
-
-// ── Năm tính động ─────────────────────────────────────────────────────
-const currentYear = new Date().getFullYear()
-const CALC_YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => {
-    const y = String(currentYear - 2 + i)
-    return { label: y, value: y }
-})
 
 const TIER_OPTIONS = [
     { label: 'Thành viên 2', value: 'THANH_VIEN_2' },
@@ -82,9 +76,10 @@ type Filters = {
     regions?: string[]
     tier_codes?: string[]
     group_codes?: string[]
-    calc_years?: string[]
     customer_types?: string[]
     customer_codes?: string[]
+    from_date?: string
+    to_date?: string
 }
 
 type CustomerVipTableProps = {
@@ -96,6 +91,7 @@ type CustomerVipTableProps = {
     onKeywordChange: (value: string) => void
     filters: Filters
     onFiltersChange: (filters: Filters) => void
+    onDateRangeChange: (value: Pick<Filters, 'from_date' | 'to_date'>) => void
 }
 
 export function CustomerVipTable({
@@ -107,6 +103,7 @@ export function CustomerVipTable({
     onKeywordChange,
     filters,
     onFiltersChange,
+    onDateRangeChange,
 }: CustomerVipTableProps) {
     const [isExporting, setIsExporting] = React.useState(false)
     const summary = buildSummary(data)
@@ -135,6 +132,11 @@ export function CustomerVipTable({
 
     return (
         <div className="space-y-5">
+            {(filters.from_date || filters.to_date) && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+                    Đang xem số liệu tạm tính theo ngày chứng từ {formatDateRange(filters.from_date, filters.to_date)}. Dữ liệu này không ghi đè kết quả đã chốt năm.
+                </div>
+            )}
 
             {/* ── SUMMARY CARDS ── */}
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -215,11 +217,17 @@ export function CustomerVipTable({
                         selected={filters.group_codes ?? []}
                         onChange={(v) => setFilter('group_codes', v)}
                     />
-                    <FilterDropdown
-                        label="Năm tính"
-                        options={CALC_YEAR_OPTIONS}
-                        selected={filters.calc_years ?? []}
-                        onChange={(v) => setFilter('calc_years', v)}
+                    <DatePicker
+                        className="min-w-[180px] flex-1 [&_button]:h-10"
+                        value={filters.from_date}
+                        onChange={(value) => onDateRangeChange({ from_date: value, to_date: filters.to_date })}
+                        placeholder="Từ ngày CT"
+                    />
+                    <DatePicker
+                        className="min-w-[180px] flex-1 [&_button]:h-10"
+                        value={filters.to_date}
+                        onChange={(value) => onDateRangeChange({ from_date: filters.from_date, to_date: value })}
+                        placeholder="Đến ngày CT"
                     />
                     <Button
                         type="button"
@@ -519,19 +527,15 @@ function buildExportFilters(keyword: string, filters: Filters): Omit<CustomerVip
         region: stringifyFilter(filters.regions),
         tier_code: stringifyFilter(filters.tier_codes),
         group_code: stringifyFilter(filters.group_codes),
-        calc_year: parseCalcYear(filters.calc_years),
         customer_type: stringifyFilter(filters.customer_types),
         customer_code: stringifyFilter(filters.customer_codes),
+        from_date: filters.from_date || undefined,
+        to_date: filters.to_date || undefined,
     }
 }
 
 function stringifyFilter(values?: string[]) {
     return values && values.length > 0 ? values.join(',') : undefined
-}
-
-function parseCalcYear(values?: string[]) {
-    const value = stringifyFilter(values)
-    return value ? Number(value) : undefined
 }
 
 async function fetchAllCustomerVips(filters: Omit<CustomerVipListParams, 'page' | 'size'>) {
@@ -615,4 +619,18 @@ function exportCustomerVipXlsx(rows: CustomerVip[]) {
 
 function formatNumber(value: number) {
     return new Intl.NumberFormat('vi-VN').format(Number(value || 0))
+}
+
+function formatDisplayDate(value?: string) {
+    if (!value) return ''
+    const [datePart] = value.split('T')
+    const [year, month, day] = datePart.split('-')
+    return year && month && day ? `${day}/${month}/${year}` : value
+}
+
+function formatDateRange(fromDate?: string, toDate?: string) {
+    if (fromDate && toDate) return `${formatDisplayDate(fromDate)} - ${formatDisplayDate(toDate)}`
+    if (fromDate) return `từ ${formatDisplayDate(fromDate)}`
+    if (toDate) return `đến ${formatDisplayDate(toDate)}`
+    return ''
 }

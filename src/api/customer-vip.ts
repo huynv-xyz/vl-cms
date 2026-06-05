@@ -12,6 +12,9 @@ export type CustomerVipListParams = {
     calc_year?: number
     customer_type?: string
     customer_code?: string
+    as_of_date?: string
+    from_date?: string
+    to_date?: string
 }
 
 const customerVipApi = createCrudApi<
@@ -23,12 +26,18 @@ const customerVipApi = createCrudApi<
 
 export const listCustomerVips = customerVipApi.list
 
-export async function getCustomerVipDetail(id: number | string) {
-    return customerVipApi.detail(id) as Promise<CustomerVipDetail>
+export type CustomerVipDateRangeParams = {
+    from_date?: string
+    to_date?: string
+    as_of_date?: string
 }
 
-export async function getCustomerVipAudit(id: number | string) {
-    return apiGet<CustomerVipAudit>(`/vip/customers/${id}/audit`)
+export async function getCustomerVipDetail(id: number | string, dateRange?: CustomerVipDateRangeParams) {
+    return apiGet<CustomerVipDetail>(`/vip/customers/${id}`, dateRange)
+}
+
+export async function getCustomerVipAudit(id: number | string, dateRange?: CustomerVipDateRangeParams) {
+    return apiGet<CustomerVipAudit>(`/vip/customers/${id}/audit`, dateRange)
 }
 
 export async function triggerVipRecalc(year?: number) {

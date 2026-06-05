@@ -2,19 +2,19 @@ import type { VipProductMapping } from "@/features/vip/product-mapping/data/sche
 import { createCrudApi } from "@/api/crud"
 
 export type CreateVipProductMappingRequest = {
-    product_code: string
+    product_group?: string
+    ap_dung?: string
+    he_so_hdn?: number
     customer_code?: string
-    he_so_mb?: number
-    he_so_mn?: number
     note?: string
 }
 
 export type UpdateVipProductMappingRequest = {
     id: number
-    product_code: string
+    product_group?: string
+    ap_dung?: string
+    he_so_hdn?: number
     customer_code?: string
-    he_so_mb?: number
-    he_so_mn?: number
     note?: string
 }
 

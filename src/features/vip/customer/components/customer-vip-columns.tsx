@@ -59,6 +59,11 @@ export const customerVipColumns: ColumnDef<CustomerVip>[] = [
                     <Link
                         to="/vip/customer/$id"
                         params={{ id }}
+                        search={(prev: { from_date?: string; to_date?: string; as_of_date?: string }) => ({
+                            from_date: prev.from_date,
+                            to_date: prev.to_date,
+                            as_of_date: prev.as_of_date,
+                        })}
                         className="text-primary hover:bg-primary/10 group inline-flex items-center gap-1.5 rounded-md font-mono text-sm font-bold transition-colors"
                     >
                         <Crown className="h-3.5 w-3.5 opacity-70 transition-opacity group-hover:opacity-100" />
@@ -70,6 +75,11 @@ export const customerVipColumns: ColumnDef<CustomerVip>[] = [
                     <Link
                         to="/vip/customer/$id"
                         params={{ id }}
+                        search={(prev: { from_date?: string; to_date?: string; as_of_date?: string }) => ({
+                            from_date: prev.from_date,
+                            to_date: prev.to_date,
+                            as_of_date: prev.as_of_date,
+                        })}
                         hash="vip-audit"
                         className="mt-1 inline-flex items-center gap-1 rounded-md text-xs font-semibold text-blue-600 hover:underline"
                     >

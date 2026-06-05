@@ -11,37 +11,30 @@ export const vipProductMappingColumns: ColumnDef<VipProductMapping>[] = [
     buildIndexColumn<VipProductMapping>(),
 
     buildTextColumn<VipProductMapping>({
-        accessorKey: "product_code",
-        title: "Mã sản phẩm",
-        width: 140,
-        maxWidth: 140,
-        textClassName: "font-medium text-sm",
+        accessorKey: "product_group",
+        title: "Mã riêng",
+        width: 160,
+        maxWidth: 180,
     }),
 
     buildTextColumn<VipProductMapping>({
-        accessorKey: "product_name",
-        title: "Tên sản phẩm",
-        width: 260,
-        maxWidth: 320,
+        accessorKey: "ap_dung",
+        title: "Vùng áp dụng",
+        width: 110,
+        maxWidth: 120,
+    }),
+
+    buildNumberColumn<VipProductMapping>({
+        accessorKey: "he_so_hdn",
+        title: "Hệ số HDN",
+        width: 120,
     }),
 
     buildTextColumn<VipProductMapping>({
         accessorKey: "customer_code",
         title: "Mã KH riêng",
-        width: 140,
-        maxWidth: 150,
-    }),
-
-    buildNumberColumn<VipProductMapping>({
-        accessorKey: "he_so_mb",
-        title: "Hệ số MB",
         width: 110,
-    }),
-
-    buildNumberColumn<VipProductMapping>({
-        accessorKey: "he_so_mn",
-        title: "Hệ số MN",
-        width: 110,
+        maxWidth: 130,
     }),
 
     buildActionsColumn<VipProductMapping>({

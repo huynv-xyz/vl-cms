@@ -1,6 +1,9 @@
 export type CustomerVip = {
     id: number
     calc_year: number
+    from_date?: string | null
+    to_date?: string | null
+    as_of_date?: string | null
     customer_code: string
     customer_name: string
     customer_type: string
@@ -99,6 +102,9 @@ export type CustomerVipAudit = {
     customer_code: string
     customer_name: string
     calc_year: number
+    from_date?: string | null
+    to_date?: string | null
+    as_of_date?: string | null
     calc_range: string
     group_code: string
     result_total_vip_point: number

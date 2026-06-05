@@ -55,7 +55,11 @@ export function CustomerVipSummary({ data }: Props) {
                             )}
                             <span className="inline-flex items-center gap-1">
                                 <CalendarDays className="h-3.5 w-3.5" />
-                                Năm {data.calc_year}
+                                {data.from_date || data.to_date
+                                    ? formatDateRange(data.from_date, data.to_date)
+                                    : data.as_of_date
+                                        ? `Đến ${formatDisplayDate(data.as_of_date)}`
+                                        : `Năm ${data.calc_year}`}
                             </span>
                         </div>
                     </div>
@@ -105,6 +109,20 @@ export function CustomerVipSummary({ data }: Props) {
             </div>
         </div>
     )
+}
+
+function formatDisplayDate(value?: string | null) {
+    if (!value) return ""
+    const [datePart] = value.split("T")
+    const [year, month, day] = datePart.split("-")
+    return year && month && day ? `${day}/${month}/${year}` : value
+}
+
+function formatDateRange(fromDate?: string | null, toDate?: string | null) {
+    if (fromDate && toDate) return `${formatDisplayDate(fromDate)} - ${formatDisplayDate(toDate)}`
+    if (fromDate) return `Từ ${formatDisplayDate(fromDate)}`
+    if (toDate) return `Đến ${formatDisplayDate(toDate)}`
+    return ""
 }
 
 function InfoCard({

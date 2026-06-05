@@ -1,32 +1,32 @@
 import type { RJSFSchema, UiSchema } from "@rjsf/utils"
 import { listCustomers } from "@/api/customer"
-import { listProducts } from "@/api/product"
 
 export const vipProductMappingSchema: RJSFSchema = {
     type: "object",
-    required: ["product_code"],
+    required: ["product_group"],
     properties: {
-        product_code: {
+        product_group: {
             type: "string",
-            title: "Sản phẩm",
-            minLength: 1,
-            errorMessage: {
-                minLength: "Sản phẩm không được để trống",
-            },
+            title: "Mã riêng",
+        },
+        ap_dung: {
+            type: "string",
+            title: "Vùng áp dụng",
+            oneOf: [
+                { const: "", title: "Áp dụng tất cả" },
+                { const: "MB", title: "MB" },
+                { const: "MN", title: "MN" },
+            ],
+            default: "",
+        },
+        he_so_hdn: {
+            type: "number",
+            title: "Hệ số HDN",
+            default: 0,
         },
         customer_code: {
             type: "string",
             title: "Mã khách hàng riêng",
-        },
-        he_so_mb: {
-            type: "number",
-            title: "Hệ số MB",
-            default: 0,
-        },
-        he_so_mn: {
-            type: "number",
-            title: "Hệ số MN",
-            default: 0,
         },
         note: {
             type: "string",
@@ -35,29 +35,20 @@ export const vipProductMappingSchema: RJSFSchema = {
     },
     errorMessage: {
         required: {
-            product_code: "Sản phẩm không được để trống",
+            product_group: "Mã riêng không được để trống",
         },
     },
 } as any
 
 export const vipProductMappingUiSchema: UiSchema = {
-    product_code: {
-        "ui:widget": "asyncSelect",
-        "ui:options": {
-            placeholder: "Chọn sản phẩm",
-            searchPlaceholder: "Tìm mã hoặc tên hàng...",
-            dataSource: {
-                getList: listProducts,
-                params: { page: 1, size: 20, status: "1" },
-            },
-            mapOption: (x: any) => ({
-                value: x.code,
-                label: `${x.code} - ${x.name ?? ""}`,
-            }),
-            popoverContentClassName: "w-[520px]",
-            optionWrapLabel: true,
-            wrapLabel: true,
-        },
+    product_group: {
+        "ui:placeholder": "VD: 912, SILIC, PT50BSD",
+    },
+    ap_dung: {
+        "ui:widget": "select",
+    },
+    he_so_hdn: {
+        "ui:widget": "updown",
     },
     customer_code: {
         "ui:widget": "asyncSelect",

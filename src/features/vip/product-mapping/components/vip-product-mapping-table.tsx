@@ -25,7 +25,7 @@ export function VipProductMappingTable({
             data={data}
             columns={vipProductMappingColumns}
             entityName="quy tắc điểm hàng hóa"
-            searchPlaceholder="Tìm theo sản phẩm..."
+            searchPlaceholder="Tìm mã riêng, khách hàng..."
             pagination={pagination}
             onPaginationChange={onPaginationChange}
             pageCount={pageCount}

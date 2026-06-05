@@ -46,7 +46,11 @@ export function CustomerVipAuditPanel({ data }: Props) {
                     <div>
                         <div className="text-base font-semibold">Audit điểm VIP</div>
                         <div className="mt-1 text-sm text-muted-foreground">
-                            {data.customer_code} · {data.calc_range} · {data.group_code}
+                            {data.customer_code} · {data.from_date || data.to_date
+                                ? formatDateRange(data.from_date, data.to_date)
+                                : data.as_of_date
+                                    ? `Đến ${formatDisplayDate(data.as_of_date)}`
+                                    : data.calc_range} · {data.group_code}
                         </div>
                     </div>
                     <Badge variant={isMatched ? "default" : "destructive"}>
@@ -267,7 +271,7 @@ function AuditLineRow({ line }: { line: CustomerVipAuditLine }) {
         <TableRow className={!line.eligible ? "bg-muted/30 text-muted-foreground" : undefined}>
             <TableCell>
                 <div className="font-mono text-xs font-semibold">{line.document_no || "—"}</div>
-                <div className="text-xs text-muted-foreground">{line.process_month || "—"}</div>
+                <div className="text-xs text-muted-foreground">{formatDisplayDate(line.document_date)}</div>
             </TableCell>
             <TableCell className="min-w-[220px]">
                 <div className="font-mono text-xs">{line.product_code || "—"}</div>
@@ -372,4 +376,18 @@ function labelCalcType(value?: string | null) {
     if (value === "EXCLUDED") return "Loại"
     if (value === "NO_RULE") return "Không rule"
     return value || "—"
+}
+
+function formatDisplayDate(value?: string | null) {
+    if (!value) return ""
+    const [datePart] = value.split("T")
+    const [year, month, day] = datePart.split("-")
+    return year && month && day ? `${day}/${month}/${year}` : value
+}
+
+function formatDateRange(fromDate?: string | null, toDate?: string | null) {
+    if (fromDate && toDate) return `${formatDisplayDate(fromDate)} - ${formatDisplayDate(toDate)}`
+    if (fromDate) return `Từ ${formatDisplayDate(fromDate)}`
+    if (toDate) return `Đến ${formatDisplayDate(toDate)}`
+    return ""
 }

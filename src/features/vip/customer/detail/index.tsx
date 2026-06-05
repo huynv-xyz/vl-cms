@@ -5,6 +5,7 @@ import { getCustomerVipAudit, getCustomerVipDetail } from "@/api/customer-vip"
 import { CustomerVipSummary } from "./components/customer-vip-summary"
 import { CustomerVipDetailTable } from "./components/customer-vip-detail-table"
 import { CustomerVipAuditPanel } from "./components/customer-vip-audit-panel"
+import { DatePicker } from "@/components/date-picker"
 import { formatCurrency, formatNumber } from "@/lib/utils"
 import {
     TrendingUp,
@@ -17,16 +18,38 @@ import type React from "react"
 
 export default function CustomerVipDetailPage() {
     const { id } = Route.useParams()
+    const search = Route.useSearch()
+    const navigate = Route.useNavigate()
+    const asOfDate = search.as_of_date
+    const fromDate = search.from_date
+    const toDate = search.to_date
+    const dateRange = {
+        from_date: fromDate,
+        to_date: toDate,
+        as_of_date: asOfDate,
+    }
 
     const { data, isLoading, error } = useQuery({
-        queryKey: ["customer-vip-detail", id],
-        queryFn: () => getCustomerVipDetail(id),
+        queryKey: ["customer-vip-detail", id, fromDate, toDate, asOfDate],
+        queryFn: () => getCustomerVipDetail(id, dateRange),
     })
 
     const auditQuery = useQuery({
-        queryKey: ["customer-vip-audit", id],
-        queryFn: () => getCustomerVipAudit(id),
+        queryKey: ["customer-vip-audit", id, fromDate, toDate, asOfDate],
+        queryFn: () => getCustomerVipAudit(id, dateRange),
     })
+
+    const setDateRange = (next: { from_date?: string; to_date?: string }) => {
+        navigate({
+            search: (prev) => ({
+                ...prev,
+                from_date: next.from_date || undefined,
+                to_date: next.to_date || undefined,
+                as_of_date: undefined,
+            }),
+            replace: true,
+        })
+    }
 
     return (
         <PageSection
@@ -39,6 +62,32 @@ export default function CustomerVipDetailPage() {
         >
             {(detail) => (
                 <div className="space-y-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background p-3">
+                        <div>
+                            <div className="text-sm font-semibold">Mốc tạm tính VIP</div>
+                            <div className="text-xs text-muted-foreground">
+                                {fromDate || toDate
+                                    ? `Đang tính theo ngày chứng từ ${formatDateRange(fromDate, toDate)}`
+                                    : asOfDate
+                                        ? `Đang tính theo ngày chứng từ đến ${formatDisplayDate(asOfDate)}`
+                                    : "Đang xem kết quả đã chốt theo năm"}
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <DatePicker
+                                className="min-w-[180px] [&_button]:h-10"
+                                value={fromDate}
+                                onChange={(value) => setDateRange({ from_date: value, to_date: toDate })}
+                                placeholder="Từ ngày CT"
+                            />
+                            <DatePicker
+                                className="min-w-[180px] [&_button]:h-10"
+                                value={toDate}
+                                onChange={(value) => setDateRange({ from_date: fromDate, to_date: value })}
+                                placeholder="Đến ngày CT"
+                            />
+                        </div>
+                    </div>
 
                     {/* ── HEADER INFO ── */}
                     <CustomerVipSummary data={detail} />
@@ -94,6 +143,20 @@ export default function CustomerVipDetailPage() {
             )}
         </PageSection>
     )
+}
+
+function formatDisplayDate(value?: string) {
+    if (!value) return ""
+    const [datePart] = value.split("T")
+    const [year, month, day] = datePart.split("-")
+    return year && month && day ? `${day}/${month}/${year}` : value
+}
+
+function formatDateRange(fromDate?: string, toDate?: string) {
+    if (fromDate && toDate) return `${formatDisplayDate(fromDate)} - ${formatDisplayDate(toDate)}`
+    if (fromDate) return `từ ${formatDisplayDate(fromDate)}`
+    if (toDate) return `đến ${formatDisplayDate(toDate)}`
+    return ""
 }
 
 /* ── Metric card (same pattern as order detail) ─────────────────────── */

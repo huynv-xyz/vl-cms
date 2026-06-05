@@ -31,7 +31,7 @@ export default function VipProductMappingPage() {
                 isLoading={isLoading}
                 error={error}
                 title="Quy tắc điểm hàng hóa VIP"
-                description="Cấu hình hệ số tính điểm VIP theo sản phẩm và khách hàng riêng."
+                description="Cấu hình hệ số tính điểm VIP theo mã riêng từ dữ liệu bán hàng."
                 actions={<CreateVipProductMappingButton />}
                 data={data}
             >

@@ -17,11 +17,14 @@ export default function CustomerVipPage() {
         setKeyword,
         multiFilters,
         setMultiFilters,
+        singleFilters,
+        setSingleFilters,
         requestFilters,
     } = useUrlListFilters(
         search,
         navigate,
-        ['region', 'tier_code', 'group_code', 'calc_year', 'customer_type', 'customer_code'],
+        ['region', 'tier_code', 'group_code', 'customer_type', 'customer_code'],
+        ['from_date', 'to_date', 'as_of_date'],
     )
 
     const { data, isLoading, error } = usePaginatedList(
@@ -33,9 +36,10 @@ export default function CustomerVipPage() {
             multiFilters.region,
             multiFilters.tier_code,
             multiFilters.group_code,
-            multiFilters.calc_year,
             multiFilters.customer_type,
             multiFilters.customer_code,
+            singleFilters.from_date,
+            singleFilters.to_date,
         ],
         listCustomerVips,
         {
@@ -45,9 +49,10 @@ export default function CustomerVipPage() {
             region: requestFilters.region,
             tier_code: requestFilters.tier_code,
             group_code: requestFilters.group_code,
-            calc_year: requestFilters.calc_year ? Number(requestFilters.calc_year) : undefined,
             customer_type: requestFilters.customer_type,
             customer_code: requestFilters.customer_code,
+            from_date: requestFilters.from_date,
+            to_date: requestFilters.to_date,
         },
     )
 
@@ -71,20 +76,21 @@ export default function CustomerVipPage() {
                         regions: multiFilters.region,
                         tier_codes: multiFilters.tier_code,
                         group_codes: multiFilters.group_code,
-                        calc_years: multiFilters.calc_year,
                         customer_types: multiFilters.customer_type,
                         customer_codes: multiFilters.customer_code,
+                        from_date: singleFilters.from_date,
+                        to_date: singleFilters.to_date,
                     }}
                     onFiltersChange={(next) =>
                         setMultiFilters({
                             region: next.regions,
                             tier_code: next.tier_codes,
                             group_code: next.group_codes,
-                            calc_year: next.calc_years,
                             customer_type: next.customer_types,
                             customer_code: next.customer_codes,
                         })
                     }
+                    onDateRangeChange={(next) => setSingleFilters(next)}
                 />
             )}
         </PageSection>
