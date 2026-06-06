@@ -31,7 +31,6 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
-import { exportXlsx } from "@/lib/xlsx-export"
 import type { ArLedger } from "../data/schema"
 import { AR_SOURCE_TYPES } from "./ar-ledger-columns"
 import { ImportArLedgerButton } from "./ar-ledger-import-button"
@@ -128,7 +127,7 @@ export function ArLedgerTable({
                 return
             }
 
-            exportReportXlsx(buildGroups(rows), period)
+            await exportReportXlsx(buildGroups(rows), period)
             toast.success(`Đã xuất ${rows.length} dòng công nợ`)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Xuất báo cáo thất bại")
@@ -998,48 +997,56 @@ async function fetchAllRows(base: ArLedgerListParams): Promise<ArLedger[]> {
     return all
 }
 
-function exportReportXlsx(groups: Group[], period: string) {
-    const rows: (string | number)[][] = []
-    const push = (cells: (string | number)[]) => rows.push(cells)
+async function exportReportXlsx(groups: Group[], period: string) {
+    const { Workbook } = await import("exceljs")
+    const columns: Array<{ label: string; width: number; align?: "left" | "center" | "right" }> = [
+        { label: "Mã khách hàng", width: 20 },
+        { label: "Mã số thuế", width: 18 },
+        { label: "Ngày hạch toán", width: 16, align: "center" },
+        { label: "Số chứng từ", width: 24 },
+        { label: "Diễn giải", width: 44 },
+        { label: "ĐVT", width: 10, align: "center" },
+        { label: "Số lượng", width: 16, align: "right" },
+        { label: "Đơn giá", width: 16, align: "right" },
+        { label: "Phát sinh Nợ", width: 18, align: "right" },
+        { label: "Phát sinh Có", width: 18, align: "right" },
+        { label: "Số dư Nợ", width: 18, align: "right" },
+        { label: "Số dư Có", width: 18, align: "right" },
+    ]
 
-    push(["CHI TIẾT CÔNG NỢ PHẢI THU KHÁCH HÀNG"])
-    push([`Tài khoản: ${AR_ACCOUNT}, Loại tiền: <<Tổng hợp>>, ${period}`])
-    push([])
-    push([
-        "Mã khách hàng",
-        "Mã số thuế",
-        "Ngày hạch toán",
-        "Số chứng từ",
-        "Diễn giải",
-        "ĐVT",
-        "Số lượng",
-        "Đơn giá",
-        "Phát sinh Nợ",
-        "Phát sinh Có",
-        "Số dư Nợ",
-        "Số dư Có",
-    ])
+    const workbook = new Workbook()
+    workbook.creator = "VLIFE"
+    workbook.created = new Date()
+    const sheet = workbook.addWorksheet("Chi tiết công nợ", {
+        views: [{ state: "frozen", ySplit: 4 }],
+    })
+    const groupHeaderRows: number[] = []
+    const subtotalRows: number[] = []
+
+    sheet.addRow(["CHI TIẾT CÔNG NỢ PHẢI THU KHÁCH HÀNG"])
+    sheet.addRow([`Tài khoản: ${AR_ACCOUNT}, Loại tiền: <<Tổng hợp>>, ${period}`])
+    sheet.addRow([])
+    sheet.addRow(columns.map((column) => column.label))
 
     for (const group of groups) {
-        // Customer header
-        push([
+        const headerRow = sheet.addRow([
             `Tên khách hàng: ${group.name}`,
             "",
             "",
             "",
             "",
             "",
-            group.qtyTotal,
+            formatExcelNumber(group.qtyTotal),
             "",
-            group.debitTotal,
-            group.creditTotal,
+            formatExcelNumber(group.debitTotal),
+            formatExcelNumber(group.creditTotal),
             "",
             "",
         ])
+        groupHeaderRows.push(headerRow.number)
 
-        // Opening balance
         if (group.opening !== 0 || group.hasOpeningRow) {
-            push([
+            sheet.addRow([
                 group.code,
                 group.taxCode,
                 "",
@@ -1050,50 +1057,149 @@ function exportReportXlsx(groups: Group[], period: string) {
                 "",
                 "",
                 "",
-                group.opening > 0 ? group.opening : "",
-                group.opening < 0 ? Math.abs(group.opening) : "",
+                group.opening > 0 ? formatExcelNumber(group.opening) : "",
+                group.opening < 0 ? formatExcelNumber(Math.abs(group.opening)) : "",
             ])
         }
 
-        // Details
         group.items.forEach((item, index) => {
             const balance = group.running[index]
-            push([
+            sheet.addRow([
                 group.code,
                 group.taxCode,
                 fmtDate(item.posting_date),
                 item.doc_no || "",
                 lineDescription(item),
                 item.unit || item.product?.unit || "",
-                num(item.quantity),
-                num(item.unit_price),
-                num(item.debit_amount),
-                num(item.credit_amount),
-                balance > 0 ? balance : "",
-                balance < 0 ? Math.abs(balance) : "",
+                formatExcelNumber(num(item.quantity)),
+                formatExcelNumber(num(item.unit_price)),
+                formatExcelNumber(num(item.debit_amount)),
+                formatExcelNumber(num(item.credit_amount)),
+                balance > 0 ? formatExcelNumber(balance) : "",
+                balance < 0 ? formatExcelNumber(Math.abs(balance)) : "",
             ])
         })
 
-        // Subtotal "Cộng"
-        push([
+        const subtotalRow = sheet.addRow([
             group.code,
             group.taxCode,
             "",
             "",
             "Cộng",
             "",
-            group.qtyTotal,
+            formatExcelNumber(group.qtyTotal),
             "",
-            group.debitTotal,
-            group.creditTotal,
-            group.closing > 0 ? group.closing : "",
-            group.closing < 0 ? Math.abs(group.closing) : "",
+            formatExcelNumber(group.debitTotal),
+            formatExcelNumber(group.creditTotal),
+            group.closing > 0 ? formatExcelNumber(group.closing) : "",
+            group.closing < 0 ? formatExcelNumber(Math.abs(group.closing)) : "",
         ])
+        subtotalRows.push(subtotalRow.number)
     }
 
-    exportXlsx(`cong-no-phai-thu-${new Date().toISOString().slice(0, 10)}.xlsx`, [
-        { name: "Chi tiết công nợ", rows },
-    ])
+    sheet.columns = columns.map((column) => ({ width: column.width }))
+    sheet.mergeCells(1, 1, 1, columns.length)
+    sheet.mergeCells(2, 1, 2, columns.length)
+    sheet.autoFilter = {
+        from: { row: 4, column: 1 },
+        to: { row: 4, column: columns.length },
+    }
+
+    styleExcelSheet(sheet, columns)
+
+    for (const rowIndex of groupHeaderRows) {
+        styleSpecialExcelRow(sheet.getRow(rowIndex), "FFEFEFEF")
+    }
+    for (const rowIndex of subtotalRows) {
+        styleSpecialExcelRow(sheet.getRow(rowIndex), "FFF7F7F7")
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    downloadExcelBuffer(buffer, `cong-no-phai-thu-${new Date().toISOString().slice(0, 10)}.xlsx`)
+}
+
+function formatExcelNumber(value?: number | string) {
+    const amount = Number(value || 0)
+    if (!amount) return ""
+    return amount.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 6,
+    })
+}
+
+function excelBorder() {
+    return {
+        top: { style: "thin" as const, color: { argb: "FF000000" } },
+        left: { style: "thin" as const, color: { argb: "FF000000" } },
+        bottom: { style: "thin" as const, color: { argb: "FF000000" } },
+        right: { style: "thin" as const, color: { argb: "FF000000" } },
+    }
+}
+
+function styleExcelSheet(
+    sheet: import("exceljs").Worksheet,
+    columns: Array<{ label: string; width: number; align?: "left" | "center" | "right" }>,
+) {
+    const border = excelBorder()
+    const titleCell = sheet.getCell("A1")
+    titleCell.font = { bold: true, size: 16 }
+    titleCell.alignment = { horizontal: "center", vertical: "middle" }
+    sheet.getRow(1).height = 24
+
+    const periodCell = sheet.getCell("A2")
+    periodCell.font = { italic: true }
+    periodCell.alignment = { horizontal: "center", vertical: "middle" }
+
+    const header = sheet.getRow(4)
+    header.height = 24
+    header.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: "FF000000" } }
+        cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFD9D9D9" },
+        }
+        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true }
+        cell.border = border
+    })
+
+    for (let rowIndex = 5; rowIndex <= sheet.rowCount; rowIndex++) {
+        const row = sheet.getRow(rowIndex)
+        row.eachCell((cell, colNumber) => {
+            const column = columns[colNumber - 1]
+            cell.border = border
+            cell.alignment = {
+                horizontal: column.align ?? "left",
+                vertical: "middle",
+                wrapText: true,
+            }
+        })
+    }
+}
+
+function styleSpecialExcelRow(row: import("exceljs").Row, color: string) {
+    row.eachCell((cell) => {
+        cell.font = { bold: true }
+        cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: color },
+        }
+    })
+}
+
+function downloadExcelBuffer(buffer: ArrayBuffer, filename: string) {
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
 }
 
 function todayYmd() {

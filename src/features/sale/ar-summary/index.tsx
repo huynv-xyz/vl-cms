@@ -19,7 +19,6 @@ import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { exportXlsx } from "@/lib/xlsx-export"
 import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { useUrlListFilters } from "@/hooks/use-url-list-filters"
 import { useUrlPagination } from "@/hooks/use-url-pagination"
@@ -198,7 +197,7 @@ function ArSummaryTable({
         try {
             setExporting(true)
             const rows = await fetchAllArSummaries(exportFilters)
-            exportSummaryXlsx(rows, buildTotalsFromRows(rows), {
+            await exportSummaryXlsx(rows, buildTotalsFromRows(rows), {
                 fromDate: filters.from_date ?? today,
                 toDate: filters.to_date ?? today,
             })
@@ -628,69 +627,178 @@ function buildTotalsFromRows(rows: ArLedgerSummary[]) {
     )
 }
 
-function exportSummaryXlsx(
+async function exportSummaryXlsx(
     rows: ArLedgerSummary[],
     totals: ReturnType<typeof buildTotalsFromRows>,
     period: { fromDate: string; toDate: string },
 ) {
-    const sheetRows: (string | number)[][] = [
-        ["TỔNG HỢP CÔNG NỢ"],
-        [`Từ ngày ${period.fromDate} đến ngày ${period.toDate}`],
-        [],
-        [
-            "STT",
-            "Mã khách hàng",
-            "Tên khách hàng",
-            "Mã nhân viên",
-            "Tên nhân viên",
-            "Địa chỉ",
-            "Số dư đầu kỳ Nợ",
-            "Số dư đầu kỳ Có",
-            "Phát sinh Nợ",
-            "Phát sinh Có",
-            "Số dư cuối kỳ Nợ",
-            "Số dư cuối kỳ Có",
-        ],
+    const { Workbook } = await import("exceljs")
+    const columns: Array<{ label: string; width: number; align?: "left" | "center" | "right" }> = [
+        { label: "STT", width: 8, align: "center" },
+        { label: "Mã khách hàng", width: 20 },
+        { label: "Tên khách hàng", width: 34 },
+        { label: "Mã nhân viên", width: 18 },
+        { label: "Tên nhân viên", width: 28 },
+        { label: "Địa chỉ", width: 46 },
+        { label: "Số dư đầu kỳ Nợ", width: 18, align: "right" },
+        { label: "Số dư đầu kỳ Có", width: 18, align: "right" },
+        { label: "Phát sinh Nợ", width: 18, align: "right" },
+        { label: "Phát sinh Có", width: 18, align: "right" },
+        { label: "Số dư cuối kỳ Nợ", width: 18, align: "right" },
+        { label: "Số dư cuối kỳ Có", width: 18, align: "right" },
     ]
+
+    const workbook = new Workbook()
+    workbook.creator = "VLIFE"
+    workbook.created = new Date()
+    const sheet = workbook.addWorksheet("Tổng hợp công nợ", {
+        views: [{ state: "frozen", ySplit: 4 }],
+    })
+
+    sheet.addRow(["TỔNG HỢP CÔNG NỢ"])
+    sheet.addRow([`Từ ngày ${fmtDate(period.fromDate)} đến ngày ${fmtDate(period.toDate)}`])
+    sheet.addRow([])
+    sheet.addRow(columns.map((column) => column.label))
 
     rows.forEach((row, index) => {
         const opening = Number(row.opening_balance || 0)
         const closing = Number(row.closing_balance || 0)
-
-        sheetRows.push([
+        sheet.addRow([
             index + 1,
             row.customer_code || "",
             row.customer_name || "",
             row.employee_code || "",
             row.employee_name || "",
             row.customer_address || "",
-            Math.max(opening, 0),
-            Math.max(-opening, 0),
-            Number(row.debit_amount || 0),
-            Number(row.credit_amount || 0),
-            Math.max(closing, 0),
-            Math.max(-closing, 0),
+            formatExcelNumber(Math.max(opening, 0)),
+            formatExcelNumber(Math.max(-opening, 0)),
+            formatExcelNumber(row.debit_amount),
+            formatExcelNumber(row.credit_amount),
+            formatExcelNumber(Math.max(closing, 0)),
+            formatExcelNumber(Math.max(-closing, 0)),
         ])
     })
 
-    sheetRows.push([
+    sheet.addRow([
         "",
         "",
         "",
         "",
         "",
         "Tổng",
-        totals.openingDebit,
-        totals.openingCredit,
-        totals.debit,
-        totals.credit,
-        totals.closingDebit,
-        totals.closingCredit,
+        formatExcelNumber(totals.openingDebit),
+        formatExcelNumber(totals.openingCredit),
+        formatExcelNumber(totals.debit),
+        formatExcelNumber(totals.credit),
+        formatExcelNumber(totals.closingDebit),
+        formatExcelNumber(totals.closingCredit),
     ])
 
-    exportXlsx(`tong-hop-cong-no-${new Date().toISOString().slice(0, 10)}.xlsx`, [
-        { name: "Tổng hợp công nợ", rows: sheetRows },
-    ])
+    sheet.columns = columns.map((column) => ({ width: column.width }))
+    sheet.mergeCells(1, 1, 1, columns.length)
+    sheet.mergeCells(2, 1, 2, columns.length)
+    sheet.autoFilter = {
+        from: { row: 4, column: 1 },
+        to: { row: 4, column: columns.length },
+    }
+
+    styleExcelSheet(sheet, columns)
+
+    const totalRow = sheet.getRow(sheet.rowCount)
+    totalRow.eachCell((cell) => {
+        cell.font = { bold: true }
+        cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFF2F2F2" },
+        }
+    })
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    downloadExcelBuffer(buffer, `tong-hop-cong-no-${new Date().toISOString().slice(0, 10)}.xlsx`)
+}
+
+function formatExcelNumber(value?: number | string) {
+    const amount = Number(value || 0)
+    if (!amount) return ""
+    return amount.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 6,
+    })
+}
+
+function fmtDate(value?: string): string {
+    if (!value) return "-"
+    const date = value.split("T")[0]
+    const parts = date.split("-")
+    if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`
+    }
+    return date
+}
+
+function excelBorder() {
+    return {
+        top: { style: "thin" as const, color: { argb: "FF000000" } },
+        left: { style: "thin" as const, color: { argb: "FF000000" } },
+        bottom: { style: "thin" as const, color: { argb: "FF000000" } },
+        right: { style: "thin" as const, color: { argb: "FF000000" } },
+    }
+}
+
+function styleExcelSheet(
+    sheet: import("exceljs").Worksheet,
+    columns: Array<{ label: string; width: number; align?: "left" | "center" | "right" }>,
+) {
+    const border = excelBorder()
+    const titleCell = sheet.getCell("A1")
+    titleCell.font = { bold: true, size: 16 }
+    titleCell.alignment = { horizontal: "center", vertical: "middle" }
+    sheet.getRow(1).height = 24
+
+    const periodCell = sheet.getCell("A2")
+    periodCell.font = { italic: true }
+    periodCell.alignment = { horizontal: "center", vertical: "middle" }
+
+    const header = sheet.getRow(4)
+    header.height = 24
+    header.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: "FF000000" } }
+        cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFD9D9D9" },
+        }
+        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true }
+        cell.border = border
+    })
+
+    for (let rowIndex = 5; rowIndex <= sheet.rowCount; rowIndex++) {
+        const row = sheet.getRow(rowIndex)
+        row.eachCell((cell, colNumber) => {
+            const column = columns[colNumber - 1]
+            cell.border = border
+            cell.alignment = {
+                horizontal: column.align ?? "left",
+                vertical: "middle",
+                wrapText: true,
+            }
+        })
+    }
+}
+
+function downloadExcelBuffer(buffer: ArrayBuffer, filename: string) {
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
 }
 
 function formatMoney(value?: number | string) {

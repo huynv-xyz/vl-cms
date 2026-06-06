@@ -141,7 +141,7 @@ async function exportTransactionsXlsx(rows: Transaction[]) {
 
     sheet.addRow(COLUMNS.map((column) => column.label))
     rows.forEach((row) => {
-        sheet.addRow(COLUMNS.map((column) => normalizeCellValue(column.value(row))))
+        sheet.addRow(COLUMNS.map((column) => normalizeCellValue(column.value(row), column)))
     })
 
     sheet.columns = COLUMNS.map((column) => ({
@@ -185,9 +185,6 @@ async function exportTransactionsXlsx(rows: Transaction[]) {
             if (column.type === "date") {
                 cell.numFmt = "dd/mm/yyyy"
             }
-            if (column.type === "number") {
-                cell.numFmt = "#,##0.######"
-            }
         })
     }
 
@@ -198,10 +195,22 @@ async function exportTransactionsXlsx(rows: Transaction[]) {
     )
 }
 
-function normalizeCellValue(value: string | number | Date | null | undefined) {
+function normalizeCellValue(
+    value: string | number | Date | null | undefined,
+    column: ExportColumn,
+) {
     if (value == null) return ""
-    if (typeof value === "number") return Number.isFinite(value) ? value : 0
+    if (column.type === "number") return formatExcelNumber(value)
     return value
+}
+
+function formatExcelNumber(value?: string | number | Date) {
+    const amount = Number(value || 0)
+    if (!amount) return ""
+    return amount.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 6,
+    })
 }
 
 function parseDate(value?: string) {

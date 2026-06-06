@@ -850,8 +850,8 @@ async function exportLedgerXlsx(
             row.customer?.name || row.customer_name || "",
             row.description || "",
             row.account_code || "",
-            Number(row.credit_amount || 0),
-            Number(row.debit_amount || 0),
+            formatExcelNumber(row.credit_amount),
+            formatExcelNumber(row.debit_amount),
         ])
     }
 
@@ -905,15 +905,21 @@ async function exportLedgerXlsx(
             if (column.type === "date") {
                 cell.numFmt = "dd/mm/yyyy"
             }
-            if (column.type === "number") {
-                cell.numFmt = "#,##0.######"
-            }
         })
     }
 
     const date = new Date().toISOString().slice(0, 10)
     const buffer = await workbook.xlsx.writeBuffer()
     downloadExcelBuffer(buffer, `${filePrefix}-${date}.xlsx`)
+}
+
+function formatExcelNumber(value?: number | string) {
+    const amount = Number(value || 0)
+    if (!amount) return ""
+    return amount.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 6,
+    })
 }
 
 function parseExportDate(value?: string) {
