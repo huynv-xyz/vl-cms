@@ -11,6 +11,8 @@ export type ExportListParams = {
     delivery_id?: number
     warehouse_id?: number
     status?: string
+    from_date?: string
+    to_date?: string
 }
 
 const exportApi = createCrudApi<

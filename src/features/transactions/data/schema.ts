@@ -5,6 +5,7 @@ export type Transaction = {
     document_no: string
     customer_code: string
     customer_name: string
+    customer_address?: string
     description: string
     product_code: string
     product_name: string
@@ -17,12 +18,16 @@ export type Transaction = {
     unit_price: number
     discount: number
     revenue: number
+    sale_user_code?: string
     sale_user_name: string
+    sale_user_title?: string
     contact_name: string
     vthh_con: string
     vthh_group_name: string
     customer_type: string
+    ext_detail_2?: string
     is_gift: number
+    private_code?: string
     sl_rieng_tl: number
     sl_tl_nhom: number
     sl_lb2c: number
@@ -34,6 +39,7 @@ export type Transaction = {
     valid_code: string
     hdn_status: string
     common_group: string
+    region?: string
     sl_hdn_k0_ma_rieng: number
     status: number
     created_at: string

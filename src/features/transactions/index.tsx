@@ -85,6 +85,10 @@ export default function TransactionPage() {
                             vthh_con: requestFilters.vthh_con,
                             npp: requestFilters.npp,
                             process_month: requestFilters.process_month,
+                            hdn_status: requestFilters.hdn_status,
+                            region: requestFilters.region,
+                            document_date_from: requestFilters.document_date_from,
+                            document_date_to: requestFilters.document_date_to,
                         }}
                     />
                 </div>

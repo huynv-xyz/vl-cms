@@ -10,6 +10,7 @@ import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { deliveryOption, orderOption, warehouseOption } from "@/lib/option-mapper"
 import { cn, formatNumber } from "@/lib/utils"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
+import { DatePicker } from "@/components/date-picker"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -59,6 +60,7 @@ export function ExportTable({
             [key]: value,
         })
     }
+    const today = todayYmd()
 
     return (
         <div className="space-y-5">
@@ -181,6 +183,34 @@ export function ExportTable({
                             setFilter("warehouse_id", warehouseId || undefined)
                         }
                     />
+
+                    <DatePicker
+                        className={cn(
+                            "h-10 min-w-[170px] flex-1",
+                            "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
+                        )}
+                        value={filters.from_date}
+                        onChange={(value) => setFilter("from_date", value || undefined)}
+                        disabled={(date) => {
+                            const value = dateToYmd(date)
+                            return value > today || Boolean(filters.to_date && value > filters.to_date)
+                        }}
+                        placeholder="Từ ngày"
+                    />
+
+                    <DatePicker
+                        className={cn(
+                            "h-10 min-w-[170px] flex-1",
+                            "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
+                        )}
+                        value={filters.to_date}
+                        onChange={(value) => setFilter("to_date", value || undefined)}
+                        disabled={(date) => {
+                            const value = dateToYmd(date)
+                            return Boolean(filters.from_date && value < filters.from_date)
+                        }}
+                        placeholder="Đến ngày"
+                    />
                 </div>
             </div>
 
@@ -196,6 +226,17 @@ export function ExportTable({
 
         </div>
     )
+}
+
+function todayYmd() {
+    return dateToYmd(new Date())
+}
+
+function dateToYmd(date: Date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
 }
 
 function customerOption(customer: { id: number; code?: string; name: string }) {

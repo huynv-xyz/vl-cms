@@ -24,7 +24,7 @@ export default function ExportPage() {
         search,
         navigate,
         ['status'],
-        ['order_id', 'customer_id', 'delivery_id', 'warehouse_id']
+        ['order_id', 'customer_id', 'delivery_id', 'warehouse_id', 'from_date', 'to_date']
     )
 
     const { data, isLoading, error } = usePaginatedList(
@@ -38,6 +38,8 @@ export default function ExportPage() {
             singleFilters.customer_id,
             singleFilters.delivery_id,
             singleFilters.warehouse_id,
+            singleFilters.from_date,
+            singleFilters.to_date,
         ],
         listExports,
         {
@@ -57,6 +59,8 @@ export default function ExportPage() {
             warehouse_id: requestFilters.warehouse_id
                 ? Number(requestFilters.warehouse_id)
                 : undefined,
+            from_date: requestFilters.from_date,
+            to_date: requestFilters.to_date,
         },
     )
 
@@ -89,6 +93,8 @@ export default function ExportPage() {
                         warehouse_id: singleFilters.warehouse_id
                             ? Number(singleFilters.warehouse_id)
                             : undefined,
+                        from_date: singleFilters.from_date,
+                        to_date: singleFilters.to_date,
                     }}
                     onFiltersChange={(next) => {
                         setMultiFilters({
@@ -100,6 +106,8 @@ export default function ExportPage() {
                             customer_id: next.customer_id ? String(next.customer_id) : undefined,
                             delivery_id: next.delivery_id ? String(next.delivery_id) : undefined,
                             warehouse_id: next.warehouse_id ? String(next.warehouse_id) : undefined,
+                            from_date: next.from_date || undefined,
+                            to_date: next.to_date || undefined,
                         })
                     }}
                 />
