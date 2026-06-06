@@ -140,6 +140,7 @@ export function OrderExports({ exports, order }: any) {
                             exportDoc.items ?? [],
                             (item: any) => item.quantity
                         )
+                        const totalAmount = sumExportAmount(exportDoc.items ?? [], order?.items ?? [])
 
                         const missingWarehouseRows = (exportDoc.items ?? []).filter(
                             (item: any) => exportDoc.status === "NEW" && !item?.warehouse_id
@@ -191,6 +192,10 @@ export function OrderExports({ exports, order }: any) {
 
                                         <Badge variant="secondary" className="font-normal">
                                             SL: {formatNumber(totalQty)}
+                                        </Badge>
+
+                                        <Badge variant="secondary" className="font-normal">
+                                            Thành tiền: {formatCurrency(totalAmount)}
                                         </Badge>
 
                                         <Select
@@ -464,6 +469,22 @@ function getExportStatusMeta(status?: string) {
 
 function sumBy(items: any[], fn: (item: any) => unknown) {
     return items.reduce((sum, item) => sum + Number(fn(item) || 0), 0)
+}
+
+function sumExportAmount(items: any[], orderItems: any[]) {
+    const orderItemById = new Map<number, any>()
+    const orderItemByProductId = new Map<number, any>()
+    for (const orderItem of orderItems) {
+        if (orderItem?.id != null) orderItemById.set(Number(orderItem.id), orderItem)
+        if (orderItem?.product_id != null) orderItemByProductId.set(Number(orderItem.product_id), orderItem)
+    }
+
+    return items.reduce((sum, item) => {
+        const quantity = Number(item.quantity || 0)
+        const orderItem = resolveOrderItem(item, orderItemById, orderItemByProductId)
+        const unitPrice = resolveUnitPrice(orderItem)
+        return sum + resolveExportItemAmount(item, orderItem, quantity, unitPrice)
+    }, 0)
 }
 
 function resolveOrderItem(

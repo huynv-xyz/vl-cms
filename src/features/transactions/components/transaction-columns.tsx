@@ -1,15 +1,40 @@
 import { type ColumnDef } from "@tanstack/react-table"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
-import { buildTextColumn } from "@/components/crud/build-text-column"
-import { buildNumberColumn } from "@/components/crud/build-number-column"
 import { DataTableColumnHeader } from "@/components/table/column-header"
 import { formatCurrency } from "@/lib/utils"
 import type { Transaction } from "../data/schema"
 
-function moneyCell(
-    accessorKey: keyof Transaction,
+type TextColumnKey = keyof Transaction
+
+function textColumn(
+    accessorKey: TextColumnKey,
     title: string,
-    options: { width: number; className?: string; align?: "right" } = { width: 140 }
+    width = 160,
+): ColumnDef<Transaction> {
+    return {
+        accessorKey: accessorKey as string,
+        enableSorting: false,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={title} />,
+        cell: ({ row }) => {
+            const value = row.getValue(accessorKey as string)
+            return (
+                <span className="block truncate text-sm" title={value == null ? "" : String(value)}>
+                    {value == null || value === "" ? "-" : String(value)}
+                </span>
+            )
+        },
+        size: width,
+        meta: {
+            thClassName: `w-[${width}px] whitespace-nowrap`,
+            tdClassName: `w-[${width}px] max-w-[${width}px]`,
+        },
+    }
+}
+
+function numberColumn(
+    accessorKey: TextColumnKey,
+    title: string,
+    width = 120,
 ): ColumnDef<Transaction> {
     return {
         accessorKey: accessorKey as string,
@@ -20,21 +45,68 @@ function moneyCell(
             </div>
         ),
         cell: ({ row }) => {
-            const raw = row.getValue(accessorKey as string)
-            const value = Number(raw ?? 0)
-            if (!value) {
-                return <span className="block text-right text-slate-400">-</span>
-            }
+            const value = Number(row.getValue(accessorKey as string) ?? 0)
             return (
-                <span className={`block text-right tabular-nums whitespace-nowrap ${options.className ?? ""}`}>
-                    {formatCurrency(value)}
+                <span className="block text-right tabular-nums whitespace-nowrap">
+                    {formatNumber(value)}
                 </span>
             )
         },
-        size: options.width,
+        size: width,
         meta: {
-            thClassName: `w-[${options.width}px] whitespace-nowrap text-right`,
-            tdClassName: `w-[${options.width}px] whitespace-nowrap`,
+            thClassName: `w-[${width}px] whitespace-nowrap text-right`,
+            tdClassName: `w-[${width}px] whitespace-nowrap`,
+        },
+    }
+}
+
+function moneyColumn(
+    accessorKey: TextColumnKey,
+    title: string,
+    width = 150,
+): ColumnDef<Transaction> {
+    return {
+        accessorKey: accessorKey as string,
+        enableSorting: false,
+        header: ({ column }) => (
+            <div className="text-right">
+                <DataTableColumnHeader column={column} title={title} />
+            </div>
+        ),
+        cell: ({ row }) => {
+            const value = Number(row.getValue(accessorKey as string) ?? 0)
+            return (
+                <span className="block text-right tabular-nums whitespace-nowrap">
+                    {value ? formatCurrency(value) : "-"}
+                </span>
+            )
+        },
+        size: width,
+        meta: {
+            thClassName: `w-[${width}px] whitespace-nowrap text-right`,
+            tdClassName: `w-[${width}px] whitespace-nowrap`,
+        },
+    }
+}
+
+function dateColumn(
+    accessorKey: TextColumnKey,
+    title: string,
+    width = 125,
+): ColumnDef<Transaction> {
+    return {
+        accessorKey: accessorKey as string,
+        enableSorting: false,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={title} />,
+        cell: ({ row }) => (
+            <span className="block whitespace-nowrap text-sm tabular-nums">
+                {formatDate(row.getValue(accessorKey as string))}
+            </span>
+        ),
+        size: width,
+        meta: {
+            thClassName: `w-[${width}px] whitespace-nowrap`,
+            tdClassName: `w-[${width}px] whitespace-nowrap`,
         },
     }
 }
@@ -48,234 +120,58 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
             tdClassName: "w-14 ps-3 whitespace-nowrap",
         },
     },
-
-    buildTextColumn<Transaction>({
-        accessorKey: "document_date",
-        title: "Ngày chứng từ",
-        width: 120,
-        maxWidth: 120,
-    }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "document_no",
-        title: "Số chứng từ",
-        width: 120,
-        maxWidth: 120,
-    }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "customer_code",
-        title: "Mã khách hàng",
-        width: 140,
-        maxWidth: 140,
-    }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "customer_name",
-        title: "Tên khách hàng",
-        width: 220,
-        maxWidth: 220,
-    }),
-
-    {
-        accessorKey: "description",
-        enableSorting: false,
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Diễn giải" />
-        ),
-        cell: ({ row }) => (
-            <span className="block text-sm max-w-[280px] truncate">
-                {String(row.getValue("description") || "-")}
-            </span>
-        ),
-    },
-
-    buildTextColumn<Transaction>({
-        accessorKey: "product_code",
-        title: "Mã sản phẩm",
-        width: 160,
-        maxWidth: 160,
-    }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "product_name",
-        title: "Tên sản phẩm",
-        width: 240,
-        maxWidth: 240,
-    }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "unit",
-        title: "ĐVT",
-        width: 80,
-        maxWidth: 80,
-    }),
-
-    {
-        accessorKey: "warehouse_name",
-        enableSorting: false,
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Kho xuất" />
-        ),
-        cell: ({ row }) => {
-            const tx = row.original
-            const name = tx.warehouse_name
-            const code = tx.warehouse_code
-
-            if (!name && !code) {
-                return <span className="text-slate-400">-</span>
-            }
-
-            return (
-                <div className="min-w-[160px] max-w-[220px]">
-                    <div className="truncate text-sm font-medium">
-                        {name || code}
-                    </div>
-                    {name && code ? (
-                        <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-                            {code}
-                        </div>
-                    ) : null}
-                </div>
-            )
-        },
-        size: 180,
-        meta: {
-            thClassName: "w-[180px] whitespace-nowrap",
-            tdClassName: "w-[180px]",
-        },
-    },
-
-    buildNumberColumn<Transaction>({
-        accessorKey: "sale_qty",
-        title: "SL bán",
-        width: 110,
-    }),
-    buildNumberColumn<Transaction>({
-        accessorKey: "return_qty",
-        title: "SL trả",
-        width: 100,
-    }),
-
-    moneyCell("unit_price", "Đơn giá", { width: 140, className: "text-slate-700" }),
-    moneyCell("discount", "Chiết khấu", { width: 130, className: "text-amber-700" }),
-    moneyCell("revenue", "Doanh số", { width: 160, className: "font-semibold text-emerald-700" }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "sale_user_name",
-        title: "NV bán hàng",
-        width: 160,
-        maxWidth: 160,
-    }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "contact_name",
-        title: "Liên hệ",
-        width: 120,
-        maxWidth: 120,
-    }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "vthh_con",
-        title: "VTHH con",
-        width: 120,
-        maxWidth: 120,
-    }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "vthh_group_name",
-        title: "Nhóm VTHH",
-        width: 140,
-        maxWidth: 140,
-    }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "customer_type",
-        title: "Loại KH",
-        width: 120,
-        maxWidth: 120,
-    }),
-
-    buildNumberColumn<Transaction>({
-        accessorKey: "is_gift",
-        title: "Quà tặng",
-        width: 100,
-    }),
-
-    buildNumberColumn<Transaction>({
-        accessorKey: "sl_rieng_tl",
-        title: "SL riêng TL",
-        width: 120,
-    }),
-
-    buildNumberColumn<Transaction>({
-        accessorKey: "sl_tl_nhom",
-        title: "SL TL nhóm",
-        width: 120,
-    }),
-
-    buildNumberColumn<Transaction>({
-        accessorKey: "sl_lb2c",
-        title: "SL LB2C",
-        width: 120,
-    }),
-
-    buildNumberColumn<Transaction>({
-        accessorKey: "sl_lb2b",
-        title: "SL LB2B",
-        width: 120,
-    }),
-
-    buildNumberColumn<Transaction>({
-        accessorKey: "sl_hdn",
-        title: "SL HDN",
-        width: 100,
-    }),
-
-    buildNumberColumn<Transaction>({
-        accessorKey: "diem_hdn",
-        title: "Điểm HDN",
-        width: 120,
-    }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "process_month",
-        title: "Tháng xử lý",
-        width: 120,
-    }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "npp",
-        title: "NPP",
-        width: 100,
-        maxWidth: 100,
-    }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "valid_code",
-        title: "Mã hợp lệ",
-        width: 120,
-        maxWidth: 120,
-    }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "hdn_status",
-        title: "Tình trạng HDN",
-        width: 140,
-        maxWidth: 140,
-    }),
-
-    buildTextColumn<Transaction>({
-        accessorKey: "common_group",
-        title: "Nhóm chung",
-        width: 140,
-        maxWidth: 140,
-    }),
-
-    buildNumberColumn<Transaction>({
-        accessorKey: "sl_hdn_k0_ma_rieng",
-        title: "SL HDN k0 mã riêng",
-        width: 160,
-    }),
-
+    dateColumn("document_date", "Ngày chứng từ", 125),
+    textColumn("document_no", "Số chứng từ", 150),
+    textColumn("customer_code", "Mã khách hàng", 180),
+    textColumn("customer_name", "Tên khách hàng", 260),
+    textColumn("customer_address", "Địa chỉ", 300),
+    textColumn("product_code", "Mã hàng", 180),
+    textColumn("product_name", "Tên hàng trên chứng từ", 300),
+    textColumn("unit", "Đơn vị chính (ĐVC)", 140),
+    numberColumn("sale_qty", "Tổng SL bán theo ĐVC", 160),
+    moneyColumn("unit_price", "Đơn giá theo ĐVC", 150),
+    moneyColumn("revenue", "Doanh số bán", 160),
+    numberColumn("return_qty", "SL trả lại theo ĐVC", 160),
+    textColumn("sale_user_code", "Mã nhân viên bán hàng", 180),
+    textColumn("sale_user_name", "Tên nhân viên bán hàng", 220),
+    textColumn("warehouse_code", "Mã kho", 120),
+    textColumn("warehouse_name", "Tên kho", 180),
+    textColumn("description", "Mô tả HH", 260),
+    textColumn("contact_name", "Người liên hệ", 180),
+    textColumn("vthh_con", "VTHH_CON", 140),
+    textColumn("vthh_group_name", "Tên nhóm VTHH", 180),
+    textColumn("customer_type", "PHÂN_LOẠI_KH", 140),
+    textColumn("ext_detail_2", "Trường mở rộng chi tiết 2", 280),
+    numberColumn("is_gift", "HÀNG_TẶNG", 120),
+    textColumn("private_code", "MÃ_RIÊNG", 150),
+    numberColumn("sl_rieng_tl", "SL_RIÊNG_TL", 140),
+    numberColumn("sl_tl_nhom", "SL_TL_NHÓM", 140),
+    numberColumn("sl_lb2c", "SL_L_B2C", 120),
+    numberColumn("sl_lb2b", "SL_L_B2B", 120),
+    numberColumn("sl_hdn", "SL_HDN", 110),
+    numberColumn("diem_hdn", "DIEM_HDN", 120),
+    numberColumn("process_month", "THANG_XU_LY", 130),
+    textColumn("npp", "NPP", 120),
+    textColumn("valid_code", "MA_HOP _LE", 130),
+    textColumn("hdn_status", "TINH_TRANG_HDN", 160),
+    textColumn("common_group", "NHÓM-CHUNG", 150),
+    textColumn("region", "KHU_VUC", 120),
+    numberColumn("sl_hdn_k0_ma_rieng", "SL_HDN_K0_MA_RIENG", 190),
 ]
+
+function formatNumber(value: number) {
+    return value.toLocaleString("en-US", {
+        maximumFractionDigits: 6,
+    })
+}
+
+function formatDate(value: unknown) {
+    if (!value) return "-"
+    const raw = String(value)
+    const date = raw.trim().split(/[T\s]/)[0]
+    const dmy = date.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+    if (dmy) return `${dmy[1].padStart(2, "0")}/${dmy[2].padStart(2, "0")}/${dmy[3]}`
+    const ymd = date.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+    if (ymd) return `${ymd[3].padStart(2, "0")}/${ymd[2].padStart(2, "0")}/${ymd[1]}`
+    return raw
+}
