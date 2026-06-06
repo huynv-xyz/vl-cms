@@ -124,8 +124,8 @@ export function CashBankLedgerTable({
         : sourceType === "ADJUST" ? "Tăng nợ" : "Tiền ra"
     const today = todayYmd()
     const shouldConstrainDateFilters = sourceType === "ADJUST"
-    const useCustomerSelector = sourceType === "ADJUST"
-    const canExport = sourceType === "ADJUST" || sourceType === "OPENING"
+    const useCustomerSelector = sourceType !== "BANK"
+    const canExport = true
 
     const totalsQuery = useQuery({
         queryKey: [
@@ -243,7 +243,7 @@ export function CashBankLedgerTable({
                 return
             }
 
-            exportAdjustmentXlsx(rows, {
+            await exportLedgerXlsx(rows, {
                 incomingLabel,
                 outgoingLabel,
                 period: periodLabel(filters.from_date, filters.to_date),
@@ -252,7 +252,9 @@ export function CashBankLedgerTable({
             toast.success(
                 sourceType === "OPENING"
                     ? `Đã xuất ${rows.length} dòng nợ đầu kỳ`
-                    : `Đã xuất ${rows.length} dòng điều chỉnh công nợ`,
+                    : sourceType === "ADJUST"
+                        ? `Đã xuất ${rows.length} dòng điều chỉnh công nợ`
+                        : `Đã xuất ${rows.length} dòng giao dịch ngân hàng`,
             )
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Xuất báo cáo thất bại")
@@ -540,7 +542,7 @@ function BankLedgerDialog({
     pending: boolean
 }) {
     const update = (patch: Partial<FormState>) => onFormChange({ ...form, ...patch })
-    const useCustomerSelector = sourceType === "ADJUST"
+    const useCustomerSelector = sourceType !== "BANK"
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -792,6 +794,156 @@ async function fetchAllRows(base: ArLedgerListParams): Promise<ArLedger[]> {
     }
 
     return all
+}
+
+async function exportLedgerXlsx(
+    rows: ArLedger[],
+    options: {
+        incomingLabel: string
+        outgoingLabel: string
+        period: string
+        sourceType: "BANK" | "ADJUST" | "OPENING"
+    },
+) {
+    const { Workbook } = await import("exceljs")
+    const isOpening = options.sourceType === "OPENING"
+    const isAdjust = options.sourceType === "ADJUST"
+    const title = isOpening
+        ? "NỢ ĐẦU KỲ"
+        : isAdjust ? "ĐIỀU CHỈNH CÔNG NỢ" : "GIAO DỊCH NGÂN HÀNG"
+    const filePrefix = isOpening
+        ? "no-dau-ky"
+        : isAdjust ? "dieu-chinh-cong-no" : "giao-dich-ngan-hang"
+    const columns: Array<{
+        label: string
+        width: number
+        type?: "date" | "number"
+    }> = [
+        { label: "Ngày", width: 14, type: "date" },
+        { label: "Chứng từ", width: 24 },
+        { label: "Mã KH", width: 18 },
+        { label: "Khách hàng", width: 32 },
+        { label: "Diễn giải", width: 42 },
+        { label: "TK đối ứng", width: 14 },
+        { label: options.incomingLabel, width: 18, type: "number" },
+        { label: options.outgoingLabel, width: 18, type: "number" },
+    ]
+
+    const workbook = new Workbook()
+    workbook.creator = "VLIFE"
+    workbook.created = new Date()
+
+    const sheet = workbook.addWorksheet(title, {
+        views: [{ state: "frozen", ySplit: 4 }],
+    })
+
+    sheet.addRow([title])
+    sheet.addRow([options.period])
+    sheet.addRow([])
+    sheet.addRow(columns.map((column) => column.label))
+
+    for (const row of rows) {
+        sheet.addRow([
+            parseExportDate(row.posting_date),
+            row.doc_no || "",
+            row.customer?.code || (row.customer_id ? `#${row.customer_id}` : ""),
+            row.customer?.name || row.customer_name || "",
+            row.description || "",
+            row.account_code || "",
+            Number(row.credit_amount || 0),
+            Number(row.debit_amount || 0),
+        ])
+    }
+
+    sheet.columns = columns.map((column) => ({ width: column.width }))
+    sheet.mergeCells(1, 1, 1, columns.length)
+    sheet.mergeCells(2, 1, 2, columns.length)
+    sheet.autoFilter = {
+        from: { row: 4, column: 1 },
+        to: { row: 4, column: columns.length },
+    }
+
+    const border = {
+        top: { style: "thin" as const, color: { argb: "FF000000" } },
+        left: { style: "thin" as const, color: { argb: "FF000000" } },
+        bottom: { style: "thin" as const, color: { argb: "FF000000" } },
+        right: { style: "thin" as const, color: { argb: "FF000000" } },
+    }
+
+    const titleCell = sheet.getCell("A1")
+    titleCell.font = { bold: true, size: 16 }
+    titleCell.alignment = { horizontal: "center", vertical: "middle" }
+    sheet.getRow(1).height = 24
+
+    const periodCell = sheet.getCell("A2")
+    periodCell.font = { italic: true }
+    periodCell.alignment = { horizontal: "center", vertical: "middle" }
+
+    const header = sheet.getRow(4)
+    header.height = 24
+    header.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: "FF000000" } }
+        cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFD9D9D9" },
+        }
+        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true }
+        cell.border = border
+    })
+
+    for (let rowIndex = 5; rowIndex <= sheet.rowCount; rowIndex++) {
+        const row = sheet.getRow(rowIndex)
+        row.eachCell((cell, colNumber) => {
+            const column = columns[colNumber - 1]
+            cell.border = border
+            cell.alignment = {
+                horizontal: column.type === "number" ? "right" : "left",
+                vertical: "middle",
+                wrapText: true,
+            }
+            if (column.type === "date") {
+                cell.numFmt = "dd/mm/yyyy"
+            }
+            if (column.type === "number") {
+                cell.numFmt = "#,##0.######"
+            }
+        })
+    }
+
+    const date = new Date().toISOString().slice(0, 10)
+    const buffer = await workbook.xlsx.writeBuffer()
+    downloadExcelBuffer(buffer, `${filePrefix}-${date}.xlsx`)
+}
+
+function parseExportDate(value?: string) {
+    if (!value) return ""
+    const dateOnlyValue = value.trim().split(/[T\s]/)[0]
+    const dmy = dateOnlyValue.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+    if (dmy) {
+        return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
+    }
+
+    const ymd = dateOnlyValue.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+    if (ymd) {
+        return new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]))
+    }
+
+    return value
+}
+
+function downloadExcelBuffer(buffer: ArrayBuffer, filename: string) {
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
 }
 
 function exportAdjustmentXlsx(

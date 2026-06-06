@@ -3,7 +3,6 @@ import { Download, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { exportXlsx } from "@/lib/xlsx-export"
 import { listTransactions, type TransactionListParams } from "@/api/transactions"
 import type { Transaction } from "../data/schema"
 
@@ -11,42 +10,62 @@ type Props = {
     keyword?: string
     filters: Pick<
         TransactionListParams,
-        "customer_type" | "vthh_con" | "npp" | "process_month"
+        | "customer_type"
+        | "vthh_con"
+        | "npp"
+        | "process_month"
+        | "hdn_status"
+        | "region"
+        | "document_date_from"
+        | "document_date_to"
     >
 }
 
-const COLUMNS: Array<{ key: keyof Transaction; label: string }> = [
-    { key: "document_date", label: "Ngày chứng từ" },
-    { key: "document_no", label: "Số chứng từ" },
-    { key: "customer_code", label: "Mã khách hàng" },
-    { key: "customer_name", label: "Tên khách hàng" },
-    { key: "description", label: "Diễn giải" },
-    { key: "product_code", label: "Mã sản phẩm" },
-    { key: "product_name", label: "Tên sản phẩm" },
-    { key: "unit", label: "ĐVT" },
-    { key: "sale_qty", label: "SL bán" },
-    { key: "return_qty", label: "SL trả" },
-    { key: "unit_price", label: "Đơn giá" },
-    { key: "discount", label: "Chiết khấu" },
-    { key: "revenue", label: "Doanh số" },
-    { key: "sale_user_name", label: "NV bán hàng" },
-    { key: "contact_name", label: "Liên hệ" },
-    { key: "vthh_con", label: "VTHH con" },
-    { key: "vthh_group_name", label: "Nhóm VTHH" },
-    { key: "customer_type", label: "Loại KH" },
-    { key: "is_gift", label: "Quà tặng" },
-    { key: "sl_rieng_tl", label: "SL riêng TL" },
-    { key: "sl_tl_nhom", label: "SL TL nhóm" },
-    { key: "sl_lb2c", label: "SL LB2C" },
-    { key: "sl_lb2b", label: "SL LB2B" },
-    { key: "sl_hdn", label: "SL HDN" },
-    { key: "diem_hdn", label: "Điểm HDN" },
-    { key: "process_month", label: "Tháng xử lý" },
-    { key: "npp", label: "NPP" },
-    { key: "valid_code", label: "Mã hợp lệ" },
-    { key: "hdn_status", label: "Tình trạng HDN" },
-    { key: "common_group", label: "Nhóm chung" },
-    { key: "sl_hdn_k0_ma_rieng", label: "SL HDN k0 mã riêng" },
+type ExportColumn = {
+    label: string
+    value: (row: Transaction) => string | number | Date | null | undefined
+    width?: number
+    type?: "date" | "number" | "text"
+}
+
+const COLUMNS: ExportColumn[] = [
+    { label: "Ngày chứng từ", value: (row) => parseDate(row.document_date), width: 14, type: "date" },
+    { label: "Số chứng từ", value: (row) => row.document_no, width: 18 },
+    { label: "Mã khách hàng", value: (row) => row.customer_code, width: 22 },
+    { label: "Tên khách hàng", value: (row) => row.customer_name, width: 36 },
+    { label: "Địa chỉ", value: (row) => row.customer_address, width: 38 },
+    { label: "Mã hàng", value: (row) => row.product_code, width: 22 },
+    { label: "Tên hàng trên chứng từ", value: (row) => row.product_name, width: 38 },
+    { label: "Đơn vị chính (ĐVC)", value: (row) => row.unit, width: 18 },
+    { label: "Tổng SL bán theo ĐVC", value: (row) => row.sale_qty, width: 18, type: "number" },
+    { label: "Đơn giá theo ĐVC", value: (row) => row.unit_price, width: 18, type: "number" },
+    { label: "Doanh số bán", value: (row) => row.revenue, width: 18, type: "number" },
+    { label: "SL trả lại theo ĐVC", value: (row) => row.return_qty, width: 18, type: "number" },
+    { label: "Mã nhân viên bán hàng", value: (row) => row.sale_user_code, width: 20 },
+    { label: "Tên nhân viên bán hàng", value: (row) => row.sale_user_name, width: 26 },
+    { label: "Mã kho", value: (row) => row.warehouse_code, width: 14 },
+    { label: "Tên kho", value: (row) => row.warehouse_name, width: 22 },
+    { label: "Mô tả HH", value: (row) => row.description, width: 30 },
+    { label: "Người liên hệ", value: (row) => row.contact_name, width: 22 },
+    { label: "VTHH_CON", value: (row) => row.vthh_con, width: 18 },
+    { label: "Tên nhóm VTHH", value: (row) => row.vthh_group_name, width: 22 },
+    { label: "PHÂN_LOẠI_KH", value: (row) => row.customer_type, width: 16 },
+    { label: "Trường mở rộng chi tiết 2", value: (row) => row.ext_detail_2, width: 34 },
+    { label: "HÀNG_TẶNG", value: (row) => row.is_gift, width: 14, type: "number" },
+    { label: "MÃ_RIÊNG", value: (row) => row.private_code, width: 18 },
+    { label: "SL_RIÊNG_TL", value: (row) => row.sl_rieng_tl, width: 16, type: "number" },
+    { label: "SL_TL_NHÓM", value: (row) => row.sl_tl_nhom, width: 16, type: "number" },
+    { label: "SL_L_B2C", value: (row) => row.sl_lb2c, width: 14, type: "number" },
+    { label: "SL_L_B2B", value: (row) => row.sl_lb2b, width: 14, type: "number" },
+    { label: "SL_HDN", value: (row) => row.sl_hdn, width: 14, type: "number" },
+    { label: "DIEM_HDN", value: (row) => row.diem_hdn, width: 14, type: "number" },
+    { label: "THANG_XU_LY", value: (row) => row.process_month, width: 14, type: "number" },
+    { label: "NPP", value: (row) => row.npp, width: 16 },
+    { label: "MA_HOP _LE", value: (row) => row.valid_code, width: 16 },
+    { label: "TINH_TRANG_HDN", value: (row) => row.hdn_status, width: 18 },
+    { label: "NHÓM-CHUNG", value: (row) => row.common_group, width: 18 },
+    { label: "KHU_VUC", value: (row) => row.region, width: 14 },
+    { label: "SL_HDN_K0_MA_RIENG", value: (row) => row.sl_hdn_k0_ma_rieng, width: 22, type: "number" },
 ]
 
 export function ExportTransactionButton({ keyword, filters }: Props) {
@@ -63,6 +82,10 @@ export function ExportTransactionButton({ keyword, filters }: Props) {
                 vthh_con: filters.vthh_con || undefined,
                 npp: filters.npp || undefined,
                 process_month: filters.process_month || undefined,
+                hdn_status: filters.hdn_status || undefined,
+                region: filters.region || undefined,
+                document_date_from: filters.document_date_from || undefined,
+                document_date_to: filters.document_date_to || undefined,
             })
 
             if (!rows.length) {
@@ -70,24 +93,8 @@ export function ExportTransactionButton({ keyword, filters }: Props) {
                 return
             }
 
-            const sheetRows: (string | number)[][] = [
-                COLUMNS.map((column) => column.label),
-                ...rows.map((row) =>
-                    COLUMNS.map((column) => {
-                        const value = row[column.key]
-                        if (value == null) return ""
-                        return typeof value === "number" ? value : String(value)
-                    })
-                ),
-            ]
-
-            const filename = `transactions-${new Date().toISOString().slice(0, 10)}.xlsx`
-
-            exportXlsx(filename, [
-                { name: "Giao dịch", rows: sheetRows },
-            ])
-
-            toast.success(`Đã xuất ${rows.length} dòng giao dịch`)
+            await exportTransactionsXlsx(rows)
+            toast.success(`Đã xuất ${rows.length} dòng dữ liệu bán hàng`)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Xuất Excel thất bại")
         } finally {
@@ -120,4 +127,109 @@ async function fetchAllRows(base: TransactionListParams): Promise<Transaction[]>
     }
 
     return all
+}
+
+async function exportTransactionsXlsx(rows: Transaction[]) {
+    const { Workbook } = await import("exceljs")
+    const workbook = new Workbook()
+    workbook.creator = "VLIFE"
+    workbook.created = new Date()
+
+    const sheet = workbook.addWorksheet("Dữ liệu bán hàng", {
+        views: [{ state: "frozen", ySplit: 1 }],
+    })
+
+    sheet.addRow(COLUMNS.map((column) => column.label))
+    rows.forEach((row) => {
+        sheet.addRow(COLUMNS.map((column) => normalizeCellValue(column.value(row))))
+    })
+
+    sheet.columns = COLUMNS.map((column) => ({
+        width: column.width ?? 18,
+    }))
+    sheet.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: 1, column: COLUMNS.length },
+    }
+
+    const border = {
+        top: { style: "thin" as const, color: { argb: "FF000000" } },
+        left: { style: "thin" as const, color: { argb: "FF000000" } },
+        bottom: { style: "thin" as const, color: { argb: "FF000000" } },
+        right: { style: "thin" as const, color: { argb: "FF000000" } },
+    }
+
+    const header = sheet.getRow(1)
+    header.height = 24
+    header.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: "FF000000" } }
+        cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFD9D9D9" },
+        }
+        cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
+        cell.border = border
+    })
+
+    for (let rowIndex = 2; rowIndex <= sheet.rowCount; rowIndex++) {
+        const row = sheet.getRow(rowIndex)
+        row.eachCell((cell, colNumber) => {
+            const column = COLUMNS[colNumber - 1]
+            cell.border = border
+            cell.alignment = {
+                vertical: "middle",
+                horizontal: column.type === "number" ? "right" : "left",
+                wrapText: true,
+            }
+            if (column.type === "date") {
+                cell.numFmt = "dd/mm/yyyy"
+            }
+            if (column.type === "number") {
+                cell.numFmt = "#,##0.######"
+            }
+        })
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    downloadBlob(
+        buffer,
+        `du-lieu-ban-hang-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    )
+}
+
+function normalizeCellValue(value: string | number | Date | null | undefined) {
+    if (value == null) return ""
+    if (typeof value === "number") return Number.isFinite(value) ? value : 0
+    return value
+}
+
+function parseDate(value?: string) {
+    if (!value) return ""
+    const dateOnly = value.trim().split(/[T\s]/)[0]
+    const dmy = dateOnly.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+    if (dmy) {
+        return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
+    }
+
+    const ymd = dateOnly.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+    if (ymd) {
+        return new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]))
+    }
+
+    return value
+}
+
+function downloadBlob(buffer: ArrayBuffer, filename: string) {
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
 }
