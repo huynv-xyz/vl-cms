@@ -1,1 +1,0 @@
-import{T as e}from"./index-BKFa1vH-.js";import{c as i}from"./crud-DLREjEm6.js";function r(){return e("/auth/me/permissions")}const s=i("/auth/permissions"),n=s.list,a=s.create,m=s.update,c=s.delete;export{a as c,c as d,r as g,n as l,m as u};

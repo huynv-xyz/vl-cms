@@ -28,7 +28,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import type { Product } from "@/features/product/data/schema"
-import type { CreateProductBomItemRequest, CreateProductBomRequest, ProductBom } from "../data/schema"
+import type { CreateProductBomItemRequest, CreateProductBomRequest, MaterialType, ProductBom } from "../data/schema"
 
 type Props = {
     open: boolean
@@ -313,7 +313,7 @@ export function CreateBomDialog({ open, onOpenChange, bom }: Props) {
 
                                             <Select
                                                 value={row.material_type}
-                                                onValueChange={(value: "NVL" | "BB") =>
+                                                onValueChange={(value: MaterialType) =>
                                                     updateRow(index, { material_type: value })
                                                 }
                                             >
@@ -323,6 +323,8 @@ export function CreateBomDialog({ open, onOpenChange, bom }: Props) {
                                                 <SelectContent>
                                                     <SelectItem value="NVL">NVL</SelectItem>
                                                     <SelectItem value="BB">BB</SelectItem>
+                                                    <SelectItem value="TP">TP</SelectItem>
+                                                    <SelectItem value="HH">HH</SelectItem>
                                                 </SelectContent>
                                             </Select>
 

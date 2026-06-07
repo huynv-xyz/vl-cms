@@ -225,6 +225,7 @@ export function UpdateProductionDialog({
 
                                 <ProductionItemsBulkPaste
                                     disabled={isPending}
+                                    effectiveDate={productionDate}
                                     onApply={applyBulkItems}
                                 />
 
@@ -245,7 +246,12 @@ export function UpdateProductionDialog({
                                                             dataSource={{
                                                                 getList: listProducts,
                                                                 getById: getProduct,
-                                                                params: { page: 1, size: 20 },
+                                                                params: {
+                                                                    page: 1,
+                                                                    size: 20,
+                                                                    has_bom: true,
+                                                                    effective_date: productionDate,
+                                                                },
                                                             }}
                                                             mapOption={(product: any) => ({
                                                                 value: product.id,

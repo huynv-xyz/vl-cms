@@ -16,10 +16,11 @@ export type ProductionItemDraft = {
 
 type Props = {
     disabled?: boolean
+    effectiveDate?: string
     onApply: (items: ProductionItemDraft[]) => void
 }
 
-export function ProductionItemsBulkPaste({ disabled, onApply }: Props) {
+export function ProductionItemsBulkPaste({ disabled, effectiveDate, onApply }: Props) {
     const [codesText, setCodesText] = useState("")
     const [quantitiesText, setQuantitiesText] = useState("")
     const [isApplying, setIsApplying] = useState(false)
@@ -35,7 +36,7 @@ export function ProductionItemsBulkPaste({ disabled, onApply }: Props) {
 
         setIsApplying(true)
         try {
-            const products = await Promise.all(codes.map(findProductByCode))
+            const products = await Promise.all(codes.map((code) => findProductByCode(code, effectiveDate)))
             const missingCodes = codes.filter((_, index) => !products[index])
             const rowCount = Math.max(codes.length, quantities.length)
             const rows: ProductionItemDraft[] = Array.from({ length: rowCount }, (_, index) => {
@@ -53,7 +54,7 @@ export function ProductionItemsBulkPaste({ disabled, onApply }: Props) {
             onApply(rows.length ? rows : [{ quantity_plan: 1, quantity_done: 1 }])
 
             if (missingCodes.length) {
-                toast.warning(`Không tìm thấy mã: ${missingCodes.join(", ")}`)
+                toast.warning(`Không tìm thấy thành phẩm có BOM hiệu lực: ${missingCodes.join(", ")}`)
             } else {
                 toast.success(`Đã áp dụng ${rows.length} dòng thành phẩm`)
             }
@@ -123,12 +124,14 @@ function parseQuantity(value: string) {
     return Number.isFinite(quantity) && quantity > 0 ? quantity : 1
 }
 
-async function findProductByCode(code: string) {
+async function findProductByCode(code: string, effectiveDate?: string) {
     const result = await listProducts({
         page: 1,
         size: 50,
         keyword: code,
         status: "1",
+        has_bom: true,
+        effective_date: effectiveDate,
     })
 
     const normalizedCode = normalizeCode(code)

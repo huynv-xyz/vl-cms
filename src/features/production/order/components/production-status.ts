@@ -17,7 +17,9 @@ export function getProductionStatusMeta(value?: string): StatusMeta {
         case "MATERIAL_GENERATED":
             return { label: "Đã sinh vật tư", next: "Bước tiếp theo: chạy FIFO", variant: "secondary" }
         case "FIFO_ALLOCATED":
-            return { label: "Đã phân bổ FIFO", next: "Bước tiếp theo: nhập thành phẩm", variant: "secondary" }
+            return { label: "Đã phân bổ FIFO", next: "Bước tiếp theo: xuất nguyên liệu", variant: "secondary" }
+        case "MATERIAL_ISSUED":
+            return { label: "Đã xuất nguyên liệu", next: "Bước tiếp theo: nhập thành phẩm", variant: "secondary" }
         case "OUTPUT_RECEIVED":
             return { label: "Đã nhập thành phẩm", next: "Lệnh đã ghi nhận nhập kho TP", variant: "secondary" }
         case "DONE":
@@ -55,6 +57,8 @@ export function getProductionSubStatusLabel(value?: string) {
             return "Đã sinh vật tư"
         case "FIFO_ALLOCATED":
             return "Đã phân bổ FIFO"
+        case "MATERIAL_ISSUED":
+            return "Đã xuất nguyên liệu"
         case "OUTPUT_RECEIVED":
             return "Đã nhập thành phẩm"
         case "NOT_ENOUGH":
@@ -77,7 +81,7 @@ export function getProductionSubStatusLabel(value?: string) {
 export function getProductionSubStatusVariant(value?: string): StatusVariant {
     const status = normalizeStatus(value)
 
-    if (["OK", "DONE", "READY", "FIFO_ALLOCATED", "OUTPUT_RECEIVED"].includes(status)) {
+    if (["OK", "DONE", "READY", "FIFO_ALLOCATED", "MATERIAL_ISSUED", "OUTPUT_RECEIVED"].includes(status)) {
         return "secondary"
     }
 

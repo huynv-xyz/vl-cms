@@ -13,6 +13,8 @@ export type ProductListParams = {
     group_code?: string
     default_warehouse_id?: number
     inventory_account_code?: string
+    has_bom?: boolean
+    effective_date?: string
 }
 
 export type CreateProductRequest = Partial<Product>

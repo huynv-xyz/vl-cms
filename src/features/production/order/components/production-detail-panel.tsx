@@ -20,6 +20,7 @@ import {
     Route,
     Save,
     Settings2,
+    Undo2,
     Wand2,
     Warehouse,
 } from "lucide-react"
@@ -61,9 +62,12 @@ import {
     addProductionExtraMaterial,
     addProductionSubstitution,
     allocateProductionFifo,
-    confirmProduction,
+    cancelProduction,
+    issueProductionMaterials,
+    receiveProductionProducts,
     generateProductionMaterials,
     setProductionPreferredLot,
+    unpostProduction,
 } from "@/api/production/order"
 import type {
     Production,
@@ -74,6 +78,7 @@ import {
     getProductionSubStatusLabel,
     getProductionSubStatusVariant,
 } from "./production-status"
+import { useProductionPermissions } from "../hooks/use-production-permissions"
 
 type Props = {
     production: Production
@@ -88,7 +93,7 @@ export function ProductionDetailPanel({ production }: Props) {
     const shortageCount = countShortage(items)
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-4">
             <ProductionHeader production={production} />
             <ProductionActionBar production={production} />
 
@@ -124,32 +129,53 @@ export function ProductionDetailPanel({ production }: Props) {
             </div>
 
             <Tabs defaultValue="items">
-                <TabsList className="bg-muted/70 h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl p-1">
-                    <TabsTrigger value="items" className="h-10 shrink-0 px-4">
+                <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b bg-transparent p-0">
+                    <TabsTrigger
+                        value="items"
+                        className="data-[state=active]:border-primary data-[state=active]:text-primary h-10 shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-4 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                    >
                         <Factory className="mr-2 h-4 w-4" />
                         Thành phẩm
                     </TabsTrigger>
-                    <TabsTrigger value="materials" className="h-10 shrink-0 px-4">
+                    <TabsTrigger
+                        value="materials"
+                        className="data-[state=active]:border-primary data-[state=active]:text-primary h-10 shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-4 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                    >
                         <Layers3 className="mr-2 h-4 w-4" />
                         Vật tư
                     </TabsTrigger>
-                    <TabsTrigger value="fifo" className="h-10 shrink-0 px-4">
+                    <TabsTrigger
+                        value="fifo"
+                        className="data-[state=active]:border-primary data-[state=active]:text-primary h-10 shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-4 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                    >
                         <Route className="mr-2 h-4 w-4" />
                         FIFO
                     </TabsTrigger>
-                    <TabsTrigger value="outputs" className="h-10 shrink-0 px-4">
+                    <TabsTrigger
+                        value="outputs"
+                        className="data-[state=active]:border-primary data-[state=active]:text-primary h-10 shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-4 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                    >
                         <PackageCheck className="mr-2 h-4 w-4" />
                         Nhập TP
                     </TabsTrigger>
-                    <TabsTrigger value="vouchers" className="h-10 shrink-0 px-4">
+                    <TabsTrigger
+                        value="vouchers"
+                        className="data-[state=active]:border-primary data-[state=active]:text-primary h-10 shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-4 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                    >
                         <FileText className="mr-2 h-4 w-4" />
                         Chứng từ
                     </TabsTrigger>
-                    <TabsTrigger value="warnings" className="h-10 shrink-0 px-4">
+                    <TabsTrigger
+                        value="warnings"
+                        className="data-[state=active]:border-primary data-[state=active]:text-primary h-10 shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-4 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                    >
                         <AlertTriangle className="mr-2 h-4 w-4" />
                         Cảnh báo
                     </TabsTrigger>
-                    <TabsTrigger value="logs" className="h-10 shrink-0 px-4">
+                    <TabsTrigger
+                        value="logs"
+                        className="data-[state=active]:border-primary data-[state=active]:text-primary h-10 shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-4 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                    >
                         <ClipboardList className="mr-2 h-4 w-4" />
                         Log
                     </TabsTrigger>
@@ -214,53 +240,66 @@ function ProductionHeader({ production }: { production: Production }) {
     )
 
     return (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-            <div className="grid lg:grid-cols-[minmax(360px,1.2fr)_minmax(360px,0.8fr)]">
-                <div className="min-w-0 border-b p-5 lg:border-b-0 lg:border-r">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="bg-primary/10 text-primary rounded-md px-2 py-0.5 font-mono text-xs font-bold">
-                            #{production.id}
-                        </span>
-                        <StatusBadge value={production.status} />
-                    </div>
-                    <h3 className="mt-3 truncate text-2xl font-bold">
-                            {production.production_no || `Lệnh #${production.id}`}
-                    </h3>
-                    <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                        <span className="inline-flex items-center gap-1.5">
-                            <CalendarDays className="h-4 w-4" />
-                            Ngày lệnh {formatDate(production.production_date)}
-                        </span>
-                        <span className="inline-flex items-center gap-1.5">
-                            <Warehouse className="h-4 w-4" />
-                            Kho nhập {warehouses.length ? warehouses.join(", ") : "-"}
-                        </span>
-                    </div>
-                </div>
-
-                <div className="grid gap-2 p-5 text-sm sm:grid-cols-3">
-                    <MiniInfo label="Kỳ tính giá" value={production.costing_period || "-"} />
-                    <MiniInfo label="Số dòng TP" value={formatNumber(items.length)} />
-                    <MiniInfo label="Tạo lúc" value={formatDateTime(production.created_at)} />
-                </div>
+        <div className="border-b pb-4">
+            <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge value={production.status} />
+                <span className="text-muted-foreground font-mono text-xs">
+                    #{production.id}
+                </span>
             </div>
 
-            {production.note && (
-                <div className="border-t bg-muted/30 px-5 py-3 text-sm text-muted-foreground">
+            <h2 className="mt-2 text-2xl font-bold tracking-tight">
+                {production.production_no || `Lệnh #${production.id}`}
+            </h2>
+
+            <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+                <span className="inline-flex items-center gap-1.5">
+                    <CalendarDays className="h-4 w-4" />
+                    Ngày lệnh {formatDate(production.production_date)}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                    <Warehouse className="h-4 w-4" />
+                    Kho nhập {warehouses.length ? warehouses.join(", ") : "-"}
+                </span>
+                <span>
+                    Kỳ tính giá{" "}
+                    <span className="text-foreground font-medium">
+                        {production.costing_period || "-"}
+                    </span>
+                </span>
+                <span>
+                    Số dòng TP{" "}
+                    <span className="text-foreground font-medium tabular-nums">
+                        {formatNumber(items.length)}
+                    </span>
+                </span>
+                <span>
+                    Tạo {formatDateTime(production.created_at)}
+                </span>
+            </div>
+
+            {production.note ? (
+                <div className="text-muted-foreground mt-3 text-sm">
                     {production.note}
                 </div>
-            )}
+            ) : null}
         </div>
     )
 }
 
 function ProductionActionBar({ production }: { production: Production }) {
     const queryClient = useQueryClient()
+    const perms = useProductionPermissions()
     const shortageCount = countShortage(production.items ?? [])
     const isClosed = isProductionClosed(production)
-    const canGenerate = canGenerateMaterials(production)
-    const canAllocateFifo = canRunFifo(production)
-    const canConfirm = canReceiveOutput(production)
+    // BA Spec BR-07: chỉ KT có quyền post mới được sinh vật tư / chạy FIFO / xuất NL / nhập TP.
+    const canGenerate = canGenerateMaterials(production) && perms.canPost
+    const canAllocateFifo = canRunFifo(production) && perms.canPost
+    const canIssueMaterials =
+        canIssueProductionMaterials(production) && perms.canPost
+    const canConfirm = canReceiveOutput(production) && perms.canPost
+    const canCancel = canCancelProduction(production) && perms.canCancel
+    const canUnpost = isClosed && perms.canUnpost
 
     const refresh = () => {
         void queryClient.invalidateQueries({ queryKey: ["production-order-detail", production.id] })
@@ -286,23 +325,66 @@ function ProductionActionBar({ production }: { production: Production }) {
         onError: (e: any) => toast.error(e.message || "Không thể chạy FIFO"),
     })
 
+    const issueMutation = useMutation({
+        mutationFn: () => issueProductionMaterials(production.id),
+        onSuccess: () => {
+            toast.success("Đã xuất nguyên liệu")
+            refresh()
+        },
+        onError: (e: any) => toast.error(e.message || "Không thể xuất nguyên liệu"),
+    })
+
+    const cancelMutation = useMutation({
+        mutationFn: () => cancelProduction(production.id),
+        onSuccess: () => {
+            toast.success("Đã hủy lệnh sản xuất")
+            refresh()
+        },
+        onError: (e: any) => toast.error(e.message || "Không thể hủy lệnh"),
+    })
+
+    // BA Spec BR-06.2 / BR-06.3 / US-06: cho phép UNPOST LSX đã đóng để sửa rồi POST lại
+    const unpostMutation = useMutation({
+        mutationFn: (reason: string) => unpostProduction(production.id, reason),
+        onSuccess: () => {
+            toast.success("Đã đảo lệnh, mời sửa và POST lại")
+            refresh()
+        },
+        onError: (e: any) => toast.error(e.message || "Không thể đảo lệnh"),
+    })
+
+    const handleUnpost = () => {
+        const reason = window.prompt(
+            "Lý do đảo lệnh (UNPOST)? Hệ thống sẽ hoàn nguyên tồn lô và cho phép sửa lại.",
+            "",
+        )
+        if (reason == null) return
+        if (!reason.trim()) {
+            toast.error("Vui lòng nhập lý do để ghi audit log")
+            return
+        }
+        unpostMutation.mutate(reason.trim())
+    }
+
     const isBusy =
         generateMutation.isPending ||
-        fifoMutation.isPending
+        fifoMutation.isPending ||
+        issueMutation.isPending ||
+        cancelMutation.isPending ||
+        unpostMutation.isPending
 
     return (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-4 py-3">
-                <div>
-                    <div className="font-semibold">Luồng xử lý sản xuất</div>
-                    <div className="text-muted-foreground mt-1 text-sm">
-                        Sinh vật tư → chạy FIFO → nhập thành phẩm.
-                    </div>
+        <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-muted-foreground text-sm">
+                    <span className="text-foreground font-medium">Luồng xử lý:</span>{" "}
+                    sinh vật tư → chạy FIFO → xuất nguyên liệu → nhập thành phẩm.
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
                     <Button
                         variant="outline"
+                        size="sm"
                         disabled={isBusy || !canGenerate}
                         onClick={() => generateMutation.mutate()}
                     >
@@ -312,6 +394,7 @@ function ProductionActionBar({ production }: { production: Production }) {
 
                     <Button
                         variant="outline"
+                        size="sm"
                         disabled={isBusy || !canAllocateFifo}
                         onClick={() => fifoMutation.mutate()}
                     >
@@ -319,32 +402,63 @@ function ProductionActionBar({ production }: { production: Production }) {
                         Chạy FIFO
                     </Button>
 
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isBusy || !canIssueMaterials || shortageCount > 0}
+                        onClick={() => issueMutation.mutate()}
+                        title="Tạo phiếu xuất kho NL/BB theo phân bổ FIFO"
+                    >
+                        <PackageCheck className="mr-2 h-4 w-4" />
+                        Xuất nguyên liệu
+                    </Button>
+
                     <ReceiveOutputDialog
                         production={production}
                         disabled={isBusy || !canConfirm || shortageCount > 0}
                         onDone={refresh}
                     />
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isBusy || !canUnpost}
+                        onClick={handleUnpost}
+                        title="Đảo lệnh đã ghi sổ để sửa và POST lại"
+                    >
+                        <Undo2 className="mr-2 h-4 w-4" />
+                        Đảo lệnh
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isBusy || !canCancel}
+                        onClick={() => cancelMutation.mutate()}
+                    >
+                        <AlertTriangle className="mr-2 h-4 w-4" />
+                        Hủy lệnh
+                    </Button>
                 </div>
             </div>
 
-            {isClosed && (
-                <div className="mx-4 my-3 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+            {isClosed ? (
+                <div className="text-muted-foreground text-sm">
                     Lệnh đã nhập thành phẩm hoặc đã đóng, không thể thao tác thêm.
                 </div>
-            )}
-
-            {!isClosed && (
-                <div className="mx-4 my-3 rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+            ) : (
+                <div className="text-muted-foreground text-sm">
                     Bước hiện tại: {getProductionStepMessage(production)}
                 </div>
             )}
 
-            {shortageCount > 0 && (
-                <div className="mx-4 mb-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                    Còn {shortageCount} dòng vật tư chưa được FIFO đủ. Vào tab Vật tư để xem dòng thiếu,
-                    bổ sung tồn kho hoặc giảm số lượng sản xuất rồi chạy FIFO lại trước khi nhập TP.
+            {shortageCount > 0 ? (
+                <div className="text-destructive text-sm">
+                    Còn {shortageCount} dòng vật tư chưa được FIFO đủ. Vào tab Vật
+                    tư để xem dòng thiếu, bổ sung tồn kho hoặc giảm số lượng sản
+                    xuất rồi chạy FIFO lại trước khi nhập TP.
                 </div>
-            )}
+            ) : null}
         </div>
     )
 }
@@ -376,7 +490,7 @@ function ReceiveOutputDialog({
 
     const confirmMutation = useMutation({
         mutationFn: () =>
-            confirmProduction(production.id, {
+            receiveProductionProducts(production.id, {
                 outputs: rows.map((row) => ({
                     production_item_id: row.production_item_id,
                     output_id: row.output_id,
@@ -540,11 +654,15 @@ function buildOutputConfirmRows(production: Production): OutputConfirmRow[] {
 }
 
 function defaultOutputLotNo(
-    production: Production,
+    _production: Production,
     item: ProductionItem,
-    output?: NonNullable<ProductionItem["outputs"]>[number]
+    _output?: NonNullable<ProductionItem["outputs"]>[number]
 ) {
-    return `${production.production_no || `SX-${production.id}`}-TP-${output?.id ?? item.id}`
+    // BA Spec BR-01.2: mã lô TP mặc định = `<product_code>-TP`. Cho phép KT sửa.
+    // Nếu thiếu mã sản phẩm, fallback về `TP-<item_id>` để vẫn có giá trị mặc định.
+    const productCode = item.product?.code
+    if (productCode) return `${productCode}-TP`
+    return `TP-${item.id}`
 }
 
 function FinishedProductBlock({
@@ -554,12 +672,14 @@ function FinishedProductBlock({
     production: Production
     item: ProductionItem
 }) {
-    const canAdjust = canAdjustMaterials(production)
+    const perms = useProductionPermissions()
+    // BA Spec BR-07: chỉ KT có quyền chỉnh vật tư mới được thêm phát sinh / thay thế
+    const canAdjust = canAdjustMaterials(production) && perms.canAdjustMaterials
 
     return (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-            <div className="grid border-b bg-muted/30 lg:grid-cols-[minmax(320px,1.3fr)_minmax(240px,0.7fr)]">
-                <div className="min-w-0 border-b p-4 lg:border-b-0 lg:border-r">
+        <div className="rounded-md border bg-background">
+            <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="bg-primary/10 text-primary rounded-md px-2 py-0.5 font-mono text-xs font-bold">
                             {item.product?.code || `#${item.product_id}`}
@@ -567,29 +687,147 @@ function FinishedProductBlock({
                         <StatusBadge value={item.check_status} />
                         <StatusBadge value={item.fifo_status} />
                     </div>
-                    <div className="mt-2 text-lg font-bold leading-snug">
+                    <div className="mt-1.5 text-base font-semibold leading-snug">
                         {item.product?.name || "-"}
                     </div>
                     <div className="text-muted-foreground mt-1 text-sm">
-                        BOM {item.bom_version || "-"} · SL kế hoạch {formatQty(item.quantity_plan, item.product?.unit)} · SL nhập {formatQty(item.quantity_done, item.product?.unit)}
+                        BOM {item.bom_version || "-"} · SL kế hoạch{" "}
+                        {formatQty(item.quantity_plan, item.product?.unit)} · SL
+                        nhập {formatQty(item.quantity_done, item.product?.unit)}
                     </div>
                 </div>
-                <div className="flex flex-wrap items-center justify-start gap-2 p-4 lg:justify-end">
-                    <ExtraForm production={production} item={item} disabled={!canAdjust} />
-                    <SubstitutionForm production={production} item={item} disabled={!canAdjust} />
+                <div className="flex flex-wrap items-center gap-2">
+                    <ExtraForm
+                        production={production}
+                        item={item}
+                        disabled={!canAdjust}
+                    />
+                    <SubstitutionForm
+                        production={production}
+                        item={item}
+                        disabled={!canAdjust}
+                    />
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-0 divide-x divide-y md:grid-cols-5 md:divide-y-0">
-                <Metric label="NVL" value={formatCurrency(item.total_nvl_cost)} />
-                <Metric label="Bao bì" value={formatCurrency(item.total_bb_cost)} />
-                <Metric label="Gia công" value={formatCurrency(item.processing_cost)} />
-                <Metric label="Chi phí chung" value={formatCurrency(item.overhead_cost)} />
-                <Metric label="Giá thành/ĐV" value={formatCurrency(item.unit_cost)} />
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t bg-muted/20 px-4 py-2.5 text-sm">
+                <CostInline label="NVL" value={item.total_nvl_cost} />
+                <CostInline label="Bao bì" value={item.total_bb_cost} />
+                <CostInline label="Gia công" value={item.processing_cost} />
+                <CostInline label="CP chung" value={item.overhead_cost} />
+                <CostInline
+                    label="Giá thành/ĐV"
+                    value={item.unit_cost}
+                    strong
+                />
             </div>
 
-            <ItemAdjustments item={item} />
+            <BomVariancePanel item={item} />
+
+            <div className="px-4 py-3">
+                <ItemAdjustments item={item} />
+            </div>
         </div>
+    )
+}
+
+/**
+ * BA Spec FR-M3-08 + US-03 AC2:
+ * Hiển thị mức lệch định mức so với BOM gốc.
+ *
+ * Tính bằng tổng số dòng phát sinh (extras) và số dòng thay thế (substitutions);
+ * với mỗi substitution có quantity_original thì cộng dồn % lệch về số lượng so với BOM.
+ */
+function BomVariancePanel({ item }: { item: ProductionItem }) {
+    const extras = item.extras ?? []
+    const substitutions = item.substitutions ?? []
+    const extraCount = extras.length
+    const subCount = substitutions.length
+
+    if (!extraCount && !subCount) return null
+
+    const subVariancePercent = (() => {
+        let baseQty = 0
+        let diffQty = 0
+        for (const sub of substitutions) {
+            const original = Number(sub.quantity_original) || 0
+            const actual = Number(sub.quantity) || 0
+            if (original > 0) {
+                baseQty += original
+                diffQty += Math.abs(actual - original)
+            }
+        }
+        if (baseQty <= 0) return 0
+        return Math.round((diffQty / baseQty) * 1000) / 10
+    })()
+
+    const tone = extraCount + subCount > 0 ? "amber" : "ok"
+
+    return (
+        <div
+            className={cn(
+                "border-t px-4 py-2.5 text-sm",
+                tone === "amber"
+                    ? "bg-amber-50/60 text-amber-900"
+                    : "bg-muted/20 text-muted-foreground",
+            )}
+        >
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span className="inline-flex items-center gap-1.5 font-medium">
+                    <AlertTriangle className="h-4 w-4" />
+                    Lệch định mức so với BOM gốc
+                </span>
+                {extraCount > 0 ? (
+                    <span className="text-amber-800">
+                        <b className="tabular-nums">{formatNumber(extraCount)}</b>{" "}
+                        dòng phát sinh
+                    </span>
+                ) : null}
+                {subCount > 0 ? (
+                    <span className="text-amber-800">
+                        <b className="tabular-nums">{formatNumber(subCount)}</b>{" "}
+                        dòng thay thế
+                        {subVariancePercent > 0 ? (
+                            <>
+                                {" "}
+                                ·{" "}
+                                <b className="tabular-nums">
+                                    {subVariancePercent.toFixed(1)}%
+                                </b>{" "}
+                                chênh SL
+                            </>
+                        ) : null}
+                    </span>
+                ) : null}
+                <span className="text-muted-foreground">
+                    BOM gốc: {item.bom_version || "-"}
+                </span>
+            </div>
+        </div>
+    )
+}
+
+function CostInline({
+    label,
+    value,
+    strong,
+}: {
+    label: string
+    value?: number
+    strong?: boolean
+}) {
+    return (
+        <span className="inline-flex items-baseline gap-1.5">
+            <span className="text-muted-foreground">{label}</span>
+            <span
+                className={cn(
+                    "tabular-nums",
+                    strong ? "font-bold text-emerald-700" : "font-semibold",
+                )}
+            >
+                {formatCurrency(value)}
+            </span>
+        </span>
     )
 }
 
@@ -673,7 +911,9 @@ function ItemAdjustments({ item }: { item: ProductionItem }) {
 }
 
 function MaterialsTable({ production }: { production: Production }) {
-    const canPickLot = canRunFifo(production)
+    const perms = useProductionPermissions()
+    // BA Spec BR-07: chỉ KT Kho mới được chỉ định lô ưu tiên
+    const canPickLot = canRunFifo(production) && perms.canPickLot
     const items = production.items ?? []
     const materials = items.flatMap((item) =>
         (item.materials ?? []).map((material) => ({
@@ -961,8 +1201,8 @@ function ProductionVoucherTab({ production }: { production: Production }) {
     const issueRows = getIssueVoucherRows(production)
     const outputRows = getOutputVoucherRows(production)
     const status = productionStatus(production)
-    const issueDocNo = buildVoucherNo(production, "XK-SX")
-    const outputDocNo = buildVoucherNo(production, "NK-TP")
+    const issueDocNo = getProductionVoucherNo(production, "PXK_PROD", "XK-SX")
+    const outputDocNo = getProductionVoucherNo(production, "PNK_PROD", "NK-TP")
     const issueQuantity = sumBy(issueRows, (row) => row.allocation.quantity)
     const issueAmount = sumBy(issueRows, (row) => row.allocation.amount)
     const outputQuantity = sumBy(outputRows, (row) => row.output?.quantity ?? row.item.quantity_done)
@@ -1053,9 +1293,9 @@ function ProductionVoucherTab({ production }: { production: Production }) {
                 })}
                 onExport={() => downloadCsv(`${outputDocNo}.csv`, outputCsvRows)}
                 note={
-                    status === "OUTPUT_RECEIVED"
+                    ["OUTPUT_RECEIVED", "DONE"].includes(status)
                         ? "Phiếu nhập TP đã ghi nhận tồn kho thành phẩm theo giá thành sau FIFO."
-                        : "Phiếu nhập TP sẽ được ghi sổ sau khi FIFO phân bổ đủ và bấm Nhập TP."
+                        : "Phiếu nhập TP sẽ được ghi sổ sau khi đã xuất nguyên liệu và bấm Nhập TP."
                 }
             >
                 <SimpleTable
@@ -1176,16 +1416,22 @@ function buildVoucherNo(production: Production, suffix: string) {
     return `${production.production_no || `SX-${production.id}`}-${suffix}`
 }
 
+function getProductionVoucherNo(production: Production, type: string, fallbackSuffix: string) {
+    return production.vouchers?.find((voucher) => voucher.voucher_type_code === type)?.voucher_no
+        || buildVoucherNo(production, fallbackSuffix)
+}
+
 function getIssueVoucherStatus(status: string, shortageCount: number, rowCount: number) {
-    if (status === "OUTPUT_RECEIVED") return "Đã ghi sổ"
+    if (["MATERIAL_ISSUED", "OUTPUT_RECEIVED", "DONE"].includes(status)) return "Đã ghi sổ"
     if (shortageCount > 0) return "Thiếu tồn"
     if (rowCount > 0) return "Đã phân bổ FIFO"
     return "Chưa phát sinh"
 }
 
 function getOutputVoucherStatus(status: string, rowCount: number) {
-    if (status === "OUTPUT_RECEIVED") return "Đã ghi sổ"
-    if (status === "FIFO_ALLOCATED") return "Chờ nhập TP"
+    if (["OUTPUT_RECEIVED", "DONE"].includes(status)) return "Đã ghi sổ"
+    if (status === "MATERIAL_ISSUED") return "Chờ nhập TP"
+    if (status === "FIFO_ALLOCATED") return "Chờ xuất nguyên liệu"
     if (rowCount > 0) return "Dự kiến"
     return "Chưa phát sinh"
 }
@@ -1277,6 +1523,8 @@ function ExtraForm({
                             <SelectContent>
                                 <SelectItem value="NVL">Nguyên vật liệu</SelectItem>
                                 <SelectItem value="BB">Bao bì</SelectItem>
+                                <SelectItem value="TP">Thành phẩm (cấp dưới)</SelectItem>
+                                <SelectItem value="HH">Hàng hóa</SelectItem>
                             </SelectContent>
                         </Select>
                     </Field>
@@ -1429,6 +1677,27 @@ function PreferredLotForm({
         onError: (e: any) => toast.error(e.message || "Không thể cập nhật lô"),
     })
 
+    // BA Spec BR-05 + EC-06: cảnh báo (không chặn cứng) khi KT chỉ định lô đã hết hạn
+    // hoặc cận date. Lấy expiry_date từ FIFO allocations đã có của material để dò.
+    const lotIndex = new Map(
+        (material.fifo_allocations ?? [])
+            .filter((a) => a.lot_no)
+            .map((a) => [a.lot_no as string, a.expiry_date]),
+    )
+    const matchedExpiry = lotNo ? lotIndex.get(lotNo.trim()) : undefined
+    const matchedStatus = getExpiryStatus(matchedExpiry)
+    const showExpiredWarn = lotNo && matchedExpiry && matchedStatus.tone !== "ok"
+
+    const handleSave = () => {
+        if (matchedStatus.tone === "bad") {
+            const ok = window.confirm(
+                `Lô "${lotNo}" đã HẾT HẠN (${matchedStatus.label}). Bạn có chắc muốn dùng lô này?`,
+            )
+            if (!ok) return
+        }
+        mutation.mutate()
+    }
+
     return (
         <Dialog open={open} onOpenChange={(next) => !disabled && setOpen(next)}>
             <DialogTrigger asChild>
@@ -1447,26 +1716,38 @@ function PreferredLotForm({
                 <Field label="Số lô ưu tiên">
                     <Input value={lotNo} onChange={(e) => setLotNo(e.target.value)} placeholder="Nhập số lô muốn ưu tiên" />
                 </Field>
+                {showExpiredWarn ? (
+                    <div
+                        className={cn(
+                            "rounded-md border px-3 py-2 text-sm",
+                            matchedStatus.tone === "bad"
+                                ? "border-destructive/40 bg-destructive/10 text-destructive"
+                                : "border-amber-300 bg-amber-50 text-amber-800",
+                        )}
+                    >
+                        <div className="flex items-center gap-2 font-medium">
+                            <AlertTriangle className="h-4 w-4" />
+                            {matchedStatus.tone === "bad"
+                                ? "Lô đã hết hạn"
+                                : "Lô cận date"}
+                        </div>
+                        <div className="mt-1 text-xs">
+                            HSD lô này: {formatDate(matchedExpiry)} ·{" "}
+                            {matchedStatus.label}
+                        </div>
+                    </div>
+                ) : null}
                 <DialogFooter>
                     <DialogClose asChild>
                         <Button type="button" variant="outline">Hủy</Button>
                     </DialogClose>
-                    <Button onClick={() => mutation.mutate()} disabled={disabled || mutation.isPending}>
+                    <Button onClick={handleSave} disabled={disabled || mutation.isPending}>
                         <Save className="mr-2 h-4 w-4" />
                         Lưu lô
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    )
-}
-
-function MiniInfo({ label, value }: { label: string; value: React.ReactNode }) {
-    return (
-        <div className="rounded-md border bg-background px-3 py-2">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="font-medium">{value}</div>
-        </div>
     )
 }
 
@@ -1483,28 +1764,29 @@ function DetailMetric({
     hint: string
     tone?: "primary" | "success" | "info" | "warn" | "muted"
 }) {
-    const toneClass =
-        tone === "success"
-            ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-            : tone === "info"
-                ? "bg-blue-50 text-blue-700 border-blue-100"
-                : tone === "warn"
-                    ? "bg-amber-50 text-amber-700 border-amber-100"
-                    : tone === "primary"
-                        ? "bg-primary/10 text-primary border-primary/10"
-                        : "bg-muted text-muted-foreground border-transparent"
+    const labelToneClass =
+        tone === "warn"
+            ? "text-amber-700"
+            : tone === "success"
+                ? "text-emerald-700"
+                : "text-muted-foreground"
 
     return (
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
-            <div className="flex items-start gap-3">
-                <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border", toneClass)}>
-                    <Icon className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                    <div className="text-muted-foreground text-sm font-semibold">{label}</div>
-                    <div className="mt-1 text-2xl font-bold tabular-nums">{value}</div>
-                    <div className="text-muted-foreground mt-1 line-clamp-2 text-xs">{hint}</div>
-                </div>
+        <div className="rounded-md border bg-background px-4 py-3">
+            <div
+                className={cn(
+                    "flex items-center gap-2 text-sm font-medium",
+                    labelToneClass,
+                )}
+            >
+                <Icon className="h-4 w-4" />
+                {label}
+            </div>
+            <div className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+                {value}
+            </div>
+            <div className="text-muted-foreground mt-0.5 truncate text-xs">
+                {hint}
             </div>
         </div>
     )
@@ -1819,8 +2101,16 @@ function canRunFifo(production?: Pick<Production, "status">) {
     return productionStatus(production) === "MATERIAL_GENERATED"
 }
 
-function canReceiveOutput(production?: Pick<Production, "status">) {
+function canIssueProductionMaterials(production?: Pick<Production, "status">) {
     return productionStatus(production) === "FIFO_ALLOCATED"
+}
+
+function canReceiveOutput(production?: Pick<Production, "status">) {
+    return productionStatus(production) === "MATERIAL_ISSUED"
+}
+
+function canCancelProduction(production?: Pick<Production, "status">) {
+    return ["DRAFT", "PLANNED", "MATERIAL_GENERATED", "FIFO_ALLOCATED"].includes(productionStatus(production))
 }
 
 function getProductionStepMessage(production?: Pick<Production, "status">) {
@@ -1833,6 +2123,9 @@ function getProductionStepMessage(production?: Pick<Production, "status">) {
         return "cần chạy FIFO."
     }
     if (status === "FIFO_ALLOCATED") {
+        return "cần xuất nguyên liệu."
+    }
+    if (status === "MATERIAL_ISSUED") {
         return "cần nhập thành phẩm."
     }
     return "không có thao tác phù hợp với trạng thái hiện tại."

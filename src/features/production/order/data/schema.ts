@@ -13,6 +13,7 @@ export type Production = {
     fifo_runs?: ProductionFifoAllocationRun[]
     warnings?: ProductionWarning[]
     action_logs?: ProductionActionLog[]
+    vouchers?: ProductionVoucher[]
 }
 
 export type ProductionItem = {
@@ -152,6 +153,36 @@ export type ProductionOutput = {
     note?: string
     product?: any
     warehouse?: any
+}
+
+export type ProductionVoucher = {
+    id: number
+    voucher_no?: string
+    voucher_type_code?: string
+    posting_date?: string
+    document_date?: string
+    warehouse_id?: number
+    description?: string
+    status?: string
+    source_type?: string
+    source_id?: number
+    items?: ProductionVoucherItem[]
+}
+
+export type ProductionVoucherItem = {
+    id: number
+    voucher_id?: number
+    line_no?: number
+    product_id?: number
+    warehouse_id?: number
+    lot_id?: number
+    lot_code?: string
+    expiry_date?: string
+    quantity?: number
+    unit_price?: number
+    amount?: number
+    source_type?: string
+    source_id?: number
 }
 
 export type ProductionFifoAllocationRun = {

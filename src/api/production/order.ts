@@ -85,6 +85,28 @@ export const confirmProduction = (
     body: ConfirmProductionRequest = {}
 ) => apiPost<Production>(`/productions/${id}/confirm`, body)
 
+export const issueProductionMaterials = (id: number) =>
+    apiPost<Production>(`/productions/${id}/issue-materials`, {})
+
+export const receiveProductionProducts = (
+    id: number,
+    body: ConfirmProductionRequest = {}
+) => apiPost<Production>(`/productions/${id}/receive-products`, body)
+
+export const cancelProduction = (id: number) =>
+    apiPost<Production>(`/productions/${id}/cancel`, {})
+
+/**
+ * BA Spec BR-06.2 / BR-06.3 / US-06:
+ * Đảo lệnh đã ghi sổ (UNPOST). Hệ thống sẽ:
+ *  - Hoàn nguyên tồn lô (xóa cost_layer + cost_consumption phái sinh)
+ *  - Đặt LSX về MATERIAL_GENERATED (cho phép sửa rồi POST lại)
+ *  - Ghi audit log đầy đủ before/after.
+ * Backend endpoint: POST /productions/{id}/unpost
+ */
+export const unpostProduction = (id: number, reason?: string) =>
+    apiPost<Production>(`/productions/${id}/unpost`, { reason })
+
 export type AddExtraMaterialRequest = {
     production_item_id?: number
     product_id?: number
