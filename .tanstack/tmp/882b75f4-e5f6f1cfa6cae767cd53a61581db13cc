@@ -57,14 +57,12 @@ import { Route as AuthenticatedPurchasingPortsIndexRouteImport } from './routes/
 import { Route as AuthenticatedPurchasingContractsIndexRouteImport } from './routes/_authenticated/purchasing/contracts/index'
 import { Route as AuthenticatedProductionOrdersIndexRouteImport } from './routes/_authenticated/production/orders/index'
 import { Route as AuthenticatedProductionBomsIndexRouteImport } from './routes/_authenticated/production/boms/index'
-import { Route as AuthenticatedInventoryTransfersIndexRouteImport } from './routes/_authenticated/inventory/transfers/index'
 import { Route as AuthenticatedInventorySummaryIndexRouteImport } from './routes/_authenticated/inventory/summary/index'
 import { Route as AuthenticatedInventoryProductionsIndexRouteImport } from './routes/_authenticated/inventory/productions/index'
 import { Route as AuthenticatedInventoryOutboundsIndexRouteImport } from './routes/_authenticated/inventory/outbounds/index'
 import { Route as AuthenticatedInventoryLotsIndexRouteImport } from './routes/_authenticated/inventory/lots/index'
 import { Route as AuthenticatedInventoryLedgersIndexRouteImport } from './routes/_authenticated/inventory/ledgers/index'
 import { Route as AuthenticatedInventoryInboundsIndexRouteImport } from './routes/_authenticated/inventory/inbounds/index'
-import { Route as AuthenticatedInventoryAlertsIndexRouteImport } from './routes/_authenticated/inventory/alerts/index'
 import { Route as AuthenticatedAccessUsersIndexRouteImport } from './routes/_authenticated/access/users/index'
 import { Route as AuthenticatedAccessUserRolesIndexRouteImport } from './routes/_authenticated/access/user-roles/index'
 import { Route as AuthenticatedAccessRolesIndexRouteImport } from './routes/_authenticated/access/roles/index'
@@ -354,12 +352,6 @@ const AuthenticatedProductionBomsIndexRoute =
     path: '/production/boms/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedInventoryTransfersIndexRoute =
-  AuthenticatedInventoryTransfersIndexRouteImport.update({
-    id: '/inventory/transfers/',
-    path: '/inventory/transfers/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedInventorySummaryIndexRoute =
   AuthenticatedInventorySummaryIndexRouteImport.update({
     id: '/inventory/summary/',
@@ -394,12 +386,6 @@ const AuthenticatedInventoryInboundsIndexRoute =
   AuthenticatedInventoryInboundsIndexRouteImport.update({
     id: '/inventory/inbounds/',
     path: '/inventory/inbounds/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedInventoryAlertsIndexRoute =
-  AuthenticatedInventoryAlertsIndexRouteImport.update({
-    id: '/inventory/alerts/',
-    path: '/inventory/alerts/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAccessUsersIndexRoute =
@@ -490,14 +476,12 @@ export interface FileRoutesByFullPath {
   '/access/roles/': typeof AuthenticatedAccessRolesIndexRoute
   '/access/user-roles/': typeof AuthenticatedAccessUserRolesIndexRoute
   '/access/users/': typeof AuthenticatedAccessUsersIndexRoute
-  '/inventory/alerts/': typeof AuthenticatedInventoryAlertsIndexRoute
   '/inventory/inbounds/': typeof AuthenticatedInventoryInboundsIndexRoute
   '/inventory/ledgers/': typeof AuthenticatedInventoryLedgersIndexRoute
   '/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
   '/inventory/outbounds/': typeof AuthenticatedInventoryOutboundsIndexRoute
   '/inventory/productions/': typeof AuthenticatedInventoryProductionsIndexRoute
   '/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
-  '/inventory/transfers/': typeof AuthenticatedInventoryTransfersIndexRoute
   '/production/boms/': typeof AuthenticatedProductionBomsIndexRoute
   '/production/orders/': typeof AuthenticatedProductionOrdersIndexRoute
   '/purchasing/contracts/': typeof AuthenticatedPurchasingContractsIndexRoute
@@ -557,14 +541,12 @@ export interface FileRoutesByTo {
   '/access/roles': typeof AuthenticatedAccessRolesIndexRoute
   '/access/user-roles': typeof AuthenticatedAccessUserRolesIndexRoute
   '/access/users': typeof AuthenticatedAccessUsersIndexRoute
-  '/inventory/alerts': typeof AuthenticatedInventoryAlertsIndexRoute
   '/inventory/inbounds': typeof AuthenticatedInventoryInboundsIndexRoute
   '/inventory/ledgers': typeof AuthenticatedInventoryLedgersIndexRoute
   '/inventory/lots': typeof AuthenticatedInventoryLotsIndexRoute
   '/inventory/outbounds': typeof AuthenticatedInventoryOutboundsIndexRoute
   '/inventory/productions': typeof AuthenticatedInventoryProductionsIndexRoute
   '/inventory/summary': typeof AuthenticatedInventorySummaryIndexRoute
-  '/inventory/transfers': typeof AuthenticatedInventoryTransfersIndexRoute
   '/production/boms': typeof AuthenticatedProductionBomsIndexRoute
   '/production/orders': typeof AuthenticatedProductionOrdersIndexRoute
   '/purchasing/contracts': typeof AuthenticatedPurchasingContractsIndexRoute
@@ -626,14 +608,12 @@ export interface FileRoutesById {
   '/_authenticated/access/roles/': typeof AuthenticatedAccessRolesIndexRoute
   '/_authenticated/access/user-roles/': typeof AuthenticatedAccessUserRolesIndexRoute
   '/_authenticated/access/users/': typeof AuthenticatedAccessUsersIndexRoute
-  '/_authenticated/inventory/alerts/': typeof AuthenticatedInventoryAlertsIndexRoute
   '/_authenticated/inventory/inbounds/': typeof AuthenticatedInventoryInboundsIndexRoute
   '/_authenticated/inventory/ledgers/': typeof AuthenticatedInventoryLedgersIndexRoute
   '/_authenticated/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
   '/_authenticated/inventory/outbounds/': typeof AuthenticatedInventoryOutboundsIndexRoute
   '/_authenticated/inventory/productions/': typeof AuthenticatedInventoryProductionsIndexRoute
   '/_authenticated/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
-  '/_authenticated/inventory/transfers/': typeof AuthenticatedInventoryTransfersIndexRoute
   '/_authenticated/production/boms/': typeof AuthenticatedProductionBomsIndexRoute
   '/_authenticated/production/orders/': typeof AuthenticatedProductionOrdersIndexRoute
   '/_authenticated/purchasing/contracts/': typeof AuthenticatedPurchasingContractsIndexRoute
@@ -695,14 +675,12 @@ export interface FileRouteTypes {
     | '/access/roles/'
     | '/access/user-roles/'
     | '/access/users/'
-    | '/inventory/alerts/'
     | '/inventory/inbounds/'
     | '/inventory/ledgers/'
     | '/inventory/lots/'
     | '/inventory/outbounds/'
     | '/inventory/productions/'
     | '/inventory/summary/'
-    | '/inventory/transfers/'
     | '/production/boms/'
     | '/production/orders/'
     | '/purchasing/contracts/'
@@ -762,14 +740,12 @@ export interface FileRouteTypes {
     | '/access/roles'
     | '/access/user-roles'
     | '/access/users'
-    | '/inventory/alerts'
     | '/inventory/inbounds'
     | '/inventory/ledgers'
     | '/inventory/lots'
     | '/inventory/outbounds'
     | '/inventory/productions'
     | '/inventory/summary'
-    | '/inventory/transfers'
     | '/production/boms'
     | '/production/orders'
     | '/purchasing/contracts'
@@ -830,14 +806,12 @@ export interface FileRouteTypes {
     | '/_authenticated/access/roles/'
     | '/_authenticated/access/user-roles/'
     | '/_authenticated/access/users/'
-    | '/_authenticated/inventory/alerts/'
     | '/_authenticated/inventory/inbounds/'
     | '/_authenticated/inventory/ledgers/'
     | '/_authenticated/inventory/lots/'
     | '/_authenticated/inventory/outbounds/'
     | '/_authenticated/inventory/productions/'
     | '/_authenticated/inventory/summary/'
-    | '/_authenticated/inventory/transfers/'
     | '/_authenticated/production/boms/'
     | '/_authenticated/production/orders/'
     | '/_authenticated/purchasing/contracts/'
@@ -1219,13 +1193,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProductionBomsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/inventory/transfers/': {
-      id: '/_authenticated/inventory/transfers/'
-      path: '/inventory/transfers'
-      fullPath: '/inventory/transfers/'
-      preLoaderRoute: typeof AuthenticatedInventoryTransfersIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/inventory/summary/': {
       id: '/_authenticated/inventory/summary/'
       path: '/inventory/summary'
@@ -1266,13 +1233,6 @@ declare module '@tanstack/react-router' {
       path: '/inventory/inbounds'
       fullPath: '/inventory/inbounds/'
       preLoaderRoute: typeof AuthenticatedInventoryInboundsIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/inventory/alerts/': {
-      id: '/_authenticated/inventory/alerts/'
-      path: '/inventory/alerts'
-      fullPath: '/inventory/alerts/'
-      preLoaderRoute: typeof AuthenticatedInventoryAlertsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/access/users/': {
@@ -1369,14 +1329,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccessRolesIndexRoute: typeof AuthenticatedAccessRolesIndexRoute
   AuthenticatedAccessUserRolesIndexRoute: typeof AuthenticatedAccessUserRolesIndexRoute
   AuthenticatedAccessUsersIndexRoute: typeof AuthenticatedAccessUsersIndexRoute
-  AuthenticatedInventoryAlertsIndexRoute: typeof AuthenticatedInventoryAlertsIndexRoute
   AuthenticatedInventoryInboundsIndexRoute: typeof AuthenticatedInventoryInboundsIndexRoute
   AuthenticatedInventoryLedgersIndexRoute: typeof AuthenticatedInventoryLedgersIndexRoute
   AuthenticatedInventoryLotsIndexRoute: typeof AuthenticatedInventoryLotsIndexRoute
   AuthenticatedInventoryOutboundsIndexRoute: typeof AuthenticatedInventoryOutboundsIndexRoute
   AuthenticatedInventoryProductionsIndexRoute: typeof AuthenticatedInventoryProductionsIndexRoute
   AuthenticatedInventorySummaryIndexRoute: typeof AuthenticatedInventorySummaryIndexRoute
-  AuthenticatedInventoryTransfersIndexRoute: typeof AuthenticatedInventoryTransfersIndexRoute
   AuthenticatedProductionBomsIndexRoute: typeof AuthenticatedProductionBomsIndexRoute
   AuthenticatedProductionOrdersIndexRoute: typeof AuthenticatedProductionOrdersIndexRoute
   AuthenticatedPurchasingContractsIndexRoute: typeof AuthenticatedPurchasingContractsIndexRoute
@@ -1433,8 +1391,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccessUserRolesIndexRoute:
     AuthenticatedAccessUserRolesIndexRoute,
   AuthenticatedAccessUsersIndexRoute: AuthenticatedAccessUsersIndexRoute,
-  AuthenticatedInventoryAlertsIndexRoute:
-    AuthenticatedInventoryAlertsIndexRoute,
   AuthenticatedInventoryInboundsIndexRoute:
     AuthenticatedInventoryInboundsIndexRoute,
   AuthenticatedInventoryLedgersIndexRoute:
@@ -1446,8 +1402,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedInventoryProductionsIndexRoute,
   AuthenticatedInventorySummaryIndexRoute:
     AuthenticatedInventorySummaryIndexRoute,
-  AuthenticatedInventoryTransfersIndexRoute:
-    AuthenticatedInventoryTransfersIndexRoute,
   AuthenticatedProductionBomsIndexRoute: AuthenticatedProductionBomsIndexRoute,
   AuthenticatedProductionOrdersIndexRoute:
     AuthenticatedProductionOrdersIndexRoute,

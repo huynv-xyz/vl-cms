@@ -224,6 +224,31 @@ export const sidebarData: SidebarData = {
                     url: '/inventory/ledgers',
                     icon: ListOrdered,
                 },
+                {
+                    title: 'Tồn theo lô (FIFO)',
+                    url: '/inventory/lots',
+                    icon: Layers3,
+                },
+                {
+                    title: 'Nhập kho',
+                    url: '/inventory/inbounds',
+                    icon: Truck,
+                },
+                {
+                    title: 'Xuất kho khác',
+                    url: '/inventory/outbounds',
+                    icon: Package,
+                },
+                {
+                    title: 'Chuyển kho',
+                    url: '/inventory/transfers',
+                    icon: Warehouse,
+                },
+                {
+                    title: 'Cảnh báo HSD',
+                    url: '/inventory/alerts',
+                    icon: Boxes,
+                },
             ],
         },
         {

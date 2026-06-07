@@ -1,0 +1,1 @@
+import{j as a}from"./index-Dczndfbb.js";function n({header:t="Thao tác",renderActions:i}){return{id:"actions",header:t,cell:({row:e})=>a.jsx("div",{className:"flex items-center justify-end gap-2",children:i(e.original,e)}),enableSorting:!1,enableHiding:!1,meta:{className:"text-right",tdClassName:"text-right"}}}export{n as b};
