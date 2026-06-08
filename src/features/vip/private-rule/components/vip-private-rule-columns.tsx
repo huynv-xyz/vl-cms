@@ -36,21 +36,24 @@ export const vipPrivateRuleColumns: ColumnDef<VipPrivateRule>[] = [
         ),
         cell: ({ row }) => {
             const amount = Number(row.getValue("amount") ?? 0)
-            const unit = row.original.unit
             return (
                 <div className="text-right">
                     <span className="font-semibold tabular-nums text-sm">
                         {formatCurrency(amount)}
                     </span>
-                    {unit && (
-                        <span className="ml-1 text-xs text-muted-foreground">/{unit}</span>
-                    )}
                 </div>
             )
         },
         size: 160,
         meta: { className: "text-right", tdClassName: "text-right" },
     },
+
+    buildTextColumn<VipPrivateRule>({
+        accessorKey: "unit",
+        title: "ĐVT",
+        width: 90,
+        maxWidth: 100,
+    }),
 
     buildBadgeColumn<VipPrivateRule>({
         accessorKey: "status",

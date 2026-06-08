@@ -28,6 +28,7 @@ export const vipPrivateRuleSchema: RJSFSchema = {
         unit: {
             type: "string",
             title: "Đơn vị tính",
+            enum: ["Tấn", "Kg", "Lít"],
         },
         note: {
             type: "string",
@@ -43,6 +44,9 @@ export const vipPrivateRuleSchema: RJSFSchema = {
 } as any
 
 export const vipPrivateRuleUiSchema: UiSchema = {
+    unit: {
+        "ui:widget": "select",
+    },
     note: {
         "ui:widget": "textarea",
         "ui:options": {

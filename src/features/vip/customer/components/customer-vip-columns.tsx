@@ -114,14 +114,8 @@ export const customerVipColumns: ColumnDef<CustomerVip>[] = [
 
     buildNumberColumn<CustomerVip>({
         accessorKey: "common_group_point",
-        title: "Điểm nhóm chung",
+        title: "Điểm quy tắc chung",
         width: 140,
-    }),
-
-    buildNumberColumn<CustomerVip>({
-        accessorKey: "ma_vthh_point",
-        title: "Điểm MA VTHH",
-        width: 130,
     }),
 
     buildNumberColumn<CustomerVip>({
