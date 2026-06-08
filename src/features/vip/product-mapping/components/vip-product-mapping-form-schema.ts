@@ -24,6 +24,11 @@ export const vipProductMappingSchema: RJSFSchema = {
             title: "Hệ số HDN",
             default: 0,
         },
+        unit: {
+            type: "string",
+            title: "Đơn vị tính",
+            enum: ["Tấn", "Kg", "Lít"],
+        },
         customer_code: {
             type: "string",
             title: "Mã khách hàng riêng",

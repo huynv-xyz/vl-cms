@@ -31,6 +31,7 @@ export function UpdateVipProductMappingDialog({
                 product_group: mapping.product_group ?? "",
                 ap_dung: mapping.ap_dung ?? "",
                 he_so_hdn: mapping.he_so_hdn ?? 0,
+                unit: mapping.unit ?? "",
                 customer_code: mapping.customer_code ?? "",
                 note: mapping.note ?? "",
             }}
@@ -45,6 +46,7 @@ export function UpdateVipProductMappingDialog({
                 product_group: values.product_group ?? "",
                 ap_dung: values.ap_dung ?? "",
                 he_so_hdn: values.he_so_hdn ?? 0,
+                unit: values.unit ?? "",
                 customer_code: values.customer_code ?? "",
                 note: values.note ?? "",
             })}

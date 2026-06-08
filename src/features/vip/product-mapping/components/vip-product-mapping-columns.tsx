@@ -31,6 +31,13 @@ export const vipProductMappingColumns: ColumnDef<VipProductMapping>[] = [
     }),
 
     buildTextColumn<VipProductMapping>({
+        accessorKey: "unit",
+        title: "ĐVT",
+        width: 90,
+        maxWidth: 100,
+    }),
+
+    buildTextColumn<VipProductMapping>({
         accessorKey: "customer_code",
         title: "Mã KH riêng",
         width: 110,
