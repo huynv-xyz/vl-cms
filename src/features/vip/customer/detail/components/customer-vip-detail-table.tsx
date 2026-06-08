@@ -43,8 +43,8 @@ export function CustomerVipDetailTable({ items }: Props) {
                                 <TableHead className="text-right font-semibold">Hệ số</TableHead>
                                 <TableHead className="text-right font-semibold">Cần thêm (KK)</TableHead>
                                 <TableHead className="text-right font-semibold">Cần thêm (MT)</TableHead>
-                                <TableHead className="text-right font-semibold">SL mục tiêu</TableHead>
-                                <TableHead className="text-right font-semibold">Điểm mục tiêu</TableHead>
+                                <TableHead className="text-right font-semibold">SL dự kiến thêm</TableHead>
+                                <TableHead className="text-right font-semibold">Điểm dự kiến</TableHead>
                                 <TableHead className="text-right font-semibold">Điểm đạt</TableHead>
                                 <TableHead className="text-center font-semibold">Ưu tiên</TableHead>
                             </TableRow>
@@ -91,11 +91,11 @@ export function CustomerVipDetailTable({ items }: Props) {
                                         </TableCell>
 
                                         <TableCell className="text-right font-semibold text-primary">
-                                            {formatNumber(Number(item.target_qty ?? 0))}
+                                            {formatNumber(Number(item.planned_qty ?? item.target_qty ?? 0))}
                                         </TableCell>
 
                                         <TableCell className="text-right text-muted-foreground">
-                                            {formatNumber(Number(item.target_point ?? 0))}
+                                            {formatNumber(Number(item.projected_point ?? item.target_point ?? 0))}
                                         </TableCell>
 
                                         <TableCell className="text-right font-semibold">

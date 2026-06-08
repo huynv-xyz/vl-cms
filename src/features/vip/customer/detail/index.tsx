@@ -1,3 +1,4 @@
+import { useState, type ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { PageSection } from "@/components/page-section"
 import { Route } from "@/routes/_authenticated/vip/customer/$id"
@@ -5,16 +6,18 @@ import { getCustomerVipAudit, getCustomerVipDetail } from "@/api/customer-vip"
 import { CustomerVipSummary } from "./components/customer-vip-summary"
 import { CustomerVipDetailTable } from "./components/customer-vip-detail-table"
 import { CustomerVipAuditPanel } from "./components/customer-vip-audit-panel"
+import { CustomerVipPlanSheet } from "../components/customer-vip-plan-sheet"
+import { Button } from "@/components/ui/button"
 import { DatePicker } from "@/components/date-picker"
 import { formatCurrency, formatNumber } from "@/lib/utils"
 import {
+    Sparkles,
     TrendingUp,
     Award,
     Target,
     Wallet,
     type LucideIcon,
 } from "lucide-react"
-import type React from "react"
 
 export default function CustomerVipDetailPage() {
     const { id } = Route.useParams()
@@ -28,6 +31,7 @@ export default function CustomerVipDetailPage() {
         to_date: toDate,
         as_of_date: asOfDate,
     }
+    const [planOpen, setPlanOpen] = useState(false)
 
     const { data, isLoading, error } = useQuery({
         queryKey: ["customer-vip-detail", id, fromDate, toDate, asOfDate],
@@ -59,6 +63,14 @@ export default function CustomerVipDetailPage() {
             title="Chi tiết VIP khách hàng"
             description={data?.customer_name}
             showBack
+            actions={
+                data ? (
+                    <Button type="button" onClick={() => setPlanOpen(true)}>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Lập kế hoạch năm nay
+                    </Button>
+                ) : undefined
+            }
         >
             {(detail) => (
                 <div className="space-y-6">
@@ -139,6 +151,24 @@ export default function CustomerVipDetailPage() {
                         <CustomerVipAuditPanel data={auditQuery.data} />
                     ) : null}
 
+                    {/* Gap 3: Plan Sheet ngay trong detail page, không phải quay lại list */}
+                    <CustomerVipPlanSheet
+                        customer={detail}
+                        open={planOpen}
+                        onOpenChange={setPlanOpen}
+                        dateRange={dateRange}
+                        onDateRangeChange={(next) =>
+                            navigate({
+                                search: (prev) => ({
+                                    ...prev,
+                                    from_date: next.from_date || undefined,
+                                    to_date: next.to_date || undefined,
+                                    as_of_date: next.as_of_date || undefined,
+                                }),
+                                replace: true,
+                            })
+                        }
+                    />
                 </div>
             )}
         </PageSection>
@@ -188,8 +218,8 @@ function Metric({
 }: {
     icon?: LucideIcon
     label: string
-    value: React.ReactNode
-    sub?: React.ReactNode
+    value: ReactNode
+    sub?: ReactNode
     tone?: Tone
 }) {
     return (

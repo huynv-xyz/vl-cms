@@ -1,5 +1,5 @@
-import { Currency } from "../../currency/data/schema"
-import { Supplier } from "../../supplier/data/schema"
+import type { Currency } from "../../currency/data/schema"
+import type { Supplier } from "../../supplier/data/schema"
 
 export type PaymentMethod =
     | "TT"
@@ -51,8 +51,12 @@ export type Contract = {
     real_amount_vnd?: number
 
     // ===== PAYMENT =====
+    // total_paid_amount       : nguyên tệ NCC nhận (USD/EUR…). Đối chiếu với total_amount.
+    // total_paid_amount_vnd   : quy đổi VND. Dùng cho báo cáo công nợ + tính %.
     total_paid_amount?: number
+    total_paid_amount_vnd?: number
     remaining_amount?: number
+    remaining_amount_vnd?: number
 
     created_at?: string
     created_by?: number

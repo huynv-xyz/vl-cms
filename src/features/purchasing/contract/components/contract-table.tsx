@@ -33,6 +33,12 @@ type ContractFilters = {
 
 type ContractTableProps = {
     data: Contract[]
+    /** Toàn bộ HĐ thoả filter (không bị giới hạn theo page) — dùng cho Summary */
+    allItems?: Contract[]
+    /** Tổng số HĐ thoả filter (server-side count) */
+    totalCount?: number
+    /** Aggregate query đang loading */
+    aggregateLoading?: boolean
     pagination: PaginationState
     onPaginationChange: OnChangeFn<PaginationState>
     pageCount: number
@@ -66,6 +72,9 @@ const STATUS_OPTIONS = [
 
 export function ContractTable({
     data,
+    allItems,
+    totalCount,
+    aggregateLoading,
     pagination,
     onPaginationChange,
     pageCount,
@@ -74,19 +83,39 @@ export function ContractTable({
     filters,
     onFiltersChange,
 }: ContractTableProps) {
-    const totalAmount = data.reduce((sum, c) => sum + getTotalAmount(c), 0)
-    const totalAmountVnd = data.reduce((sum, c) => sum + getTotalAmountVnd(c), 0)
-    const totalQuantity = data.reduce((sum, c) => sum + (c.total_quantity ?? 0), 0)
-    const supplierCount = new Set(data.map((c) => c.supplier_id).filter(Boolean)).size
+    // Summary cards + footer phải tính trên TOÀN BỘ HĐ thoả filter,
+    // không bị bó vào trang hiện tại. Fallback về `data` của page nếu
+    // chưa có aggregate (lần render đầu).
+    const aggregateBase = allItems && allItems.length > 0 ? allItems : data
+    const totalAmount = aggregateBase.reduce((sum, c) => sum + getTotalAmount(c), 0)
+    const totalAmountVnd = aggregateBase.reduce((sum, c) => sum + getTotalAmountVnd(c), 0)
+    const totalQuantity = aggregateBase.reduce((sum, c) => sum + (c.total_quantity ?? 0), 0)
+    const supplierCount = new Set(
+        aggregateBase.map((c) => c.supplier_id).filter(Boolean),
+    ).size
+    const contractCount = totalCount ?? aggregateBase.length
+
     const setFilter = <K extends keyof ContractFilters>(key: K, value: ContractFilters[K]) =>
         onFiltersChange({ ...filters, [key]: value })
+
+    const loadingText = aggregateLoading ? "..." : undefined
 
     return (
         <div className="space-y-4">
             <div className="grid gap-3 md:grid-cols-3">
-                <SummaryCard label="Hợp đồng đang xem" value={formatNumber(data.length)} />
-                <SummaryCard label="Nhà cung cấp" value={formatNumber(supplierCount)} />
-                <SummaryCard label="Tổng SL hợp đồng" value={formatNumber(totalQuantity)} />
+                <SummaryCard
+                    label="Tổng HĐ thoả filter"
+                    value={loadingText ?? formatNumber(contractCount)}
+                    sub={`Hiển thị ${formatNumber(data.length)} HĐ ở trang này`}
+                />
+                <SummaryCard
+                    label="Nhà cung cấp"
+                    value={loadingText ?? formatNumber(supplierCount)}
+                />
+                <SummaryCard
+                    label="Tổng SL hợp đồng"
+                    value={loadingText ?? formatNumber(totalQuantity)}
+                />
             </div>
 
             <div className="space-y-2">
@@ -267,11 +296,26 @@ function getTotalAmountVnd(contract: Contract) {
     return getTotalAmount(contract) * (contract.exchange_rate ?? contract.currency?.exchange_rate ?? 1)
 }
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
+function SummaryCard({
+    label,
+    value,
+    sub,
+}: {
+    label: string
+    value: string
+    sub?: string
+}) {
     return (
         <div className="rounded-md border bg-background px-4 py-3">
             <div className="text-sm font-medium text-muted-foreground">{label}</div>
-            <div className="mt-1 text-2xl font-semibold tracking-tight">{value}</div>
+            <div className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+                {value}
+            </div>
+            {sub ? (
+                <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {sub}
+                </div>
+            ) : null}
         </div>
     )
 }

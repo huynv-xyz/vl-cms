@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { PageSection } from '@/components/page-section'
 import { usePaginatedList } from '@/hooks/use-paginated-list'
 import { listContracts } from '@/api/purchasing/contract'
@@ -8,6 +9,9 @@ import { CreateContractButton } from './components/create-contract-button'
 import { Route } from '@/routes/_authenticated/purchasing/contracts'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
+
+// Size đủ lớn để gom toàn bộ HĐ thoả filter cho summary. Vlife có vài trăm HĐ/năm.
+const AGGREGATE_PAGE_SIZE = 10000
 
 export default function ContractPage() {
     const search = Route.useSearch()
@@ -29,6 +33,17 @@ export default function ContractPage() {
         ['status', 'product_ids', 'supplier_ids', 'nation_ids'],
         ['signed_date_from', 'signed_date_to']
     )
+    const filterParams = {
+        keyword,
+        status: requestFilters.status,
+        product_ids: requestFilters.product_ids,
+        supplier_ids: requestFilters.supplier_ids,
+        nation_ids: requestFilters.nation_ids,
+        signed_date_from: requestFilters.signed_date_from,
+        signed_date_to: requestFilters.signed_date_to,
+    }
+
+    // Page query — phục vụ table
     const { data, isLoading, error } = usePaginatedList(
         [
             'contracts',
@@ -46,15 +61,21 @@ export default function ContractPage() {
         {
             page: search.page,
             size: search.size,
-            keyword,
-            status: requestFilters.status,
-            product_ids: requestFilters.product_ids,
-            supplier_ids: requestFilters.supplier_ids,
-            nation_ids: requestFilters.nation_ids,
-            signed_date_from: requestFilters.signed_date_from,
-            signed_date_to: requestFilters.signed_date_to,
+            ...filterParams,
         },
     )
+
+    // Aggregate query — phục vụ Summary cards + footer Tổng tiền (lấy hết HĐ thoả filter)
+    const aggregateQuery = useQuery({
+        queryKey: ['contracts', 'aggregate', filterParams],
+        queryFn: () =>
+            listContracts({
+                page: 1,
+                size: AGGREGATE_PAGE_SIZE,
+                ...filterParams,
+            }),
+        staleTime: 60_000,
+    })
 
     return (
         <ContractsProvider>
@@ -70,6 +91,9 @@ export default function ContractPage() {
 
                         <ContractTable
                             data={data.items}
+                            allItems={aggregateQuery.data?.items ?? []}
+                            totalCount={data.total}
+                            aggregateLoading={aggregateQuery.isLoading}
                             pagination={pagination}
                             onPaginationChange={setPagination}
                             pageCount={data.total_page}

@@ -1,1 +1,0 @@
-import{c as o}from"./crud-aYPR-kyg.js";import{an as e}from"./index-Dczndfbb.js";const r=o("/sales/exports"),i=r.list,n=r.detail;function x(t,s){return e(`/sales/exports/${t}/status`,{status:s})}function c(t,s,a){return e(`/sales/exports/${t}/items/${s}/warehouse`,{warehouse_id:a})}export{c as a,n as g,i as l,x as u};

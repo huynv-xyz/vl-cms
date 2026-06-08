@@ -139,6 +139,11 @@ export const sidebarData: SidebarData = {
                     icon: Ship,
                 },
                 {
+                    title: 'Công nợ NCC',
+                    url: '/purchasing/ap-summary',
+                    icon: Calculator,
+                },
+                {
                     title: 'Nhà cung cấp',
                     url: '/purchasing/suppliers',
                     icon: Warehouse,
@@ -274,6 +279,11 @@ export const sidebarData: SidebarData = {
                     title: 'VIP',
                     url: '/vip/customer',
                     icon: Crown,
+                },
+                {
+                    title: 'Kế hoạch VIP',
+                    url: '/vip/customer-plan',
+                    icon: Target,
                 },
                 {
                     title: 'Tính điểm VIP',

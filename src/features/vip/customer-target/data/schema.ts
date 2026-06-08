@@ -6,6 +6,8 @@ export type VipCustomerTargetItem = {
     unit?: string
     target_qty?: number
     target_point?: number
+    planned_qty?: number
+    projected_point?: number
     priority?: string
 }
 

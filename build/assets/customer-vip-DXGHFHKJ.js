@@ -1,1 +1,0 @@
-import{c as i}from"./crud-aYPR-kyg.js";import{Q as e,T as r}from"./index-Dczndfbb.js";const a=i("/vip/customers"),u=a.list;async function p(t,s){return r(`/vip/customers/${t}`,s)}async function n(t,s){return r(`/vip/customers/${t}/audit`,s)}async function m(t){return e("/vip/customers/recalc",{})}export{n as a,p as g,u as l,m as t};

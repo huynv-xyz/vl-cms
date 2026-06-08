@@ -41,12 +41,49 @@ export type CustomerVipDetailItem = {
     needed_qty_target?: number | null
     target_qty?: number | null
     target_point?: number | null
+    planned_qty?: number | null
+    projected_point?: number | null
     achieved_point?: number | null
     priority?: string | null
 }
 
 export type CustomerVipDetail = CustomerVip & {
     items?: CustomerVipDetailItem[]
+}
+
+export type CustomerVipPlanTier = {
+    code: string
+    name: string
+    point: number
+    sort_order?: number | null
+}
+
+export type CustomerVipPlanItem = {
+    stt: number
+    group_code: string
+    product_group?: string | null
+    unit?: string | null
+    achieved_qty: number
+    achieved_point: number
+    point_factor: number
+    planned_qty: number
+    projected_point: number
+    total_point_after_plan: number
+    priority?: string | null
+}
+
+export type CustomerVipPlan = CustomerVip & {
+    target_id?: number | null
+    target_tier_code?: string | null
+    target_tier_name?: string | null
+    target_point: number
+    planned_point: number
+    projected_total_point: number
+    missing_point_to_target: number
+    target_status: 'NO_TARGET' | 'MISSING' | 'ACHIEVED'
+    target_message: string
+    available_tiers: CustomerVipPlanTier[]
+    items: CustomerVipPlanItem[]
 }
 
 export type CustomerVipAuditLine = {
