@@ -28,6 +28,7 @@ export function CreateVipProductMappingDialog({
                 product_group: "",
                 ap_dung: "",
                 he_so_hdn: 0,
+                unit: "",
                 customer_code: "",
                 note: "",
             }}
@@ -41,6 +42,7 @@ export function CreateVipProductMappingDialog({
                 product_group: values.product_group ?? "",
                 ap_dung: values.ap_dung ?? "",
                 he_so_hdn: values.he_so_hdn ?? 0,
+                unit: values.unit ?? "",
                 customer_code: values.customer_code ?? "",
                 note: values.note ?? "",
             })}
