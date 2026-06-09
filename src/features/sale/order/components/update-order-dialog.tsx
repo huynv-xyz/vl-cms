@@ -44,6 +44,7 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
                 unit_price: item.unit_price ?? 0,
                 discount: item.discount ?? 0,
                 line_type: item.line_type ?? "NORMAL",
+                hdn_status: item.hdn_status ?? undefined,
                 description: item.description ?? "",
             }))
         )
@@ -60,6 +61,7 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
                 unit_price: item.unit_price,
                 discount: item.discount ?? 0,
                 line_type: item.line_type ?? "NORMAL",
+                hdn_status: item.hdn_status === "KO" ? "KO" : undefined,
                 description: item.description ?? "",
             })),
         }),
