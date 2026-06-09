@@ -69,7 +69,7 @@ export async function request<T>(
         ...options,
         headers,
         body: options.body,
-        signal: options.signal ?? AbortSignal.timeout(30_000),
+        signal: options.signal ?? AbortSignal.timeout(120_000),
     })
 
     if (!response.ok) {
