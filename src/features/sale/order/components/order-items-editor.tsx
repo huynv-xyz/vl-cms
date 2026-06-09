@@ -20,6 +20,7 @@ type OrderItem = {
     unit?: string
     discount?: number
     line_type?: string
+    hdn_status?: string
     description?: string
 }
 
@@ -37,6 +38,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                 quantity: 1,
                 unit_price: 0,
                 line_type: "NORMAL",
+                hdn_status: undefined,
             },
         ])
     }
@@ -85,13 +87,14 @@ export function OrderItemsEditor({ items, setItems }: Props) {
             </div>
 
             <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full min-w-[1520px] table-fixed text-sm">
+                <table className="w-full min-w-[1640px] table-fixed text-sm">
                     <colgroup>
                         <col className="w-12" />
                         <col className="w-[260px]" />
                         <col className="w-[420px]" />
                         <col className="w-[220px]" />
                         <col className="w-[130px]" />
+                        <col className="w-[120px]" />
                         <col className="w-[120px]" />
                         <col className="w-[150px]" />
                         <col className="w-[130px]" />
@@ -105,6 +108,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                             <th className="px-3 py-2.5 text-left font-semibold">Tên sản phẩm</th>
                             <th className="px-3 py-2.5 text-left font-semibold">Mô tả HH</th>
                             <th className="px-3 py-2.5 text-center font-semibold">Khuyến mãi</th>
+                            <th className="px-3 py-2.5 text-center font-semibold">Không tính HĐN</th>
                             <th className="px-3 py-2.5 text-right font-semibold">Số lượng</th>
                             <th className="px-3 py-2.5 text-right font-semibold">Đơn giá</th>
                             <th className="px-3 py-2.5 text-right font-semibold">Chiết khấu</th>
@@ -253,6 +257,20 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                         </label>
                                     </td>
 
+                                    <td className="px-3 py-3 text-center align-top">
+                                        <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border bg-background px-3 text-xs font-semibold shadow-xs">
+                                            <Checkbox
+                                                checked={row.hdn_status === "KO"}
+                                                onCheckedChange={(checked) =>
+                                                    updateRow(i, {
+                                                        hdn_status: checked ? "KO" : undefined,
+                                                    })
+                                                }
+                                            />
+                                            <span>KO</span>
+                                        </label>
+                                    </td>
+
                                     <td className="px-3 py-3 align-top">
                                         <DecimalInput
                                             value={row.quantity}
@@ -310,7 +328,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
 
                         {!items.length && (
                             <tr>
-                                <td colSpan={10} className="px-4 py-14">
+                                <td colSpan={11} className="px-4 py-14">
                                     <div
                                         className="text-muted-foreground flex flex-col items-center gap-3 text-center text-sm"
                                         tabIndex={0}

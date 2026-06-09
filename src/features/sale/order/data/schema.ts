@@ -21,6 +21,7 @@ export type OrderItem = {
     unit_price?: number
     discount?: number
     line_type?: string
+    hdn_status?: string
     line_total?: number
     exported_quantity: number
     returned_quantity?: number
