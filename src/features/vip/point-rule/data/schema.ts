@@ -14,3 +14,16 @@ export type VipPointRule = {
     created_at?: string
     updated_at?: string
 }
+
+export type VipPointGroup = {
+    id: number
+    group_code: string
+    group_name?: string
+    unit?: string
+    he_so_mb: number
+    he_so_mn: number
+    description?: string
+    status: number
+    created_at?: string
+    updated_at?: string
+}

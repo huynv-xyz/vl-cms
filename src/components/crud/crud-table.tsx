@@ -38,6 +38,7 @@ type CrudTableProps<T> = {
     renderExpanded?: (row: T) => React.ReactNode
     footer?: React.ReactNode
     showToolbar?: boolean
+    onRowClick?: (row: T) => void
 }
 
 export function CrudTable<T>({
@@ -57,7 +58,8 @@ export function CrudTable<T>({
     defaultExpandAll,
     renderExpanded,
     footer,
-    showToolbar
+    showToolbar,
+    onRowClick,
 }: CrudTableProps<T>) {
     return (
         <BaseDataTable<T>
@@ -78,6 +80,7 @@ export function CrudTable<T>({
             renderExpanded={renderExpanded}
             footer={footer}
             showToolbar={showToolbar}
+            onRowClick={onRowClick}
         />
     )
 }

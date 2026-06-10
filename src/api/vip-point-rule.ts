@@ -1,7 +1,10 @@
 import type { VipPointRule } from "@/features/vip/point-rule/data/schema"
 import { createCrudApi, type BaseListParams } from "@/api/crud"
 
-export type VipPointRuleListParams = BaseListParams & { keyword?: string }
+export type VipPointRuleListParams = BaseListParams & {
+    keyword?: string
+    group_code?: string
+}
 
 export type CreateVipPointRuleRequest = {
     vthh_con: string

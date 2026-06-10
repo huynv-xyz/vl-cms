@@ -11,3 +11,13 @@ export type VipPointRuleFormValues = {
     note?: string
     status?: boolean
 }
+
+export type VipPointGroupFormValues = {
+    group_code: string
+    group_name?: string
+    unit?: string
+    he_so_mb?: number
+    he_so_mn?: number
+    description?: string
+    status?: boolean
+}

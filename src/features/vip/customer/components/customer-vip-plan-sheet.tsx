@@ -1,13 +1,8 @@
 import * as React from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-    getCustomerVipPlan,
-    saveCustomerVipPlan,
-    type CustomerVipDateRangeParams,
-} from '@/api/customer-vip'
+import { getCustomerVipPlan, saveCustomerVipPlan } from '@/api/customer-vip'
 import type { CustomerVip, CustomerVipPlanItem } from '../data/schema'
 import { Button } from '@/components/ui/button'
-import { DatePicker } from '@/components/date-picker'
 import { Input } from '@/components/ui/input'
 import {
     Select,
@@ -57,12 +52,12 @@ const ALLOCATION_STRATEGIES: Array<{
     {
         value: 'PRO_RATA',
         label: 'Theo tỷ lệ đã đạt',
-        hint: 'Dồn vào nhóm KH đã mua nhiều — bám sát thói quen mua.',
+        hint: 'Dồn vào nhóm khách đã mua nhiều, bám sát thói quen mua.',
     },
     {
         value: 'FACTOR_HIGH',
         label: 'Ưu tiên nhóm hệ số cao',
-        hint: 'Tối thiểu SL cần bán — chọn nhóm điểm/đơn vị cao nhất.',
+        hint: 'Tối thiểu số lượng cần bán, chọn nhóm điểm/đơn vị cao nhất.',
     },
     {
         value: 'EQUAL',
@@ -72,7 +67,7 @@ const ALLOCATION_STRATEGIES: Array<{
     {
         value: 'PRIORITY',
         label: 'Theo priority KT đánh dấu',
-        hint: 'Chỉ phân bổ vào nhóm KT đã đánh ưu tiên (priority).',
+        hint: 'Chỉ phân bổ vào nhóm KT đã đánh ưu tiên.',
     },
 ]
 
@@ -80,37 +75,19 @@ type Props = {
     customer: CustomerVip | null
     open: boolean
     onOpenChange: (open: boolean) => void
-    dateRange?: CustomerVipDateRangeParams
-    onDateRangeChange?: (range: CustomerVipDateRangeParams) => void
 }
 
 export function CustomerVipPlanSheet({
     customer,
     open,
     onOpenChange,
-    dateRange,
-    onDateRangeChange,
 }: Props) {
     const queryClient = useQueryClient()
     const customerId = customer?.id
 
-    // Gap 7: cho phép đổi mốc tính ngay trong sheet (uncontrolled fallback nếu
-    // không có onDateRangeChange từ parent)
-    const [localRange, setLocalRange] = React.useState<CustomerVipDateRangeParams>(
-        dateRange ?? {},
-    )
-    const effectiveRange = onDateRangeChange ? dateRange ?? {} : localRange
-    const updateRange = (next: CustomerVipDateRangeParams) => {
-        if (onDateRangeChange) onDateRangeChange(next)
-        else setLocalRange(next)
-    }
-    React.useEffect(() => {
-        if (dateRange) setLocalRange(dateRange)
-    }, [dateRange])
-
     const { data, isLoading, error } = useQuery({
-        queryKey: ['customer-vip-plan', customerId, effectiveRange],
-        queryFn: () => getCustomerVipPlan(customerId!, effectiveRange),
+        queryKey: ['customer-vip-plan', customerId],
+        queryFn: () => getCustomerVipPlan(customerId!, {}),
         enabled: open && !!customerId,
     })
 
@@ -126,8 +103,6 @@ export function CustomerVipPlanSheet({
 
     const currentPoint = Number(data?.total_vip_point ?? 0)
 
-    // Gap 2: chỉ liệt kê tier có point > currentPoint. Nếu KH đã đạt hạng cao
-    // nhất, vẫn cho thấy hạng đó để duy trì.
     const eligibleTiers = React.useMemo(() => {
         const all = data?.available_tiers ?? []
         const higher = all.filter((tier) => Number(tier.point ?? 0) > currentPoint)
@@ -141,8 +116,6 @@ export function CustomerVipPlanSheet({
     const plannedPoint = sum(items.map((item) => item.projected_point))
     const projectedTotalPoint = currentPoint + plannedPoint
     const missingToTarget = Math.max(0, targetPoint - projectedTotalPoint)
-
-    // Gap 6: % hoàn thành so với mục tiêu cho progress bar
     const targetProgress = targetPoint > 0
         ? Math.min(100, Math.round((projectedTotalPoint / targetPoint) * 100))
         : 0
@@ -153,9 +126,9 @@ export function CustomerVipPlanSheet({
             return saveCustomerVipPlan(customerId, {
                 target_tier_code: targetTierCode,
                 target_tier_name: selectedTier?.name,
-                from_date: dateRange?.from_date,
-                to_date: dateRange?.to_date,
-                as_of_date: dateRange?.as_of_date,
+                from_date: undefined,
+                to_date: undefined,
+                as_of_date: undefined,
                 items: items.map((item) => ({
                     group_code: item.group_code,
                     product_group: item.product_group,
@@ -178,7 +151,6 @@ export function CustomerVipPlanSheet({
         },
     })
 
-    // Gap 5: confirm trước khi save kế hoạch chưa đủ điểm mục tiêu
     const handleSave = () => {
         if (!data || !targetTierCode) {
             toast.error('Vui lòng chọn hạng mục tiêu năm nay')
@@ -222,7 +194,6 @@ export function CustomerVipPlanSheet({
             return
         }
 
-        // Reset toàn bộ planned_qty
         const next = items.map((item) => ({
             ...item,
             planned_qty: 0,
@@ -238,9 +209,7 @@ export function CustomerVipPlanSheet({
                 ...item,
                 planned_qty: round2(qty),
                 projected_point: projectedPoint,
-                total_point_after_plan: round2(
-                    Number(item.achieved_point || 0) + projectedPoint,
-                ),
+                total_point_after_plan: round2(Number(item.achieved_point || 0) + projectedPoint),
             }
         }
 
@@ -248,7 +217,6 @@ export function CustomerVipPlanSheet({
         const label = strategyMeta?.label ?? strategy
 
         if (strategy === 'FACTOR_HIGH') {
-            // Cũ: dồn vào nhóm có factor cao nhất
             const sorted = [...eligible].sort((a, b) => b.factor - a.factor)
             let remaining = totalRemainingPoint
             for (const { index, factor } of sorted) {
@@ -258,20 +226,16 @@ export function CustomerVipPlanSheet({
                 remaining -= qty * factor
             }
         } else if (strategy === 'EQUAL') {
-            // Chia ĐỀU điểm cần đạt giữa các nhóm có factor > 0
             const pointPerGroup = totalRemainingPoint / eligible.length
             for (const { index, factor } of eligible) {
                 applyToRow(index, pointPerGroup / factor)
             }
         } else if (strategy === 'PRIORITY') {
-            // Chỉ phân bổ vào nhóm có priority được đánh dấu (priority != null/empty)
             const prioritized = eligible.filter(
                 ({ item }) => item.priority && String(item.priority).trim() !== '',
             )
             if (!prioritized.length) {
-                toast.warning(
-                    'Chưa có nhóm nào được đánh priority. Hãy đánh ưu tiên trên dòng hoặc đổi sang strategy khác.',
-                )
+                toast.warning('Chưa có nhóm nào được đánh priority. Hãy đánh ưu tiên trên dòng hoặc đổi sang chiến lược khác.')
                 return
             }
             const pointPerGroup = totalRemainingPoint / prioritized.length
@@ -279,18 +243,14 @@ export function CustomerVipPlanSheet({
                 applyToRow(index, pointPerGroup / factor)
             }
         } else {
-            // PRO_RATA (default): phân bổ theo tỷ lệ achieved_qty (hoặc achieved_point) của
-            // từng nhóm — bám sát thói quen mua hàng của KH.
             const weights = eligible.map(({ item }) => {
                 const achieved = Number(item.achieved_qty || 0)
                 const achievedPoint = Number(item.achieved_point || 0)
-                // Ưu tiên SL đã đạt; fallback điểm đã đạt; cuối cùng = 1 để tránh chia 0
                 return achieved > 0 ? achieved : achievedPoint > 0 ? achievedPoint : 1
             })
             const totalWeight = weights.reduce((s, w) => s + w, 0)
 
             if (totalWeight === 0) {
-                // Tất cả achieved = 0 → fallback chia đều
                 const pointPerGroup = totalRemainingPoint / eligible.length
                 for (const { index, factor } of eligible) {
                     applyToRow(index, pointPerGroup / factor)
@@ -315,37 +275,6 @@ export function CustomerVipPlanSheet({
                     <SheetDescription>
                         {customer?.customer_code} - {customer?.customer_name}
                     </SheetDescription>
-
-                    {/* Gap 7: DatePicker để KT đổi mốc tính ngay trong sheet */}
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-medium text-muted-foreground">
-                            Mốc tạm tính:
-                        </span>
-                        <DatePicker
-                            className="min-w-[150px] [&_button]:h-9"
-                            value={effectiveRange?.from_date}
-                            onChange={(value) =>
-                                updateRange({
-                                    ...effectiveRange,
-                                    from_date: value || undefined,
-                                    as_of_date: undefined,
-                                })
-                            }
-                            placeholder="Từ ngày CT"
-                        />
-                        <DatePicker
-                            className="min-w-[150px] [&_button]:h-9"
-                            value={effectiveRange?.to_date}
-                            onChange={(value) =>
-                                updateRange({
-                                    ...effectiveRange,
-                                    to_date: value || undefined,
-                                    as_of_date: undefined,
-                                })
-                            }
-                            placeholder="Đến ngày CT"
-                        />
-                    </div>
                 </SheetHeader>
 
                 <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
@@ -360,17 +289,12 @@ export function CustomerVipPlanSheet({
                         </div>
                     ) : data ? (
                         <div className="space-y-4">
-                            {/* ── SUMMARY CARDS ────────────────────────────── */}
                             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                                 <StatCard
                                     icon={Trophy}
                                     label="Hạng hiện tại"
                                     value={data.tier_name || 'Chưa đủ VIP'}
-                                    sub={
-                                        data.next_tier_name
-                                            ? `Kế tiếp: ${data.next_tier_name}`
-                                            : 'Cao nhất'
-                                    }
+                                    sub={data.next_tier_name ? `Kế tiếp: ${data.next_tier_name}` : 'Cao nhất'}
                                     tone="info"
                                 />
                                 <StatCard
@@ -388,27 +312,18 @@ export function CustomerVipPlanSheet({
                                     icon={Target}
                                     label={`Mục tiêu năm ${data.calc_year}`}
                                     value={formatNumber(targetPoint)}
-                                    sub={
-                                        selectedTier
-                                            ? `Hạng: ${selectedTier.name}`
-                                            : 'Chưa chọn hạng'
-                                    }
+                                    sub={selectedTier ? `Hạng: ${selectedTier.name}` : 'Chưa chọn hạng'}
                                     tone="primary"
                                 />
                                 <StatCard
                                     icon={missingToTarget > 0 ? AlertCircle : CheckCircle2}
                                     label="Còn thiếu để đạt mục tiêu"
-                                    value={
-                                        missingToTarget > 0
-                                            ? formatNumber(missingToTarget)
-                                            : 'Đã đạt'
-                                    }
+                                    value={missingToTarget > 0 ? formatNumber(missingToTarget) : 'Đã đạt'}
                                     sub={`Dự kiến cuối kỳ: ${formatNumber(projectedTotalPoint)} điểm`}
                                     tone={missingToTarget > 0 ? 'warn' : 'ok'}
                                 />
                             </div>
 
-                            {/* ── TARGET TIER + STRATEGY TOOLBAR ───────────── */}
                             <div className="flex flex-wrap items-center gap-3 rounded-md border bg-muted/30 px-4 py-3">
                                 <div className="flex min-w-[260px] flex-1 flex-col gap-1">
                                     <label className="text-xs font-medium text-muted-foreground">
@@ -421,7 +336,7 @@ export function CustomerVipPlanSheet({
                                         <SelectContent>
                                             {eligibleTiers.map((tier) => (
                                                 <SelectItem key={tier.code} value={tier.code}>
-                                                    {tier.name} — {formatNumber(tier.point)} điểm
+                                                    {tier.name} - {formatNumber(tier.point)} điểm
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -469,7 +384,6 @@ export function CustomerVipPlanSheet({
                                 </div>
                             </div>
 
-                            {/* ── PLAN TABLE ───────────────────────────────── */}
                             <div className="overflow-hidden rounded-md border bg-background">
                                 <div className="overflow-x-auto">
                                     <Table className="min-w-[1080px]">
@@ -572,7 +486,6 @@ export function CustomerVipPlanSheet({
                 </div>
 
                 <SheetFooter className="border-t">
-                    {/* Gap 6: Progress bar trực quan */}
                     {data && targetPoint > 0 ? (
                         <div className="mr-auto flex w-full max-w-[420px] flex-col gap-1 px-1">
                             <div className="flex items-center justify-between text-xs">
