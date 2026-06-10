@@ -1,7 +1,6 @@
-import * as React from "react"
+﻿import * as React from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { PageSection } from "@/components/page-section"
-import { DatePicker } from "@/components/date-picker"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -63,13 +62,10 @@ export default function VipCustomerPlanPage() {
     const navigate = Route.useNavigate()
     const queryClient = useQueryClient()
     const customerId = cleanId(search.customer_id)
-    const dateRange = React.useMemo(() => ({
-        from_date: search.from_date,
-        to_date: search.to_date,
-    }), [search.from_date, search.to_date])
+    const dateRange = React.useMemo(() => ({}), [])
 
     const planQuery = useQuery({
-        queryKey: ["customer-vip-plan-page", customerId, search.from_date, search.to_date],
+        queryKey: ["customer-vip-plan-page", customerId],
         queryFn: () => getCustomerVipPlan(customerId!, dateRange),
         enabled: !!customerId,
     })
@@ -108,8 +104,8 @@ export default function VipCustomerPlanPage() {
             return saveCustomerVipPlan(customerId, {
                 target_tier_code: targetTierCode,
                 target_tier_name: selectedTier?.name,
-                from_date: search.from_date,
-                to_date: search.to_date,
+                from_date: undefined,
+                to_date: undefined,
                 items: items.map((item) => ({
                     group_code: item.group_code,
                     product_group: item.product_group,
@@ -247,11 +243,11 @@ export default function VipCustomerPlanPage() {
         >
             {() => (
                 <div className="space-y-4">
-                    <div className="grid items-center gap-3 rounded-md border bg-background p-3 shadow-sm lg:grid-cols-[minmax(300px,1fr)_170px_170px_minmax(300px,360px)_auto]">
+                    <div className="rounded-md border bg-background p-3 shadow-sm">
                         <div className="min-w-0">
                             <AsyncSelect
                                 value={customerId}
-                                onChange={(value: string | undefined) => updateSearch({ customer_id: value, from_date: search.from_date, to_date: search.to_date })}
+                                onChange={(value: string | undefined) => updateSearch({ customer_id: value })}
                                 dataSource={{
                                     getList: (params: any) => listCustomerVips({ page: 1, size: 30, keyword: params.keyword }),
                                 }}
@@ -275,49 +271,6 @@ export default function VipCustomerPlanPage() {
                                 required
                                 className="h-10"
                             />
-                        </div>
-                        <div className="min-w-0">
-                            <DatePicker
-                                className="[&_button]:h-10"
-                                value={search.from_date}
-                                onChange={(value) => updateSearch({ from_date: value || undefined })}
-                                placeholder="Từ ngày CT"
-                            />
-                        </div>
-                        <div className="min-w-0">
-                            <DatePicker
-                                className="[&_button]:h-10"
-                                value={search.to_date}
-                                onChange={(value) => updateSearch({ to_date: value || undefined })}
-                                placeholder="Đến ngày CT"
-                            />
-                        </div>
-                        <div className="min-w-0">
-                            <Select value={strategy} onValueChange={(value) => setStrategy(value as AllocationStrategy)}>
-                                <SelectTrigger className="h-10 w-full bg-background">
-                                    <span className="min-w-0 truncate">{allocationStrategyLabel(strategy)}</span>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {ALLOCATION_STRATEGIES.map((option) => (
-                                        <SelectItem key={option.value} value={option.value} textValue={option.label}>
-                                            <div className="flex flex-col items-start">
-                                                <span className="font-medium">{option.label}</span>
-                                                <span className="max-w-[320px] truncate text-xs text-muted-foreground">{option.hint}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="flex items-center justify-end gap-2">
-                            <Button type="button" variant="outline" onClick={autoAllocate} disabled={!data}>
-                                <Wand2 className="mr-2 h-4 w-4" />
-                                Tự phân bổ
-                            </Button>
-                            <Button type="button" onClick={() => saveMutation.mutate()} disabled={!data || !targetTierCode || saveMutation.isPending}>
-                                {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                                Lưu
-                            </Button>
                         </div>
                     </div>
 
@@ -346,6 +299,9 @@ export default function VipCustomerPlanPage() {
                             missingToTarget={missingToTarget}
                             plannedPoint={plannedPoint}
                             updatePlannedQty={updatePlannedQty}
+                            onSave={() => saveMutation.mutate()}
+                            canSave={!!data && !!targetTierCode && !saveMutation.isPending}
+                            isSaving={saveMutation.isPending}
                             autoAllocate={autoAllocate}
                             strategy={strategy}
                             setStrategy={setStrategy}
@@ -368,6 +324,9 @@ function PlanBoard({
     missingToTarget,
     plannedPoint,
     updatePlannedQty,
+    onSave,
+    canSave,
+    isSaving,
     autoAllocate,
     strategy,
     setStrategy,
@@ -382,12 +341,16 @@ function PlanBoard({
     missingToTarget: number
     plannedPoint: number
     updatePlannedQty: (index: number, value: string) => void
+    onSave: () => void
+    canSave: boolean
+    isSaving: boolean
     autoAllocate: () => void
     strategy: AllocationStrategy
     setStrategy: (value: AllocationStrategy) => void
 }) {
     const progressPct = targetPoint > 0 ? Math.min(100, Math.round((projectedTotalPoint / targetPoint) * 100)) : 0
     const currentPct = targetPoint > 0 ? Math.min(100, Math.round((currentPoint / targetPoint) * 100)) : 0
+    const plannedPct = Math.max(0, progressPct - currentPct)
     const achievedPoint = sum(items.map((item) => item.achieved_point))
     const achievedQty = sum(items.map((item) => item.achieved_qty))
     const plannedQty = sum(items.map((item) => item.planned_qty))
@@ -408,20 +371,26 @@ function PlanBoard({
                             </div>
                         </div>
 
-                        <div className="min-w-[260px]">
-                            <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Hạng mục tiêu năm nay</div>
-                            <Select value={targetTierCode} onValueChange={setTargetTierCode}>
-                                <SelectTrigger className="h-10 w-full bg-background">
-                                    <SelectValue placeholder="Chọn hạng mục tiêu" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {data.available_tiers.map((tier) => (
-                                        <SelectItem key={tier.code} value={tier.code}>
-                                            {tier.name} - {formatNumber(tier.point)} điểm
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                        <div className="flex min-w-[340px] items-end gap-2">
+                            <div className="min-w-0 flex-1">
+                                <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Hạng mục tiêu năm nay</div>
+                                <Select value={targetTierCode} onValueChange={setTargetTierCode}>
+                                    <SelectTrigger className="h-10 w-full bg-background">
+                                        <SelectValue placeholder="Chọn hạng mục tiêu" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {data.available_tiers.map((tier) => (
+                                            <SelectItem key={tier.code} value={tier.code}>
+                                                {tier.name} - {formatNumber(tier.point)} điểm
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Button type="button" className="h-10 shrink-0" onClick={onSave} disabled={!canSave}>
+                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                Lưu
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -441,9 +410,9 @@ function PlanBoard({
                             <div className="text-sm font-semibold">Tiến độ sau kế hoạch</div>
                             <div className="text-sm font-semibold tabular-nums">{progressPct}%</div>
                         </div>
-                        <div className="h-3 overflow-hidden rounded-full bg-muted">
-                            <div className="h-full bg-slate-400" style={{ width: `${currentPct}%` }} />
-                            <div className="-mt-3 h-full bg-emerald-500/80" style={{ width: `${progressPct}%` }} />
+                        <div className="relative h-3 overflow-hidden rounded-full bg-slate-200">
+                            <div className="absolute inset-y-0 left-0 bg-slate-600" style={{ width: `${currentPct}%` }} />
+                            <div className="absolute inset-y-0 bg-orange-500" style={{ left: `${currentPct}%`, width: `${plannedPct}%` }} />
                         </div>
                         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                             <span>Hiện tại: {formatNumber(currentPoint)}</span>

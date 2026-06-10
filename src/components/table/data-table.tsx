@@ -47,6 +47,7 @@ export type BaseDataTableProps<TData> = {
     defaultExpandAll?: boolean
     footer?: React.ReactNode
     showToolbar?: boolean
+    onRowClick?: (row: TData) => void
 }
 
 export function BaseDataTable<TData>({
@@ -67,7 +68,8 @@ export function BaseDataTable<TData>({
     renderExpanded,
     defaultExpandAll = false,
     footer,
-    showToolbar = true
+    showToolbar = true,
+    onRowClick,
 }: BaseDataTableProps<TData>) {
 
     const [rowSelection, setRowSelection] = useState({})
@@ -173,7 +175,26 @@ export function BaseDataTable<TData>({
                             <>
                                 {table.getRowModel().rows.map((row) => (
                                     <Fragment key={row.id}>
-                                        <TableRow>
+                                        <TableRow
+                                            className={cn(
+                                                onRowClick && "cursor-pointer hover:bg-muted/40"
+                                            )}
+                                            onClick={(event) => {
+                                                if (!onRowClick) {
+                                                    return
+                                                }
+
+                                                const target = event.target
+                                                if (
+                                                    target instanceof HTMLElement &&
+                                                    target.closest("button,a,input,select,textarea,[role='menuitem'],[data-no-row-click='true']")
+                                                ) {
+                                                    return
+                                                }
+
+                                                onRowClick(row.original)
+                                            }}
+                                        >
                                             {row.getVisibleCells().map((cell) => (
                                                 <TableCell
                                                     key={cell.id}

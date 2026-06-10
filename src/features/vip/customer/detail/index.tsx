@@ -82,7 +82,7 @@ export default function CustomerVipDetailPage() {
                                     ? `Đang tính theo ngày chứng từ ${formatDateRange(fromDate, toDate)}`
                                     : asOfDate
                                         ? `Đang tính theo ngày chứng từ đến ${formatDisplayDate(asOfDate)}`
-                                    : "Đang xem kết quả đã chốt theo năm"}
+                                        : "Đang xem kết quả đã chốt theo năm"}
                             </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -101,10 +101,8 @@ export default function CustomerVipDetailPage() {
                         </div>
                     </div>
 
-                    {/* ── HEADER INFO ── */}
                     <CustomerVipSummary data={detail} />
 
-                    {/* ── KPI METRICS ── */}
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <Metric
                             icon={TrendingUp}
@@ -136,7 +134,6 @@ export default function CustomerVipDetailPage() {
                         />
                     </div>
 
-                    {/* ── DETAIL TABLE ── */}
                     <CustomerVipDetailTable items={detail.items ?? []} />
 
                     {auditQuery.isLoading ? (
@@ -151,23 +148,10 @@ export default function CustomerVipDetailPage() {
                         <CustomerVipAuditPanel data={auditQuery.data} />
                     ) : null}
 
-                    {/* Gap 3: Plan Sheet ngay trong detail page, không phải quay lại list */}
                     <CustomerVipPlanSheet
                         customer={detail}
                         open={planOpen}
                         onOpenChange={setPlanOpen}
-                        dateRange={dateRange}
-                        onDateRangeChange={(next) =>
-                            navigate({
-                                search: (prev) => ({
-                                    ...prev,
-                                    from_date: next.from_date || undefined,
-                                    to_date: next.to_date || undefined,
-                                    as_of_date: next.as_of_date || undefined,
-                                }),
-                                replace: true,
-                            })
-                        }
                     />
                 </div>
             )}
@@ -188,8 +172,6 @@ function formatDateRange(fromDate?: string, toDate?: string) {
     if (toDate) return `đến ${formatDisplayDate(toDate)}`
     return ""
 }
-
-/* ── Metric card (same pattern as order detail) ─────────────────────── */
 
 type Tone = "primary" | "ok" | "warn" | "info" | "muted"
 

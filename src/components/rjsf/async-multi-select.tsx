@@ -48,6 +48,7 @@ export function AsyncMultiSelect({
     const [options, setOptions] = React.useState<Option[]>([])
     const [selectedOptions, setSelectedOptions] = React.useState<Option[]>([])
     const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+    const keepOpenAfterSelectRef = React.useRef(false)
 
     React.useEffect(() => {
         if (!open || !dataSource?.getList) return
@@ -135,9 +136,13 @@ export function AsyncMultiSelect({
             optionValues.forEach((item) => next.add(item))
         }
 
+        keepOpenAfterSelectRef.current = true
         setSelectedOptions((current) => mergeOptions(current, [option], next))
         onChange?.(Array.from(next))
         setOpen(true)
+        window.setTimeout(() => {
+            keepOpenAfterSelectRef.current = false
+        }, 0)
     }
 
     const clear = (event?: React.MouseEvent, keepOpen = false) => {
@@ -147,7 +152,16 @@ export function AsyncMultiSelect({
     }
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover
+            open={open}
+            onOpenChange={(nextOpen) => {
+                if (!nextOpen && keepOpenAfterSelectRef.current) {
+                    return
+                }
+
+                setOpen(nextOpen)
+            }}
+        >
             <PopoverTrigger asChild>
                 <Button
                     type="button"

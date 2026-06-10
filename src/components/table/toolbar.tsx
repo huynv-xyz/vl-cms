@@ -94,9 +94,11 @@ export function DataTableToolbar<TData>({
                                 key={filter.columnId}
                                 className="flex flex-col"
                             >
-                                <span className="text-xs text-muted-foreground">
-                                    {filter.title}
-                                </span>
+                                {filter.title ? (
+                                    <span className="text-xs text-muted-foreground">
+                                        {filter.title}
+                                    </span>
+                                ) : null}
                                 {filter.render()}
                             </div>
                         )

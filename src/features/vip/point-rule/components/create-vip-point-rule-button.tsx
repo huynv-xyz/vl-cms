@@ -6,6 +6,7 @@ export function CreateVipPointRuleButton() {
 
     return (
         <CrudCreateButton
+            label="Tạo rule"
             onClick={openCreate}
         />
     )
