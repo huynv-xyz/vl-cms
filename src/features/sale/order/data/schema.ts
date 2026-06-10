@@ -16,6 +16,7 @@ export type OrderItem = {
 
     product_name?: string
     description?: string
+    note?: string
 
     quantity: number
     unit_price?: number

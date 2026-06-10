@@ -46,6 +46,7 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
                 line_type: item.line_type ?? "NORMAL",
                 hdn_status: item.hdn_status ?? undefined,
                 description: item.description ?? "",
+                note: item.note ?? "",
             }))
         )
     }, [open, detail])
@@ -63,6 +64,7 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
                 line_type: item.line_type ?? "NORMAL",
                 hdn_status: item.hdn_status === "KO" ? "KO" : undefined,
                 description: item.description ?? "",
+                note: item.note ?? "",
             })),
         }),
         onSuccess: async () => {

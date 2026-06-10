@@ -28,9 +28,7 @@ export function DeliveryItemsEditor({
     items,
     onChange,
 }: Props) {
-
     const updateRow = (orderItemId: number, patch: any) => {
-
         const map = new Map(items.map(i => [i.order_item_id, i]))
 
         const order = orderItems.find(o => o.id === orderItemId)
@@ -44,8 +42,6 @@ export function DeliveryItemsEditor({
         const next = { ...current, ...patch }
 
         if (order) {
-            // Chỉ giới hạn theo số lượng còn phải giao của đơn hàng,
-            // không kiểm tra tồn kho.
             if (next.quantity < 0) next.quantity = 0
         }
 
@@ -67,9 +63,65 @@ export function DeliveryItemsEditor({
         })
     }, [orderItems, items])
 
+    const normalizedData = useMemo(() => {
+        return data.map((row) => ({
+            ...row,
+            max_quantity: Number(row.remain_quantity ?? row.quantity ?? 0),
+        }))
+    }, [data])
+
+    const selectableRows = normalizedData.filter((row) => Number(row.max_quantity || 0) > 0)
+    const selectedSelectableRows = selectableRows.filter((row) => row.selected)
+    const allSelectableSelected =
+        selectableRows.length > 0 && selectedSelectableRows.length === selectableRows.length
+    const someSelectableSelected =
+        selectedSelectableRows.length > 0 && selectedSelectableRows.length < selectableRows.length
+
+    const setAllRowsSelected = (checked: boolean) => {
+        const map = new Map(items.map(i => [i.order_item_id, i]))
+
+        for (const row of selectableRows) {
+            const current = map.get(row.order_item_id) ?? {
+                order_item_id: row.order_item_id,
+                product_id: row.product_id,
+                quantity: 0,
+                selected: false,
+            }
+
+            map.set(row.order_item_id, {
+                ...current,
+                selected: checked,
+                quantity: checked
+                    ? Number(current.quantity || 0) > 0
+                        ? current.quantity
+                        : row.max_quantity
+                    : 0,
+                warehouse_id: row.warehouse_id,
+            })
+        }
+
+        onChange(Array.from(map.values()))
+    }
+
     const columns: ColumnDef<any>[] = [
         {
-            header: "Chọn",
+            id: "selected",
+            header: () => (
+                <div className="flex items-center justify-center">
+                    <Checkbox
+                        checked={
+                            allSelectableSelected
+                                ? true
+                                : someSelectableSelected
+                                    ? "indeterminate"
+                                    : false
+                        }
+                        disabled={!selectableRows.length}
+                        onCheckedChange={(checked) => setAllRowsSelected(checked === true)}
+                        aria-label="Chọn tất cả sản phẩm"
+                    />
+                </div>
+            ),
             cell: ({ row }) => (
                 <Checkbox
                     checked={row.original.selected}
@@ -77,9 +129,7 @@ export function DeliveryItemsEditor({
                         updateRow(row.original.order_item_id, {
                             selected: !!checked,
                             quantity: checked ? row.original.max_quantity : 0,
-                            warehouse_id: checked
-                                ? row.original.warehouse_id
-                                : row.original.warehouse_id,
+                            warehouse_id: row.original.warehouse_id,
                         })
                     }
                 />
@@ -131,29 +181,19 @@ export function DeliveryItemsEditor({
         },
         {
             header: "SL giao",
-            cell: ({ row }) => {
-
-                return (
-                    <QuantityInputCell
-                        productId={row.original.order_item_id}
-                        value={row.original.quantity_delivery}
-                        disabled={!row.original.selected}
-                        max={row.original.max_quantity}
-                        onCommit={(productId, quantity) =>
-                            flushSync(() => updateRow(productId, { quantity }))
-                        }
-                    />
-                )
-            },
+            cell: ({ row }) => (
+                <QuantityInputCell
+                    productId={row.original.order_item_id}
+                    value={row.original.quantity_delivery}
+                    disabled={!row.original.selected}
+                    max={row.original.max_quantity}
+                    onCommit={(productId, quantity) =>
+                        flushSync(() => updateRow(productId, { quantity }))
+                    }
+                />
+            ),
         },
     ]
-
-    const normalizedData = useMemo(() => {
-        return data.map((row) => ({
-            ...row,
-            max_quantity: Number(row.remain_quantity ?? row.quantity ?? 0),
-        }))
-    }, [data])
 
     const selectedRows = normalizedData.filter((row) => row.selected)
     const totalQty = selectedRows.reduce(

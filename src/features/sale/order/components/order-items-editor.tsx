@@ -22,6 +22,7 @@ type OrderItem = {
     line_type?: string
     hdn_status?: string
     description?: string
+    note?: string
 }
 
 type Props = {
@@ -39,6 +40,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                 unit_price: 0,
                 line_type: "NORMAL",
                 hdn_status: undefined,
+                note: "",
             },
         ])
     }
@@ -87,16 +89,17 @@ export function OrderItemsEditor({ items, setItems }: Props) {
             </div>
 
             <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full min-w-[1640px] table-fixed text-sm">
+                <table className="w-full min-w-[1860px] table-fixed text-sm">
                     <colgroup>
                         <col className="w-12" />
                         <col className="w-[260px]" />
                         <col className="w-[420px]" />
                         <col className="w-[220px]" />
-                        <col className="w-[130px]" />
-                        <col className="w-[120px]" />
                         <col className="w-[120px]" />
                         <col className="w-[150px]" />
+                        <col className="w-[130px]" />
+                        <col className="w-[120px]" />
+                        <col className="w-[220px]" />
                         <col className="w-[130px]" />
                         <col className="w-[160px]" />
                         <col className="w-12" />
@@ -107,10 +110,11 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                             <th className="px-3 py-2.5 text-left font-semibold">Mã sản phẩm</th>
                             <th className="px-3 py-2.5 text-left font-semibold">Tên sản phẩm</th>
                             <th className="px-3 py-2.5 text-left font-semibold">Mô tả HH</th>
-                            <th className="px-3 py-2.5 text-center font-semibold">Khuyến mãi</th>
-                            <th className="px-3 py-2.5 text-center font-semibold">Không tính HĐN</th>
                             <th className="px-3 py-2.5 text-right font-semibold">Số lượng</th>
                             <th className="px-3 py-2.5 text-right font-semibold">Đơn giá</th>
+                            <th className="px-3 py-2.5 text-center font-semibold">Khuyến mãi</th>
+                            <th className="px-3 py-2.5 text-center font-semibold">Không tính HĐN</th>
+                            <th className="px-3 py-2.5 text-left font-semibold">Ghi chú</th>
                             <th className="px-3 py-2.5 text-right font-semibold">Chiết khấu</th>
                             <th className="px-3 py-2.5 text-right font-semibold">Thành tiền</th>
                             <th className="px-2 py-2.5" />
@@ -127,6 +131,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                 0
                             )
                             const isInvalid = !row.product_id || (row.quantity ?? 0) <= 0
+
                             return (
                                 <tr
                                     key={i}
@@ -241,6 +246,23 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                         />
                                     </td>
 
+                                    <td className="px-3 py-3 align-top">
+                                        <DecimalInput
+                                            value={row.quantity}
+                                            onKeyDown={(event) => addRowOnEnter(event, i)}
+                                            onChange={(quantity) => updateRow(i, { quantity })}
+                                        />
+                                    </td>
+
+                                    <td className="px-3 py-3 align-top">
+                                        <DecimalInput
+                                            value={row.unit_price}
+                                            disabled={isPromotion}
+                                            onKeyDown={(event) => addRowOnEnter(event, i)}
+                                            onChange={(unit_price) => updateRow(i, { unit_price })}
+                                        />
+                                    </td>
+
                                     <td className="px-3 py-3 text-center align-top">
                                         <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border bg-background px-3 text-xs font-semibold shadow-xs">
                                             <Checkbox
@@ -272,19 +294,12 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                                     </td>
 
                                     <td className="px-3 py-3 align-top">
-                                        <DecimalInput
-                                            value={row.quantity}
+                                        <Input
+                                            value={row.note ?? ""}
+                                            onChange={(event) => updateRow(i, { note: event.target.value })}
                                             onKeyDown={(event) => addRowOnEnter(event, i)}
-                                            onChange={(quantity) => updateRow(i, { quantity })}
-                                        />
-                                    </td>
-
-                                    <td className="px-3 py-3 align-top">
-                                        <DecimalInput
-                                            value={row.unit_price}
-                                            disabled={isPromotion}
-                                            onKeyDown={(event) => addRowOnEnter(event, i)}
-                                            onChange={(unit_price) => updateRow(i, { unit_price })}
+                                            placeholder="Ghi chú dòng hàng"
+                                            className="min-w-0"
                                         />
                                     </td>
 
@@ -328,7 +343,7 @@ export function OrderItemsEditor({ items, setItems }: Props) {
 
                         {!items.length && (
                             <tr>
-                                <td colSpan={11} className="px-4 py-14">
+                                <td colSpan={12} className="px-4 py-14">
                                     <div
                                         className="text-muted-foreground flex flex-col items-center gap-3 text-center text-sm"
                                         tabIndex={0}
@@ -458,6 +473,5 @@ function DecimalInput({
     )
 }
 
-// re-export for potential external consumers, currently unused
 export type { OrderItem }
 export { formatCurrency }

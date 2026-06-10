@@ -1,11 +1,15 @@
 import { createCrudApi } from "@/api/crud"
-import { apiPostMultipart } from "@/api/client"
+import { apiGet, apiPostMultipart, type PagedResult } from "@/api/client"
 import type { Transaction } from "@/features/transactions/data/schema"
 
 export type TransactionListParams = {
     page: number
     size: number
     keyword?: string
+    customer_code?: string
+    customer_name?: string
+    product_code?: string
+    product_name?: string
     customer_type?: string
     vthh_con?: string
     npp?: string
@@ -14,6 +18,17 @@ export type TransactionListParams = {
     region?: string
     document_date_from?: string
     document_date_to?: string
+}
+
+export type TransactionOptionParams = Omit<TransactionListParams, "page" | "size"> & {
+    page?: number
+    size?: number
+    field: "customer_code" | "customer_name" | "product_code" | "product_name"
+}
+
+export type TransactionColumnOption = {
+    value: string
+    label: string
 }
 
 export type ImportTransactionsResponse = {
@@ -31,6 +46,13 @@ const transactionApi = createCrudApi<
 >("/transactions")
 
 export const listTransactions = transactionApi.list
+
+export function listTransactionOptions(params: TransactionOptionParams) {
+    return apiGet<PagedResult<TransactionColumnOption>>("/transactions/options", {
+        ...params,
+        limit: params.size ?? 50,
+    })
+}
 
 export function importTransactionsFile(file: File) {
     const formData = new FormData()
