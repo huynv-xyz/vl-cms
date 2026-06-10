@@ -69,6 +69,16 @@ export type CustomerVipPlanItem = {
     planned_qty: number
     projected_point: number
     total_point_after_plan: number
+    baseline_qty?: number | null
+    baseline_point?: number | null
+    planned_total_qty?: number | null
+    planned_total_point?: number | null
+    actual_added_qty?: number | null
+    actual_added_point?: number | null
+    remaining_planned_qty?: number | null
+    remaining_planned_point?: number | null
+    plan_progress_qty?: number | null
+    plan_progress_point?: number | null
     priority?: string | null
 }
 

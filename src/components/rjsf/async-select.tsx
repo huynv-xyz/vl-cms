@@ -109,7 +109,7 @@ export const AsyncSelect = React.memo(function AsyncSelect({
         return () => {
             active = false
         }
-    }, [value])
+    }, [value, initialOption, dataSource, mapOption])
 
     return (
         <Popover open={open} onOpenChange={setOpen}>

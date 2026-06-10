@@ -29,6 +29,35 @@ import { cn } from "@/lib/utils"
 import { AlertTriangle, CheckCircle2, Loader2, Save, Wand2 } from "lucide-react"
 import { toast } from "sonner"
 
+type AllocationStrategy = "PRO_RATA" | "FACTOR_HIGH" | "EQUAL" | "PRIORITY"
+
+const ALLOCATION_STRATEGIES: Array<{
+    value: AllocationStrategy
+    label: string
+    hint: string
+}> = [
+    {
+        value: "PRO_RATA",
+        label: "Theo tỷ lệ hệ số",
+        hint: "Chia theo hệ số trên các mã chung đã có bán hàng.",
+    },
+    {
+        value: "FACTOR_HIGH",
+        label: "Ưu tiên hệ số cao",
+        hint: "Trong nhóm đã có bán hàng, ưu tiên hệ số điểm cao.",
+    },
+    {
+        value: "EQUAL",
+        label: "Chia đều các nhóm",
+        hint: "Chia đều điểm cần đạt cho các nhóm đã có bán hàng.",
+    },
+    {
+        value: "PRIORITY",
+        label: "Theo priority KT",
+        hint: "Chỉ phân bổ vào nhóm đã có bán hàng và được đánh ưu tiên.",
+    },
+]
+
 export default function VipCustomerPlanPage() {
     const search = Route.useSearch()
     const navigate = Route.useNavigate()
@@ -47,6 +76,13 @@ export default function VipCustomerPlanPage() {
 
     const [targetTierCode, setTargetTierCode] = React.useState("")
     const [items, setItems] = React.useState<CustomerVipPlanItem[]>([])
+    const [strategy, setStrategy] = React.useState<AllocationStrategy>("PRO_RATA")
+
+    React.useEffect(() => {
+        if (search.customer_id && customerId && search.customer_id !== customerId) {
+            updateSearch({ customer_id: customerId })
+        }
+    }, [customerId, search.customer_id])
 
     React.useEffect(() => {
         if (!planQuery.data) {
@@ -126,32 +162,79 @@ export default function VipCustomerPlanPage() {
             toast.info("Khách hàng đã đủ điểm mục tiêu")
             return
         }
-        let remainingPoint = targetPoint - currentPoint
-        const sorted = [...items]
-            .map((item, index) => ({ item, index }))
-            .filter(({ item }) => Number(item.point_factor || 0) > 0)
-            .sort((a, b) => Number(b.item.point_factor || 0) - Number(a.item.point_factor || 0))
+        const totalRemainingPoint = targetPoint - currentPoint
+        const eligible = items
+            .map((item, index) => ({ item, index, factor: Number(item.point_factor || 0) }))
+            .filter(({ item, factor }) => factor > 0 && hasSalesData(item))
 
-        if (!sorted.length) {
-            toast.warning("Chưa có nhóm hàng có hệ số để tự phân bổ")
+        if (!eligible.length) {
+            toast.warning("Chưa có nhóm hàng vừa có dữ liệu bán hàng vừa có hệ số để tự phân bổ")
             return
         }
 
         const next = items.map((item) => ({ ...item, planned_qty: 0, projected_point: 0, total_point_after_plan: Number(item.achieved_point || 0) }))
-        for (const { item, index } of sorted) {
-            if (remainingPoint <= 0) break
+
+        const applyToRow = (index: number, qty: number) => {
+            const item = next[index]
             const factor = Number(item.point_factor || 0)
-            const qty = round2(remainingPoint / factor)
+            const projectedPoint = round2(qty * factor)
             next[index] = {
-                ...next[index],
-                planned_qty: qty,
-                projected_point: round2(qty * factor),
-                total_point_after_plan: round2(Number(item.achieved_point || 0) + qty * factor),
+                ...item,
+                planned_qty: round2(qty),
+                projected_point: projectedPoint,
+                total_point_after_plan: round2(Number(item.achieved_point || 0) + projectedPoint),
             }
-            remainingPoint -= qty * factor
         }
+
+        const strategyMeta = ALLOCATION_STRATEGIES.find((item) => item.value === strategy)
+        const label = strategyMeta?.label ?? strategy
+
+        if (strategy === "FACTOR_HIGH") {
+            const sorted = [...eligible].sort((a, b) => b.factor - a.factor)
+            let remainingPoint = totalRemainingPoint
+            for (const { index, factor } of sorted) {
+                if (remainingPoint <= 0) break
+                const qty = remainingPoint / factor
+                applyToRow(index, qty)
+                remainingPoint -= qty * factor
+            }
+        } else if (strategy === "EQUAL") {
+            const pointPerGroup = totalRemainingPoint / eligible.length
+            for (const { index, factor } of eligible) {
+                applyToRow(index, pointPerGroup / factor)
+            }
+        } else if (strategy === "PRIORITY") {
+            const prioritized = eligible.filter(
+                ({ item }) => item.priority && String(item.priority).trim() !== "",
+            )
+            if (!prioritized.length) {
+                toast.warning("Chưa có nhóm nào được đánh priority. Hãy chọn chiến lược khác hoặc cấu hình priority.")
+                return
+            }
+            const pointPerGroup = totalRemainingPoint / prioritized.length
+            for (const { index, factor } of prioritized) {
+                applyToRow(index, pointPerGroup / factor)
+            }
+        } else {
+            const weights = eligible.map(({ item }) => {
+                return Number(item.point_factor || 0)
+            })
+            const totalWeight = weights.reduce((total, weight) => total + weight, 0)
+            if (totalWeight === 0) {
+                const pointPerGroup = totalRemainingPoint / eligible.length
+                for (const { index, factor } of eligible) {
+                    applyToRow(index, pointPerGroup / factor)
+                }
+            } else {
+                eligible.forEach(({ index, factor }, itemIndex) => {
+                    const sharePoint = (weights[itemIndex] / totalWeight) * totalRemainingPoint
+                    applyToRow(index, sharePoint / factor)
+                })
+            }
+        }
+
         setItems(next)
-        toast.success("Đã tự phân bổ theo nhóm có hệ số cao nhất")
+        toast.success(`Đã tự phân bổ: ${label}`)
     }
 
     return (
@@ -164,9 +247,8 @@ export default function VipCustomerPlanPage() {
         >
             {() => (
                 <div className="space-y-4">
-                    <div className="grid gap-3 rounded-md border bg-background p-3 shadow-sm lg:grid-cols-[minmax(340px,1fr)_180px_180px_auto]">
-                        <div>
-                            <div className="mb-1 text-sm font-semibold">Chọn khách hàng</div>
+                    <div className="grid items-center gap-3 rounded-md border bg-background p-3 shadow-sm lg:grid-cols-[minmax(300px,1fr)_170px_170px_minmax(300px,360px)_auto]">
+                        <div className="min-w-0">
                             <AsyncSelect
                                 value={customerId}
                                 onChange={(value: string | undefined) => updateSearch({ customer_id: value, from_date: search.from_date, to_date: search.to_date })}
@@ -181,12 +263,20 @@ export default function VipCustomerPlanPage() {
                                 placeholder="Chọn khách hàng VIP"
                                 searchPlaceholder="Tìm mã hoặc tên khách hàng..."
                                 emptyText="Không có khách hàng VIP"
+                                initialOption={
+                                    data && customerId
+                                        ? {
+                                            value: String(data.id),
+                                            label: `${data.customer_code} - ${data.customer_name}`,
+                                            raw: data,
+                                        }
+                                        : undefined
+                                }
                                 required
                                 className="h-10"
                             />
                         </div>
-                        <div>
-                            <div className="mb-1 text-sm font-semibold">Từ ngày</div>
+                        <div className="min-w-0">
                             <DatePicker
                                 className="[&_button]:h-10"
                                 value={search.from_date}
@@ -194,8 +284,7 @@ export default function VipCustomerPlanPage() {
                                 placeholder="Từ ngày CT"
                             />
                         </div>
-                        <div>
-                            <div className="mb-1 text-sm font-semibold">Đến ngày</div>
+                        <div className="min-w-0">
                             <DatePicker
                                 className="[&_button]:h-10"
                                 value={search.to_date}
@@ -203,7 +292,24 @@ export default function VipCustomerPlanPage() {
                                 placeholder="Đến ngày CT"
                             />
                         </div>
-                        <div className="flex items-end gap-2">
+                        <div className="min-w-0">
+                            <Select value={strategy} onValueChange={(value) => setStrategy(value as AllocationStrategy)}>
+                                <SelectTrigger className="h-10 w-full bg-background">
+                                    <span className="min-w-0 truncate">{allocationStrategyLabel(strategy)}</span>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {ALLOCATION_STRATEGIES.map((option) => (
+                                        <SelectItem key={option.value} value={option.value} textValue={option.label}>
+                                            <div className="flex flex-col items-start">
+                                                <span className="font-medium">{option.label}</span>
+                                                <span className="max-w-[320px] truncate text-xs text-muted-foreground">{option.hint}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-center justify-end gap-2">
                             <Button type="button" variant="outline" onClick={autoAllocate} disabled={!data}>
                                 <Wand2 className="mr-2 h-4 w-4" />
                                 Tự phân bổ
@@ -241,6 +347,8 @@ export default function VipCustomerPlanPage() {
                             plannedPoint={plannedPoint}
                             updatePlannedQty={updatePlannedQty}
                             autoAllocate={autoAllocate}
+                            strategy={strategy}
+                            setStrategy={setStrategy}
                         />
                     ) : null}
                 </div>
@@ -261,6 +369,8 @@ function PlanBoard({
     plannedPoint,
     updatePlannedQty,
     autoAllocate,
+    strategy,
+    setStrategy,
 }: {
     data: NonNullable<Awaited<ReturnType<typeof getCustomerVipPlan>>>
     items: CustomerVipPlanItem[]
@@ -273,6 +383,8 @@ function PlanBoard({
     plannedPoint: number
     updatePlannedQty: (index: number, value: string) => void
     autoAllocate: () => void
+    strategy: AllocationStrategy
+    setStrategy: (value: AllocationStrategy) => void
 }) {
     const progressPct = targetPoint > 0 ? Math.min(100, Math.round((projectedTotalPoint / targetPoint) * 100)) : 0
     const currentPct = targetPoint > 0 ? Math.min(100, Math.round((currentPoint / targetPoint) * 100)) : 0
@@ -356,25 +468,48 @@ function PlanBoard({
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
                     <div>
                         <div className="font-semibold">Phân bổ nhóm hàng</div>
-                        <div className="text-xs text-muted-foreground">Nhập số lượng dự kiến thêm hoặc dùng tự phân bổ để đạt hạng mục tiêu.</div>
+                        <div className="text-xs text-muted-foreground">Mỗi dòng là một mã chung. Tự phân bổ chỉ dùng các mã chung đã có dữ liệu bán hàng.</div>
                     </div>
-                    <Button type="button" variant="outline" onClick={autoAllocate}>
-                        <Wand2 className="mr-2 h-4 w-4" />
-                        Tự phân bổ
-                    </Button>
+                    <div className="flex flex-wrap items-end gap-2">
+                        <div className="min-w-[260px]">
+                            <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Chiến lược</div>
+                            <Select value={strategy} onValueChange={(value) => setStrategy(value as AllocationStrategy)}>
+                                <SelectTrigger className="h-9 w-full bg-background">
+                                    <span className="min-w-0 truncate">{allocationStrategyLabel(strategy)}</span>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {ALLOCATION_STRATEGIES.map((option) => (
+                                        <SelectItem key={option.value} value={option.value} textValue={option.label}>
+                                            <div className="flex flex-col items-start">
+                                                <span className="font-medium">{option.label}</span>
+                                                <span className="text-xs text-muted-foreground">{option.hint}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button type="button" variant="outline" onClick={autoAllocate}>
+                            <Wand2 className="mr-2 h-4 w-4" />
+                            Tự phân bổ
+                        </Button>
+                    </div>
                 </div>
                 <div className="overflow-x-auto">
-                <Table className="min-w-[1180px]">
+                <Table className="min-w-[1480px]">
                     <TableHeader>
                         <TableRow className="bg-muted/50 hover:bg-muted/50">
                             <PlanHead className="w-14 text-center">STT</PlanHead>
                             <PlanHead className="min-w-[150px]">Mã chung</PlanHead>
-                            <PlanHead className="min-w-[280px]">Nhóm hàng hóa</PlanHead>
+                            <PlanHead className="min-w-[280px]">Tên mã chung / nhóm hàng</PlanHead>
                             <PlanHead className="w-20 text-center">ĐVT</PlanHead>
                             <PlanHead className="w-[150px] text-right">SL đạt</PlanHead>
                             <PlanHead className="w-24 text-right">Hệ số</PlanHead>
                             <PlanHead className="w-[150px] text-right">Điểm đạt</PlanHead>
                             <PlanHead className="w-[160px] text-right">SL dự kiến thêm</PlanHead>
+                            <PlanHead className="w-[150px] text-right">Đã thực hiện thêm</PlanHead>
+                            <PlanHead className="w-[140px] text-right">Còn thiếu dự kiến</PlanHead>
+                            <PlanHead className="w-[120px] text-right">Tiến độ</PlanHead>
                             <PlanHead className="w-[160px] text-right">Điểm dự kiến</PlanHead>
                         </TableRow>
                     </TableHeader>
@@ -397,6 +532,15 @@ function PlanBoard({
                                         className="h-8 bg-background text-right font-semibold tabular-nums"
                                     />
                                 </PlanCell>
+                                <PlanCell className="text-right tabular-nums">
+                                    {formatNumberOrDash(item.actual_added_qty)}
+                                </PlanCell>
+                                <PlanCell className="text-right tabular-nums">
+                                    {formatNumberOrDash(item.remaining_planned_qty)}
+                                </PlanCell>
+                                <PlanCell className="text-right tabular-nums">
+                                    {Number(item.planned_qty || 0) > 0 ? `${formatNumber(item.plan_progress_qty)}%` : "-"}
+                                </PlanCell>
                                 <PlanCell className="text-right font-semibold tabular-nums text-primary">
                                     {formatNumberOrDash(item.projected_point)}
                                 </PlanCell>
@@ -410,6 +554,9 @@ function PlanBoard({
                             <PlanCell />
                             <PlanCell className="text-right font-bold">{formatNumber(achievedPoint)}</PlanCell>
                             <PlanCell className="text-right font-bold">{formatNumberOrDash(plannedQty)}</PlanCell>
+                            <PlanCell className="text-right font-bold">{formatNumberOrDash(sum(items.map((item) => item.actual_added_qty)))}</PlanCell>
+                            <PlanCell className="text-right font-bold">{formatNumberOrDash(sum(items.map((item) => item.remaining_planned_qty)))}</PlanCell>
+                            <PlanCell />
                             <PlanCell className="text-right font-bold text-primary">{formatNumberOrDash(plannedPoint)}</PlanCell>
                         </TableRow>
                     </TableFooter>
@@ -488,6 +635,14 @@ function formatDisplayDate(value?: string | null) {
     const parts = date.split("-")
     if (parts.length !== 3) return value
     return `${parts[2]}/${parts[1]}/${parts[0]}`
+}
+
+function hasSalesData(item: CustomerVipPlanItem) {
+    return Number(item.achieved_qty || 0) > 0 || Number(item.achieved_point || 0) > 0
+}
+
+function allocationStrategyLabel(value: AllocationStrategy) {
+    return ALLOCATION_STRATEGIES.find((option) => option.value === value)?.label ?? "Chọn chiến lược"
 }
 
 function cleanId(value?: string) {
