@@ -12,6 +12,7 @@ const initialOrderItems = () => [
         unit_price: 0,
         line_type: "NORMAL",
         hdn_status: undefined,
+        note: "",
     },
 ]
 

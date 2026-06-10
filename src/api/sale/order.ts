@@ -25,6 +25,7 @@ export type CreateOrderItemRequest = {
     line_type?: string
     hdn_status?: string
     description?: string
+    note?: string
 }
 
 const orderApi = createCrudApi<
@@ -57,6 +58,7 @@ export const updateOrderItem = (
         line_type?: string
         hdn_status?: string
         description?: string
+        note?: string
     }
 ) =>
     apiPut(`/sales/orders/items/${id}`, data)

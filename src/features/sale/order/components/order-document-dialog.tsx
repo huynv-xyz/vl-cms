@@ -203,15 +203,15 @@ async function exportOrderDocumentXlsx(order: Order, debtTotal: number) {
     })
 
     sheet.columns = [
-        { key: "stt", width: 5 },
-        { key: "name", width: 34 },
-        { key: "description", width: 13 },
+        { key: "stt", width: 6 },
+        { key: "name", width: 42 },
+        { key: "description", width: 16 },
         { key: "unit", width: 8 },
-        { key: "quantity", width: 10 },
-        { key: "preVatPrice", width: 14 },
-        { key: "vatPrice", width: 14 },
-        { key: "amount", width: 16 },
-        { key: "note", width: 15 },
+        { key: "quantity", width: 11 },
+        { key: "preVatPrice", width: 16 },
+        { key: "vatPrice", width: 16 },
+        { key: "amount", width: 18 },
+        { key: "note", width: 18 },
     ]
 
     sheet.mergeCells("A1:C3")
@@ -261,16 +261,27 @@ async function exportOrderDocumentXlsx(order: Order, debtTotal: number) {
 
     infoRows.forEach(([label, value], index) => {
         const rowNumber = 9 + index
-        sheet.mergeCells(`B${rowNumber}:I${rowNumber}`)
-        sheet.getCell(`A${rowNumber}`).value = label
-        sheet.getCell(`B${rowNumber}`).value = value
-        sheet.getCell(`A${rowNumber}`).font = { name: "Times New Roman", size: 12 }
-        sheet.getCell(`B${rowNumber}`).font = {
-            name: "Times New Roman",
-            size: index === 0 ? 16 : 12,
-            bold: index === 0,
-            color: index === 0 ? { argb: "FF0050A4" } : { argb: "FF000000" },
+        sheet.mergeCells(`A${rowNumber}:I${rowNumber}`)
+        const cell = sheet.getCell(`A${rowNumber}`)
+        cell.value = {
+            richText: [
+                {
+                    text: `${label} `,
+                    font: { name: "Times New Roman", size: 12, color: { argb: "FF000000" } },
+                },
+                {
+                    text: value,
+                    font: {
+                        name: "Times New Roman",
+                        size: index === 0 ? 16 : 12,
+                        bold: index === 0,
+                        color: index === 0 ? { argb: "FF0050A4" } : { argb: "FF000000" },
+                    },
+                },
+            ],
         }
+        cell.alignment = { horizontal: "left", vertical: "middle", wrapText: true }
+        sheet.getRow(rowNumber).height = index === 0 ? 28 : Math.max(20, estimateRowHeight(`${label} ${value}`, 120))
     })
 
     const headerRowNumber = 16
@@ -305,14 +316,19 @@ async function exportOrderDocumentXlsx(order: Order, debtTotal: number) {
             getPreVatPrice(item.unit_price),
             Number(item.unit_price || 0),
             getLineAmount(item),
-            lineTypeLabel(item.line_type),
+            item.note || lineTypeLabel(item.line_type),
         ]
-        row.height = 22
+        row.height = Math.max(
+            24,
+            estimateRowHeight(item.product?.name || item.product_name || "", 38),
+            estimateRowHeight(item.description || "", 14),
+            estimateRowHeight(item.note || lineTypeLabel(item.line_type), 16),
+        )
         row.eachCell((cell, colNumber) => {
             cell.font = { name: "Times New Roman", size: 12 }
             cell.border = allBorders()
             cell.alignment = {
-                vertical: "middle",
+                vertical: "top",
                 horizontal: [1, 4].includes(colNumber) ? "center" : colNumber >= 5 && colNumber <= 8 ? "right" : "left",
                 wrapText: true,
             }
@@ -412,6 +428,17 @@ function addSummaryExcelRow(sheet: Worksheet, rowNumber: number, label: string, 
     labelCell.alignment = { horizontal: "left", vertical: "middle" }
     valueCell.alignment = { horizontal: "right", vertical: "middle" }
     valueCell.numFmt = '#,##0.00'
+}
+
+function estimateRowHeight(value: unknown, charsPerLine: number) {
+    const text = String(value || "")
+    if (!text) return 20
+    const explicitLines = text.split(/\r?\n/)
+    const lineCount = explicitLines.reduce(
+        (sum, line) => sum + Math.max(1, Math.ceil(line.length / charsPerLine)),
+        0,
+    )
+    return lineCount * 18
 }
 
 function formatDate(value?: string) {

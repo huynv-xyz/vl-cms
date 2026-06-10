@@ -10,6 +10,10 @@ type Props = {
     keyword?: string
     filters: Pick<
         TransactionListParams,
+        | "customer_code"
+        | "customer_name"
+        | "product_code"
+        | "product_name"
         | "customer_type"
         | "vthh_con"
         | "npp"
@@ -78,6 +82,10 @@ export function ExportTransactionButton({ keyword, filters }: Props) {
                 page: 1,
                 size: 500,
                 keyword: keyword || undefined,
+                customer_code: filters.customer_code || undefined,
+                customer_name: filters.customer_name || undefined,
+                product_code: filters.product_code || undefined,
+                product_name: filters.product_name || undefined,
                 customer_type: filters.customer_type || undefined,
                 vthh_con: filters.vthh_con || undefined,
                 npp: filters.npp || undefined,

@@ -14,9 +14,13 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import type { Transaction } from "../data/schema"
-import { transactionColumns } from "./transaction-columns"
+import { buildTransactionColumns } from "./transaction-columns"
 
 type TransactionFilters = {
+    customer_code?: string[]
+    customer_name?: string[]
+    product_code?: string[]
+    product_name?: string[]
     customer_type?: string[]
     hdn_status?: string[]
     vthh_con?: string
@@ -64,6 +68,7 @@ export function TransactionTable({
         key: K,
         value: TransactionFilters[K],
     ) => onFiltersChange({ ...filters, [key]: value })
+    const columns = buildTransactionColumns(filters, onFiltersChange)
 
     return (
         <div className="space-y-4">
@@ -146,7 +151,7 @@ export function TransactionTable({
 
             <CrudTable<Transaction>
                 data={data}
-                columns={transactionColumns}
+                columns={columns}
                 entityName="giao dịch"
                 pagination={pagination}
                 onPaginationChange={onPaginationChange}
