@@ -83,10 +83,7 @@ export function ArLedgerTable({
         const transactionRows = data.filter((row) => !isOpeningRow(row))
         const debit = transactionRows.reduce((sum, row) => sum + num(row.debit_amount), 0)
         const credit = transactionRows.reduce((sum, row) => sum + num(row.credit_amount), 0)
-        const balance =
-            data.length && typeof data[data.length - 1]?.running_balance === "number"
-                ? num(data[data.length - 1].running_balance)
-                : debit - credit
+        const balance = groups.reduce((sum, group) => sum + group.closing, 0)
 
         return {
             debit,
@@ -721,15 +718,15 @@ function CustomerGroup({ group }: { group: Group }) {
                         </div>
                         <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500">
                             <span>{fmtNumber(group.items.length)} phát sinh</span>
-                            {(group.opening !== 0 || group.hasOpeningRow) ? (
+                            {
                                 <span className="rounded-sm bg-white px-2 py-1 text-slate-700 ring-1 ring-slate-200">
                                     Dư đầu kỳ:{" "}
                                     <strong className="tabular-nums text-slate-950">
-                                        {fmtCurrency(Math.abs(group.opening))}
+                                        {group.opening === 0 ? "0" : fmtCurrency(Math.abs(group.opening))}
                                     </strong>{" "}
-                                    {group.opening >= 0 ? "Nợ" : "Có"}
+                                    {group.opening !== 0 ? (group.opening > 0 ? "Nợ" : "Có") : null}
                                 </span>
-                            ) : null}
+                            }
                         </div>
                     </div>
                 </td>
@@ -879,17 +876,12 @@ function makeGroup(key: string, allItems: ArLedger[]): Group {
     }
 }
 
-function resolveOpeningBalance(openingRow: ArLedger | undefined, items: ArLedger[]): number {
+function resolveOpeningBalance(openingRow: ArLedger | undefined, _items: ArLedger[]): number {
     if (openingRow) {
         return num(openingRow.running_balance ?? net(openingRow))
     }
 
-    const firstItem = items[0]
-    if (!firstItem || firstItem.running_balance == null) {
-        return 0
-    }
-
-    return num(firstItem.running_balance) - net(firstItem)
+    return 0
 }
 
 function net(row: ArLedger): number {
