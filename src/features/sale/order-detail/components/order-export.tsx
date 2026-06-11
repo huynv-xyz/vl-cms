@@ -54,6 +54,11 @@ const exportStatusMeta: Record<
 export function OrderExports({ exports, order }: any) {
     const queryClient = useQueryClient()
     const [selectedId, setSelectedId] = useState<number | null>(null)
+    const totalExportAmount = (exports ?? []).reduce(
+        (sum: number, exportDoc: any) =>
+            sum + sumExportAmount(exportDoc.items ?? [], order?.items ?? []),
+        0
+    )
     const { data: permissions = [] } = useQuery({
         queryKey: ["my-permissions"],
         queryFn: getMyPermissions,
@@ -118,9 +123,14 @@ export function OrderExports({ exports, order }: any) {
                     </div>
                 </div>
 
-                <Badge variant="outline" className="font-normal">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Badge variant="outline" className="font-normal">
+                        Tổng tiền: <span className="ml-1 font-semibold">{formatCurrency(totalExportAmount)}</span>
+                    </Badge>
+                    <Badge variant="outline" className="font-normal">
                     {formatNumber(exports?.length || 0)} phiếu
                 </Badge>
+                </div>
             </div>
 
             {!exports?.length ? (
@@ -134,7 +144,13 @@ export function OrderExports({ exports, order }: any) {
                     {exports.map((exportDoc: any) => {
                         const meta = getExportStatusMeta(exportDoc.status)
                         const isRowLocked =
-                            exportDoc.status === "DONE" || exportDoc.status === "CANCELLED"
+                            exportDoc.status === "DONE"
+                        const allowedNextStatuses =
+                            exportDoc.status === "NEW"
+                                ? ["DONE", "CANCELLED"]
+                                : exportDoc.status === "CANCELLED"
+                                  ? ["NEW"]
+                                  : []
 
                         const totalQty = sumBy(
                             exportDoc.items ?? [],
@@ -230,7 +246,10 @@ export function OrderExports({ exports, order }: any) {
                                                     <SelectItem
                                                         key={s.value}
                                                         value={s.value}
-                                                        disabled={isRowLocked}
+                                                        disabled={
+                                                            s.value !== exportDoc.status &&
+                                                            !allowedNextStatuses.includes(s.value)
+                                                        }
                                                     >
                                                         {s.label}
                                                     </SelectItem>

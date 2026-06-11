@@ -61,17 +61,24 @@ export default function VipCustomerPlanPage() {
     const search = Route.useSearch()
     const navigate = Route.useNavigate()
     const queryClient = useQueryClient()
+    const currentYear = new Date().getFullYear()
+    const rawSelectedYear = Number(search.calc_year || currentYear)
+    const selectedYear = Number.isFinite(rawSelectedYear) ? rawSelectedYear : currentYear
+    const yearOptions = React.useMemo(() => [currentYear - 1, currentYear, currentYear + 1], [currentYear])
+    const customerListYear = selectedYear > currentYear ? currentYear : selectedYear
     const customerId = cleanId(search.customer_id)
-    const dateRange = React.useMemo(() => ({}), [])
+    const dateRange = React.useMemo(() => ({ calc_year: selectedYear }), [selectedYear])
 
     const planQuery = useQuery({
-        queryKey: ["customer-vip-plan-page", customerId],
+        queryKey: ["customer-vip-plan-page", selectedYear, customerId],
         queryFn: () => getCustomerVipPlan(customerId!, dateRange),
         enabled: !!customerId,
     })
+    const planData = planQuery.data && Number(planQuery.data.calc_year) === selectedYear ? planQuery.data : undefined
 
     const [targetTierCode, setTargetTierCode] = React.useState("")
     const [items, setItems] = React.useState<CustomerVipPlanItem[]>([])
+    const [plannedQtyInputs, setPlannedQtyInputs] = React.useState<Record<string, string>>({})
     const [strategy, setStrategy] = React.useState<AllocationStrategy>("PRO_RATA")
 
     React.useEffect(() => {
@@ -81,16 +88,23 @@ export default function VipCustomerPlanPage() {
     }, [customerId, search.customer_id])
 
     React.useEffect(() => {
-        if (!planQuery.data) {
+        if (planQuery.data && Number(planQuery.data.calc_year) !== selectedYear) {
+            updateSearch({ customer_id: undefined })
             setTargetTierCode("")
             setItems([])
             return
         }
-        setTargetTierCode(planQuery.data.target_tier_code ?? "")
-        setItems(planQuery.data.items ?? [])
-    }, [planQuery.data])
+        if (!planData) {
+            setTargetTierCode("")
+            setItems([])
+            return
+        }
+        setTargetTierCode(planData.target_tier_code ?? "")
+        setItems(planData.items ?? [])
+        setPlannedQtyInputs({})
+    }, [planData, planQuery.data, selectedYear])
 
-    const data = planQuery.data
+    const data = planData
     const selectedTier = data?.available_tiers?.find((tier) => tier.code === targetTierCode)
     const targetPoint = Number(selectedTier?.point ?? data?.target_point ?? 0)
     const currentPoint = Number(data?.total_vip_point ?? 0)
@@ -102,6 +116,7 @@ export default function VipCustomerPlanPage() {
         mutationFn: () => {
             if (!customerId || !targetTierCode) throw new Error("Vui lòng chọn khách hàng và hạng mục tiêu")
             return saveCustomerVipPlan(customerId, {
+                calc_year: selectedYear,
                 target_tier_code: targetTierCode,
                 target_tier_name: selectedTier?.name,
                 from_date: undefined,
@@ -129,18 +144,27 @@ export default function VipCustomerPlanPage() {
         },
     })
 
-    const updateSearch = (next: Partial<{ customer_id: string; from_date: string; to_date: string }>) => {
+    const updateSearch = (next: Partial<{ customer_id?: string; calc_year: number; from_date?: string; to_date?: string }>) => {
         navigate({
-            search: (prev) => ({
-                ...prev,
-                ...next,
-            }),
+            search: (prev) => {
+                const merged = { ...prev, ...next }
+                return {
+                    customer_id: merged.customer_id || undefined,
+                    calc_year: merged.calc_year,
+                    from_date: merged.from_date || undefined,
+                    to_date: merged.to_date || undefined,
+                }
+            },
             replace: true,
         })
     }
 
     const updatePlannedQty = (index: number, value: string) => {
-        const qty = Number(value || 0)
+        setPlannedQtyInputs((prev) => ({
+            ...prev,
+            [String(index)]: value,
+        }))
+        const qty = parseDecimalInput(value)
         setItems((prev) => prev.map((item, i) => {
             if (i !== index) return item
             const projectedPoint = qty * Number(item.point_factor || 0)
@@ -151,6 +175,15 @@ export default function VipCustomerPlanPage() {
                 total_point_after_plan: round2(Number(item.achieved_point || 0) + projectedPoint),
             }
         }))
+    }
+
+    const commitPlannedQtyInput = (index: number) => {
+        setPlannedQtyInputs((prev) => {
+            if (!(String(index) in prev)) return prev
+            const next = { ...prev }
+            delete next[String(index)]
+            return next
+        })
     }
 
     const autoAllocate = () => {
@@ -235,7 +268,7 @@ export default function VipCustomerPlanPage() {
 
     return (
         <PageSection
-            title="Kế hoạch VIP khách hàng"
+            title="Kế hoạch điểm"
             description="Xem điểm/hạng hiện tại và lập kế hoạch số lượng dự kiến để đạt hạng mục tiêu năm nay."
             isLoading={false}
             error={null}
@@ -244,12 +277,28 @@ export default function VipCustomerPlanPage() {
             {() => (
                 <div className="space-y-4">
                     <div className="rounded-md border bg-background p-3 shadow-sm">
-                        <div className="min-w-0">
+                        <div className="grid gap-3 md:grid-cols-[180px_1fr]">
+                            <Select
+                                value={String(selectedYear)}
+                                onValueChange={(value) => updateSearch({ calc_year: Number(value), customer_id: undefined })}
+                            >
+                                <SelectTrigger className="h-10 bg-background">
+                                    <SelectValue placeholder="Chọn năm" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {yearOptions.map((year) => (
+                                        <SelectItem key={year} value={String(year)}>
+                                            Năm {year}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             <AsyncSelect
+                                key={selectedYear}
                                 value={customerId}
                                 onChange={(value: string | undefined) => updateSearch({ customer_id: value })}
                                 dataSource={{
-                                    getList: (params: any) => listCustomerVips({ page: 1, size: 30, keyword: params.keyword }),
+                                    getList: (params: any) => listCustomerVips({ page: 1, size: 30, keyword: params.keyword, calc_year: customerListYear }),
                                 }}
                                 mapOption={(x: CustomerVip) => ({
                                     value: String(x.id),
@@ -271,12 +320,17 @@ export default function VipCustomerPlanPage() {
                                 required
                                 className="h-10"
                             />
+                            {customerListYear !== selectedYear ? (
+                                <div className="md:col-start-2 text-xs text-muted-foreground">
+                                    Danh sách khách lấy từ năm {customerListYear}; kế hoạch sẽ được tính và lưu cho năm {selectedYear}.
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 
                     {!customerId ? (
                         <div className="rounded-md border border-dashed p-10 text-center text-sm text-muted-foreground">
-                            Chọn khách hàng để lập kế hoạch VIP.
+                            Chọn khách hàng để lập kế hoạch VIP năm {selectedYear}.
                         </div>
                     ) : planQuery.isLoading ? (
                         <div className="flex h-56 items-center justify-center rounded-md border text-sm text-muted-foreground">
@@ -286,6 +340,10 @@ export default function VipCustomerPlanPage() {
                     ) : planQuery.error ? (
                         <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
                             {planQuery.error instanceof Error ? planQuery.error.message : "Không tải được kế hoạch VIP"}
+                        </div>
+                    ) : planQuery.data && Number(planQuery.data.calc_year) !== selectedYear ? (
+                        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                            Khách hàng đang chọn thuộc năm {planQuery.data.calc_year}. Vui lòng chọn lại khách hàng trong năm {selectedYear}.
                         </div>
                     ) : data ? (
                         <PlanBoard
@@ -299,6 +357,8 @@ export default function VipCustomerPlanPage() {
                             missingToTarget={missingToTarget}
                             plannedPoint={plannedPoint}
                             updatePlannedQty={updatePlannedQty}
+                            commitPlannedQtyInput={commitPlannedQtyInput}
+                            plannedQtyInputs={plannedQtyInputs}
                             onSave={() => saveMutation.mutate()}
                             canSave={!!data && !!targetTierCode && !saveMutation.isPending}
                             isSaving={saveMutation.isPending}
@@ -324,6 +384,8 @@ function PlanBoard({
     missingToTarget,
     plannedPoint,
     updatePlannedQty,
+    commitPlannedQtyInput,
+    plannedQtyInputs,
     onSave,
     canSave,
     isSaving,
@@ -341,6 +403,8 @@ function PlanBoard({
     missingToTarget: number
     plannedPoint: number
     updatePlannedQty: (index: number, value: string) => void
+    commitPlannedQtyInput: (index: number) => void
+    plannedQtyInputs: Record<string, string>
     onSave: () => void
     canSave: boolean
     isSaving: boolean
@@ -368,6 +432,11 @@ function PlanBoard({
                             </div>
                             <div className="mt-1 text-sm text-muted-foreground">
                                 Dữ liệu tính đến {formatDisplayDate(data.to_date || data.as_of_date)} · Năm {data.calc_year}
+                            </div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                                {data.has_plan
+                                    ? `Kế hoạch lập lúc ${formatDateTime(data.plan_created_at)}${data.plan_updated_at ? ` · cập nhật ${formatDateTime(data.plan_updated_at)}` : ""}`
+                                    : "Chưa có kế hoạch đã lưu. Các cột thực hiện thêm sẽ có ý nghĩa sau khi lưu kế hoạch."}
                             </div>
                         </div>
 
@@ -494,21 +563,22 @@ function PlanBoard({
                                 <PlanCell className="text-right tabular-nums">{formatNumberOrDash(item.achieved_point)}</PlanCell>
                                 <PlanCell className="bg-muted/20 p-1">
                                     <Input
-                                        type="number"
-                                        min={0}
-                                        value={item.planned_qty ?? 0}
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={plannedQtyInputs[String(index)] ?? formatInputNumber(item.planned_qty)}
                                         onChange={(event) => updatePlannedQty(index, event.target.value)}
+                                        onBlur={() => commitPlannedQtyInput(index)}
                                         className="h-8 bg-background text-right font-semibold tabular-nums"
                                     />
                                 </PlanCell>
                                 <PlanCell className="text-right tabular-nums">
-                                    {formatNumberOrDash(item.actual_added_qty)}
+                                    {item.has_plan ? formatNumberOrDash(item.actual_added_qty) : "-"}
                                 </PlanCell>
                                 <PlanCell className="text-right tabular-nums">
-                                    {formatNumberOrDash(item.remaining_planned_qty)}
+                                    {item.has_plan ? formatNumberOrDash(item.remaining_planned_qty) : "-"}
                                 </PlanCell>
                                 <PlanCell className="text-right tabular-nums">
-                                    {Number(item.planned_qty || 0) > 0 ? `${formatNumber(item.plan_progress_qty)}%` : "-"}
+                                    {item.has_plan && Number(item.planned_qty || 0) > 0 ? `${formatNumber(item.plan_progress_qty)}%` : "-"}
                                 </PlanCell>
                                 <PlanCell className="text-right font-semibold tabular-nums text-primary">
                                     {formatNumberOrDash(item.projected_point)}
@@ -590,12 +660,24 @@ function round2(value: number) {
 }
 
 function formatNumber(value: number | null | undefined) {
-    return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(Number(value || 0))
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(Number(value || 0))
 }
 
 function formatNumberOrDash(value: number | null | undefined) {
     const numeric = Number(value || 0)
     return numeric === 0 ? "-" : formatNumber(numeric)
+}
+
+function formatInputNumber(value: number | null | undefined) {
+    const numeric = Number(value || 0)
+    return numeric === 0 ? "0" : formatNumber(numeric)
+}
+
+function parseDecimalInput(value: string) {
+    const normalized = value.replace(/,/g, "").trim()
+    if (!normalized || normalized === "." || normalized === "-") return 0
+    const numeric = Number(normalized)
+    return Number.isFinite(numeric) ? numeric : 0
 }
 
 function formatDisplayDate(value?: string | null) {
@@ -604,6 +686,20 @@ function formatDisplayDate(value?: string | null) {
     const parts = date.split("-")
     if (parts.length !== 3) return value
     return `${parts[2]}/${parts[1]}/${parts[0]}`
+}
+
+function formatDateTime(value?: string | null) {
+    if (!value) return "-"
+    const normalized = value.includes("T") ? value : value.replace(" ", "T")
+    const date = new Date(normalized)
+    if (Number.isNaN(date.getTime())) return value
+    return new Intl.DateTimeFormat("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    }).format(date)
 }
 
 function hasSalesData(item: CustomerVipPlanItem) {

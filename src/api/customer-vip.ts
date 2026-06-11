@@ -30,6 +30,7 @@ export type CustomerVipDateRangeParams = {
     from_date?: string
     to_date?: string
     as_of_date?: string
+    calc_year?: number
 }
 
 export async function getCustomerVipDetail(id: number | string, dateRange?: CustomerVipDateRangeParams) {
@@ -41,6 +42,7 @@ export async function getCustomerVipAudit(id: number | string, dateRange?: Custo
 }
 
 export type SaveCustomerVipPlanRequest = {
+    calc_year?: number
     target_tier_code: string
     target_tier_name?: string | null
     from_date?: string

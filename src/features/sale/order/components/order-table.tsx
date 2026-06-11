@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import {
     AlertCircle,
     Boxes,
+    CopyPlus,
     Download,
     FileText,
     Inbox,
@@ -13,6 +14,7 @@ import {
     PackageCheck,
     User,
     Wallet,
+    Pencil,
     type LucideIcon,
 } from "lucide-react"
 
@@ -24,11 +26,15 @@ import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { DatePicker } from "@/components/date-picker"
 import { CardPagination } from "@/components/table/card-pagination"
-import { CrudRowActions } from "@/components/crud/crud-row-actions"
-
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import { getCustomer, listCustomers } from "@/api/customer"
@@ -37,8 +43,8 @@ import { getMyPermissions } from "@/api/auth/permission"
 import { listOrders, updateOrderStatus, type OrderListParams } from "@/api/sale/order"
 
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
-import { exportXlsx } from "@/lib/xlsx-export"
 import { OrderDocumentDialog } from "./order-document-dialog"
+import { CreateOrderDialog } from "./create-order-dialog"
 
 const controlClass = "h-9 min-h-9 rounded-md border-slate-300 bg-white shadow-xs"
 const EXPORT_PAGE_SIZE = 500
@@ -93,7 +99,7 @@ export function OrderTable({
         setIsExporting(true)
         try {
             const allOrders = await fetchAllOrdersForExport(exportFilters ?? {})
-            exportOrdersXlsx(allOrders)
+            await exportOrdersXlsx(allOrders)
             toast.success(`Đã xuất ${formatNumber(allOrders.length)} đơn hàng`)
         } catch (error: any) {
             toast.error(error?.message || "Xuất Excel thất bại")
@@ -327,6 +333,7 @@ function OrderCard({
     const { openEdit } = useOrders()
     const queryClient = useQueryClient()
     const [documentOpen, setDocumentOpen] = useState(false)
+    const [cloneOpen, setCloneOpen] = useState(false)
 
     const { mutate: changeStatus, isPending } = useMutation({
         mutationFn: ({ id, status }: { id: number; status: string }) =>
@@ -367,7 +374,7 @@ function OrderCard({
     const isDone = remainQty <= 0 && totalQty > 0
 
     const status = order.status || "NEW"
-    const isLocked = status === "DONE" || status === "CANCELLED"
+    const isLocked = status === "DONE"
     const meta = getOrderStatusMeta(status)
     const StatusIcon = meta.icon
 
@@ -516,21 +523,12 @@ function OrderCard({
                         </SelectContent>
                     </Select>
 
-                    {!isLocked && canUpdateOrder ? (
-                        <CrudRowActions
-                            row={order}
-                            onEdit={() => openEdit(order)}
-                        />
-                    ) : (
-                        <Button
-                            variant="ghost"
-                            className="h-8 w-8 p-0"
-                            disabled
-                            aria-label="Không thể sửa đơn hàng"
-                        >
-                            <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                    )}
+                    <OrderRowMenu
+                        order={order}
+                        canEdit={!isLocked && canUpdateOrder}
+                        onEdit={() => openEdit(order)}
+                        onClone={() => setCloneOpen(true)}
+                    />
                 </div>
             </div>
 
@@ -539,7 +537,52 @@ function OrderCard({
                 order={order}
                 onClose={() => setDocumentOpen(false)}
             />
+            <CreateOrderDialog
+                open={cloneOpen}
+                onOpenChange={setCloneOpen}
+                initialData={order}
+            />
         </div>
+    )
+}
+
+function OrderRowMenu({
+    order,
+    canEdit,
+    onEdit,
+    onClone,
+}: {
+    order: Order
+    canEdit: boolean
+    onEdit: () => void
+    onClone: () => void
+}) {
+    return (
+        <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+                <Button
+                    variant="ghost"
+                    className="h-8 w-8 p-0"
+                    aria-label={`Thao tác đơn ${order.order_no}`}
+                >
+                    <MoreHorizontal className="h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[180px]">
+                <DropdownMenuItem
+                    disabled={!canEdit}
+                    onClick={onEdit}
+                    className="gap-2"
+                >
+                    <Pencil className="h-4 w-4" />
+                    Sửa
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onClone} className="gap-2">
+                    <CopyPlus className="h-4 w-4" />
+                    Nhân bản
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
     )
 }
 
@@ -673,28 +716,15 @@ async function fetchAllOrdersForExport(filters: Partial<OrderListParams>) {
     return allOrders
 }
 
-export function exportOrdersXlsx(data: Order[], filename?: string) {
-    const rows: (string | number)[][] = [
-        [
-            "Ngày đặt hàng",
-            "Trạng thái đơn",
-            "Tình trạng giao hàng",
-            "Người thực hiện",
-            "Số đơn hàng",
-            "Mã khách hàng",
-            "Tên khách hàng",
-            "Mã hàng hóa",
-            "Diễn giải",
-            "Mô tả HH",
-            "Loại dòng",
-            "Đơn vị",
-            "Số lượng",
-            "Đơn giá bán",
-            "Chiết khấu",
-            "Thành tiền",
-            "Ghi chú",
-        ],
-    ]
+export async function exportOrdersXlsx(data: Order[], filename?: string) {
+    const { Workbook } = await import("exceljs")
+    const workbook = new Workbook()
+    workbook.creator = "VLIFE"
+    workbook.created = new Date()
+
+    const sheet = workbook.addWorksheet("Don hang")
+    const columns = ORDER_EXPORT_COLUMNS
+    sheet.addRow(columns.map((column) => column.header))
 
     data.forEach((order: any) => {
         const items = order.items?.length ? order.items : [null]
@@ -705,8 +735,8 @@ export function exportOrdersXlsx(data: Order[], filename?: string) {
             const discount = Number(item?.discount || 0)
             const amount = Math.max(quantity * unitPrice - discount, 0)
 
-            rows.push([
-                formatDate(order.order_date),
+            sheet.addRow([
+                parseExcelDate(order.order_date),
                 getOrderStatusMeta(order.status || "NEW").label,
                 getDeliveryStatusLabel(order),
                 formatEmployee(order.employee),
@@ -718,23 +748,141 @@ export function exportOrdersXlsx(data: Order[], filename?: string) {
                 item?.description || "",
                 lineTypeLabel(item?.line_type),
                 item?.product?.unit || item?.unit || "",
-                quantity,
-                unitPrice,
-                discount,
-                amount,
+                formatExcelNumber(quantity),
+                formatExcelNumber(unitPrice),
+                formatExcelNumber(discount),
+                formatExcelNumber(amount),
                 order.note || "",
+                item?.note || "",
             ])
         })
     })
 
-    exportXlsx(filename || `don-hang-${new Date().toISOString().slice(0, 10)}.xlsx`, [
-        { name: "Don hang", rows },
-    ])
+    sheet.columns = columns.map((column) => ({ width: column.width }))
+    sheet.views = [{ state: "frozen", ySplit: 1 }]
+    sheet.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: 1, column: columns.length },
+    }
+
+    const border = {
+        top: { style: "thin" as const, color: { argb: "FF000000" } },
+        left: { style: "thin" as const, color: { argb: "FF000000" } },
+        bottom: { style: "thin" as const, color: { argb: "FF000000" } },
+        right: { style: "thin" as const, color: { argb: "FF000000" } },
+    }
+
+    const header = sheet.getRow(1)
+    header.height = 26
+    header.eachCell((cell) => {
+        cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FF000000" } }
+        cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFD9D9D9" },
+        }
+        cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
+        cell.border = border
+    })
+
+    for (let rowIndex = 2; rowIndex <= sheet.rowCount; rowIndex++) {
+        const row = sheet.getRow(rowIndex)
+        row.eachCell((cell, colNumber) => {
+            const column = columns[colNumber - 1]
+            cell.font = { name: "Arial", size: 10 }
+            cell.border = border
+            cell.alignment = {
+                vertical: "middle",
+                horizontal: column.type === "number" ? "right" : "left",
+                wrapText: true,
+            }
+            if (column.type === "date") {
+                cell.numFmt = "dd/mm/yyyy"
+            }
+        })
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    downloadExcelBuffer(
+        buffer,
+        filename || `don-hang-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    )
 }
 
-export function exportOrderXlsx(order: Order) {
+export async function exportOrderXlsx(order: Order) {
     const safeOrderNo = (order as any).order_no || `don-${order.id}`
-    exportOrdersXlsx([order], `phieu-don-dat-hang-${safeOrderNo}.xlsx`)
+    await exportOrdersXlsx([order], `phieu-don-dat-hang-${safeOrderNo}.xlsx`)
+}
+
+type OrderExportColumn = {
+    header: string
+    width: number
+    type?: "date" | "number"
+}
+
+const ORDER_EXPORT_COLUMNS: OrderExportColumn[] = [
+    { header: "Ngày đặt hàng", width: 14, type: "date" },
+    { header: "Trạng thái đơn", width: 18 },
+    { header: "Tình trạng giao hàng", width: 20 },
+    { header: "Người thực hiện", width: 24 },
+    { header: "Số đơn hàng", width: 18 },
+    { header: "Mã khách hàng", width: 20 },
+    { header: "Tên khách hàng", width: 34 },
+    { header: "Mã hàng hóa", width: 24 },
+    { header: "Diễn giải", width: 42 },
+    { header: "Mô tả HH", width: 24 },
+    { header: "Loại dòng", width: 14 },
+    { header: "Đơn vị", width: 10 },
+    { header: "Số lượng", width: 14, type: "number" },
+    { header: "Đơn giá bán", width: 16, type: "number" },
+    { header: "Chiết khấu", width: 16, type: "number" },
+    { header: "Thành tiền", width: 18, type: "number" },
+    { header: "Ghi chú đơn hàng", width: 30 },
+    { header: "Ghi chú sản phẩm", width: 30 },
+] as const
+
+function parseExcelDate(value?: string | number | Date) {
+    if (!value) return ""
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value
+
+    const raw = String(value).trim()
+    if (!raw) return ""
+
+    const datePart = raw.split(/[T\s]/)[0]
+    const ymd = datePart.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
+    if (ymd) {
+        return new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]))
+    }
+
+    const dmy = datePart.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+    if (dmy) {
+        return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
+    }
+
+    return raw
+}
+
+function formatExcelNumber(value?: number | string) {
+    const amount = Number(value || 0)
+    if (!amount) return ""
+    return amount.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 6,
+    })
+}
+
+function downloadExcelBuffer(buffer: ArrayBuffer, filename: string) {
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
 }
 
 function lineTypeLabel(value?: string) {

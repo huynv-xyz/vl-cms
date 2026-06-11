@@ -1,18 +1,17 @@
 import type { Dispatch, SetStateAction } from "react"
-import { FileEdit, FilePlus, Loader2, Save, ShoppingCart, X, type LucideIcon } from "lucide-react"
+import { useState } from "react"
+import { FileEdit, FilePlus, Loader2, Plus, Save, ShoppingCart, X, type LucideIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { formatCurrency } from "@/lib/utils"
 
 import { OrderFormCard, OrderSummaryBar } from "./order-form-shell"
 import { OrderHeaderFields } from "./order-header-fields"
@@ -94,6 +93,7 @@ export function OrderFormDialog({
     }, 0)
     const formId = mode === "create" ? "order-create-form" : "order-update-form"
     const ready = !isLoading && !!headerData
+    const [addItemRequest, setAddItemRequest] = useState(0)
 
     const submit = () => {
         const error = validateOrderForm(headerData, items)
@@ -106,17 +106,17 @@ export function OrderFormDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-muted/30 flex max-h-[92vh] flex-col gap-0 p-0 sm:max-w-6xl">
-                <DialogHeader className="bg-background border-b px-8 py-5">
-                    <div className="flex items-start gap-4">
-                        <div className={`${meta.iconClassName} flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-sm`}>
-                            <Icon className="h-6 w-6" />
+            <DialogContent className="bg-muted/30 flex max-h-[96vh] !w-[calc(100vw-32px)] !max-w-[1600px] flex-col gap-0 p-0">
+                <DialogHeader className="bg-background border-b px-4 py-3">
+                    <div className="flex items-start gap-3">
+                        <div className={`${meta.iconClassName} flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-sm`}>
+                            <Icon className="h-4 w-4" />
                         </div>
                         <div className="flex-1">
                             <div className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">
                                 {meta.eyebrow}
                             </div>
-                            <DialogTitle className="mt-0.5 flex flex-wrap items-baseline gap-2 text-xl">
+                            <DialogTitle className="mt-0.5 flex flex-wrap items-baseline gap-2 text-lg">
                                 {meta.title}
                                 {orderNo && (
                                     <span className="bg-primary/10 text-primary rounded-md px-2 py-0.5 font-mono text-sm font-bold">
@@ -124,15 +124,12 @@ export function OrderFormDialog({
                                     </span>
                                 )}
                             </DialogTitle>
-                            <DialogDescription className="mt-1 text-sm">
-                                {meta.description}
-                            </DialogDescription>
                         </div>
                     </div>
                 </DialogHeader>
 
                 {!ready ? (
-                    <div className="flex-1 space-y-4 px-8 py-6">
+                    <div className="flex-1 space-y-3 px-4 py-3">
                         <Skeleton className="h-32 w-full" />
                         <Skeleton className="h-64 w-full" />
                     </div>
@@ -140,60 +137,68 @@ export function OrderFormDialog({
                     <>
                         <form
                             id={formId}
-                            className="min-h-0 flex-1 overflow-y-auto px-8 py-6 bg-white"
+                            className="min-h-0 flex-1 overflow-y-auto bg-white px-4 py-3"
                             onSubmit={(event) => {
                                 event.preventDefault()
                                 submit()
                             }}
                         >
-                            <div className="space-y-5">
+                            <div className="space-y-3">
                                 <OrderFormCard
                                     step={1}
                                     title="Thông tin đơn"
-                                    description={orderNo ? `Mã đơn ${orderNo}.` : "Chọn khách hàng, nhân viên phụ trách và ngày đặt hàng."}
                                 >
                                     <OrderHeaderFields
                                         value={headerData}
                                         onChange={setHeaderData}
                                         showStatus={showStatus}
                                     />
-                                </OrderFormCard>
-
-                                <OrderFormCard
+                                </OrderFormCard>                                <OrderFormCard
                                     step={2}
                                     title="Hàng bán"
-                                    description="Chọn sản phẩm, nhập số lượng và đơn giá cho từng dòng."
                                     icon={ShoppingCart}
+                                    action={
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            className="h-8"
+                                            onClick={() => setAddItemRequest((value) => value + 1)}
+                                        >
+                                            <Plus className="mr-1.5 h-3.5 w-3.5" />
+                                            Thêm dòng
+                                        </Button>
+                                    }
                                 >
-                                    <OrderItemsEditor items={items} setItems={setItems} />
+                                    <OrderItemsEditor
+                                        items={items}
+                                        setItems={setItems}
+                                        addRequest={addItemRequest}
+                                    />
                                 </OrderFormCard>
                             </div>
                         </form>
 
-                        <DialogFooter className="bg-background flex-col gap-0 border-t p-0 sm:flex-col sm:gap-0">
-                            <OrderSummaryBar
-                                lineCount={items.length}
-                                totalQty={totalQty}
-                                totalAmount={totalAmount}
-                            />
-                            <div className="flex w-full items-center justify-end gap-2 border-t px-8 py-4">
-                                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                                    <X className="mr-2 h-4 w-4" />
-                                    Hủy
-                                </Button>
-                                <Button type="submit" form={formId} disabled={isPending}>
-                                    {isPending ? (
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Save className="mr-2 h-4 w-4" />
-                                    )}
-                                    {isPending ? meta.pendingLabel : meta.submitLabel}
-                                    {!isPending && totalAmount > 0 && (
-                                        <span className="bg-primary-foreground/15 ml-2 rounded px-1.5 py-0.5 text-[11px] font-mono">
-                                            {formatCurrency(totalAmount)}
-                                        </span>
-                                    )}
-                                </Button>
+                        <DialogFooter className="bg-background block border-t p-0">
+                            <div className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-2">
+                                <OrderSummaryBar
+                                    lineCount={items.length}
+                                    totalQty={totalQty}
+                                    totalAmount={totalAmount}
+                                />
+                                <div className="flex items-center justify-end gap-2">
+                                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                                        <X className="mr-2 h-4 w-4" />
+                                        Hủy
+                                    </Button>
+                                    <Button type="submit" form={formId} disabled={isPending}>
+                                        {isPending ? (
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Save className="mr-2 h-4 w-4" />
+                                        )}
+                                        {isPending ? meta.pendingLabel : meta.submitLabel}
+                                    </Button>
+                                </div>
                             </div>
                         </DialogFooter>
                     </>

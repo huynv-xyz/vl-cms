@@ -516,13 +516,15 @@ export function ArLedgerTable({
                 </div>
 
                 <div className="max-h-[70vh] overflow-auto">
-                    <table className="w-full min-w-[1280px] border-collapse text-sm">
+                    <table className="w-full min-w-[1520px] border-collapse text-sm">
                         <thead className="sticky top-0 z-10 bg-slate-50 shadow-[inset_0_-1px_0_0_var(--color-slate-200)]">
                             <tr className="text-xs uppercase text-slate-500">
-                                <Th rowSpan={2} className="w-[210px] align-middle">Khách hàng</Th>
+                                <Th rowSpan={2} className="w-[135px] align-middle">Khách hàng</Th>
                                 <Th rowSpan={2} className="w-[105px] align-middle">Ngày</Th>
                                 <Th rowSpan={2} className="w-[140px] align-middle">Chứng từ</Th>
-                                <Th rowSpan={2} className="min-w-[300px] align-middle">Diễn giải</Th>
+                                <Th rowSpan={2} className="w-[150px] align-middle">Mã sản phẩm</Th>
+                                <Th rowSpan={2} className="min-w-[240px] align-middle">Tên sản phẩm</Th>
+                                <Th rowSpan={2} className="min-w-[260px] align-middle">Diễn giải</Th>
                                 <Th rowSpan={2} className="w-[70px] text-center align-middle">ĐVT</Th>
                                 <Th rowSpan={2} className="w-[95px] text-right align-middle">SL</Th>
                                 <Th rowSpan={2} className="w-[110px] text-right align-middle">Đơn giá</Th>
@@ -539,7 +541,7 @@ export function ArLedgerTable({
                         <tbody>
                             {groups.length === 0 ? (
                                 <tr>
-                                    <td colSpan={11} className="px-4 py-14 text-center text-sm text-slate-500">
+                                    <td colSpan={13} className="px-4 py-14 text-center text-sm text-slate-500">
                                         Không có dữ liệu công nợ phù hợp với bộ lọc.
                                     </td>
                                 </tr>
@@ -705,7 +707,7 @@ function CustomerGroup({ group }: { group: Group }) {
     return (
         <>
             <tr className="border-y bg-slate-100/80">
-                <td colSpan={11} className="px-4 py-3">
+                <td colSpan={13} className="px-4 py-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex min-w-0 flex-wrap items-center gap-2">
                             <span className="font-semibold text-slate-950">{group.name}</span>
@@ -741,8 +743,12 @@ function CustomerGroup({ group }: { group: Group }) {
                         <Td className="font-mono text-xs text-slate-700">{group.code}</Td>
                         <Td className="whitespace-nowrap text-slate-600">{fmtDate(item.posting_date)}</Td>
                         <Td className="font-mono text-xs font-semibold text-sky-700">{item.doc_no || `#${item.id}`}</Td>
+                        <Td className="font-mono text-xs text-slate-700">{productCode(item)}</Td>
                         <Td>
-                            <div className="font-medium text-slate-950">{productLabel(item) || lineDescription(item) || ""}</div>
+                            <div className="font-medium text-slate-950">{productName(item)}</div>
+                        </Td>
+                        <Td>
+                            <div className="text-slate-950">{lineDescription(item)}</div>
                         </Td>
                         <Td className="text-center text-xs text-slate-600">{unit}</Td>
                         <Td className="text-right tabular-nums">{fmtQtyBlank(num(item.quantity))}</Td>
@@ -764,6 +770,8 @@ function CustomerGroup({ group }: { group: Group }) {
             })}
 
             <tr className="border-y-2 border-slate-300 bg-slate-50 font-semibold">
+                <Td />
+                <Td />
                 <Td />
                 <Td />
                 <Td />
@@ -921,8 +929,12 @@ function lineDescription(item: ArLedger): string {
     return item.description || item.product?.name || ""
 }
 
-function productLabel(item: ArLedger): string {
-    return item.product?.name || (item.product_id ? `#${item.product_id}` : "")
+function productCode(item: ArLedger): string {
+    return item.product?.code || item.product?.quote_code || (item.product_id ? `#${item.product_id}` : "")
+}
+
+function productName(item: ArLedger): string {
+    return item.product?.name || ""
 }
 
 function num(value: unknown): number {
@@ -996,6 +1008,8 @@ async function exportReportXlsx(groups: Group[], period: string) {
         { label: "Mã số thuế", width: 18 },
         { label: "Ngày hạch toán", width: 16, align: "center" },
         { label: "Số chứng từ", width: 24 },
+        { label: "Mã sản phẩm", width: 24 },
+        { label: "Tên sản phẩm", width: 36 },
         { label: "Diễn giải", width: 44 },
         { label: "ĐVT", width: 10, align: "center" },
         { label: "Số lượng", width: 16, align: "right" },
@@ -1028,6 +1042,8 @@ async function exportReportXlsx(groups: Group[], period: string) {
             "",
             "",
             "",
+            "",
+            "",
             formatExcelNumber(group.qtyTotal),
             "",
             formatExcelNumber(group.debitTotal),
@@ -1041,6 +1057,8 @@ async function exportReportXlsx(groups: Group[], period: string) {
             sheet.addRow([
                 group.code,
                 group.taxCode,
+                "",
+                "",
                 "",
                 "",
                 "Số dư đầu kỳ",
@@ -1061,6 +1079,8 @@ async function exportReportXlsx(groups: Group[], period: string) {
                 group.taxCode,
                 fmtDate(item.posting_date),
                 item.doc_no || "",
+                productCode(item),
+                productName(item),
                 lineDescription(item),
                 item.unit || item.product?.unit || "",
                 formatExcelNumber(num(item.quantity)),
@@ -1075,6 +1095,8 @@ async function exportReportXlsx(groups: Group[], period: string) {
         const subtotalRow = sheet.addRow([
             group.code,
             group.taxCode,
+            "",
+            "",
             "",
             "",
             "Cộng",

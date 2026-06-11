@@ -31,7 +31,7 @@ export default function VipTierPage() {
             <PageSection
                 isLoading={isLoading}
                 error={error}
-                title="Cấp bậc VIP"
+                title="Cấp bậc"
                 description="Danh sách cấp bậc VIP."
                 actions={<CreateVipTierButton />}
                 data={data}

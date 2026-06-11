@@ -276,34 +276,34 @@ export const sidebarData: SidebarData = {
             title: 'Hợp đồng năm',
             items: [
                 {
-                    title: 'VIP',
+                    title: 'Danh sách VIP',
                     url: '/vip/customer',
                     icon: Crown,
                 },
                 {
-                    title: 'Kế hoạch VIP',
+                    title: 'Kế hoạch điểm',
                     url: '/vip/customer-plan',
                     icon: Target,
                 },
                 {
-                    title: 'Tính điểm VIP',
+                    title: 'Điểm nhóm chung',
                     url: '/vip/point-rules',
                     icon: Calculator,
                 },
                 {
-                    title: 'Mã riêng',
+                    title: 'Điểm mã riêng',
+                    url: '/vip/product-mapping',
+                    icon: GitMerge,
+                },
+                {
+                    title: 'Thưởng',
                     url: '/vip/private-rules',
                     icon: KeyRound,
                 },
                 {
-                    title: 'Cấp bậc VIP',
+                    title: 'Cấp bậc',
                     url: '/vip/tiers',
                     icon: Layers3,
-                },
-                {
-                    title: 'Điểm hàng hóa',
-                    url: '/vip/product-mapping',
-                    icon: GitMerge,
                 },
             ],
         },

@@ -11,7 +11,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { getOrderStatusMeta, ORDER_STATUSES } from "./order-status"
 
@@ -25,7 +24,7 @@ export function OrderHeaderFields({ value, onChange, showStatus = true }: Props)
     const update = (patch: any) => onChange({ ...value, ...patch })
 
     return (
-        <div className="grid gap-x-5 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-x-4 gap-y-2.5 md:grid-cols-2 xl:grid-cols-[minmax(420px,1fr)_minmax(360px,0.9fr)_minmax(300px,0.75fr)]">
             <Field icon={User} label="Khách hàng" required>
                 <AsyncSelect
                     placeholder="Chọn khách hàng"
@@ -66,7 +65,7 @@ export function OrderHeaderFields({ value, onChange, showStatus = true }: Props)
             </Field>
 
             {showStatus && (
-                <Field label="Trạng thái">
+                <Field label="Trạng thái" className="xl:col-start-3 xl:row-start-2">
                     <Select
                         value={value.status || "NEW"}
                         onValueChange={(status) => update({ status })}
@@ -92,9 +91,12 @@ export function OrderHeaderFields({ value, onChange, showStatus = true }: Props)
                 </Field>
             )}
 
-            <Field icon={FileSignature} label="Ghi chú" className="md:col-span-2 xl:col-span-3">
-                <Textarea
-                    rows={3}
+            <Field
+                icon={FileSignature}
+                label="Ghi chú"
+                className={cn("md:col-span-2", showStatus ? "xl:col-span-2 xl:row-start-2" : "xl:col-span-3")}
+            >
+                <Input
                     placeholder="VD: Giao trước 5h chiều, gọi điện trước khi tới..."
                     value={value.note || ""}
                     onChange={(event) => update({ note: event.target.value })}
@@ -126,13 +128,13 @@ function Field({
     children: React.ReactNode
 }) {
     return (
-        <div className={className}>
-            <Label className="text-muted-foreground mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider">
+        <div className={cn("min-w-0 xl:flex xl:items-center xl:gap-2", className)}>
+            <Label className="text-muted-foreground mb-1.5 flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[11px] font-semibold uppercase tracking-wider xl:mb-0 xl:w-32">
                 {Icon && <Icon className="h-3.5 w-3.5" />}
                 {label}
                 {required && <span className="text-destructive ml-0.5">*</span>}
             </Label>
-            {children}
+            <div className="min-w-0 flex-1">{children}</div>
         </div>
     )
 }
