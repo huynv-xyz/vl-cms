@@ -8,7 +8,7 @@ import { AsyncSelect } from "@/components/rjsf/async-select"
 import { listProducts, getProduct } from "@/api/product"
 import { listGoodsDescriptions } from "@/api/sale/goods-description"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
-import { PackageOpen, Plus, Trash2 } from "lucide-react"
+import { PackageOpen, Trash2 } from "lucide-react"
 
 type OrderItem = {
     id?: number
@@ -27,11 +27,13 @@ type OrderItem = {
 type Props = {
     items: OrderItem[]
     setItems: (items: OrderItem[]) => void
+    addRequest?: number
 }
 
-export function OrderItemsEditor({ items, setItems }: Props) {
+export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
     const rowRefs = useRef<Array<HTMLTableRowElement | null>>([])
     const pendingFocusIndexRef = useRef<number | null>(null)
+    const lastAddRequestRef = useRef(addRequest)
 
     const createEmptyRow = (): OrderItem => ({
         product_id: undefined,
@@ -58,6 +60,13 @@ export function OrderItemsEditor({ items, setItems }: Props) {
         pendingFocusIndexRef.current = null
         focusRowCodeSelect(index)
     }, [items.length])
+
+    useEffect(() => {
+        if (addRequest === lastAddRequestRef.current) return
+
+        lastAddRequestRef.current = addRequest
+        addRow()
+    }, [addRequest])
 
     const addRow = () => {
         const lastIndex = items.length - 1
@@ -114,14 +123,6 @@ export function OrderItemsEditor({ items, setItems }: Props) {
                 }
             }}
         >
-            <div className="flex items-center justify-between gap-2">
-                <div className="text-muted-foreground text-xs">{items.length} dòng</div>
-                <Button type="button" size="sm" onClick={addRow} className="h-8">
-                    <Plus className="mr-1.5 h-3.5 w-3.5" />
-                    Thêm dòng
-                </Button>
-            </div>
-
             <div className="overflow-x-auto rounded-md border">
                 <table className="w-full min-w-[1180px] table-fixed text-sm">
                     <colgroup>

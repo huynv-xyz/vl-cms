@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react"
-import { FileEdit, FilePlus, Loader2, Save, ShoppingCart, X, type LucideIcon } from "lucide-react"
+import { useState } from "react"
+import { FileEdit, FilePlus, Loader2, Plus, Save, ShoppingCart, X, type LucideIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -92,6 +93,7 @@ export function OrderFormDialog({
     }, 0)
     const formId = mode === "create" ? "order-create-form" : "order-update-form"
     const ready = !isLoading && !!headerData
+    const [addItemRequest, setAddItemRequest] = useState(0)
 
     const submit = () => {
         const error = validateOrderForm(headerData, items)
@@ -151,14 +153,27 @@ export function OrderFormDialog({
                                         onChange={setHeaderData}
                                         showStatus={showStatus}
                                     />
-                                </OrderFormCard>
-
-                                <OrderFormCard
+                                </OrderFormCard>                                <OrderFormCard
                                     step={2}
                                     title="Hàng bán"
                                     icon={ShoppingCart}
+                                    action={
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            className="h-8"
+                                            onClick={() => setAddItemRequest((value) => value + 1)}
+                                        >
+                                            <Plus className="mr-1.5 h-3.5 w-3.5" />
+                                            Thêm dòng
+                                        </Button>
+                                    }
                                 >
-                                    <OrderItemsEditor items={items} setItems={setItems} />
+                                    <OrderItemsEditor
+                                        items={items}
+                                        setItems={setItems}
+                                        addRequest={addItemRequest}
+                                    />
                                 </OrderFormCard>
                             </div>
                         </form>

@@ -6,11 +6,13 @@ export function OrderFormCard({
     step,
     title,
     icon: Icon,
+    action,
     children,
 }: {
     step?: number
     title: string
     icon?: LucideIcon
+    action?: React.ReactNode
     children: React.ReactNode
 }) {
     return (
@@ -29,6 +31,7 @@ export function OrderFormCard({
                     <div className="flex-1">
                         <h3 className="text-sm font-semibold leading-tight">{title}</h3>
                     </div>
+                    {action ? <div className="shrink-0">{action}</div> : null}
                 </div>
             </div>
             <div className="p-3">{children}</div>
