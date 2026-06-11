@@ -1,8 +1,10 @@
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useNavigate } from "@tanstack/react-router"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { createOrder } from "@/api/sale/order"
+import { normalizeDate } from "@/lib/utils"
 import { OrderFormDialog } from "./order-form-dialog"
 
 const initialOrderItems = () => [
@@ -16,31 +18,63 @@ const initialOrderItems = () => [
     },
 ]
 
-export function CreateOrderDialog({ open, onOpenChange }: any) {
-    const queryClient = useQueryClient()
-    const [formData, setFormData] = useState({
-        customer_id: undefined,
-        employee_id: undefined,
-        order_date: new Date().toISOString().slice(0, 10),
+function buildInitialHeader(initialData?: any) {
+    return {
+        customer_id: initialData?.customer_id ?? initialData?.customer?.id ?? undefined,
+        employee_id: initialData?.employee_id ?? initialData?.employee?.id ?? undefined,
+        order_date: normalizeDate(initialData?.order_date) || new Date().toISOString().slice(0, 10),
         status: "NEW",
-        note: "",
-    })
-    const [items, setItems] = useState<any[]>(initialOrderItems())
+        note: initialData?.note ?? "",
+    }
+}
+
+function buildInitialItems(initialData?: any) {
+    const sourceItems = initialData?.items ?? []
+    if (!sourceItems.length) return initialOrderItems()
+
+    return sourceItems.map((item: any) => ({
+        product_id: item.product_id,
+        product: item.product,
+        quantity: item.quantity ?? 1,
+        unit_price: item.unit_price ?? 0,
+        discount: item.discount ?? 0,
+        line_type: item.line_type ?? "NORMAL",
+        hdn_status: item.hdn_status ?? undefined,
+        description: item.description ?? "",
+        note: item.note ?? "",
+    }))
+}
+
+export function CreateOrderDialog({ open, onOpenChange, initialData }: any) {
+    const queryClient = useQueryClient()
+    const navigate = useNavigate()
+    const initialHeader = useMemo(() => buildInitialHeader(initialData), [initialData])
+    const initialItems = useMemo(() => buildInitialItems(initialData), [initialData])
+    const [formData, setFormData] = useState(initialHeader)
+    const [items, setItems] = useState<any[]>(initialItems)
+
+    useEffect(() => {
+        if (!open) return
+
+        setFormData(buildInitialHeader(initialData))
+        setItems(buildInitialItems(initialData))
+    }, [initialData, open])
 
     const { mutate, isPending } = useMutation({
         mutationFn: () => createOrder({ ...formData, items }),
-        onSuccess: async () => {
+        onSuccess: async (createdOrder: any) => {
             await queryClient.invalidateQueries({ queryKey: ["orders"] })
             toast.success("Tạo đơn thành công")
             onOpenChange(false)
             setItems(initialOrderItems())
-            setFormData({
-                customer_id: undefined,
-                employee_id: undefined,
-                order_date: new Date().toISOString().slice(0, 10),
-                status: "NEW",
-                note: "",
-            })
+            setFormData(buildInitialHeader())
+
+            if (createdOrder?.id) {
+                navigate({
+                    to: "/sales/orders/$id",
+                    params: { id: String(createdOrder.id) },
+                })
+            }
         },
         onError: (e: any) => {
             toast.error(e.message || "Lỗi")

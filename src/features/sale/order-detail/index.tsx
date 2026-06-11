@@ -56,7 +56,7 @@ export default function OrderDetailPage({ id }: Props) {
                         type="button"
                         variant="outline"
                         className="gap-2"
-                        onClick={() => exportOrderXlsx(data)}
+                        onClick={() => void exportOrderXlsx(data)}
                     >
                         <Download className="h-4 w-4" />
                         Xuất Excel phiếu đặt hàng

@@ -62,6 +62,9 @@ export const getNextStatuses = (current?: string): string[] => {
         case "CONFIRMED":
             return ["DONE", "CANCELLED"]
 
+        case "CANCELLED":
+            return ["NEW"]
+
         default:
             return []
     }

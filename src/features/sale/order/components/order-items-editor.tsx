@@ -3,12 +3,14 @@ import { Fragment, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { listProducts, getProduct } from "@/api/product"
 import { listGoodsDescriptions } from "@/api/sale/goods-description"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
-import { PackageOpen, Trash2 } from "lucide-react"
+import { Check, ChevronsUpDown, PackageOpen, Trash2 } from "lucide-react"
 
 type OrderItem = {
     id?: number
@@ -113,6 +115,41 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
         })
     }
 
+    const createProductRow = (product: any): OrderItem => ({
+        product_id: product.id,
+        product,
+        quantity: 1,
+        unit_price: product.price ?? 0,
+        unit: product.unit,
+        discount: 0,
+        line_type: "NORMAL",
+        hdn_status: undefined,
+        description: "",
+        note: "",
+    })
+
+    const appendProducts = (products: any[]) => {
+        if (!products.length) return
+
+        const productRows = products.map(createProductRow)
+        const newItems = [...items]
+        const lastIndex = newItems.length - 1
+        const firstNewIndex = lastIndex >= 0 && !newItems[lastIndex]?.product_id ? lastIndex : newItems.length
+
+        if (lastIndex >= 0 && !newItems[lastIndex]?.product_id) {
+            newItems.splice(lastIndex, 1, ...productRows)
+        } else {
+            newItems.push(...productRows)
+        }
+
+        pendingFocusIndexRef.current = firstNewIndex
+        setItems(newItems)
+
+        if (newItems.length === items.length) {
+            focusRowCodeSelect(firstNewIndex)
+        }
+    }
+
     return (
         <div
             className="space-y-2"
@@ -178,56 +215,28 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
                                     </td>
 
                                     <td className="min-w-0 px-2 py-2 align-middle" data-product-code-trigger>
-                                        <AsyncSelect
+                                        <ProductSelect
+                                            mode="code"
                                             value={row.product_id}
-                                            onChange={(value: any, option: any) => {
-                                                selectProduct(i, value, option)
-                                            }}
-                                            dataSource={{
-                                                getList: listProductsByCode,
-                                                getById: getProduct,
-                                                params: { page: 1, size: 50 },
-                                            }}
-                                            mapOption={(x: any) => ({
-                                                value: x.id,
-                                                label: productCodeOptionLabel(x),
-                                                raw: x,
-                                            })}
-                                            optionWrapLabel
-                                            wrapLabel
-                                            className="min-w-0"
-                                            popoverContentClassName="w-[420px] max-w-[calc(100vw-2rem)] max-h-[460px]"
-                                            commandListClassName="max-h-[390px]"
+                                            onChange={(value, option) => selectProduct(i, value, option)}
+                                            onApplyMany={appendProducts}
                                             placeholder="Chọn mã"
                                             searchPlaceholder="Tìm theo mã sản phẩm..."
-                                            emptyText="Không tìm thấy sản phẩm phù hợp"
+                                            popoverContentClassName="w-[420px] max-w-[calc(100vw-2rem)]"
+                                            commandListClassName="max-h-[390px]"
                                         />
                                     </td>
 
                                     <td className="min-w-0 px-2 py-2 align-middle">
-                                        <AsyncSelect
+                                        <ProductSelect
+                                            mode="name"
                                             value={row.product_id}
-                                            onChange={(value: any, option: any) => {
-                                                selectProduct(i, value, option)
-                                            }}
-                                            dataSource={{
-                                                getList: listProductsByName,
-                                                getById: getProduct,
-                                                params: { page: 1, size: 50 },
-                                            }}
-                                            mapOption={(x: any) => ({
-                                                value: x.id,
-                                                label: productNameOptionLabel(x),
-                                                raw: x,
-                                            })}
-                                            optionWrapLabel
-                                            wrapLabel
-                                            className="min-w-0"
-                                            popoverContentClassName="w-[720px] max-w-[calc(100vw-2rem)] max-h-[520px]"
-                                            commandListClassName="max-h-[450px]"
+                                            onChange={(value, option) => selectProduct(i, value, option)}
+                                            onApplyMany={appendProducts}
                                             placeholder="Chọn tên sản phẩm"
                                             searchPlaceholder="Tìm theo tên sản phẩm..."
-                                            emptyText="Không tìm thấy sản phẩm phù hợp"
+                                            popoverContentClassName="w-[720px] max-w-[calc(100vw-2rem)]"
+                                            commandListClassName="max-h-[450px]"
                                         />
                                     </td>
                                     <td className="px-2 py-2 text-center align-middle text-sm font-medium text-slate-700">
@@ -386,6 +395,256 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
                 </table>
             </div>
         </div>
+    )
+}
+
+type ProductOption = {
+    value: number
+    label: string
+    raw: any
+}
+
+function ProductSelect({
+    mode,
+    value,
+    onChange,
+    onApplyMany,
+    placeholder,
+    searchPlaceholder,
+    popoverContentClassName,
+    commandListClassName,
+}: {
+    mode: "code" | "name"
+    value?: number
+    onChange: (value: number | undefined, option: ProductOption | null) => void
+    onApplyMany: (products: any[]) => void
+    placeholder: string
+    searchPlaceholder: string
+    popoverContentClassName?: string
+    commandListClassName?: string
+}) {
+    const [open, setOpen] = useState(false)
+    const [keyword, setKeyword] = useState("")
+    const [loading, setLoading] = useState(false)
+    const [multiMode, setMultiMode] = useState(false)
+    const [options, setOptions] = useState<ProductOption[]>([])
+    const [selectedOption, setSelectedOption] = useState<ProductOption | null>(null)
+    const [selected, setSelected] = useState<Map<number, ProductOption>>(() => new Map())
+
+    const selectedCount = selected.size
+    const getList = mode === "code" ? listProductsByCode : listProductsByName
+    const getLabel = mode === "code" ? productCodeOptionLabel : productNameOptionLabel
+
+    useEffect(() => {
+        if (!open) return
+
+        let cancelled = false
+        const timer = window.setTimeout(async () => {
+            setLoading(true)
+            try {
+                const result = await getList({ page: 1, size: 50, keyword })
+                if (cancelled) return
+
+                setOptions(
+                    (result.items ?? []).map((product: any) => ({
+                        value: product.id,
+                        label: getLabel(product),
+                        raw: product,
+                    }))
+                )
+            } finally {
+                if (!cancelled) {
+                    setLoading(false)
+                }
+            }
+        }, 250)
+
+        return () => {
+            cancelled = true
+            window.clearTimeout(timer)
+        }
+    }, [getLabel, getList, keyword, open])
+
+    useEffect(() => {
+        let active = true
+
+        const loadSelected = async () => {
+            if (value == null) {
+                setSelectedOption(null)
+                return
+            }
+
+            const result = await getProduct(value)
+            const product = (result as any)?.data ?? result
+
+            if (active && product) {
+                setSelectedOption({
+                    value: product.id,
+                    label: getLabel(product),
+                    raw: product,
+                })
+            }
+        }
+
+        loadSelected()
+
+        return () => {
+            active = false
+        }
+    }, [getLabel, value])
+
+    const closePopover = (nextOpen: boolean) => {
+        setOpen(nextOpen)
+        if (!nextOpen) {
+            setMultiMode(false)
+            setSelected(new Map())
+        }
+    }
+
+    const toggleOption = (option: ProductOption) => {
+        setSelected((current) => {
+            const next = new Map(current)
+            if (next.has(option.value)) {
+                next.delete(option.value)
+            } else {
+                next.set(option.value, option)
+            }
+            return next
+        })
+    }
+
+    const applySelection = () => {
+        const products = Array.from(selected.values()).map((option) => option.raw)
+        onApplyMany(products)
+        setSelected(new Map())
+        setMultiMode(false)
+        setOpen(false)
+    }
+
+    return (
+        <Popover open={open} onOpenChange={closePopover}>
+            <PopoverTrigger asChild>
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="h-auto min-h-10 w-full min-w-0 items-start justify-between py-2"
+                >
+                    <span className="min-w-0 flex-1 whitespace-normal break-words text-left leading-snug">
+                        {selectedOption ? selectedOption.label : placeholder}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent
+                align="start"
+                side="top"
+                className={cn(
+                    "w-[var(--radix-popover-trigger-width)] max-h-[calc(var(--radix-popover-content-available-height)-8px)] overflow-hidden p-0",
+                    popoverContentClassName
+                )}
+            >
+                <Command shouldFilter={false}>
+                    <CommandInput value={keyword} onValueChange={setKeyword} placeholder={searchPlaceholder} />
+                    <div className="flex items-center justify-between gap-2 border-b px-2 py-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                            {multiMode && (
+                                <>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={!selectedCount}
+                                        onClick={() => setSelected(new Map())}
+                                    >
+                                        Bỏ chọn
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        disabled={!selectedCount}
+                                        onClick={applySelection}
+                                    >
+                                        Thêm {selectedCount || ""} dòng
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                            {multiMode && (
+                                <span className="text-muted-foreground text-xs">
+                                    {selectedCount} đã chọn
+                                </span>
+                            )}
+                            <Button
+                                type="button"
+                                variant={multiMode ? "default" : "outline"}
+                                size="sm"
+                                className="h-8"
+                                onClick={() => setMultiMode((current) => !current)}
+                            >
+                                Chọn nhiều
+                            </Button>
+                        </div>
+                    </div>
+                    <CommandList
+                        className={cn(
+                            "max-h-[calc(var(--radix-popover-content-available-height)-7rem)] overflow-y-auto",
+                            commandListClassName
+                        )}
+                    >
+                        <CommandEmpty>
+                            {loading ? "Đang tải..." : "Không tìm thấy sản phẩm phù hợp"}
+                        </CommandEmpty>
+                        {options.map((option) => {
+                            const checked = selected.has(option.value)
+
+                            return (
+                                <CommandItem
+                                    key={option.value}
+                                    value={`${option.value}`}
+                                    onSelect={() => {
+                                        if (multiMode) {
+                                            toggleOption(option)
+                                            return
+                                        }
+
+                                        setSelectedOption(option)
+                                        onChange(option.value, option)
+                                        setOpen(false)
+                                    }}
+                                    className="items-start gap-2 py-2"
+                                >
+                                    {multiMode ? (
+                                        <Checkbox checked={checked} className="pointer-events-none mt-0.5" />
+                                    ) : (
+                                        <Check
+                                            className={cn(
+                                                "mt-0.5 h-4 w-4",
+                                                String(value) === String(option.value) ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                        <div className="whitespace-normal break-words font-medium leading-snug">
+                                            {option.label}
+                                        </div>
+                                        {mode === "code" ? (
+                                            <div className="text-muted-foreground whitespace-normal break-words text-xs">
+                                                {option.raw?.name}
+                                            </div>
+                                        ) : (
+                                            <div className="text-muted-foreground whitespace-normal break-words text-xs">
+                                                {option.raw?.code}
+                                            </div>
+                                        )}
+                                    </div>
+                                </CommandItem>
+                            )
+                        })}
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
     )
 }
 

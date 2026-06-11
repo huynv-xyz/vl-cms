@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button"
 import { InlineStatus } from "@/components/inline-status"
 import { getOrderStatusMeta, ORDER_STATUSES } from "../../order/components/order-status"
 import { OrderDocumentDialog } from "../../order/components/order-document-dialog"
+import { CreateOrderDialog } from "../../order/components/create-order-dialog"
 import { UpdateOrderDialog } from "../../order/components/update-order-dialog"
 import {
     CalendarDays,
     Clock,
+    CopyPlus,
     FileText,
     MapPin,
     Pencil,
@@ -27,6 +29,7 @@ type Props = {
 
 export function OrderInfo({ order, metrics }: Props) {
     const [documentOpen, setDocumentOpen] = useState(false)
+    const [cloneOpen, setCloneOpen] = useState(false)
     const [editOpen, setEditOpen] = useState(false)
     const statusMeta = getOrderStatusMeta(order.status)
     const StatusIcon = statusMeta.icon
@@ -87,6 +90,16 @@ export function OrderInfo({ order, metrics }: Props) {
                         variant="outline"
                         size="sm"
                         className="h-9 gap-1.5"
+                        onClick={() => setCloneOpen(true)}
+                    >
+                        <CopyPlus className="h-3.5 w-3.5" />
+                        Nhân bản
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 gap-1.5"
                         onClick={() => setDocumentOpen(true)}
                     >
                         <FileText className="h-3.5 w-3.5" />
@@ -120,6 +133,12 @@ export function OrderInfo({ order, metrics }: Props) {
                 open={documentOpen}
                 order={order}
                 onClose={() => setDocumentOpen(false)}
+            />
+
+            <CreateOrderDialog
+                open={cloneOpen}
+                onOpenChange={setCloneOpen}
+                initialData={order}
             />
 
             <UpdateOrderDialog

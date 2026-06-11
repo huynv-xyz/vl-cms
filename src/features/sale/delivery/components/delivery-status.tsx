@@ -69,6 +69,9 @@ export const getNextDeliveryStatuses = (current?: string): string[] => {
         case "DELIVERING":
             return ["NEW", "DONE", "CANCELLED"]
 
+        case "CANCELLED":
+            return ["NEW", "DELIVERING"]
+
         default:
             return []
     }

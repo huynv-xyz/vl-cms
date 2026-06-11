@@ -125,14 +125,19 @@ export function useExportColumns() {
             header: "Trạng thái",
             cell: ({ row }) => {
                 const status = row.original.status || "NEW"
+                const allowedNext =
+                    status === "NEW"
+                        ? ["DONE", "CANCELLED"]
+                        : status === "CANCELLED"
+                          ? ["NEW"]
+                          : []
                 return (
                     <Select
                         value={status}
                         disabled={
                             !canUpdateStatus ||
                             isPending ||
-                            status === "DONE" ||
-                            status === "CANCELLED"
+                            status === "DONE"
                         }
                         onValueChange={(next) =>
                             changeStatus({
@@ -149,7 +154,11 @@ export function useExportColumns() {
                         </SelectTrigger>
                         <SelectContent>
                             {EXPORT_STATUSES.map((s) => (
-                                <SelectItem key={s.value} value={s.value}>
+                                <SelectItem
+                                    key={s.value}
+                                    value={s.value}
+                                    disabled={s.value !== status && !allowedNext.includes(s.value)}
+                                >
                                     {s.label}
                                 </SelectItem>
                             ))}
