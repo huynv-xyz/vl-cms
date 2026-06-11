@@ -60,6 +60,7 @@ export type CustomerVipPlanTier = {
 
 export type CustomerVipPlanItem = {
     stt: number
+    has_plan?: boolean
     group_code: string
     product_group?: string | null
     unit?: string | null
@@ -83,7 +84,10 @@ export type CustomerVipPlanItem = {
 }
 
 export type CustomerVipPlan = CustomerVip & {
+    has_plan?: boolean
     target_id?: number | null
+    plan_created_at?: string | null
+    plan_updated_at?: string | null
     target_tier_code?: string | null
     target_tier_name?: string | null
     target_point: number

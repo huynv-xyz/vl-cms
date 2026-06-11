@@ -65,7 +65,7 @@ export default function VipPointRulePage() {
                 <PageSection
                     isLoading={(isLoading && !data) || (isGroupLoading && !groupData)}
                     error={error || groupError}
-                    title='Hệ số tính điểm VIP'
+                    title='Điểm nhóm chung'
                     description='Danh sách nhóm và quy tắc tính điểm VIP.'
                     actions={
                         <div className='flex items-center gap-2'>

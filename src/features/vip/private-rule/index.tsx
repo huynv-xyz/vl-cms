@@ -31,7 +31,7 @@ export default function VipPrivateRulePage() {
             <PageSection
                 isLoading={isLoading}
                 error={error}
-                title="Mã riêng"
+                title="Thưởng"
                 description="Danh sách quy tắc thưởng riêng VIP."
                 actions={<CreateVipPrivateRuleButton />}
                 data={data}

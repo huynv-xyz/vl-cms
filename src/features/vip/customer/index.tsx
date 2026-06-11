@@ -60,7 +60,7 @@ export default function CustomerVipPage() {
         <PageSection
             isLoading={isLoading}
             error={error}
-            title='Khách hàng VIP'
+            title='Danh sách VIP'
             description='Danh sách khách hàng và thông tin xếp hạng VIP.'
             data={data}
         >
