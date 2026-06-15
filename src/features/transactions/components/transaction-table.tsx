@@ -33,6 +33,7 @@ type TransactionFilters = {
 
 type TransactionTableProps = {
     data: Transaction[]
+    totalRevenue: number
     pagination: PaginationState
     onPaginationChange: OnChangeFn<PaginationState>
     pageCount: number
@@ -56,6 +57,7 @@ const HDN_STATUS_OPTIONS = [
 
 export function TransactionTable({
     data,
+    totalRevenue,
     pagination,
     onPaginationChange,
     pageCount,
@@ -68,7 +70,7 @@ export function TransactionTable({
         key: K,
         value: TransactionFilters[K],
     ) => onFiltersChange({ ...filters, [key]: value })
-    const columns = buildTransactionColumns(filters, onFiltersChange)
+    const columns = buildTransactionColumns(filters, onFiltersChange, totalRevenue)
 
     return (
         <div className="space-y-4">

@@ -1,4 +1,4 @@
-import {
+﻿import {
     Crown,
     Users,
     Calculator,
@@ -69,11 +69,6 @@ export const sidebarData: SidebarData = {
                     title: 'Kho hàng',
                     url: '/warehouses',
                     icon: Warehouse,
-                },
-                {
-                    title: 'Bán hàng',
-                    url: '/transactions',
-                    icon: ShoppingCart,
                 },
                 {
                     title: 'Mô tả HH',
@@ -168,6 +163,11 @@ export const sidebarData: SidebarData = {
         {
             title: 'Bán hàng & Công nợ',
             items: [
+                {
+                    title: 'Bán hàng',
+                    url: '/transactions',
+                    icon: ShoppingCart,
+                },
                 {
                     title: 'Đơn hàng',
                     url: '/sales/orders',
@@ -335,3 +335,4 @@ export const sidebarData: SidebarData = {
     ],
 
 }
+

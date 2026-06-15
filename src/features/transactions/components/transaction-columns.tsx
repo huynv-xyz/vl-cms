@@ -100,6 +100,7 @@ function moneyColumn(
     accessorKey: TextColumnKey,
     title: string,
     width = 150,
+    footer?: React.ReactNode,
 ): ColumnDef<Transaction> {
     return {
         accessorKey: accessorKey as string,
@@ -121,6 +122,7 @@ function moneyColumn(
         meta: {
             thClassName: `w-[${width}px] whitespace-nowrap text-right`,
             tdClassName: `w-[${width}px] whitespace-nowrap`,
+            footer: footer ? () => footer : undefined,
         },
     }
 }
@@ -150,6 +152,7 @@ function dateColumn(
 export function buildTransactionColumns(
     filters: TransactionColumnFilters,
     onFiltersChange: (filters: TransactionColumnFilters) => void,
+    totalRevenue = 0,
 ): ColumnDef<Transaction>[] {
     const setColumnFilter = (key: FilterableColumnKey, value?: string[]) => {
         onFiltersChange({
@@ -187,7 +190,14 @@ export function buildTransactionColumns(
         textColumn("unit", "Đơn vị chính (ĐVC)", 140),
         numberColumn("sale_qty", "Tổng SL bán theo ĐVC", 160),
         moneyColumn("unit_price", "Đơn giá theo ĐVC", 150),
-        moneyColumn("revenue", "Doanh số bán", 160),
+        moneyColumn(
+            "revenue",
+            "Doanh số bán",
+            160,
+            <span className="block text-right tabular-nums whitespace-nowrap">
+                {formatCurrency(totalRevenue)}
+            </span>,
+        ),
         numberColumn("return_qty", "SL trả lại theo ĐVC", 160),
         textColumn("sale_user_code", "Mã nhân viên bán hàng", 180),
         textColumn("sale_user_name", "Tên nhân viên bán hàng", 220),
