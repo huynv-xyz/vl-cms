@@ -1,12 +1,13 @@
-import { useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { PageSection } from '@/components/page-section'
 import { usePaginatedList } from '@/hooks/use-paginated-list'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
-import { listTransactions } from '@/api/transactions'
+import { getTransactionSummary, listTransactions } from '@/api/transactions'
 import { TransactionTable } from './components/transaction-table'
 import { ImportTransactionButton } from './components/import-transaction-button'
 import { ExportTransactionButton } from './components/export-transaction-button'
+import { TransactionSummaryStrip } from './components/transaction-summary-strip'
 import { Route } from '@/routes/_authenticated/transactions'
 
 export default function TransactionPage() {
@@ -70,6 +71,42 @@ export default function TransactionPage() {
         },
     )
 
+    const summaryParams = {
+        keyword,
+        customer_code: requestFilters.customer_code,
+        customer_name: requestFilters.customer_name,
+        product_code: requestFilters.product_code,
+        product_name: requestFilters.product_name,
+        customer_type: requestFilters.customer_type,
+        hdn_status: requestFilters.hdn_status,
+        vthh_con: requestFilters.vthh_con,
+        npp: requestFilters.npp,
+        process_month: requestFilters.process_month,
+        region: requestFilters.region,
+        document_date_from: requestFilters.document_date_from,
+        document_date_to: requestFilters.document_date_to,
+    }
+
+    const { data: summary, isLoading: isSummaryLoading } = useQuery({
+        queryKey: [
+            'transactions-summary',
+            keyword,
+            multiFilters.customer_code,
+            multiFilters.customer_name,
+            multiFilters.product_code,
+            multiFilters.product_name,
+            multiFilters.customer_type,
+            multiFilters.hdn_status,
+            singleFilters.vthh_con,
+            singleFilters.npp,
+            singleFilters.process_month,
+            singleFilters.region,
+            singleFilters.document_date_from,
+            singleFilters.document_date_to,
+        ],
+        queryFn: () => getTransactionSummary(summaryParams),
+    })
+
     return (
         <PageSection
             isLoading={isLoading}
@@ -81,6 +118,7 @@ export default function TransactionPage() {
                         onSuccess={(result) => {
                             alert(`Import thành công: ${result.inserted} dòng`)
                             queryClient.invalidateQueries({ queryKey: ['transactions'] })
+                            queryClient.invalidateQueries({ queryKey: ['transactions-summary'] })
                         }}
                         onError={(error) => {
                             alert(error.message)
@@ -109,8 +147,13 @@ export default function TransactionPage() {
         >
             {(data) => (
                 <div className="space-y-4">
+                    <TransactionSummaryStrip
+                        revenue={summary?.revenue ?? 0}
+                        isLoading={isSummaryLoading}
+                    />
                     <TransactionTable
                         data={data.items}
+                        totalRevenue={summary?.revenue ?? 0}
                         pagination={pagination}
                         onPaginationChange={setPagination}
                         pageCount={data.total_page}

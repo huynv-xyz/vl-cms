@@ -38,6 +38,10 @@ export type ImportTransactionsResponse = {
     inserted: number
 }
 
+export type TransactionSummary = {
+    revenue: number
+}
+
 const transactionApi = createCrudApi<
     Transaction,
     never,
@@ -46,6 +50,10 @@ const transactionApi = createCrudApi<
 >("/transactions")
 
 export const listTransactions = transactionApi.list
+
+export function getTransactionSummary(params: Omit<TransactionListParams, "page" | "size">) {
+    return apiGet<TransactionSummary>("/transactions/summary", params)
+}
 
 export function listTransactionOptions(params: TransactionOptionParams) {
     return apiGet<PagedResult<TransactionColumnOption>>("/transactions/options", {
