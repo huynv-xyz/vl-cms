@@ -74,6 +74,7 @@ export function OrderDocumentDialog({ open, order, onClose }: Props) {
 
 function OrderDocument({ order, debtTotal }: { order: Order; debtTotal: number }) {
     const customer = order.customer
+    const customerInvoiceInfo = getCustomerInvoiceInfo(customer)
     const items = order.items ?? []
     const goodsTotal = items.reduce((sum, item: any) => sum + getLineAmount(item), 0)
     const paymentTotal = goodsTotal + debtTotal
@@ -101,8 +102,8 @@ function OrderDocument({ order, debtTotal }: { order: Order; debtTotal: number }
 
             <div className="mt-12 space-y-1 px-1 text-[16px]">
                 <InfoLine label="Tên khách hàng:" value={customer?.name || "-"} valueClassName="text-[24px] font-bold uppercase text-blue-800" />
-                <InfoLine label="Địa chỉ:" value={customer?.address || ""} />
-                <InfoLine label="Mã số thuế:" value={customer?.tax_code || ""} />
+                <InfoLine label="Địa chỉ:" value={customerInvoiceInfo.address} />
+                <InfoLine label="Mã số thuế:" value={customerInvoiceInfo.taxCode} />
                 <InfoLine label="Điện thoại:" value={(customer as any)?.phone || ""} />
                 <InfoLine label="Email:" value={(customer as any)?.email || ""} />
                 <InfoLine label="Ghi chú:" value={order.note || ""} />
@@ -163,6 +164,14 @@ function InfoLine({ label, value, valueClassName }: { label: string; value: Reac
     return <div><span>{label} </span><span className={valueClassName}>{value}</span></div>
 }
 
+function getCustomerInvoiceInfo(customer: any) {
+    const defaultAlias = customer?.default_alias
+    return {
+        address: defaultAlias?.note || customer?.address || "",
+        taxCode: defaultAlias?.tax_code || customer?.tax_code || "",
+    }
+}
+
 function Th({ className = "", children }: { className?: string; children: React.ReactNode }) {
     return <th className={`border border-black px-1 py-1 text-center align-middle font-bold ${className}`}>{children}</th>
 }
@@ -184,6 +193,7 @@ function SummaryRow({ label, value }: { label: string; value: number }) {
 async function exportOrderDocumentXlsx(order: Order, debtTotal: number) {
     const { Workbook } = await import("exceljs")
     const customer = order.customer
+    const customerInvoiceInfo = getCustomerInvoiceInfo(customer)
     const items = order.items ?? []
     const goodsTotal = items.reduce((sum, item: any) => sum + getLineAmount(item), 0)
     const paymentTotal = goodsTotal + debtTotal
@@ -252,8 +262,8 @@ async function exportOrderDocumentXlsx(order: Order, debtTotal: number) {
 
     const infoRows: Array<[string, string]> = [
         ["Tên khách hàng:", customer?.name || "-"],
-        ["Địa chỉ:", customer?.address || ""],
-        ["Mã số thuế:", customer?.tax_code || ""],
+        ["Địa chỉ:", customerInvoiceInfo.address],
+        ["Mã số thuế:", customerInvoiceInfo.taxCode],
         ["Điện thoại:", (customer as any)?.phone || ""],
         ["Email:", (customer as any)?.email || ""],
         ["Ghi chú:", order.note || ""],

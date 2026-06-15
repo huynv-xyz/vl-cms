@@ -21,6 +21,13 @@ export type CreateCustomerRequest = {
     employee_id?: number
     status?: number
     note?: string
+    invoice_alias_code?: string
+    invoice_alias_name?: string
+    invoice_tax_code?: string
+    invoice_address?: string
+    bank_account?: string
+    bank_account_name?: string
+    bank_name?: string
 }
 
 export type UpdateCustomerRequest = {
@@ -33,6 +40,13 @@ export type UpdateCustomerRequest = {
     employee_id?: number
     status?: number
     note?: string
+    invoice_alias_code?: string
+    invoice_alias_name?: string
+    invoice_tax_code?: string
+    invoice_address?: string
+    bank_account?: string
+    bank_account_name?: string
+    bank_name?: string
 }
 
 const customerApi = createCrudApi<

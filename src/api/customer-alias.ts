@@ -6,7 +6,7 @@ export type CustomerAlias = {
     id: number
     customer_id: number
     customer?: Customer
-    alias_code?: string
+    alias_code: string
     alias_name: string
     tax_code?: string
     bank_account?: string
