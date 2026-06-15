@@ -1,4 +1,5 @@
 import type { Employee } from "@/features/employee/data/schema"
+import type { CustomerAlias } from "@/api/customer-alias"
 
 export type Customer = {
     id: number
@@ -12,6 +13,8 @@ export type Customer = {
     employee?: Employee
     status: number
     note?: string
+    default_alias?: CustomerAlias
+    alias_count?: number
     created_at?: string
     updated_at?: string
 }

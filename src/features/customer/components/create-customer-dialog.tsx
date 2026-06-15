@@ -1,10 +1,8 @@
-import { CrudFormDialog } from "@/components/crud/crud-form-dialog"
 import {
     createCustomer,
     type CreateCustomerRequest,
 } from "@/api/customer"
-import { customerSchema, customerUiSchema } from "./customer-form-schema"
-import type { CustomerFormValues } from "./types"
+import { CustomerEditorDialog } from "./customer-editor-dialog"
 
 type Props = {
     open: boolean
@@ -16,13 +14,10 @@ export function CreateCustomerDialog({
     onOpenChange,
 }: Props) {
     return (
-        <CrudFormDialog<CustomerFormValues, CreateCustomerRequest, unknown>
-            title="Tạo Customer"
+        <CustomerEditorDialog<CreateCustomerRequest, unknown>
+            title="Tạo khách hàng"
             open={open}
             onOpenChange={onOpenChange}
-            hideTrigger
-            schema={customerSchema}
-            uiSchema={customerUiSchema}
             defaultValues={{
                 code: "",
                 name: "",
@@ -32,10 +27,16 @@ export function CreateCustomerDialog({
                 employee_id: undefined,
                 note: "",
                 status: true,
+                invoice_alias_code: "",
+                invoice_alias_name: "",
+                invoice_tax_code: "",
+                invoice_address: "",
+                bank_account: "",
+                bank_account_name: "",
+                bank_name: "",
             }}
-            submitText="Tạo Customer"
+            submitText="Tạo khách hàng"
             loadingText="Đang tạo..."
-            queryKeyToInvalidate={["customer"]}
             mutationFn={createCustomer}
             mapFormToRequest={(values) => ({
                 code: values.code,
@@ -46,6 +47,13 @@ export function CreateCustomerDialog({
                 employee_id: values.employee_id,
                 note: values.note?.trim() ? values.note.trim() : "",
                 status: values.status === false ? 0 : 1,
+                invoice_alias_code: values.invoice_alias_code?.trim() || values.code.trim(),
+                invoice_alias_name: values.invoice_alias_name?.trim() || values.name.trim(),
+                invoice_tax_code: values.invoice_tax_code?.trim() || undefined,
+                invoice_address: values.invoice_address?.trim() || undefined,
+                bank_account: values.bank_account?.trim() || undefined,
+                bank_account_name: values.bank_account_name?.trim() || undefined,
+                bank_name: values.bank_name?.trim() || undefined,
             })}
         />
     )
