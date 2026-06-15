@@ -71,6 +71,11 @@ export const sidebarData: SidebarData = {
                     icon: Warehouse,
                 },
                 {
+                    title: 'Kho vật lý',
+                    url: '/physical-warehouses',
+                    icon: Warehouse,
+                },
+                {
                     title: 'Mô tả HH',
                     url: '/sales/goods-descriptions',
                     icon: ReceiptText,
@@ -240,16 +245,6 @@ export const sidebarData: SidebarData = {
                     icon: Truck,
                 },
                 {
-                    title: 'Xuất kho khác',
-                    url: '/inventory/outbounds',
-                    icon: Package,
-                },
-                {
-                    title: 'Chuyển kho',
-                    url: '/inventory/transfers',
-                    icon: Warehouse,
-                },
-                {
                     title: 'Cảnh báo HSD',
                     url: '/inventory/alerts',
                     icon: Boxes,
@@ -335,4 +330,3 @@ export const sidebarData: SidebarData = {
     ],
 
 }
-

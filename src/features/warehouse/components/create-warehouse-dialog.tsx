@@ -17,6 +17,7 @@ export function CreateWarehouseDialog({ open, onOpenChange }: any) {
                 code: "",
                 name: "",
                 address: "",
+                physical_warehouse_id: undefined,
                 status: "ACTIVE",
             }}
             submitText="Tạo"
@@ -27,6 +28,7 @@ export function CreateWarehouseDialog({ open, onOpenChange }: any) {
                 code: v.code?.trim(),
                 name: v.name?.trim(),
                 address: v.address?.trim() || "",
+                physical_warehouse_id: v.physical_warehouse_id,
                 status: v.status ?? "ACTIVE",
             })}
         />

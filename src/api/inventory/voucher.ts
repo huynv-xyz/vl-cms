@@ -2,7 +2,7 @@ import { apiGet, apiPost, type PagedResult } from "@/api/client"
 
 /**
  * BA Spec §11.4 — seed `voucher_type` cho toàn bộ luồng tồn kho.
- * Dùng chung cho mọi loại CT: nhập, xuất, chuyển kho, sản xuất, đầu kỳ.
+ * Dùng chung cho các CT còn vận hành: nhập, xuất bán, sản xuất, đầu kỳ.
  */
 export type VoucherTypeCode =
     | "OPENING_IN"
@@ -13,9 +13,6 @@ export type VoucherTypeCode =
     | "PNK_SALES_RETURN"
     | "PXK_SALE"
     | "PXK_PROD"
-    | "PXK_OTHER"
-    | "PXK_TRANSFER"
-    | "PXK_TRANSPORT"
     | "PXK_PURCHASE_RETURN"
 
 export type VoucherStatus = "DRAFT" | "POSTED" | "VOID"
@@ -151,19 +148,5 @@ export const VOUCHER_TYPE_LABEL: Record<string, string> = {
     PNK_SALES_RETURN: "Nhập từ hàng bán trả lại",
     PXK_SALE: "Xuất kho bán hàng",
     PXK_PROD: "Xuất kho sản xuất",
-    PXK_OTHER: "Xuất kho khác",
-    PXK_TRANSFER: "Xuất chuyển kho nội bộ",
-    PXK_TRANSPORT: "Xuất kho kiêm vận chuyển nội bộ",
     PXK_PURCHASE_RETURN: "Hàng mua trả lại NCC",
 }
-
-export const OUTBOUND_VOUCHER_TYPES: VoucherTypeCode[] = [
-    "PXK_OTHER",
-    "PXK_PURCHASE_RETURN",
-    "PNK_SALES_RETURN",
-]
-
-export const TRANSFER_VOUCHER_TYPES: VoucherTypeCode[] = [
-    "PXK_TRANSFER",
-    "PXK_TRANSPORT",
-]

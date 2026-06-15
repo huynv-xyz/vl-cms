@@ -22,7 +22,7 @@ export type ProductionPermissions = {
     canEditQuantity: boolean
     /** Sửa đơn giá, giá thành, chi phí */
     canEditCost: boolean
-    /** Thêm vật tư phát sinh, thay thế vật tư */
+    /** Thêm, sửa, xóa danh sách vật tư cuối cùng của lệnh SX */
     canAdjustMaterials: boolean
     /** Chỉ định lô ưu tiên (preferred lot) */
     canPickLot: boolean

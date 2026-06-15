@@ -1,5 +1,5 @@
 import { createCrudApi } from "@/api/crud"
-import { apiGet, apiPost, apiPut } from "@/api/client"
+import { apiDelete, apiGet, apiPost, apiPut } from "@/api/client"
 import type { Production } from "@/features/production/order/data/schema"
 
 export type ProductionListParams = {
@@ -8,13 +8,15 @@ export type ProductionListParams = {
     keyword?: string
     product_id?: number
     warehouse_id?: number
+    physical_warehouse_id?: number
     status?: string
     from_date?: string
     to_date?: string
 }
 
 export type CreateProductionRequest = {
-    warehouse_id: number
+    physical_warehouse_id: number
+    warehouse_id?: number
     production_date: string
     packing_code?: string
     note?: string
@@ -31,6 +33,7 @@ export type CreateProductionRequest = {
 
 export type UpdateProductionRequest = {
     id: number
+    physical_warehouse_id?: number
     warehouse_id?: number
     production_date?: string
     packing_code?: string
@@ -107,7 +110,7 @@ export const cancelProduction = (id: number) =>
 export const unpostProduction = (id: number, reason?: string) =>
     apiPost<Production>(`/productions/${id}/unpost`, { reason })
 
-export type AddExtraMaterialRequest = {
+export type SaveProductionMaterialRequest = {
     production_item_id?: number
     product_id?: number
     warehouse_id?: number
@@ -117,26 +120,19 @@ export type AddExtraMaterialRequest = {
     note?: string
 }
 
-export const addProductionExtraMaterial = (
+export const addProductionMaterial = (
     id: number,
-    body: AddExtraMaterialRequest
-) => apiPost<Production>(`/productions/${id}/extras`, body)
+    body: SaveProductionMaterialRequest
+) => apiPost<Production>(`/productions/${id}/materials`, body)
 
-export type AddSubstitutionRequest = {
-    production_item_id?: number
-    bom_item_id?: number
-    original_product_id?: number
-    substitute_product_id?: number
-    quantity_original?: number
-    quantity?: number
-    reason?: string
-    note?: string
-}
-
-export const addProductionSubstitution = (
+export const updateProductionMaterial = (
     id: number,
-    body: AddSubstitutionRequest
-) => apiPost<Production>(`/productions/${id}/substitutions`, body)
+    materialId: number,
+    body: SaveProductionMaterialRequest
+) => apiPut<Production>(`/productions/${id}/materials/${materialId}`, body)
+
+export const deleteProductionMaterial = (id: number, materialId: number) =>
+    apiDelete<Production>(`/productions/${id}/materials/${materialId}`)
 
 export type SetPreferredLotRequest = {
     lot_id?: number

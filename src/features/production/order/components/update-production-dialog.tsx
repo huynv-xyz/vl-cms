@@ -5,7 +5,7 @@ import { Plus, Save, Trash2 } from "lucide-react"
 
 import { updateProduction, type UpdateProductionRequest } from "@/api/production/order"
 import { listProducts, getProduct } from "@/api/product"
-import { listWarehouses, getWarehouse } from "@/api/warehouse"
+import { listPhysicalWarehouses, getPhysicalWarehouse } from "@/api/physical-warehouse"
 import { DatePicker } from "@/components/date-picker"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Button } from "@/components/ui/button"
@@ -47,7 +47,7 @@ export function UpdateProductionDialog({
     const queryClient = useQueryClient()
 
     const [productionDate, setProductionDate] = useState("")
-    const [warehouseId, setWarehouseId] = useState<number>()
+    const [physicalWarehouseId, setPhysicalWarehouseId] = useState<number>()
     const [packingCode, setPackingCode] = useState("")
     const [note, setNote] = useState("")
     const [items, setItems] = useState<Row[]>([newRow()])
@@ -57,7 +57,7 @@ export function UpdateProductionDialog({
 
         setProductionDate(production.production_date || "")
         setNote(production.note || "")
-        setWarehouseId(production.items?.[0]?.warehouse_id)
+        setPhysicalWarehouseId(production.physical_warehouse_id)
         setPackingCode((production as any).packing_code || "")
         setItems(
             production.items?.length
@@ -117,7 +117,7 @@ export function UpdateProductionDialog({
 
     const submit = () => {
         if (!productionDate) return toast.error("Ngày lệnh là bắt buộc")
-        if (!warehouseId) return toast.error("Kho nhập TP là bắt buộc")
+        if (!physicalWarehouseId) return toast.error("Kho vật lý là bắt buộc")
         if (!items.length) return toast.error("Cần ít nhất 1 thành phẩm")
 
         for (const [index, item] of items.entries()) {
@@ -129,14 +129,13 @@ export function UpdateProductionDialog({
 
         mutate({
             id: production.id,
-            warehouse_id: warehouseId,
+            physical_warehouse_id: physicalWarehouseId,
             production_date: productionDate,
             packing_code: packingCode || undefined,
             status: production.status,
             note,
             items: items.map((item) => ({
                 product_id: item.product_id,
-                warehouse_id: warehouseId,
                 quantity_plan: item.quantity_plan,
                 quantity_done: item.quantity_done,
                 note: item.note || undefined,
@@ -150,7 +149,7 @@ export function UpdateProductionDialog({
                 <DialogHeader className="border-b px-6 py-5">
                     <DialogTitle>Cập nhật lệnh sản xuất</DialogTitle>
                     <DialogDescription>
-                        Chỉnh ngày, kho nhập và thành phẩm khi lệnh còn ở bước nháp hoặc kế hoạch.
+                        Chỉnh ngày, kho vật lý và thành phẩm khi lệnh còn ở bước nháp hoặc kế hoạch.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -170,19 +169,21 @@ export function UpdateProductionDialog({
                                     />
                                 </Field>
 
-                                <Field label="Kho nhập thành phẩm" required>
+                                <Field label="Kho vật lý" required>
                                     <AsyncSelect
-                                        value={warehouseId}
-                                        onChange={(value: any) => setWarehouseId(value || undefined)}
-                                        placeholder="Chọn kho"
+                                        value={physicalWarehouseId}
+                                        onChange={(value: any) => {
+                                            setPhysicalWarehouseId(value || undefined)
+                                        }}
+                                        placeholder="Chọn kho vật lý"
                                         dataSource={{
-                                            getList: listWarehouses,
-                                            getById: getWarehouse,
-                                            params: { page: 1, size: 20 },
+                                            getList: listPhysicalWarehouses,
+                                            getById: getPhysicalWarehouse,
+                                            params: { page: 1, size: 20, status: "ACTIVE" },
                                         }}
                                         mapOption={(warehouse: any) => ({
                                             value: warehouse.id,
-                                            label: warehouse.name,
+                                            label: `${warehouse.code || `#${warehouse.id}`} - ${warehouse.name}`,
                                         })}
                                     />
                                 </Field>
@@ -313,7 +314,7 @@ export function UpdateProductionDialog({
                                 <SummaryRow label="Tổng SL sản xuất" value={formatQuantity(summary.totalQuantity, summary.unit)} />
                             </div>
                             <div className="mt-4 rounded-md border bg-background p-3 text-sm text-muted-foreground">
-                                Sau khi sinh vật tư, không sửa trực tiếp form này. Hãy chỉnh vật tư, thay thế hoặc lô ưu tiên trong trang chi tiết.
+                                Kho nhập thành phẩm được hệ thống tự chọn trong kho vật lý. Sau khi sinh vật tư, hãy chỉnh vật tư hoặc lô ưu tiên trong trang chi tiết.
                             </div>
                         </aside>
                     </div>

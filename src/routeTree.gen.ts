@@ -26,6 +26,7 @@ import { Route as AuthenticatedProvincesIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedProductsIndexRouteImport } from './routes/_authenticated/products/index'
 import { Route as AuthenticatedProductGroupsIndexRouteImport } from './routes/_authenticated/product-groups/index'
 import { Route as AuthenticatedPricingIndexRouteImport } from './routes/_authenticated/pricing/index'
+import { Route as AuthenticatedPhysicalWarehousesIndexRouteImport } from './routes/_authenticated/physical-warehouses/index'
 import { Route as AuthenticatedNationsIndexRouteImport } from './routes/_authenticated/nations/index'
 import { Route as AuthenticatedEmployeesIndexRouteImport } from './routes/_authenticated/employees/index'
 import { Route as AuthenticatedCustomersIndexRouteImport } from './routes/_authenticated/customers/index'
@@ -59,10 +60,7 @@ import { Route as AuthenticatedPurchasingContractsIndexRouteImport } from './rou
 import { Route as AuthenticatedPurchasingApSummaryIndexRouteImport } from './routes/_authenticated/purchasing/ap-summary/index'
 import { Route as AuthenticatedProductionOrdersIndexRouteImport } from './routes/_authenticated/production/orders/index'
 import { Route as AuthenticatedProductionBomsIndexRouteImport } from './routes/_authenticated/production/boms/index'
-import { Route as AuthenticatedInventoryTransfersIndexRouteImport } from './routes/_authenticated/inventory/transfers/index'
 import { Route as AuthenticatedInventorySummaryIndexRouteImport } from './routes/_authenticated/inventory/summary/index'
-import { Route as AuthenticatedInventoryProductionsIndexRouteImport } from './routes/_authenticated/inventory/productions/index'
-import { Route as AuthenticatedInventoryOutboundsIndexRouteImport } from './routes/_authenticated/inventory/outbounds/index'
 import { Route as AuthenticatedInventoryLotsIndexRouteImport } from './routes/_authenticated/inventory/lots/index'
 import { Route as AuthenticatedInventoryLedgersIndexRouteImport } from './routes/_authenticated/inventory/ledgers/index'
 import { Route as AuthenticatedInventoryInboundsIndexRouteImport } from './routes/_authenticated/inventory/inbounds/index'
@@ -168,6 +166,12 @@ const AuthenticatedPricingIndexRoute =
   AuthenticatedPricingIndexRouteImport.update({
     id: '/pricing/',
     path: '/pricing/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPhysicalWarehousesIndexRoute =
+  AuthenticatedPhysicalWarehousesIndexRouteImport.update({
+    id: '/physical-warehouses/',
+    path: '/physical-warehouses/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedNationsIndexRoute =
@@ -368,28 +372,10 @@ const AuthenticatedProductionBomsIndexRoute =
     path: '/production/boms/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedInventoryTransfersIndexRoute =
-  AuthenticatedInventoryTransfersIndexRouteImport.update({
-    id: '/inventory/transfers/',
-    path: '/inventory/transfers/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedInventorySummaryIndexRoute =
   AuthenticatedInventorySummaryIndexRouteImport.update({
     id: '/inventory/summary/',
     path: '/inventory/summary/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedInventoryProductionsIndexRoute =
-  AuthenticatedInventoryProductionsIndexRouteImport.update({
-    id: '/inventory/productions/',
-    path: '/inventory/productions/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedInventoryOutboundsIndexRoute =
-  AuthenticatedInventoryOutboundsIndexRouteImport.update({
-    id: '/inventory/outbounds/',
-    path: '/inventory/outbounds/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedInventoryLotsIndexRoute =
@@ -490,6 +476,7 @@ export interface FileRoutesByFullPath {
   '/customers/': typeof AuthenticatedCustomersIndexRoute
   '/employees/': typeof AuthenticatedEmployeesIndexRoute
   '/nations/': typeof AuthenticatedNationsIndexRoute
+  '/physical-warehouses/': typeof AuthenticatedPhysicalWarehousesIndexRoute
   '/pricing/': typeof AuthenticatedPricingIndexRoute
   '/product-groups/': typeof AuthenticatedProductGroupsIndexRoute
   '/products/': typeof AuthenticatedProductsIndexRoute
@@ -508,10 +495,7 @@ export interface FileRoutesByFullPath {
   '/inventory/inbounds/': typeof AuthenticatedInventoryInboundsIndexRoute
   '/inventory/ledgers/': typeof AuthenticatedInventoryLedgersIndexRoute
   '/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
-  '/inventory/outbounds/': typeof AuthenticatedInventoryOutboundsIndexRoute
-  '/inventory/productions/': typeof AuthenticatedInventoryProductionsIndexRoute
   '/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
-  '/inventory/transfers/': typeof AuthenticatedInventoryTransfersIndexRoute
   '/production/boms/': typeof AuthenticatedProductionBomsIndexRoute
   '/production/orders/': typeof AuthenticatedProductionOrdersIndexRoute
   '/purchasing/ap-summary/': typeof AuthenticatedPurchasingApSummaryIndexRoute
@@ -559,6 +543,7 @@ export interface FileRoutesByTo {
   '/customers': typeof AuthenticatedCustomersIndexRoute
   '/employees': typeof AuthenticatedEmployeesIndexRoute
   '/nations': typeof AuthenticatedNationsIndexRoute
+  '/physical-warehouses': typeof AuthenticatedPhysicalWarehousesIndexRoute
   '/pricing': typeof AuthenticatedPricingIndexRoute
   '/product-groups': typeof AuthenticatedProductGroupsIndexRoute
   '/products': typeof AuthenticatedProductsIndexRoute
@@ -577,10 +562,7 @@ export interface FileRoutesByTo {
   '/inventory/inbounds': typeof AuthenticatedInventoryInboundsIndexRoute
   '/inventory/ledgers': typeof AuthenticatedInventoryLedgersIndexRoute
   '/inventory/lots': typeof AuthenticatedInventoryLotsIndexRoute
-  '/inventory/outbounds': typeof AuthenticatedInventoryOutboundsIndexRoute
-  '/inventory/productions': typeof AuthenticatedInventoryProductionsIndexRoute
   '/inventory/summary': typeof AuthenticatedInventorySummaryIndexRoute
-  '/inventory/transfers': typeof AuthenticatedInventoryTransfersIndexRoute
   '/production/boms': typeof AuthenticatedProductionBomsIndexRoute
   '/production/orders': typeof AuthenticatedProductionOrdersIndexRoute
   '/purchasing/ap-summary': typeof AuthenticatedPurchasingApSummaryIndexRoute
@@ -630,6 +612,7 @@ export interface FileRoutesById {
   '/_authenticated/customers/': typeof AuthenticatedCustomersIndexRoute
   '/_authenticated/employees/': typeof AuthenticatedEmployeesIndexRoute
   '/_authenticated/nations/': typeof AuthenticatedNationsIndexRoute
+  '/_authenticated/physical-warehouses/': typeof AuthenticatedPhysicalWarehousesIndexRoute
   '/_authenticated/pricing/': typeof AuthenticatedPricingIndexRoute
   '/_authenticated/product-groups/': typeof AuthenticatedProductGroupsIndexRoute
   '/_authenticated/products/': typeof AuthenticatedProductsIndexRoute
@@ -648,10 +631,7 @@ export interface FileRoutesById {
   '/_authenticated/inventory/inbounds/': typeof AuthenticatedInventoryInboundsIndexRoute
   '/_authenticated/inventory/ledgers/': typeof AuthenticatedInventoryLedgersIndexRoute
   '/_authenticated/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
-  '/_authenticated/inventory/outbounds/': typeof AuthenticatedInventoryOutboundsIndexRoute
-  '/_authenticated/inventory/productions/': typeof AuthenticatedInventoryProductionsIndexRoute
   '/_authenticated/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
-  '/_authenticated/inventory/transfers/': typeof AuthenticatedInventoryTransfersIndexRoute
   '/_authenticated/production/boms/': typeof AuthenticatedProductionBomsIndexRoute
   '/_authenticated/production/orders/': typeof AuthenticatedProductionOrdersIndexRoute
   '/_authenticated/purchasing/ap-summary/': typeof AuthenticatedPurchasingApSummaryIndexRoute
@@ -701,6 +681,7 @@ export interface FileRouteTypes {
     | '/customers/'
     | '/employees/'
     | '/nations/'
+    | '/physical-warehouses/'
     | '/pricing/'
     | '/product-groups/'
     | '/products/'
@@ -719,10 +700,7 @@ export interface FileRouteTypes {
     | '/inventory/inbounds/'
     | '/inventory/ledgers/'
     | '/inventory/lots/'
-    | '/inventory/outbounds/'
-    | '/inventory/productions/'
     | '/inventory/summary/'
-    | '/inventory/transfers/'
     | '/production/boms/'
     | '/production/orders/'
     | '/purchasing/ap-summary/'
@@ -770,6 +748,7 @@ export interface FileRouteTypes {
     | '/customers'
     | '/employees'
     | '/nations'
+    | '/physical-warehouses'
     | '/pricing'
     | '/product-groups'
     | '/products'
@@ -788,10 +767,7 @@ export interface FileRouteTypes {
     | '/inventory/inbounds'
     | '/inventory/ledgers'
     | '/inventory/lots'
-    | '/inventory/outbounds'
-    | '/inventory/productions'
     | '/inventory/summary'
-    | '/inventory/transfers'
     | '/production/boms'
     | '/production/orders'
     | '/purchasing/ap-summary'
@@ -840,6 +816,7 @@ export interface FileRouteTypes {
     | '/_authenticated/customers/'
     | '/_authenticated/employees/'
     | '/_authenticated/nations/'
+    | '/_authenticated/physical-warehouses/'
     | '/_authenticated/pricing/'
     | '/_authenticated/product-groups/'
     | '/_authenticated/products/'
@@ -858,10 +835,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventory/inbounds/'
     | '/_authenticated/inventory/ledgers/'
     | '/_authenticated/inventory/lots/'
-    | '/_authenticated/inventory/outbounds/'
-    | '/_authenticated/inventory/productions/'
     | '/_authenticated/inventory/summary/'
-    | '/_authenticated/inventory/transfers/'
     | '/_authenticated/production/boms/'
     | '/_authenticated/production/orders/'
     | '/_authenticated/purchasing/ap-summary/'
@@ -1026,6 +1000,13 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing/'
       preLoaderRoute: typeof AuthenticatedPricingIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/physical-warehouses/': {
+      id: '/_authenticated/physical-warehouses/'
+      path: '/physical-warehouses'
+      fullPath: '/physical-warehouses/'
+      preLoaderRoute: typeof AuthenticatedPhysicalWarehousesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/nations/': {
@@ -1259,32 +1240,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProductionBomsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/inventory/transfers/': {
-      id: '/_authenticated/inventory/transfers/'
-      path: '/inventory/transfers'
-      fullPath: '/inventory/transfers/'
-      preLoaderRoute: typeof AuthenticatedInventoryTransfersIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/inventory/summary/': {
       id: '/_authenticated/inventory/summary/'
       path: '/inventory/summary'
       fullPath: '/inventory/summary/'
       preLoaderRoute: typeof AuthenticatedInventorySummaryIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/inventory/productions/': {
-      id: '/_authenticated/inventory/productions/'
-      path: '/inventory/productions'
-      fullPath: '/inventory/productions/'
-      preLoaderRoute: typeof AuthenticatedInventoryProductionsIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/inventory/outbounds/': {
-      id: '/_authenticated/inventory/outbounds/'
-      path: '/inventory/outbounds'
-      fullPath: '/inventory/outbounds/'
-      preLoaderRoute: typeof AuthenticatedInventoryOutboundsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/inventory/lots/': {
@@ -1395,6 +1355,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCustomersIndexRoute: typeof AuthenticatedCustomersIndexRoute
   AuthenticatedEmployeesIndexRoute: typeof AuthenticatedEmployeesIndexRoute
   AuthenticatedNationsIndexRoute: typeof AuthenticatedNationsIndexRoute
+  AuthenticatedPhysicalWarehousesIndexRoute: typeof AuthenticatedPhysicalWarehousesIndexRoute
   AuthenticatedPricingIndexRoute: typeof AuthenticatedPricingIndexRoute
   AuthenticatedProductGroupsIndexRoute: typeof AuthenticatedProductGroupsIndexRoute
   AuthenticatedProductsIndexRoute: typeof AuthenticatedProductsIndexRoute
@@ -1413,10 +1374,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInventoryInboundsIndexRoute: typeof AuthenticatedInventoryInboundsIndexRoute
   AuthenticatedInventoryLedgersIndexRoute: typeof AuthenticatedInventoryLedgersIndexRoute
   AuthenticatedInventoryLotsIndexRoute: typeof AuthenticatedInventoryLotsIndexRoute
-  AuthenticatedInventoryOutboundsIndexRoute: typeof AuthenticatedInventoryOutboundsIndexRoute
-  AuthenticatedInventoryProductionsIndexRoute: typeof AuthenticatedInventoryProductionsIndexRoute
   AuthenticatedInventorySummaryIndexRoute: typeof AuthenticatedInventorySummaryIndexRoute
-  AuthenticatedInventoryTransfersIndexRoute: typeof AuthenticatedInventoryTransfersIndexRoute
   AuthenticatedProductionBomsIndexRoute: typeof AuthenticatedProductionBomsIndexRoute
   AuthenticatedProductionOrdersIndexRoute: typeof AuthenticatedProductionOrdersIndexRoute
   AuthenticatedPurchasingApSummaryIndexRoute: typeof AuthenticatedPurchasingApSummaryIndexRoute
@@ -1459,6 +1417,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCustomersIndexRoute: AuthenticatedCustomersIndexRoute,
   AuthenticatedEmployeesIndexRoute: AuthenticatedEmployeesIndexRoute,
   AuthenticatedNationsIndexRoute: AuthenticatedNationsIndexRoute,
+  AuthenticatedPhysicalWarehousesIndexRoute:
+    AuthenticatedPhysicalWarehousesIndexRoute,
   AuthenticatedPricingIndexRoute: AuthenticatedPricingIndexRoute,
   AuthenticatedProductGroupsIndexRoute: AuthenticatedProductGroupsIndexRoute,
   AuthenticatedProductsIndexRoute: AuthenticatedProductsIndexRoute,
@@ -1482,14 +1442,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInventoryLedgersIndexRoute:
     AuthenticatedInventoryLedgersIndexRoute,
   AuthenticatedInventoryLotsIndexRoute: AuthenticatedInventoryLotsIndexRoute,
-  AuthenticatedInventoryOutboundsIndexRoute:
-    AuthenticatedInventoryOutboundsIndexRoute,
-  AuthenticatedInventoryProductionsIndexRoute:
-    AuthenticatedInventoryProductionsIndexRoute,
   AuthenticatedInventorySummaryIndexRoute:
     AuthenticatedInventorySummaryIndexRoute,
-  AuthenticatedInventoryTransfersIndexRoute:
-    AuthenticatedInventoryTransfersIndexRoute,
   AuthenticatedProductionBomsIndexRoute: AuthenticatedProductionBomsIndexRoute,
   AuthenticatedProductionOrdersIndexRoute:
     AuthenticatedProductionOrdersIndexRoute,

@@ -25,7 +25,7 @@ export default function ProductionOrderPage() {
         search,
         navigate,
         [],
-        ["product_id", "warehouse_id", "status", "from_date", "to_date"]
+        ["product_id", "physical_warehouse_id", "status", "from_date", "to_date"]
     )
 
     const { data, isLoading, error } = usePaginatedList(
@@ -35,7 +35,7 @@ export default function ProductionOrderPage() {
             search.size,
             keyword,
             singleFilters.product_id,
-            singleFilters.warehouse_id,
+            singleFilters.physical_warehouse_id,
             singleFilters.status,
             singleFilters.from_date,
             singleFilters.to_date,
@@ -48,8 +48,8 @@ export default function ProductionOrderPage() {
             product_id: requestFilters.product_id
                 ? Number(requestFilters.product_id)
                 : undefined,
-            warehouse_id: requestFilters.warehouse_id
-                ? Number(requestFilters.warehouse_id)
+            physical_warehouse_id: requestFilters.physical_warehouse_id
+                ? Number(requestFilters.physical_warehouse_id)
                 : undefined,
             status: requestFilters.status,
             from_date: requestFilters.from_date,
@@ -79,8 +79,8 @@ export default function ProductionOrderPage() {
                                 product_id: singleFilters.product_id
                                     ? Number(singleFilters.product_id)
                                     : undefined,
-                                warehouse_id: singleFilters.warehouse_id
-                                    ? Number(singleFilters.warehouse_id)
+                                physical_warehouse_id: singleFilters.physical_warehouse_id
+                                    ? Number(singleFilters.physical_warehouse_id)
                                     : undefined,
                                 status: singleFilters.status,
                                 from_date: singleFilters.from_date,
@@ -91,8 +91,8 @@ export default function ProductionOrderPage() {
                                     product_id: next.product_id
                                         ? String(next.product_id)
                                         : undefined,
-                                    warehouse_id: next.warehouse_id
-                                        ? String(next.warehouse_id)
+                                    physical_warehouse_id: next.physical_warehouse_id
+                                        ? String(next.physical_warehouse_id)
                                         : undefined,
                                     status: next.status,
                                     from_date: next.from_date,

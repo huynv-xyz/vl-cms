@@ -1,1 +1,0 @@
-import{am as i,an as u,Q as n,T as t}from"./index-Diz_Wxg2.js";function $(r){return{detail(e){return t(`${r}/${e}`)},list(e){return t(r,{...e,limit:e.size})},create(e){return n(r,e)},update(e){return u(`${r}/${e.id}`,e)},delete(e){return i(`${r}/${e}`,{id:e})}}}export{$ as c};

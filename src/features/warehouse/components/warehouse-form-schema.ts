@@ -1,9 +1,10 @@
 
 import type { RJSFSchema, UiSchema } from "@rjsf/utils"
+import { getPhysicalWarehouse, listPhysicalWarehouses } from "@/api/physical-warehouse"
 
 export const warehouseSchema: RJSFSchema = {
     type: "object",
-    required: ["code", "name"],
+    required: ["code", "name", "physical_warehouse_id"],
     properties: {
         code: {
             type: "string",
@@ -18,6 +19,10 @@ export const warehouseSchema: RJSFSchema = {
         address: {
             type: "string",
             title: "Địa chỉ",
+        },
+        physical_warehouse_id: {
+            type: "integer",
+            title: "Kho vật lý",
         },
         status: {
             type: "string",
@@ -42,5 +47,21 @@ export const warehouseUiSchema: UiSchema = {
     },
     status: {
         "ui:widget": "select",
+    },
+    physical_warehouse_id: {
+        "ui:widget": "asyncSelect",
+        "ui:options": {
+            placeholder: "Chọn kho vật lý",
+            searchPlaceholder: "Tìm mã hoặc tên kho vật lý...",
+            dataSource: {
+                getList: listPhysicalWarehouses,
+                getById: getPhysicalWarehouse,
+                params: { page: 1, size: 20, status: "ACTIVE" },
+            },
+            mapOption: (w: any) => ({
+                value: w.id,
+                label: `${w.code || `#${w.id}`} - ${w.name || ""}`,
+            }),
+        },
     },
 }

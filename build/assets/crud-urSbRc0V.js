@@ -1,0 +1,1 @@
+import{am as i,an as u,T as n,y as t}from"./index-DzyBFixK.js";function $(r){return{detail(e){return t(`${r}/${e}`)},list(e){return t(r,{...e,limit:e.size})},create(e){return n(r,e)},update(e){return u(`${r}/${e.id}`,e)},delete(e){return i(`${r}/${e}`,{id:e})}}}export{$ as c};

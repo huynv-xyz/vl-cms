@@ -25,6 +25,11 @@ export const warehouseColumns: ColumnDef<Warehouse>[] = [
         title: "Địa chỉ",
     }),
 
+    buildTextColumn({
+        accessorKey: "physical_warehouse_id",
+        title: "Kho vật lý",
+    }),
+
     buildBadgeColumn({
         accessorKey: "status",
         title: "Trạng thái",

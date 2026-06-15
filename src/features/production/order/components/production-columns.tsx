@@ -38,8 +38,8 @@ export const productionColumns: ColumnDef<Production>[] = [
     }),
 
     buildTextColumn({
-        title: "Kho nhập",
-        render: (row) => <WarehouseCell items={row.items ?? []} />,
+        title: "Kho vật lý / Kho nhập",
+        render: (row) => <WarehouseCell production={row} />,
     }),
 
     buildTextColumn({
@@ -108,7 +108,8 @@ function FinishedProductsCell({ items }: { items: ProductionItem[] }) {
     )
 }
 
-function WarehouseCell({ items }: { items: ProductionItem[] }) {
+function WarehouseCell({ production }: { production: Production }) {
+    const items = production.items ?? []
     const warehouses = Array.from(
         new Set(
             items
@@ -117,12 +118,20 @@ function WarehouseCell({ items }: { items: ProductionItem[] }) {
         )
     )
 
-    if (!warehouses.length) return <span className="text-muted-foreground">-</span>
+    const physicalName = production.physical_warehouse?.name
+        || (production.physical_warehouse_id ? `Kho vật lý #${production.physical_warehouse_id}` : "")
+
+    if (!warehouses.length && !physicalName) return <span className="text-muted-foreground">-</span>
 
     return (
         <div className="min-w-[140px] space-y-1">
+            {physicalName && (
+                <div className="text-sm font-semibold">
+                    {physicalName}
+                </div>
+            )}
             {warehouses.slice(0, 2).map((name) => (
-                <div key={name} className="text-sm font-medium">
+                <div key={name} className="text-xs text-muted-foreground">
                     {name}
                 </div>
             ))}

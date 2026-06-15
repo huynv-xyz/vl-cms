@@ -1,0 +1,12 @@
+import { createFileRoute } from "@tanstack/react-router"
+import PhysicalWarehousePage from "@/features/physical-warehouse"
+
+export const Route = createFileRoute("/_authenticated/physical-warehouses/")({
+    validateSearch: (search: Record<string, unknown>) => ({
+        page: Number(search.page ?? 1),
+        size: Number(search.size ?? 20),
+        keyword: typeof search.keyword === "string" ? search.keyword : "",
+        status: typeof search.status === "string" ? search.status : undefined,
+    }),
+    component: PhysicalWarehousePage,
+})

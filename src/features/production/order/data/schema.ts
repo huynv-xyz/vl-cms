@@ -4,6 +4,7 @@ export type Production = {
     production_date?: string
     costing_period?: string
     daily_sequence?: number
+    physical_warehouse_id?: number
     status?: string
     note?: string
     created_at?: string
@@ -14,6 +15,7 @@ export type Production = {
     warnings?: ProductionWarning[]
     action_logs?: ProductionActionLog[]
     vouchers?: ProductionVoucher[]
+    physical_warehouse?: any
 }
 
 export type ProductionItem = {
@@ -53,8 +55,6 @@ export type ProductionItem = {
     warehouse?: any
 
     materials?: ProductionMaterial[]
-    extras?: ProductionExtraItem[]
-    substitutions?: ProductionSubstitution[]
     outputs?: ProductionOutput[]
 }
 
@@ -107,35 +107,6 @@ export type ProductionFifoAllocation = {
     is_preferred_lot?: boolean
     material_product?: any
     warehouse?: any
-}
-
-export type ProductionExtraItem = {
-    id: number
-    production_item_id?: number
-    product_id?: number
-    warehouse_id?: number
-    material_type?: string
-    quantity_per_unit?: number
-    quantity?: number
-    check_status?: string
-    validation_message?: string
-    line_no?: number
-    note?: string
-    product?: any
-}
-
-export type ProductionSubstitution = {
-    id: number
-    production_item_id?: number
-    bom_item_id?: number
-    original_product_id?: number
-    substitute_product_id?: number
-    quantity_original?: number
-    quantity?: number
-    reason?: string
-    note?: string
-    original_product?: any
-    substitute_product?: any
 }
 
 export type ProductionOutput = {

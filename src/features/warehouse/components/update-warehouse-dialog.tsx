@@ -17,6 +17,7 @@ export function UpdateWarehouseDialog({ warehouse, open, onOpenChange }: any) {
                 code: warehouse.code ?? "",
                 name: warehouse.name,
                 address: warehouse.address ?? "",
+                physical_warehouse_id: warehouse.physical_warehouse_id,
                 status: warehouse.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
             }}
             submitText="Lưu"
@@ -28,6 +29,7 @@ export function UpdateWarehouseDialog({ warehouse, open, onOpenChange }: any) {
                 code: v.code?.trim(),
                 name: v.name?.trim(),
                 address: v.address?.trim() || "",
+                physical_warehouse_id: v.physical_warehouse_id,
                 status: v.status ?? "ACTIVE",
             })}
         />

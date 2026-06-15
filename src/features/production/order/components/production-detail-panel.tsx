@@ -14,12 +14,13 @@ import {
     FileText,
     Layers3,
     PackageCheck,
+    Pencil,
     Plus,
     Printer,
-    Replace,
     Route,
     Save,
     Settings2,
+    Trash2,
     Undo2,
     Wand2,
     Warehouse,
@@ -59,15 +60,16 @@ import { listProducts, getProduct } from "@/api/product"
 import { listWarehouses, getWarehouse } from "@/api/warehouse"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import {
-    addProductionExtraMaterial,
-    addProductionSubstitution,
+    addProductionMaterial,
     allocateProductionFifo,
     cancelProduction,
+    deleteProductionMaterial,
     issueProductionMaterials,
     receiveProductionProducts,
     generateProductionMaterials,
     setProductionPreferredLot,
     unpostProduction,
+    updateProductionMaterial,
 } from "@/api/production/order"
 import type {
     Production,
@@ -673,7 +675,7 @@ function FinishedProductBlock({
     item: ProductionItem
 }) {
     const perms = useProductionPermissions()
-    // BA Spec BR-07: chỉ KT có quyền chỉnh vật tư mới được thêm phát sinh / thay thế
+    // BA Spec BR-07: chỉ KT có quyền chỉnh vật tư mới được sửa danh sách vật tư lệnh.
     const canAdjust = canAdjustMaterials(production) && perms.canAdjustMaterials
 
     return (
@@ -697,12 +699,7 @@ function FinishedProductBlock({
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <ExtraForm
-                        production={production}
-                        item={item}
-                        disabled={!canAdjust}
-                    />
-                    <SubstitutionForm
+                    <MaterialForm
                         production={production}
                         item={item}
                         disabled={!canAdjust}
@@ -722,87 +719,6 @@ function FinishedProductBlock({
                 />
             </div>
 
-            <BomVariancePanel item={item} />
-
-            <div className="px-4 py-3">
-                <ItemAdjustments item={item} />
-            </div>
-        </div>
-    )
-}
-
-/**
- * BA Spec FR-M3-08 + US-03 AC2:
- * Hiển thị mức lệch định mức so với BOM gốc.
- *
- * Tính bằng tổng số dòng phát sinh (extras) và số dòng thay thế (substitutions);
- * với mỗi substitution có quantity_original thì cộng dồn % lệch về số lượng so với BOM.
- */
-function BomVariancePanel({ item }: { item: ProductionItem }) {
-    const extras = item.extras ?? []
-    const substitutions = item.substitutions ?? []
-    const extraCount = extras.length
-    const subCount = substitutions.length
-
-    if (!extraCount && !subCount) return null
-
-    const subVariancePercent = (() => {
-        let baseQty = 0
-        let diffQty = 0
-        for (const sub of substitutions) {
-            const original = Number(sub.quantity_original) || 0
-            const actual = Number(sub.quantity) || 0
-            if (original > 0) {
-                baseQty += original
-                diffQty += Math.abs(actual - original)
-            }
-        }
-        if (baseQty <= 0) return 0
-        return Math.round((diffQty / baseQty) * 1000) / 10
-    })()
-
-    const tone = extraCount + subCount > 0 ? "amber" : "ok"
-
-    return (
-        <div
-            className={cn(
-                "border-t px-4 py-2.5 text-sm",
-                tone === "amber"
-                    ? "bg-amber-50/60 text-amber-900"
-                    : "bg-muted/20 text-muted-foreground",
-            )}
-        >
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <span className="inline-flex items-center gap-1.5 font-medium">
-                    <AlertTriangle className="h-4 w-4" />
-                    Lệch định mức so với BOM gốc
-                </span>
-                {extraCount > 0 ? (
-                    <span className="text-amber-800">
-                        <b className="tabular-nums">{formatNumber(extraCount)}</b>{" "}
-                        dòng phát sinh
-                    </span>
-                ) : null}
-                {subCount > 0 ? (
-                    <span className="text-amber-800">
-                        <b className="tabular-nums">{formatNumber(subCount)}</b>{" "}
-                        dòng thay thế
-                        {subVariancePercent > 0 ? (
-                            <>
-                                {" "}
-                                ·{" "}
-                                <b className="tabular-nums">
-                                    {subVariancePercent.toFixed(1)}%
-                                </b>{" "}
-                                chênh SL
-                            </>
-                        ) : null}
-                    </span>
-                ) : null}
-                <span className="text-muted-foreground">
-                    BOM gốc: {item.bom_version || "-"}
-                </span>
-            </div>
         </div>
     )
 }
@@ -831,89 +747,11 @@ function CostInline({
     )
 }
 
-function ItemAdjustments({ item }: { item: ProductionItem }) {
-    const extras = item.extras ?? []
-    const substitutions = item.substitutions ?? []
-
-    if (!extras.length && !substitutions.length) {
-        return (
-            <div className="mt-3 rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
-                Chưa có vật tư phát sinh hoặc thay thế vật tư.
-            </div>
-        )
-    }
-
-    return (
-        <div className="mt-3 grid gap-3 lg:grid-cols-2">
-            <div className="rounded-md border">
-                <div className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-                    Vật tư phát sinh
-                </div>
-                {extras.length ? (
-                    <div className="divide-y">
-                        {extras.map((extra) => (
-                            <div key={extra.id} className="grid grid-cols-[minmax(180px,1fr)_80px_100px_100px] gap-3 px-3 py-2 text-sm">
-                                <ProductCell product={extra.product} />
-                                <div>
-                                    <Badge variant="outline">{extra.material_type || "-"}</Badge>
-                                </div>
-                                <div className="text-right">
-                                    {formatNumber(extra.quantity)}
-                                </div>
-                                <div className="text-right">
-                                    {formatNumber(extra.quantity_per_unit)}
-                                </div>
-                                {extra.note && (
-                                    <div className="col-span-4 text-muted-foreground">
-                                        {extra.note}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                        Chưa có phát sinh
-                    </div>
-                )}
-            </div>
-
-            <div className="rounded-md border">
-                <div className="border-b bg-muted/40 px-3 py-2 text-sm font-medium">
-                    Thay thế vật tư
-                </div>
-                {substitutions.length ? (
-                    <div className="divide-y">
-                        {substitutions.map((substitution) => (
-                            <div key={substitution.id} className="grid grid-cols-[minmax(140px,1fr)_24px_minmax(140px,1fr)_90px] gap-3 px-3 py-2 text-sm">
-                                <ProductCell product={substitution.original_product} />
-                                <div className="text-muted-foreground">→</div>
-                                <ProductCell product={substitution.substitute_product} />
-                                <div className="text-right">
-                                    {formatNumber(substitution.quantity)}
-                                </div>
-                                {(substitution.reason || substitution.note) && (
-                                    <div className="col-span-4 text-muted-foreground">
-                                        {substitution.reason || substitution.note}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                        Chưa có thay thế
-                    </div>
-                )}
-            </div>
-        </div>
-    )
-}
-
 function MaterialsTable({ production }: { production: Production }) {
     const perms = useProductionPermissions()
     // BA Spec BR-07: chỉ KT Kho mới được chỉ định lô ưu tiên
     const canPickLot = canRunFifo(production) && perms.canPickLot
+    const canAdjust = canAdjustMaterials(production) && perms.canAdjustMaterials
     const items = production.items ?? []
     const materials = items.flatMap((item) =>
         (item.materials ?? []).map((material) => ({
@@ -981,8 +819,10 @@ function MaterialsTable({ production }: { production: Production }) {
                                 <MaterialCheckRow
                                     key={material.id}
                                     production={production}
+                                    item={item}
                                     material={material}
                                     canPickLot={canPickLot}
+                                    canAdjust={canAdjust}
                                 />
                             ))}
                         </div>
@@ -995,13 +835,18 @@ function MaterialsTable({ production }: { production: Production }) {
 
 function MaterialCheckRow({
     production,
+    item,
     material,
     canPickLot,
+    canAdjust,
 }: {
     production: Production
+    item: ProductionItem
     material: ProductionMaterial
     canPickLot: boolean
+    canAdjust: boolean
 }) {
+    const queryClient = useQueryClient()
     const shortage = Number(material.shortage_quantity) || 0
     const required = Number(material.quantity_required) || 0
     const allocated = Number(material.allocated_quantity) || 0
@@ -1009,6 +854,16 @@ function MaterialCheckRow({
     const hsdWarnings = (material.fifo_allocations ?? []).filter(
         (allocation) => getExpiryStatus(allocation.expiry_date).tone !== "ok"
     )
+    const deleteMutation = useMutation({
+        mutationFn: () => deleteProductionMaterial(production.id, material.id),
+        onSuccess: () => {
+            toast.success("Đã xóa vật tư")
+            void queryClient.invalidateQueries({ queryKey: ["production-order-detail", production.id] })
+            void queryClient.invalidateQueries({ queryKey: ["production-orders"] })
+            void queryClient.invalidateQueries({ queryKey: ["productions"] })
+        },
+        onError: (e: any) => toast.error(e.message || "Không thể xóa vật tư"),
+    })
 
     return (
         <div className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(260px,1.5fr)_180px_180px_190px]">
@@ -1061,6 +916,27 @@ function MaterialCheckRow({
             </div>
 
             <div className="space-y-2">
+                {canAdjust && (
+                    <div className="flex justify-end gap-2">
+                        <MaterialForm
+                            production={production}
+                            item={item}
+                            material={material}
+                            disabled={!canAdjust}
+                        />
+                        <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            className="h-9 w-9 text-destructive hover:text-destructive"
+                            disabled={deleteMutation.isPending}
+                            onClick={() => deleteMutation.mutate()}
+                            title="Xóa vật tư"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                )}
                 <PreferredLotForm production={production} material={material} disabled={!canPickLot} />
                 <FifoLotSummary allocations={material.fifo_allocations ?? []} />
                 {hsdWarnings.length > 0 && (
@@ -1436,27 +1312,30 @@ function getOutputVoucherStatus(status: string, rowCount: number) {
     return "Chưa phát sinh"
 }
 
-function ExtraForm({
+function MaterialForm({
     production,
     item,
+    material,
     disabled,
 }: {
     production: Production
     item: ProductionItem
+    material?: ProductionMaterial
     disabled?: boolean
 }) {
     const queryClient = useQueryClient()
     const [open, setOpen] = useState(false)
-    const [productId, setProductId] = useState<number>()
-    const [warehouseId, setWarehouseId] = useState<number>()
-    const [materialType, setMaterialType] = useState("NVL")
-    const [quantityPerUnit, setQuantityPerUnit] = useState("")
-    const [quantity, setQuantity] = useState("")
-    const [note, setNote] = useState("")
+    const isEdit = Boolean(material)
+    const [productId, setProductId] = useState<number | undefined>(material?.product_id)
+    const [warehouseId, setWarehouseId] = useState<number | undefined>(material?.warehouse_id)
+    const [materialType, setMaterialType] = useState(material?.material_type || "NVL")
+    const [quantityPerUnit, setQuantityPerUnit] = useState(material?.quantity_per_unit ? String(material.quantity_per_unit) : "")
+    const [quantity, setQuantity] = useState(material?.quantity_required ? String(material.quantity_required) : "")
+    const [note, setNote] = useState(material?.note || "")
 
     const mutation = useMutation({
-        mutationFn: () =>
-            addProductionExtraMaterial(production.id, {
+        mutationFn: () => {
+            const body = {
                 production_item_id: item.id,
                 product_id: productId,
                 warehouse_id: warehouseId,
@@ -1464,33 +1343,52 @@ function ExtraForm({
                 quantity_per_unit: toNumber(quantityPerUnit),
                 quantity: toNumber(quantity),
                 note,
-            }),
+            }
+            return isEdit && material
+                ? updateProductionMaterial(production.id, material.id, body)
+                : addProductionMaterial(production.id, body)
+        },
         onSuccess: () => {
-            toast.success("Đã thêm vật tư phát sinh")
-            setProductId(undefined)
-            setWarehouseId(undefined)
-            setQuantity("")
-            setQuantityPerUnit("")
-            setNote("")
+            toast.success(isEdit ? "Đã cập nhật vật tư" : "Đã thêm vật tư")
+            if (!isEdit) {
+                setProductId(undefined)
+                setWarehouseId(undefined)
+                setQuantity("")
+                setQuantityPerUnit("")
+                setNote("")
+            }
             setOpen(false)
             void queryClient.invalidateQueries({ queryKey: ["production-order-detail", production.id] })
             void queryClient.invalidateQueries({ queryKey: ["production-orders"] })
             void queryClient.invalidateQueries({ queryKey: ["productions"] })
         },
-        onError: (e: any) => toast.error(e.message || "Không thể thêm phát sinh"),
+        onError: (e: any) => toast.error(e.message || (isEdit ? "Không thể cập nhật vật tư" : "Không thể thêm vật tư")),
     })
 
     return (
         <Dialog open={open} onOpenChange={(next) => !disabled && setOpen(next)}>
             <DialogTrigger asChild>
-                <Button size="sm" variant="outline" disabled={disabled}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Thêm phát sinh
-                </Button>
+                {isEdit ? (
+                    <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        className="h-9 w-9"
+                        disabled={disabled}
+                        title="Sửa vật tư"
+                    >
+                        <Pencil className="h-4 w-4" />
+                    </Button>
+                ) : (
+                    <Button size="sm" variant="outline" disabled={disabled}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Thêm vật tư
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>Thêm vật tư phát sinh</DialogTitle>
+                    <DialogTitle>{isEdit ? "Sửa vật tư" : "Thêm vật tư"}</DialogTitle>
                     <DialogDescription>
                         {item.product?.code} - {item.product?.name}
                     </DialogDescription>
@@ -1535,7 +1433,7 @@ function ExtraForm({
                         <Input value={quantityPerUnit} onChange={(e) => setQuantityPerUnit(e.target.value)} placeholder="Có thể bỏ trống" type="number" />
                     </Field>
                     <Field label="Ghi chú">
-                        <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Lý do phát sinh" className="min-h-9" />
+                        <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú vật tư" className="min-h-9" />
                     </Field>
                 </div>
 
@@ -1545,103 +1443,7 @@ function ExtraForm({
                     </DialogClose>
                     <Button onClick={() => mutation.mutate()} disabled={disabled || mutation.isPending || !productId || (!quantity && !quantityPerUnit)}>
                         <Save className="mr-2 h-4 w-4" />
-                        Lưu phát sinh
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
-function SubstitutionForm({
-    production,
-    item,
-    disabled,
-}: {
-    production: Production
-    item: ProductionItem
-    disabled?: boolean
-}) {
-    const queryClient = useQueryClient()
-    const [open, setOpen] = useState(false)
-    const [originalProductId, setOriginalProductId] = useState<number>()
-    const [substituteProductId, setSubstituteProductId] = useState<number>()
-    const [quantity, setQuantity] = useState("")
-    const [reason, setReason] = useState("")
-
-    const mutation = useMutation({
-        mutationFn: () =>
-            addProductionSubstitution(production.id, {
-                production_item_id: item.id,
-                original_product_id: originalProductId,
-                substitute_product_id: substituteProductId,
-                quantity: toNumber(quantity),
-                reason,
-            }),
-        onSuccess: () => {
-            toast.success("Đã thêm thay thế vật tư")
-            setOriginalProductId(undefined)
-            setSubstituteProductId(undefined)
-            setQuantity("")
-            setReason("")
-            setOpen(false)
-            void queryClient.invalidateQueries({ queryKey: ["production-order-detail", production.id] })
-            void queryClient.invalidateQueries({ queryKey: ["production-orders"] })
-            void queryClient.invalidateQueries({ queryKey: ["productions"] })
-        },
-        onError: (e: any) => toast.error(e.message || "Không thể thêm thay thế"),
-    })
-
-    return (
-        <Dialog open={open} onOpenChange={(next) => !disabled && setOpen(next)}>
-            <DialogTrigger asChild>
-                <Button size="sm" variant="outline" disabled={disabled}>
-                    <Replace className="mr-2 h-4 w-4" />
-                    Thay thế vật tư
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle>Thay thế vật tư</DialogTitle>
-                    <DialogDescription>
-                        {item.product?.code} - {item.product?.name}
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="Vật tư gốc">
-                        <AsyncSelect
-                            value={originalProductId}
-                            onChange={(v: any) => setOriginalProductId(v || undefined)}
-                            placeholder="Chọn vật tư cần thay"
-                            dataSource={{ getList: listProducts, getById: getProduct, params: { page: 1, size: 20 } }}
-                            mapOption={(x: any) => ({ value: x.id, label: `${x.code} - ${x.name}` })}
-                        />
-                    </Field>
-                    <Field label="Vật tư thay thế">
-                        <AsyncSelect
-                            value={substituteProductId}
-                            onChange={(v: any) => setSubstituteProductId(v || undefined)}
-                            placeholder="Chọn vật tư thay thế"
-                            dataSource={{ getList: listProducts, getById: getProduct, params: { page: 1, size: 20 } }}
-                            mapOption={(x: any) => ({ value: x.id, label: `${x.code} - ${x.name}` })}
-                        />
-                    </Field>
-                    <Field label="Số lượng thay thế">
-                        <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="VD: 10" type="number" />
-                    </Field>
-                    <Field label="Lý do">
-                        <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="VD: Hết lô NVL chính" />
-                    </Field>
-                </div>
-
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button type="button" variant="outline">Hủy</Button>
-                    </DialogClose>
-                    <Button onClick={() => mutation.mutate()} disabled={disabled || mutation.isPending || !originalProductId || !substituteProductId || !quantity}>
-                        <Save className="mr-2 h-4 w-4" />
-                        Lưu thay thế
+                        {isEdit ? "Cập nhật" : "Lưu vật tư"}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -1839,10 +1641,8 @@ function sourceTypeLabel(value?: string) {
     switch (String(value ?? "").toUpperCase()) {
         case "BOM":
             return "Theo BOM"
-        case "EXTRA":
-            return "Phát sinh"
-        case "SUBSTITUTE":
-            return "Thay thế"
+        case "MANUAL":
+            return "Chỉnh tay"
         default:
             return value || "-"
     }

@@ -12,9 +12,9 @@ export const Route = createFileRoute("/_authenticated/production/orders/")({
                 ? Number(search.product_id)
                 : undefined,
 
-        warehouse_id:
-            search.warehouse_id !== undefined && !isNaN(Number(search.warehouse_id))
-                ? Number(search.warehouse_id)
+        physical_warehouse_id:
+            search.physical_warehouse_id !== undefined && !isNaN(Number(search.physical_warehouse_id))
+                ? Number(search.physical_warehouse_id)
                 : undefined,
 
         status:

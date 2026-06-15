@@ -5,7 +5,7 @@ import { Plus, Save, Trash2 } from "lucide-react"
 
 import { createProduction } from "@/api/production/order"
 import { listProducts, getProduct } from "@/api/product"
-import { listWarehouses, getWarehouse } from "@/api/warehouse"
+import { listPhysicalWarehouses, getPhysicalWarehouse } from "@/api/physical-warehouse"
 import { DatePicker } from "@/components/date-picker"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Button } from "@/components/ui/button"
@@ -42,7 +42,7 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
     const queryClient = useQueryClient()
 
     const [productionDate, setProductionDate] = useState(today())
-    const [warehouseId, setWarehouseId] = useState<number>()
+    const [physicalWarehouseId, setPhysicalWarehouseId] = useState<number>()
     const [packingCode, setPackingCode] = useState("")
     const [note, setNote] = useState("")
     const [items, setItems] = useState<Row[]>([newRow()])
@@ -79,7 +79,7 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
 
     const resetForm = () => {
         setProductionDate(today())
-        setWarehouseId(undefined)
+        setPhysicalWarehouseId(undefined)
         setPackingCode("")
         setNote("")
         setItems([newRow()])
@@ -105,7 +105,7 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
 
     const submit = () => {
         if (!productionDate) return toast.error("Ngày lệnh là bắt buộc")
-        if (!warehouseId) return toast.error("Kho nhập TP là bắt buộc")
+        if (!physicalWarehouseId) return toast.error("Kho vật lý là bắt buộc")
         if (!items.length) return toast.error("Cần ít nhất 1 thành phẩm")
 
         for (const [index, item] of items.entries()) {
@@ -116,13 +116,12 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
         }
 
         mutate({
-            warehouse_id: warehouseId,
+            physical_warehouse_id: physicalWarehouseId,
             production_date: productionDate,
             packing_code: packingCode || undefined,
             note: note || undefined,
             items: items.map((item) => ({
                 product_id: item.product_id,
-                warehouse_id: warehouseId,
                 quantity_plan: item.quantity_plan,
                 quantity_done: item.quantity_done,
                 note: item.note || undefined,
@@ -136,7 +135,7 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
                 <DialogHeader className="border-b px-6 py-5">
                     <DialogTitle>Tạo lệnh sản xuất</DialogTitle>
                     <DialogDescription>
-                        Chọn ngày, kho nhập và thành phẩm cần sản xuất. Mã lệnh và định mức sẽ được hệ thống tự xử lý.
+                        Chọn ngày, kho vật lý và thành phẩm cần sản xuất. Mã lệnh, kho nhập TP và định mức sẽ được hệ thống tự xử lý.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -156,19 +155,21 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
                                     />
                                 </Field>
 
-                                <Field label="Kho nhập thành phẩm" required>
+                                <Field label="Kho vật lý" required>
                                     <AsyncSelect
-                                        value={warehouseId}
-                                        onChange={(v: any) => setWarehouseId(v || undefined)}
-                                        placeholder="Chọn kho"
+                                        value={physicalWarehouseId}
+                                        onChange={(v: any) => {
+                                            setPhysicalWarehouseId(v || undefined)
+                                        }}
+                                        placeholder="Chọn kho vật lý"
                                         dataSource={{
-                                            getList: listWarehouses,
-                                            getById: getWarehouse,
-                                            params: { page: 1, size: 20 },
+                                            getList: listPhysicalWarehouses,
+                                            getById: getPhysicalWarehouse,
+                                            params: { page: 1, size: 20, status: "ACTIVE" },
                                         }}
                                         mapOption={(x: any) => ({
                                             value: x.id,
-                                            label: x.name,
+                                            label: `${x.code || `#${x.id}`} - ${x.name}`,
                                         })}
                                     />
                                 </Field>
@@ -299,7 +300,7 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
                                 <SummaryRow label="Tổng SL sản xuất" value={formatQuantity(summary.totalQuantity, summary.unit)} />
                             </div>
                             <div className="mt-4 rounded-md border bg-background p-3 text-sm text-muted-foreground">
-                                Định mức NVL/bao bì được lấy theo BOM sau khi phát lệnh và sinh vật tư.
+                                Kho nhập thành phẩm được lấy theo kho mặc định của sản phẩm trong kho vật lý; nếu chưa có thì dùng kho con đầu tiên của kho vật lý.
                             </div>
                         </aside>
                     </div>

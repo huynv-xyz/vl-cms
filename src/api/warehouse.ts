@@ -7,6 +7,7 @@ export type WarehouseListParams = {
     size: number
     keyword?: string
     status?: string
+    physical_warehouse_id?: number
 }
 
 export type CreateWarehouseRequest = Partial<Warehouse>

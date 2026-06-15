@@ -8,7 +8,7 @@ import {
 } from "lucide-react"
 
 import { getProduct, listProducts } from "@/api/product"
-import { getWarehouse, listWarehouses } from "@/api/warehouse"
+import { getPhysicalWarehouse, listPhysicalWarehouses } from "@/api/physical-warehouse"
 import { CrudTable } from "@/components/crud/crud-table"
 import { DatePicker } from "@/components/date-picker"
 import { AsyncSelect } from "@/components/rjsf/async-select"
@@ -26,7 +26,7 @@ import { productionColumns } from "./production-columns"
 
 type ProductionFilters = {
     product_id?: number
-    warehouse_id?: number
+    physical_warehouse_id?: number
     status?: string
     from_date?: string
     to_date?: string
@@ -165,19 +165,19 @@ export function ProductionTable({
                 <div className="flex w-full flex-wrap items-center gap-2">
                     <AsyncSelect
                         className="h-10 min-w-[180px] flex-1 border-slate-300 bg-white shadow-xs"
-                        value={filters.warehouse_id}
+                        value={filters.physical_warehouse_id}
                         onChange={(value: number | undefined) =>
-                            setFilter("warehouse_id", value || undefined)
+                            setFilter("physical_warehouse_id", value || undefined)
                         }
-                        placeholder="Kho nhập"
+                        placeholder="Kho vật lý"
                         dataSource={{
-                            getList: listWarehouses,
-                            getById: getWarehouse,
-                            params: { page: 1, size: 20 },
+                            getList: listPhysicalWarehouses,
+                            getById: getPhysicalWarehouse,
+                            params: { page: 1, size: 20, status: "ACTIVE" },
                         }}
-                        mapOption={(warehouse: { id: number; name: string }) => ({
+                        mapOption={(warehouse: { id: number; code?: string; name: string }) => ({
                             value: warehouse.id,
-                            label: warehouse.name,
+                            label: `${warehouse.code || `#${warehouse.id}`} - ${warehouse.name}`,
                         })}
                     />
 
