@@ -6,12 +6,12 @@ export const physicalWarehouseSchema: RJSFSchema = {
     properties: {
         code: {
             type: "string",
-            title: "Mã kho vật lý",
+            title: "Mã địa điểm kho",
             minLength: 1,
         },
         name: {
             type: "string",
-            title: "Tên kho vật lý",
+            title: "Tên địa điểm kho",
             minLength: 1,
         },
         address: {
@@ -34,8 +34,8 @@ export const physicalWarehouseSchema: RJSFSchema = {
     },
     errorMessage: {
         required: {
-            code: "Không được để trống mã kho vật lý",
-            name: "Không được để trống tên kho vật lý",
+            code: "Không được để trống mã địa điểm kho",
+            name: "Không được để trống tên địa điểm kho",
         },
     },
 } as any

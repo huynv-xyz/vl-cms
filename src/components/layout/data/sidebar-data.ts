@@ -71,7 +71,7 @@ export const sidebarData: SidebarData = {
                     icon: Warehouse,
                 },
                 {
-                    title: 'Kho vật lý',
+                    title: 'Địa điểm kho',
                     url: '/physical-warehouses',
                     icon: Warehouse,
                 },

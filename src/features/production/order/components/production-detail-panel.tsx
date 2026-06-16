@@ -4,6 +4,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
     AlertTriangle,
+    ArrowLeft,
+    ArrowRight,
     Boxes,
     CalendarDays,
     CheckCircle2,
@@ -25,6 +27,7 @@ import {
     Wand2,
     Warehouse,
 } from "lucide-react"
+import { useNavigate } from "@tanstack/react-router"
 
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { DatePicker } from "@/components/date-picker"
@@ -95,7 +98,7 @@ export function ProductionDetailPanel({ production }: Props) {
     const shortageCount = countShortage(items)
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
             <ProductionHeader production={production} />
             <ProductionActionBar production={production} />
 
@@ -137,14 +140,7 @@ export function ProductionDetailPanel({ production }: Props) {
                         className="data-[state=active]:border-primary data-[state=active]:text-primary h-10 shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-4 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
                     >
                         <Factory className="mr-2 h-4 w-4" />
-                        Thành phẩm
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="materials"
-                        className="data-[state=active]:border-primary data-[state=active]:text-primary h-10 shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-4 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                    >
-                        <Layers3 className="mr-2 h-4 w-4" />
-                        Vật tư
+                        Thành phẩm & vật tư
                     </TabsTrigger>
                     <TabsTrigger
                         value="fifo"
@@ -183,13 +179,7 @@ export function ProductionDetailPanel({ production }: Props) {
                     </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="items" className="mt-4 space-y-3">
-                    {items.map((item) => (
-                        <FinishedProductBlock key={item.id} production={production} item={item} />
-                    ))}
-                </TabsContent>
-
-                <TabsContent value="materials" className="mt-4">
+                <TabsContent value="items" className="mt-4">
                     <MaterialsTable production={production} />
                 </TabsContent>
 
@@ -236,52 +226,82 @@ export function ProductionDetailPanel({ production }: Props) {
 }
 
 function ProductionHeader({ production }: { production: Production }) {
+    const navigate = useNavigate()
     const items = production.items ?? []
     const warehouses = Array.from(
         new Set(items.map((item) => item.warehouse?.name).filter(Boolean))
     )
+    const physicalWarehouseName =
+        production.physical_warehouse?.name ||
+        (production.physical_warehouse_id
+            ? `Địa điểm kho #${production.physical_warehouse_id}`
+            : "-")
 
     return (
-        <div className="border-b pb-4">
-            <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge value={production.status} />
-                <span className="text-muted-foreground font-mono text-xs">
-                    #{production.id}
-                </span>
-            </div>
+        <div className="border-b pb-3">
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mt-1 h-8 w-8 shrink-0"
+                        onClick={() => navigate({ to: "/production/orders", search: {} as any })}
+                    >
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
 
-            <h2 className="mt-2 text-2xl font-bold tracking-tight">
-                {production.production_no || `Lệnh #${production.id}`}
-            </h2>
+                    <div className="min-w-0">
+                        <h2 className="text-2xl font-bold tracking-tight">
+                            Chi tiết lệnh sản xuất
+                        </h2>
 
-            <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-                <span className="inline-flex items-center gap-1.5">
-                    <CalendarDays className="h-4 w-4" />
-                    Ngày lệnh {formatDate(production.production_date)}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                    <Warehouse className="h-4 w-4" />
-                    Kho nhập {warehouses.length ? warehouses.join(", ") : "-"}
-                </span>
-                <span>
-                    Kỳ tính giá{" "}
-                    <span className="text-foreground font-medium">
-                        {production.costing_period || "-"}
-                    </span>
-                </span>
-                <span>
-                    Số dòng TP{" "}
-                    <span className="text-foreground font-medium tabular-nums">
-                        {formatNumber(items.length)}
-                    </span>
-                </span>
-                <span>
-                    Tạo {formatDateTime(production.created_at)}
-                </span>
+                        <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                            <span>
+                                <span className="font-medium text-foreground">Mã lệnh:</span>{" "}
+                                {production.production_no || `Lệnh #${production.id}`}
+                            </span>
+                            <span className="inline-flex items-center gap-1.5">
+                                <CalendarDays className="h-4 w-4" />
+                                <span>
+                                    <span className="font-medium text-foreground">Ngày lệnh:</span>{" "}
+                                    {formatDate(production.production_date)}
+                                </span>
+                            </span>
+                            <span className="inline-flex items-center gap-1.5">
+                                <Warehouse className="h-4 w-4" />
+                                <span>
+                                    <span className="font-medium text-foreground">Địa điểm kho:</span>{" "}
+                                    {physicalWarehouseName}
+                                </span>
+                            </span>
+                            <span className="inline-flex items-center gap-1.5">
+                                <Warehouse className="h-4 w-4" />
+                                <span>
+                                    <span className="font-medium text-foreground">Kho nhập:</span>{" "}
+                                    {warehouses.length ? warehouses.join(", ") : "-"}
+                                </span>
+                            </span>
+                            <span>
+                                <span className="font-medium text-foreground">Kỳ tính giá:</span>{" "}
+                                <span className="text-foreground font-medium">
+                                    {production.costing_period || "-"}
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex shrink-0 items-center self-stretch">
+                    <StatusBadge
+                        value={production.status}
+                        className="px-3 py-1 text-sm font-semibold"
+                        iconClassName="h-4 w-4"
+                    />
+                </div>
             </div>
 
             {production.note ? (
-                <div className="text-muted-foreground mt-3 text-sm">
+                <div className="text-muted-foreground mt-2 text-sm">
                     {production.note}
                 </div>
             ) : null}
@@ -302,6 +322,8 @@ function ProductionActionBar({ production }: { production: Production }) {
     const canConfirm = canReceiveOutput(production) && perms.canPost
     const canCancel = canCancelProduction(production) && perms.canCancel
     const canUnpost = isClosed && perms.canUnpost
+    const workflowButtonClass = (step: WorkflowStep) =>
+        getWorkflowStepClass(getWorkflowStepState(production, step))
 
     const refresh = () => {
         void queryClient.invalidateQueries({ queryKey: ["production-order-detail", production.id] })
@@ -376,89 +398,85 @@ function ProductionActionBar({ production }: { production: Production }) {
         unpostMutation.isPending
 
     return (
-        <div className="space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="text-muted-foreground text-sm">
-                    <span className="text-foreground font-medium">Luồng xử lý:</span>{" "}
-                    sinh vật tư → chạy FIFO → xuất nguyên liệu → nhập thành phẩm.
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isBusy || !canGenerate}
-                        onClick={() => generateMutation.mutate()}
-                    >
-                        <Wand2 className="mr-2 h-4 w-4" />
-                        Sinh vật tư
-                    </Button>
-
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isBusy || !canAllocateFifo}
-                        onClick={() => fifoMutation.mutate()}
-                    >
-                        <Route className="mr-2 h-4 w-4" />
-                        Chạy FIFO
-                    </Button>
-
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isBusy || !canIssueMaterials || shortageCount > 0}
-                        onClick={() => issueMutation.mutate()}
-                        title="Tạo phiếu xuất kho NL/BB theo phân bổ FIFO"
-                    >
-                        <PackageCheck className="mr-2 h-4 w-4" />
-                        Xuất nguyên liệu
-                    </Button>
-
-                    <ReceiveOutputDialog
-                        production={production}
-                        disabled={isBusy || !canConfirm || shortageCount > 0}
-                        onDone={refresh}
-                    />
-
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isBusy || !canUnpost}
-                        onClick={handleUnpost}
-                        title="Đảo lệnh đã ghi sổ để sửa và POST lại"
-                    >
-                        <Undo2 className="mr-2 h-4 w-4" />
-                        Đảo lệnh
-                    </Button>
-
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isBusy || !canCancel}
-                        onClick={() => cancelMutation.mutate()}
-                    >
-                        <AlertTriangle className="mr-2 h-4 w-4" />
-                        Hủy lệnh
-                    </Button>
-                </div>
+        <div className="border-b pb-3">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="mr-1 text-sm font-medium">Luồng xử lý:</div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                        "h-9",
+                        workflowButtonClass("generate-materials"),
+                    )}
+                    disabled={isBusy || !canGenerate}
+                    onClick={() => generateMutation.mutate()}
+                >
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    Sinh vật tư
+                </Button>
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                        "h-9",
+                        workflowButtonClass("allocate-fifo"),
+                    )}
+                    disabled={isBusy || !canAllocateFifo}
+                    onClick={() => fifoMutation.mutate()}
+                >
+                    <Route className="mr-2 h-4 w-4" />
+                    Chạy FIFO
+                </Button>
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                        "h-9",
+                        workflowButtonClass("issue-materials"),
+                    )}
+                    disabled={isBusy || !canIssueMaterials || shortageCount > 0}
+                    onClick={() => issueMutation.mutate()}
+                    title="Tạo phiếu xuất kho NL/BB theo phân bổ FIFO"
+                >
+                    <PackageCheck className="mr-2 h-4 w-4" />
+                    Xuất nguyên liệu
+                </Button>
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                <ReceiveOutputDialog
+                    production={production}
+                    disabled={isBusy || !canConfirm || shortageCount > 0}
+                    triggerClassName={cn("h-9", workflowButtonClass("receive-output"))}
+                    onDone={refresh}
+                />
+                <div className="mx-1 h-7 w-px bg-border" />
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    disabled={isBusy || !canUnpost}
+                    onClick={handleUnpost}
+                    title="Đảo lệnh đã ghi sổ để sửa và POST lại"
+                >
+                    <Undo2 className="mr-2 h-4 w-4" />
+                    Đảo lệnh
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    disabled={isBusy || !canCancel}
+                    onClick={() => cancelMutation.mutate()}
+                >
+                    <AlertTriangle className="mr-2 h-4 w-4" />
+                    Hủy lệnh
+                </Button>
             </div>
 
-            {isClosed ? (
-                <div className="text-muted-foreground text-sm">
-                    Lệnh đã nhập thành phẩm hoặc đã đóng, không thể thao tác thêm.
-                </div>
-            ) : (
-                <div className="text-muted-foreground text-sm">
-                    Bước hiện tại: {getProductionStepMessage(production)}
-                </div>
-            )}
-
             {shortageCount > 0 ? (
-                <div className="text-destructive text-sm">
-                    Còn {shortageCount} dòng vật tư chưa được FIFO đủ. Vào tab Vật
-                    tư để xem dòng thiếu, bổ sung tồn kho hoặc giảm số lượng sản
-                    xuất rồi chạy FIFO lại trước khi nhập TP.
+                <div className="mt-2 text-right text-sm text-destructive">
+                    Còn {shortageCount} dòng vật tư chưa được FIFO đủ. Vào tab Vật tư để xem dòng thiếu, bổ sung tồn kho hoặc giảm số lượng sản xuất rồi chạy FIFO lại trước khi nhập TP.
                 </div>
             ) : null}
         </div>
@@ -479,10 +497,12 @@ type OutputConfirmRow = {
 function ReceiveOutputDialog({
     production,
     disabled,
+    triggerClassName,
     onDone,
 }: {
     production: Production
     disabled: boolean
+    triggerClassName?: string
     onDone: () => void
 }) {
     const [open, setOpen] = useState(false)
@@ -544,7 +564,7 @@ function ReceiveOutputDialog({
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-                <Button disabled={disabled}>
+                <Button variant="outline" className={triggerClassName} disabled={disabled}>
                     <PackageCheck className="mr-2 h-4 w-4" />
                     Nhập TP
                 </Button>
@@ -753,6 +773,7 @@ function MaterialsTable({ production }: { production: Production }) {
     const canPickLot = canRunFifo(production) && perms.canPickLot
     const canAdjust = canAdjustMaterials(production) && perms.canAdjustMaterials
     const items = production.items ?? []
+    const [openItemId, setOpenItemId] = useState<number | undefined>(items[0]?.id)
     const materials = items.flatMap((item) =>
         (item.materials ?? []).map((material) => ({
             ...material,
@@ -771,65 +792,277 @@ function MaterialsTable({ production }: { production: Production }) {
     )
 
     return (
-        <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-4">
+        <div className="space-y-2.5">
+            <div className="grid gap-2 md:grid-cols-4">
                 <Metric label="Dòng vật tư" value={formatNumber(materials.length)} />
                 <Metric label="Đã FIFO" value={formatNumber(materials.filter((m) => Number(m.allocated_quantity) > 0).length)} />
                 <Metric label="Thiếu tồn" value={formatNumber(shortageCount)} tone={shortageCount > 0 ? "bad" : "ok"} />
                 <Metric label="Cảnh báo HSD" value={formatNumber(hsdWarningCount)} tone={hsdWarningCount > 0 ? "bad" : "ok"} />
             </div>
 
-            {!materials.length && (
+            {!items.length && (
                 <div className="rounded-md border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
-                    Chưa sinh vật tư. Bấm “Sinh vật tư” để hệ thống lấy định mức BOM vào lệnh.
+                    Chưa có thành phẩm trong lệnh.
                 </div>
             )}
 
             {items.map((item) => {
                 const itemMaterials = item.materials ?? []
-                if (!itemMaterials.length) return null
-
+                const isOpen = openItemId === item.id
                 const itemShortage = itemMaterials.filter((m) => Number(m.shortage_quantity) > 0).length
                 const requiredQty = sumBy(itemMaterials, (m) => m.quantity_required)
                 const allocatedQty = sumBy(itemMaterials, (m) => m.allocated_quantity)
 
                 return (
-                    <div key={item.id} className="rounded-md border">
-                        <div className="flex flex-wrap items-start justify-between gap-3 border-b bg-muted/30 px-4 py-3">
-                            <div>
-                                <div className="font-semibold">
-                                    {item.product?.code} - {item.product?.name}
+                    <div key={item.id} className="overflow-hidden rounded-md border bg-background">
+                        <div className="flex items-start justify-between gap-2 border-b px-3 py-2">
+                            <button
+                                type="button"
+                                className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                                onClick={() => setOpenItemId(item.id)}
+                            >
+                                <ArrowRight
+                                    className={cn(
+                                        "mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                                        isOpen && "rotate-90",
+                                    )}
+                                />
+                                <div className="min-w-0">
+                                    <div className="font-semibold leading-tight">
+                                        {item.product?.name || "-"}
+                                    </div>
+                                    <div className="mt-0.5 text-sm text-muted-foreground">
+                                        {item.product?.code || `#${item.product_id}`} · BOM {item.bom_version || "-"} · SL KH {formatQty(item.quantity_plan, item.product?.unit)} · SL nhập {formatQty(item.quantity_done, item.product?.unit)}
+                                    </div>
                                 </div>
-                                <div className="mt-1 text-sm text-muted-foreground">
-                                    BOM {item.bom_version || "-"} · SL kế hoạch {formatQty(item.quantity_plan, item.product?.unit)} · SL nhập TP {formatQty(item.quantity_done, item.product?.unit)}
-                                </div>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                <Badge variant={itemShortage > 0 ? "destructive" : "secondary"}>
-                                    {itemShortage > 0 ? `${itemShortage} dòng thiếu tồn` : "Đủ FIFO"}
-                                </Badge>
+                            </button>
+                            <div className="flex flex-wrap items-center gap-2">
+                                {itemShortage > 0 ? (
+                                    <Badge variant="destructive">{itemShortage} thiếu</Badge>
+                                ) : (
+                                    <Badge variant="secondary">Đủ FIFO</Badge>
+                                )}
                                 <Badge variant="outline">
-                                    Cần {formatNumber(requiredQty)} · Đã FIFO {formatNumber(allocatedQty)}
+                                    Cần {formatNumber(requiredQty)} · FIFO {formatNumber(allocatedQty)}
                                 </Badge>
+                                <MaterialManagerDialog
+                                    production={production}
+                                    item={item}
+                                    disabled={!canAdjust}
+                                />
                             </div>
                         </div>
 
-                        <div className="divide-y">
-                            {itemMaterials.map((material) => (
-                                <MaterialCheckRow
-                                    key={material.id}
-                                    production={production}
-                                    item={item}
-                                    material={material}
-                                    canPickLot={canPickLot}
-                                    canAdjust={canAdjust}
-                                />
-                            ))}
-                        </div>
+                        {isOpen ? (
+                            itemMaterials.length ? (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full min-w-[1180px] text-sm">
+                                        <thead className="bg-muted/40 text-muted-foreground">
+                                            <tr>
+                                                <Th className="w-12">STT</Th>
+                                                <Th>Tên</Th>
+                                                <Th className="w-20">ĐVT</Th>
+                                                <Th className="w-20">Loại</Th>
+                                                <Th className="w-28 text-right">SL cần</Th>
+                                                <Th className="w-28 text-right">Đã FIFO</Th>
+                                                <Th className="w-28 text-right">Thiếu</Th>
+                                                <Th className="w-36">Trạng thái</Th>
+                                                <Th className="w-44">Lô FIFO</Th>
+                                                <Th className="w-36 text-right">Chọn lô</Th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {itemMaterials.map((material, index) => {
+                                                const shortage = Number(material.shortage_quantity) || 0
+                                                const allocations = material.fifo_allocations ?? []
+                                                return (
+                                                    <tr key={material.id} className="border-t">
+                                                        <Td className="text-muted-foreground">{index + 1}</Td>
+                                                        <Td>
+                                                            <div className="font-medium leading-tight">{material.product?.name || "-"}</div>
+                                                            <div className="mt-0.5 text-xs text-muted-foreground">
+                                                                {material.product?.code || `#${material.product_id}`} · ĐM {formatNumber(material.quantity_per_unit)}
+                                                            </div>
+                                                        </Td>
+                                                        <Td className="text-muted-foreground">{material.product?.unit || "-"}</Td>
+                                                        <Td className="text-muted-foreground">{material.material_type || "-"}</Td>
+                                                        <Td className="text-right font-medium tabular-nums">{formatNumber(material.quantity_required)}</Td>
+                                                        <Td className="text-right tabular-nums">{formatNumber(material.allocated_quantity)}</Td>
+                                                        <Td className={cn("text-right font-medium tabular-nums", shortage > 0 && "text-destructive")}>{formatNumber(shortage)}</Td>
+                                                        <Td>
+                                                            <div className="space-y-1">
+                                                                <StatusBadge value={material.fifo_status} />
+                                                                <div className="text-xs text-muted-foreground">{sourceTypeLabel(material.source_type)}</div>
+                                                            </div>
+                                                        </Td>
+                                                        <Td>
+                                                            {allocations.length ? (
+                                                                <div className="space-y-0.5 text-xs">
+                                                                    {allocations.slice(0, 2).map((allocation) => (
+                                                                        <div key={allocation.id} className="truncate">
+                                                                            {allocation.lot_no || "-"} · {formatNumber(allocation.quantity)}
+                                                                        </div>
+                                                                    ))}
+                                                                    {allocations.length > 2 ? <div className="text-muted-foreground">+{allocations.length - 2} lô</div> : null}
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-muted-foreground">Chưa có lô FIFO</span>
+                                                            )}
+                                                        </Td>
+                                                        <Td className="text-right">
+                                                            <PreferredLotForm production={production} material={material} disabled={!canPickLot} />
+                                                        </Td>
+                                                    </tr>
+                                                )
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="border-t px-4 py-6 text-center text-sm text-muted-foreground">
+                                    Chưa có vật tư. Bấm biểu tượng chỉnh vật tư để thêm vật tư cho thành phẩm này.
+                                </div>
+                            )
+                        ) : null}
                     </div>
                 )
             })}
         </div>
+    )
+}
+
+function MaterialManagerDialog({
+    production,
+    item,
+    disabled,
+}: {
+    production: Production
+    item: ProductionItem
+    disabled?: boolean
+}) {
+    const materials = item.materials ?? []
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-9 w-9"
+                    disabled={disabled}
+                    title="Chỉnh vật tư"
+                >
+                    <Pencil className="h-4 w-4" />
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[86vh] overflow-y-auto sm:max-w-5xl">
+                <DialogHeader>
+                    <DialogTitle>Chỉnh vật tư</DialogTitle>
+                    <DialogDescription>
+                        {item.product?.name || "-"} · {item.product?.code || `#${item.product_id}`}
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="flex justify-end">
+                    <MaterialForm production={production} item={item} disabled={disabled} />
+                </div>
+
+                {materials.length ? (
+                    <div className="overflow-x-auto rounded-md border">
+                        <table className="w-full min-w-[900px] text-sm">
+                            <thead className="bg-muted/40 text-muted-foreground">
+                                <tr>
+                                    <Th className="w-12">STT</Th>
+                                    <Th>Tên</Th>
+                                    <Th className="w-20">ĐVT</Th>
+                                    <Th className="w-24">Loại</Th>
+                                    <Th className="w-28 text-right">SL cần</Th>
+                                    <Th className="w-28 text-right">Định mức</Th>
+                                    <Th className="w-40">Kho xuất</Th>
+                                    <Th>Ghi chú</Th>
+                                    <Th className="w-24 text-right">Thao tác</Th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {materials.map((material, index) => (
+                                    <tr key={material.id} className="border-t">
+                                        <Td className="text-muted-foreground">{index + 1}</Td>
+                                        <Td>
+                                            <div className="font-medium leading-tight">{material.product?.name || "-"}</div>
+                                            <div className="mt-0.5 text-xs text-muted-foreground">
+                                                {material.product?.code || `#${material.product_id}`}
+                                            </div>
+                                        </Td>
+                                        <Td className="text-muted-foreground">{material.product?.unit || "-"}</Td>
+                                        <Td className="text-muted-foreground">{material.material_type || "-"}</Td>
+                                        <Td className="text-right font-medium tabular-nums">{formatNumber(material.quantity_required)}</Td>
+                                        <Td className="text-right tabular-nums">{formatNumber(material.quantity_per_unit)}</Td>
+                                        <Td className="text-muted-foreground">{material.warehouse?.name || "-"}</Td>
+                                        <Td className="text-muted-foreground">{material.note || "-"}</Td>
+                                        <Td className="text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <MaterialForm
+                                                    production={production}
+                                                    item={item}
+                                                    material={material}
+                                                    disabled={disabled}
+                                                />
+                                                <DeleteMaterialButton
+                                                    production={production}
+                                                    material={material}
+                                                    disabled={disabled}
+                                                />
+                                            </div>
+                                        </Td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="rounded-md border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+                        Chưa có vật tư cho thành phẩm này.
+                    </div>
+                )}
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function DeleteMaterialButton({
+    production,
+    material,
+    disabled,
+}: {
+    production: Production
+    material: ProductionMaterial
+    disabled?: boolean
+}) {
+    const queryClient = useQueryClient()
+    const deleteMutation = useMutation({
+        mutationFn: () => deleteProductionMaterial(production.id, material.id),
+        onSuccess: () => {
+            toast.success("Đã xóa vật tư")
+            void queryClient.invalidateQueries({ queryKey: ["production-order-detail", production.id] })
+            void queryClient.invalidateQueries({ queryKey: ["production-orders"] })
+            void queryClient.invalidateQueries({ queryKey: ["productions"] })
+        },
+        onError: (e: any) => toast.error(e.message || "Không thể xóa vật tư"),
+    })
+
+    return (
+        <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="h-9 w-9 text-destructive hover:text-destructive"
+            disabled={disabled || deleteMutation.isPending}
+            onClick={() => deleteMutation.mutate()}
+            title="Xóa vật tư"
+        >
+            <Trash2 className="h-4 w-4" />
+        </Button>
     )
 }
 
@@ -1505,7 +1738,7 @@ function PreferredLotForm({
             <DialogTrigger asChild>
                 <Button size="sm" variant={material.preferred_lot_no ? "secondary" : "outline"} disabled={disabled}>
                     <Settings2 className="mr-2 h-4 w-4" />
-                    {material.preferred_lot_no || "Chọn lô"}
+                    {material.preferred_lot_no || "Auto"}
                 </Button>
             </DialogTrigger>
             <DialogContent>
@@ -1574,7 +1807,7 @@ function DetailMetric({
                 : "text-muted-foreground"
 
     return (
-        <div className="rounded-md border bg-background px-4 py-3">
+        <div className="rounded-md border bg-background px-3 py-2.5">
             <div
                 className={cn(
                     "flex items-center gap-2 text-sm font-medium",
@@ -1584,7 +1817,7 @@ function DetailMetric({
                 <Icon className="h-4 w-4" />
                 {label}
             </div>
-            <div className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+            <div className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums">
                 {value}
             </div>
             <div className="text-muted-foreground mt-0.5 truncate text-xs">
@@ -1792,8 +2025,16 @@ function Metric({ label, value, tone }: { label: string; value: React.ReactNode;
     )
 }
 
-function StatusBadge({ value }: { value?: string }) {
-    if (!value) return <Badge variant="outline">-</Badge>
+function StatusBadge({
+    value,
+    className,
+    iconClassName,
+}: {
+    value?: string
+    className?: string
+    iconClassName?: string
+}) {
+    if (!value) return <Badge variant="outline" className={className}>-</Badge>
 
     const status = String(value ?? "").toUpperCase()
     const variant = getProductionSubStatusVariant(status)
@@ -1801,8 +2042,8 @@ function StatusBadge({ value }: { value?: string }) {
     const ok = variant === "secondary"
 
     return (
-        <Badge variant={variant}>
-            {ok && <CheckCircle2 className="h-3 w-3" />}
+        <Badge variant={variant} className={className}>
+            {ok && <CheckCircle2 className={cn("h-3 w-3", iconClassName)} />}
             {label}
         </Badge>
     )
@@ -1881,6 +2122,57 @@ function countShortage(items: ProductionItem[]) {
             (item.materials ?? []).filter((m) => (m.shortage_quantity ?? 0) > 0).length,
         0
     )
+}
+
+type WorkflowStep =
+    | "generate-materials"
+    | "allocate-fifo"
+    | "issue-materials"
+    | "receive-output"
+
+type WorkflowStepState = "done" | "current" | "pending"
+
+const workflowStepOrder: WorkflowStep[] = [
+    "generate-materials",
+    "allocate-fifo",
+    "issue-materials",
+    "receive-output",
+]
+
+function getWorkflowStepState(
+    production: Pick<Production, "status">,
+    step: WorkflowStep
+): WorkflowStepState {
+    const stepIndex = workflowStepOrder.indexOf(step)
+    const currentIndex = getCurrentWorkflowStepIndex(productionStatus(production))
+
+    if (currentIndex < 0) return "pending"
+    if (stepIndex < currentIndex) return "done"
+    if (stepIndex === currentIndex) return "current"
+    return "pending"
+}
+
+function getCurrentWorkflowStepIndex(status: string) {
+    if (["DRAFT", "PLANNED"].includes(status)) return 0
+    if (status === "MATERIAL_GENERATED") return 1
+    if (status === "FIFO_ALLOCATED") return 2
+    if (status === "MATERIAL_ISSUED") return 3
+    if (["DONE", "OUTPUT_RECEIVED", "LOCKED"].includes(status)) {
+        return workflowStepOrder.length
+    }
+    return -1
+}
+
+function getWorkflowStepClass(state: WorkflowStepState) {
+    if (state === "done") {
+        return "border-emerald-200 bg-emerald-50 text-emerald-700 opacity-100 hover:bg-emerald-50 disabled:opacity-100"
+    }
+
+    if (state === "current") {
+        return "border-amber-300 bg-amber-400 text-amber-950 opacity-100 hover:bg-amber-400 disabled:opacity-100"
+    }
+
+    return "border-slate-200 bg-slate-50 text-slate-400 opacity-100 hover:bg-slate-50 disabled:opacity-100"
 }
 
 function isProductionClosed(production?: Pick<Production, "status">) {

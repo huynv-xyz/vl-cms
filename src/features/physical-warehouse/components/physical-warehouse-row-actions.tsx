@@ -21,7 +21,7 @@ export function PhysicalWarehouseRowActions({
             onEdit={() => openEdit(row.original)}
             onDelete={async (physicalWarehouse) => {
                 await deletePhysicalWarehouse(physicalWarehouse.id)
-                toast.success("Đã xóa kho vật lý")
+                toast.success("Đã xóa địa điểm kho")
                 await queryClient.invalidateQueries({
                     queryKey: ["physical-warehouse"],
                 })

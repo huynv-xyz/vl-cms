@@ -16,7 +16,7 @@ export function CreatePhysicalWarehouseDialog({ open, onOpenChange }: any) {
             CreatePhysicalWarehouseRequest,
             unknown
         >
-            title="Tạo kho vật lý"
+            title="Tạo địa điểm kho"
             open={open}
             onOpenChange={onOpenChange}
             hideTrigger

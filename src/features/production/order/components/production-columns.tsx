@@ -38,7 +38,7 @@ export const productionColumns: ColumnDef<Production>[] = [
     }),
 
     buildTextColumn({
-        title: "Kho vật lý / Kho nhập",
+        title: "Địa điểm kho / Kho nhập",
         render: (row) => <WarehouseCell production={row} />,
     }),
 
@@ -119,7 +119,7 @@ function WarehouseCell({ production }: { production: Production }) {
     )
 
     const physicalName = production.physical_warehouse?.name
-        || (production.physical_warehouse_id ? `Kho vật lý #${production.physical_warehouse_id}` : "")
+        || (production.physical_warehouse_id ? `Địa điểm kho #${production.physical_warehouse_id}` : "")
 
     if (!warehouses.length && !physicalName) return <span className="text-muted-foreground">-</span>
 

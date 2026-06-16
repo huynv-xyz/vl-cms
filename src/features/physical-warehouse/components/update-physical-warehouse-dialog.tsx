@@ -25,7 +25,7 @@ export function UpdatePhysicalWarehouseDialog({
             UpdatePhysicalWarehouseRequest,
             unknown
         >
-            title="Cập nhật kho vật lý"
+            title="Cập nhật địa điểm kho"
             open={open}
             onOpenChange={onOpenChange}
             hideTrigger

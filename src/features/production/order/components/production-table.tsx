@@ -169,7 +169,7 @@ export function ProductionTable({
                         onChange={(value: number | undefined) =>
                             setFilter("physical_warehouse_id", value || undefined)
                         }
-                        placeholder="Kho vật lý"
+                        placeholder="Địa điểm kho"
                         dataSource={{
                             getList: listPhysicalWarehouses,
                             getById: getPhysicalWarehouse,
