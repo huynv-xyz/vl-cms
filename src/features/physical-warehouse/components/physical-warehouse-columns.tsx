@@ -11,12 +11,12 @@ export const physicalWarehouseColumns: ColumnDef<PhysicalWarehouse>[] = [
 
     buildTextColumn({
         accessorKey: "code",
-        title: "Mã kho vật lý",
+        title: "Mã địa điểm kho",
     }),
 
     buildTextColumn({
         accessorKey: "name",
-        title: "Tên kho vật lý",
+        title: "Tên địa điểm kho",
     }),
 
     buildTextColumn({

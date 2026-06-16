@@ -21,9 +21,7 @@ export default function ProductionOrderDetailPage({ id }: Props) {
             error={error}
             data={data}
             title="Chi tiết lệnh sản xuất"
-            description={data?.production_no}
-            showBack
-            backTo="/production/orders"
+            header={<></>}
         >
             {(production) => <ProductionDetailPanel production={production} />}
         </PageSection>

@@ -7,8 +7,8 @@ export function PhysicalWarehouseTable(props: any) {
         <CrudTable<PhysicalWarehouse>
             {...props}
             columns={physicalWarehouseColumns}
-            entityName="kho vật lý"
-            searchPlaceholder="Tìm theo mã hoặc tên kho vật lý..."
+            entityName="địa điểm kho"
+            searchPlaceholder="Tìm theo mã hoặc tên địa điểm kho..."
             filters={[
                 {
                     columnId: "status",

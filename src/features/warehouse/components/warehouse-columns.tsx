@@ -21,13 +21,10 @@ export const warehouseColumns: ColumnDef<Warehouse>[] = [
     }),
 
     buildTextColumn({
-        accessorKey: "address",
-        title: "Địa chỉ",
-    }),
-
-    buildTextColumn({
-        accessorKey: "physical_warehouse_id",
-        title: "Kho vật lý",
+        accessorFn: (row) =>
+            row.physical_warehouse?.name ||
+            (row.physical_warehouse_id ? `#${row.physical_warehouse_id}` : ""),
+        title: "Địa điểm kho",
     }),
 
     buildBadgeColumn({

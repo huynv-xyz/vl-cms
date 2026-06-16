@@ -39,7 +39,7 @@ export default function PhysicalWarehousePage() {
             <PageSection
                 isLoading={isLoading}
                 error={error}
-                title="Kho vật lý"
+                title="Địa điểm kho"
                 actions={<CreatePhysicalWarehouseButton />}
                 data={data}
             >

@@ -161,17 +161,21 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
             }}
         >
             <div className="overflow-x-auto rounded-md border">
-                <table className="w-full min-w-[1180px] table-fixed text-sm">
+                <table className="w-full min-w-[2000px] table-fixed text-sm">
                     <colgroup>
                         <col className="w-11" />
-                        <col className="w-[220px]" />
-                        <col className="w-[360px]" />
-                        <col className="w-[70px]" />
-                        <col className="w-[110px]" />
+                        <col className="w-[280px]" />
+                        <col className="w-[500px]" />
+                        <col className="w-[50px]" />
+                        <col className="w-[90px]" />
                         <col className="w-[130px]" />
-                        <col className="w-[120px]" />
-                        <col className="w-[155px]" />
-                        <col className="w-12" />
+                        <col className="w-[95px]" />
+                        <col className="w-[260px]" />
+                        <col className="w-[70px]" />
+                        <col className="w-[95px]" />
+                        <col className="w-[260px]" />
+                        <col className="w-[130px]" />
+                        <col className="w-[42px]" />
                     </colgroup>
                     <thead className="bg-muted/50 text-muted-foreground text-[10px] uppercase tracking-wider">
                         <tr>
@@ -182,6 +186,10 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
                             <th className="px-2 py-2 text-right font-semibold">Số lượng</th>
                             <th className="px-2 py-2 text-right font-semibold">Đơn giá</th>
                             <th className="px-2 py-2 text-right font-semibold">Chiết khấu</th>
+                            <th className="px-2 py-2 text-left font-semibold">Mô tả HH</th>
+                            <th className="px-2 py-2 text-center font-semibold">Hàng KM</th>
+                            <th className="px-2 py-2 text-center font-semibold">Không tính HĐN</th>
+                            <th className="px-2 py-2 text-left font-semibold">Ghi chú</th>
                             <th className="px-2 py-2 text-right font-semibold">Thành tiền</th>
                             <th className="px-2 py-2" />
                         </tr>
@@ -267,6 +275,75 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
                                         />
                                     </td>
 
+                                    <td className="min-w-0 px-2 py-2 align-middle">
+                                        <AsyncSelect
+                                            value={row.description}
+                                            onChange={(value: any) => {
+                                                updateRow(i, {
+                                                    description: value,
+                                                })
+                                            }}
+                                            dataSource={{
+                                                getList: listGoodsDescriptions,
+                                                params: { page: 1, size: 20, active: 1 },
+                                            }}
+                                            mapOption={(x: any) => ({
+                                                value: x.name,
+                                                label: x.name,
+                                                raw: x,
+                                            })}
+                                            initialOption={
+                                                row.description
+                                                    ? {
+                                                        value: row.description,
+                                                        label: row.description,
+                                                        raw: { name: row.description },
+                                                    }
+                                                    : undefined
+                                            }
+                                            placeholder="Chọn mô tả"
+                                            searchPlaceholder="Tìm mô tả HH..."
+                                            emptyText="Không có mô tả phù hợp"
+                                            className="min-w-0"
+                                            popoverContentClassName="w-[360px] max-w-[calc(100vw-2rem)]"
+                                            commandListClassName="max-h-[360px]"
+                                        />
+                                    </td>
+
+                                    <td className="px-2 py-2 text-center align-middle">
+                                        <Checkbox
+                                            checked={isPromotion}
+                                            onCheckedChange={(checked) =>
+                                                updateRow(i, {
+                                                    line_type: checked ? "PROMOTION" : "NORMAL",
+                                                    unit_price: checked ? 0 : row.product?.price ?? row.unit_price,
+                                                    discount: checked ? 0 : row.discount,
+                                                })
+                                            }
+                                        />
+                                    </td>
+
+                                    <td className="px-2 py-2 text-center align-middle">
+                                        <Checkbox
+                                            checked={row.hdn_status === "KO"}
+                                            onCheckedChange={(checked) =>
+                                                updateRow(i, {
+                                                    hdn_status: checked ? "KO" : undefined,
+                                                })
+                                            }
+                                        />
+                                    </td>
+
+                                    <td className="min-w-0 px-2 py-2 align-middle">
+                                        <Input
+                                            value={row.note ?? ""}
+                                            onChange={(event) => updateRow(i, { note: event.target.value })}
+                                            onKeyDown={(event) => addRowOnEnter(event, i)}
+                                            placeholder="Ghi chú dòng hàng"
+                                            className="min-w-0"
+                                        />
+                                    </td>
+
                                     <td className="px-2 py-2 text-right align-middle">
                                         <div className="text-sm font-bold tabular-nums">
                                             {formatNumber(lineTotal)}
@@ -290,87 +367,13 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
                                         </Tooltip>
                                     </td>
                                     </tr>
-
-                                    <tr className={cn("border-b-2 border-b-slate-300 bg-slate-50/80", isInvalid && "bg-amber-50/40 dark:bg-amber-950/10")}>
-                                        <td />
-                                        <td colSpan={7} className="px-2 pb-2 pt-1">
-                                            <div className="grid gap-2 md:grid-cols-[minmax(160px,0.45fr)_auto_auto_minmax(420px,1.55fr)]">
-                                                <div className="min-w-0 space-y-0">
-                                                    <AsyncSelect
-                                                        value={row.description}
-                                                        onChange={(value: any) => {
-                                                            updateRow(i, {
-                                                                description: value,
-                                                            })
-                                                        }}
-                                                        dataSource={{
-                                                            getList: listGoodsDescriptions,
-                                                            params: { page: 1, size: 20, active: 1 },
-                                                        }}
-                                                        mapOption={(x: any) => ({
-                                                            value: x.name,
-                                                            label: x.name,
-                                                            raw: x,
-                                                        })}
-                                                        initialOption={
-                                                            row.description
-                                                                ? {
-                                                                    value: row.description,
-                                                                    label: row.description,
-                                                                    raw: { name: row.description },
-                                                                }
-                                                                : undefined
-                                                        }
-                                                        placeholder="Chọn mô tả"
-                                                        searchPlaceholder="Tìm mô tả HH..."
-                                                        emptyText="Không có mô tả phù hợp"
-                                                        className="min-w-0"
-                                                    />
-                                                </div>
-                                                <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border bg-background px-3 text-xs font-semibold shadow-xs">
-                                                    <Checkbox
-                                                        checked={isPromotion}
-                                                        onCheckedChange={(checked) =>
-                                                            updateRow(i, {
-                                                                line_type: checked ? "PROMOTION" : "NORMAL",
-                                                                unit_price: checked ? 0 : row.product?.price ?? row.unit_price,
-                                                                discount: checked ? 0 : row.discount,
-                                                            })
-                                                        }
-                                                    />
-                                                    <span>Hàng KM</span>
-                                                </label>
-                                                <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border bg-background px-3 text-xs font-semibold shadow-xs">
-                                                    <Checkbox
-                                                        checked={row.hdn_status === "KO"}
-                                                        onCheckedChange={(checked) =>
-                                                            updateRow(i, {
-                                                                hdn_status: checked ? "KO" : undefined,
-                                                            })
-                                                        }
-                                                    />
-                                                    <span>Không tính HĐN</span>
-                                                </label>
-                                                <div className="min-w-0 space-y-0">
-                                                    <Input
-                                                        value={row.note ?? ""}
-                                                        onChange={(event) => updateRow(i, { note: event.target.value })}
-                                                        onKeyDown={(event) => addRowOnEnter(event, i)}
-                                                        placeholder="Ghi chú dòng hàng"
-                                                        className="min-w-0"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td />
-                                    </tr>
                                 </Fragment>
                             )
                         })}
 
                         {!items.length && (
                             <tr>
-                                <td colSpan={9} className="px-4 py-14">
+                                <td colSpan={13} className="px-4 py-14">
                                     <div
                                         className="text-muted-foreground flex flex-col items-center gap-3 text-center text-sm"
                                         tabIndex={0}
@@ -529,7 +532,7 @@ function ProductSelect({
                     variant="outline"
                     className="h-auto min-h-10 w-full min-w-0 items-start justify-between py-2"
                 >
-                    <span className="min-w-0 flex-1 whitespace-normal break-words text-left leading-snug">
+                    <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left leading-snug">
                         {selectedOption ? selectedOption.label : placeholder}
                     </span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />

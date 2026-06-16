@@ -6,6 +6,7 @@ import { Plus, Save, Trash2 } from "lucide-react"
 import { createProduction } from "@/api/production/order"
 import { listProducts, getProduct } from "@/api/product"
 import { listPhysicalWarehouses, getPhysicalWarehouse } from "@/api/physical-warehouse"
+import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Button } from "@/components/ui/button"
@@ -43,6 +44,7 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
 
     const [productionDate, setProductionDate] = useState(today())
     const [physicalWarehouseId, setPhysicalWarehouseId] = useState<number>()
+    const [warehouseId, setWarehouseId] = useState<number>()
     const [packingCode, setPackingCode] = useState("")
     const [note, setNote] = useState("")
     const [items, setItems] = useState<Row[]>([newRow()])
@@ -80,6 +82,7 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
     const resetForm = () => {
         setProductionDate(today())
         setPhysicalWarehouseId(undefined)
+        setWarehouseId(undefined)
         setPackingCode("")
         setNote("")
         setItems([newRow()])
@@ -105,7 +108,8 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
 
     const submit = () => {
         if (!productionDate) return toast.error("Ngày lệnh là bắt buộc")
-        if (!physicalWarehouseId) return toast.error("Kho vật lý là bắt buộc")
+        if (!physicalWarehouseId) return toast.error("Địa điểm kho là bắt buộc")
+        if (!warehouseId) return toast.error("Kho nhập là bắt buộc")
         if (!items.length) return toast.error("Cần ít nhất 1 thành phẩm")
 
         for (const [index, item] of items.entries()) {
@@ -117,6 +121,7 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
 
         mutate({
             physical_warehouse_id: physicalWarehouseId,
+            warehouse_id: warehouseId,
             production_date: productionDate,
             packing_code: packingCode || undefined,
             note: note || undefined,
@@ -135,7 +140,7 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
                 <DialogHeader className="border-b px-6 py-5">
                     <DialogTitle>Tạo lệnh sản xuất</DialogTitle>
                     <DialogDescription>
-                        Chọn ngày, kho vật lý và thành phẩm cần sản xuất. Mã lệnh, kho nhập TP và định mức sẽ được hệ thống tự xử lý.
+                        Chọn ngày, địa điểm kho và thành phẩm cần sản xuất. Mã lệnh, kho nhập TP và định mức sẽ được hệ thống tự xử lý.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -155,13 +160,14 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
                                     />
                                 </Field>
 
-                                <Field label="Kho vật lý" required>
+                                <Field label="Địa điểm kho" required>
                                     <AsyncSelect
                                         value={physicalWarehouseId}
                                         onChange={(v: any) => {
                                             setPhysicalWarehouseId(v || undefined)
+                                            setWarehouseId(undefined)
                                         }}
-                                        placeholder="Chọn kho vật lý"
+                                        placeholder="Chọn địa điểm kho"
                                         dataSource={{
                                             getList: listPhysicalWarehouses,
                                             getById: getPhysicalWarehouse,
@@ -169,8 +175,40 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
                                         }}
                                         mapOption={(x: any) => ({
                                             value: x.id,
-                                            label: `${x.code || `#${x.id}`} - ${x.name}`,
+                                            label: x.name || x.code || `#${x.id}`,
                                         })}
+                                        optionWrapLabel
+                                        popoverContentClassName="w-[460px] max-w-[calc(100vw-2rem)]"
+                                    />
+                                </Field>
+
+                                <Field label="Kho nhập" required>
+                                    <AsyncSelect
+                                        value={warehouseId}
+                                        onChange={(v: any) => setWarehouseId(v || undefined)}
+                                        placeholder={
+                                            physicalWarehouseId
+                                                ? "Chọn kho nhập"
+                                                : "Chọn địa điểm kho trước"
+                                        }
+                                        disabled={!physicalWarehouseId}
+                                        dataSource={{
+                                            getList: listWarehouses,
+                                            getById: getWarehouse,
+                                            params: {
+                                                page: 1,
+                                                size: 20,
+                                                status: "ACTIVE",
+                                                physical_warehouse_id: physicalWarehouseId,
+                                            },
+                                        }}
+                                        mapOption={(warehouse: any) => ({
+                                            value: warehouse.id,
+                                            label: warehouse.name || warehouse.code || `#${warehouse.id}`,
+                                            raw: warehouse,
+                                        })}
+                                        optionWrapLabel
+                                        popoverContentClassName="w-[460px] max-w-[calc(100vw-2rem)]"
                                     />
                                 </Field>
 
@@ -300,7 +338,7 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
                                 <SummaryRow label="Tổng SL sản xuất" value={formatQuantity(summary.totalQuantity, summary.unit)} />
                             </div>
                             <div className="mt-4 rounded-md border bg-background p-3 text-sm text-muted-foreground">
-                                Kho nhập thành phẩm được lấy theo kho mặc định của sản phẩm trong kho vật lý; nếu chưa có thì dùng kho con đầu tiên của kho vật lý.
+                                Kho nhập thành phẩm được chọn từ danh sách kho quản lý thuộc địa điểm kho.
                             </div>
                         </aside>
                     </div>

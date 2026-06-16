@@ -22,7 +22,7 @@ export const warehouseSchema: RJSFSchema = {
         },
         physical_warehouse_id: {
             type: "integer",
-            title: "Kho vật lý",
+            title: "Địa điểm kho",
         },
         status: {
             type: "string",
@@ -51,8 +51,8 @@ export const warehouseUiSchema: UiSchema = {
     physical_warehouse_id: {
         "ui:widget": "asyncSelect",
         "ui:options": {
-            placeholder: "Chọn kho vật lý",
-            searchPlaceholder: "Tìm mã hoặc tên kho vật lý...",
+            placeholder: "Chọn địa điểm kho",
+            searchPlaceholder: "Tìm mã hoặc tên địa điểm kho...",
             dataSource: {
                 getList: listPhysicalWarehouses,
                 getById: getPhysicalWarehouse,
@@ -60,7 +60,7 @@ export const warehouseUiSchema: UiSchema = {
             },
             mapOption: (w: any) => ({
                 value: w.id,
-                label: `${w.code || `#${w.id}`} - ${w.name || ""}`,
+                label: w.name || w.code || `#${w.id}`,
             }),
         },
     },

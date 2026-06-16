@@ -106,7 +106,7 @@ export function OrderFormDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-muted/30 flex max-h-[96vh] !w-[calc(100vw-32px)] !max-w-[1600px] flex-col gap-0 p-0">
+            <DialogContent className="bg-muted/30 flex h-[calc(100vh-16px)] max-h-[calc(100vh-16px)] !w-[calc(100vw-16px)] !max-w-none flex-col gap-0 p-0">
                 <DialogHeader className="bg-background border-b px-4 py-3">
                     <div className="flex items-start gap-3">
                         <div className={`${meta.iconClassName} flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-sm`}>
