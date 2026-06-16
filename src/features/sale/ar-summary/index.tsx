@@ -31,7 +31,7 @@ type Filters = {
     activity?: string[]
 }
 
-const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
+const controlClass = "h-9 min-h-9 rounded-md border-slate-300 bg-white shadow-xs"
 const ACTIVITY_FILTERS = [
     { value: "debit", label: "Có phát sinh nợ" },
     { value: "credit", label: "Có phát sinh có" },
@@ -96,7 +96,6 @@ export default function ArSummaryPage() {
             isLoading={isLoading}
             error={error}
             title="Tổng hợp công nợ"
-            description="Tổng hợp số dư đầu kỳ, phát sinh và số dư cuối kỳ theo khách hàng."
             data={data}
         >
             {(data) => (
@@ -228,9 +227,9 @@ function ArSummaryTable({
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
             <div className="rounded-lg border bg-white shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
                     <div className="flex items-center gap-2">
                         <BarChart3 className="h-4 w-4 text-slate-500" />
                         Bộ lọc tổng hợp
@@ -244,17 +243,17 @@ function ArSummaryTable({
                         Xuất Excel
                     </Button>
                 </div>
-                <div className="space-y-2 p-4">
-                    <div className="flex w-full flex-wrap items-center gap-2">
+                <div className="space-y-2 p-3">
+                    <div className="grid w-full grid-cols-1 gap-2 lg:grid-cols-[minmax(260px,1.35fr)_minmax(240px,1.45fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)]">
                         <SearchOnBlurInput
                             value={keyword}
                             onChange={onKeywordChange}
                             placeholder="Tìm mã hoặc tên khách hàng..."
-                            wrapperClassName="relative h-10 min-w-[300px] flex-[1.3_1_0]"
+                            wrapperClassName="relative h-9 min-w-0"
                             className={cn(controlClass, "pl-10")}
                         />
                         <AsyncSelect
-                            className={cn(controlClass, "min-w-[260px] flex-[1.6_1_0] py-0")}
+                            className={cn(controlClass, "min-w-0 py-0")}
                             value={filters.customer_id}
                             onChange={(value: number | undefined) =>
                                 setFilter("customer_id", value || undefined)
@@ -267,12 +266,10 @@ function ArSummaryTable({
                             }}
                             mapOption={customerOption}
                         />
-                    </div>
-                    <div className="flex w-full flex-wrap items-center gap-2">
                         <DatePicker
                             className={cn(
-                                "h-10 min-w-[170px] flex-1",
-                                "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
+                                "h-9 min-w-0",
+                                "[&_button]:h-9 [&_button]:min-h-9 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
                             )}
                             value={filters.from_date}
                             onChange={(value) => setFilter("from_date", value || undefined)}
@@ -284,8 +281,8 @@ function ArSummaryTable({
                         />
                         <DatePicker
                             className={cn(
-                                "h-10 min-w-[170px] flex-1",
-                                "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
+                                "h-9 min-w-0",
+                                "[&_button]:h-9 [&_button]:min-h-9 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
                             )}
                             value={filters.to_date}
                             onChange={(value) => setFilter("to_date", value || undefined)}
@@ -323,17 +320,17 @@ function ArSummaryTable({
                 </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-4">
+            <div className="grid gap-2 md:grid-cols-4">
                 <Summary label="Đầu kỳ" value={formatMoney(summaryTotals.opening)} />
                 <Summary label="Phát sinh nợ" value={formatMoney(summaryTotals.debit)} />
                 <Summary label="Phát sinh có" value={formatMoney(summaryTotals.credit)} />
                 <Summary label="Cuối kỳ" value={formatMoney(summaryTotals.closing)} strong />
             </div>
 
-            <div className="grid gap-3 md:grid-cols-3">
-                <Summary label="Doanh thu bán hàng" value={formatMoney(summaryTotals.sales)} tone="debit" hint="EXPORT" />
-                <Summary label="Điều chỉnh công nợ" value={formatMoney(summaryTotals.adjust)} tone="neutral" hint="ADJUST" />
-                <Summary label="Thanh toán" value={formatMoney(summaryTotals.payment)} tone="credit" hint="BANK + RECEIPT" />
+            <div className="grid gap-2 md:grid-cols-3">
+                <Summary label="Doanh thu bán hàng" value={formatMoney(summaryTotals.sales)} tone="debit" />
+                <Summary label="Điều chỉnh công nợ" value={formatMoney(summaryTotals.adjust)} tone="neutral" />
+                <Summary label="Thanh toán" value={formatMoney(summaryTotals.payment)} tone="credit" />
             </div>
 
             <div className="rounded-lg border bg-white shadow-sm">
@@ -352,12 +349,12 @@ function ArSummaryTable({
                                 <ReportTh colSpan={2} className="sticky top-0 z-30 bg-slate-50 text-center shadow-sm">Số dư cuối kỳ</ReportTh>
                             </tr>
                             <tr>
-                                <ReportTh className="sticky top-[41px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Nợ</ReportTh>
-                                <ReportTh className="sticky top-[41px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Có</ReportTh>
-                                <ReportTh className="sticky top-[41px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Nợ</ReportTh>
-                                <ReportTh className="sticky top-[41px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Có</ReportTh>
-                                <ReportTh className="sticky top-[41px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Nợ</ReportTh>
-                                <ReportTh className="sticky top-[41px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Có</ReportTh>
+                                <ReportTh className="sticky top-[33px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Nợ</ReportTh>
+                                <ReportTh className="sticky top-[33px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Có</ReportTh>
+                                <ReportTh className="sticky top-[33px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Nợ</ReportTh>
+                                <ReportTh className="sticky top-[33px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Có</ReportTh>
+                                <ReportTh className="sticky top-[33px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Nợ</ReportTh>
+                                <ReportTh className="sticky top-[33px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Có</ReportTh>
                             </tr>
                         </thead>
                         <tbody>
@@ -438,7 +435,7 @@ function ArSummaryTable({
                 </div>
             </div>
 
-            <div className="rounded-lg border bg-white px-4 py-3 shadow-sm">
+            <div className="rounded-lg border bg-white px-3 py-2 shadow-sm">
                 <CardPagination
                     pageIndex={pagination.pageIndex}
                     pageCount={pageCount}
@@ -490,7 +487,7 @@ function ReportTh({
         <th
             rowSpan={rowSpan}
             colSpan={colSpan}
-            className={cn("border border-slate-200 px-3 py-3 text-left font-semibold align-middle", className)}
+            className={cn("border border-slate-200 px-2 py-2 text-center font-semibold align-middle", className)}
         >
             {children}
         </th>
@@ -509,7 +506,7 @@ function ReportTd({
     return (
         <td
             colSpan={colSpan}
-            className={cn("border-b border-slate-100 px-3 py-3 align-middle leading-snug", className)}
+            className={cn("border-b border-slate-100 px-2 py-2 align-middle leading-snug", className)}
         >
             {children}
         </td>
@@ -549,11 +546,11 @@ function Summary({
     hint?: string
 }) {
     return (
-        <div className="rounded-lg border bg-white p-4 shadow-sm">
+        <div className="rounded-lg border bg-white p-3 shadow-sm">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
             <div
                 className={cn(
-                    "mt-1 text-xl tabular-nums",
+                    "mt-0.5 text-lg tabular-nums",
                     strong ? "font-bold text-slate-950" : "font-semibold",
                     tone === "debit" && "text-rose-700",
                     tone === "credit" && "text-emerald-700",
@@ -720,11 +717,7 @@ async function exportSummaryXlsx(
 
 function formatExcelNumber(value?: number | string) {
     const amount = Number(value || 0)
-    if (!amount) return ""
-    return amount.toLocaleString("en-US", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 6,
-    })
+    return Number.isFinite(amount) ? amount : ""
 }
 
 function fmtDate(value?: string): string {

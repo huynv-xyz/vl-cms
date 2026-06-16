@@ -915,11 +915,7 @@ async function exportLedgerXlsx(
 
 function formatExcelNumber(value?: number | string) {
     const amount = Number(value || 0)
-    if (!amount) return ""
-    return amount.toLocaleString("en-US", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 6,
-    })
+    return Number.isFinite(amount) ? amount : ""
 }
 
 function parseExportDate(value?: string) {
