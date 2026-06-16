@@ -55,7 +55,7 @@ type Props = {
 }
 
 const AR_ACCOUNT = "131"
-const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
+const controlClass = "h-9 min-h-9 rounded-md border-slate-300 bg-white shadow-xs"
 const numberFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 })
 const ACTIVITY_FILTERS = [
     { value: "debit", label: "Có phát sinh nợ" },
@@ -225,15 +225,15 @@ export function ArLedgerTable({
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
             <style>{PRINT_CSS}</style>
 
             {/* HERO HEADER */}
-            <section className="ar-no-print rounded-xl border bg-gradient-to-br from-white via-white to-slate-50 px-5 py-4 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-start gap-4">
-                        <div className="bg-primary/10 text-primary flex h-12 w-12 shrink-0 items-center justify-center rounded-xl">
-                            <BookOpenCheck className="h-6 w-6" />
+            <section className="ar-no-print rounded-xl border bg-gradient-to-br from-white via-white to-slate-50 px-4 py-3 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-start gap-3">
+                        <div className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
+                            <BookOpenCheck className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
@@ -247,7 +247,7 @@ export function ArLedgerTable({
                                     VND
                                 </Badge>
                             </div>
-                            <p className="mt-1 text-sm text-slate-500">{period}</p>
+                            <p className="mt-0.5 text-sm text-slate-500">{period}</p>
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -269,45 +269,41 @@ export function ArLedgerTable({
             </section>
 
             {/* METRICS */}
-            <div className="ar-no-print grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="ar-no-print grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                 <MetricCard
                     icon={ArrowUpRight}
                     label="Phát sinh nợ"
                     value={fmtCurrency(totals.debit)}
-                    sub="VND"
                     tone="rose"
                 />
                 <MetricCard
                     icon={ArrowDownLeft}
                     label="Phát sinh có"
                     value={fmtCurrency(totals.credit)}
-                    sub="VND"
                     tone="emerald"
                 />
                 <MetricCard
                     icon={WalletCards}
                     label="Số dư"
                     value={fmtCurrency(Math.abs(totals.balance))}
-                    sub={totals.balance >= 0 ? "Dư nợ" : "Dư có"}
                     tone={totals.balance >= 0 ? "amber" : "emerald"}
                 />
                 <MetricCard
                     icon={ReceiptText}
                     label="Dòng / khách"
                     value={`${fmtNumber(totals.rows)} / ${fmtNumber(totals.customers)}`}
-                    sub="Theo bộ lọc"
                     tone="slate"
                 />
             </div>
 
             {/* FILTER BAR */}
             <section className="ar-no-print overflow-hidden rounded-xl border bg-white shadow-sm">
-                <div className="flex flex-wrap items-center gap-2 p-3">
+                <div className="flex flex-wrap items-center gap-2 p-2.5">
                     <SearchOnBlurInput
                         value={keyword}
                         onChange={onKeywordChange}
                         placeholder="Tìm chứng từ, khách hàng, diễn giải..."
-                        wrapperClassName="relative h-10 min-w-[280px] flex-[1.4_1_0]"
+                        wrapperClassName="relative h-9 min-w-[280px] flex-[1.4_1_0]"
                         className={cn(controlClass, "pl-10")}
                     />
 
@@ -332,8 +328,8 @@ export function ArLedgerTable({
                     <div className="flex items-center gap-1.5">
                         <DatePicker
                             className={cn(
-                                "h-10 w-[150px]",
-                                "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
+                                "h-9 w-[150px]",
+                                "[&_button]:h-9 [&_button]:min-h-9 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
                             )}
                             value={filters.from_date}
                             onChange={(value) => setFilter("from_date", value || undefined)}
@@ -346,8 +342,8 @@ export function ArLedgerTable({
                         <span className="text-xs text-slate-400">—</span>
                         <DatePicker
                             className={cn(
-                                "h-10 w-[150px]",
-                                "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
+                                "h-9 w-[150px]",
+                                "[&_button]:h-9 [&_button]:min-h-9 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
                             )}
                             value={filters.to_date}
                             onChange={(value) => setFilter("to_date", value || undefined)}
@@ -386,7 +382,7 @@ export function ArLedgerTable({
 
                     <Popover open={advancedOpen} onOpenChange={setAdvancedOpen}>
                         <PopoverTrigger asChild>
-                            <Button type="button" variant="outline" className="h-10">
+                            <Button type="button" variant="outline" className="h-9">
                                 <SlidersHorizontal className="mr-2 h-4 w-4" />
                                 Bộ lọc nâng cao
                                 {advancedActiveCount > 0 ? (
@@ -461,7 +457,7 @@ export function ArLedgerTable({
                         <Button
                             type="button"
                             variant="ghost"
-                            className="text-muted-foreground h-10"
+                            className="text-muted-foreground h-9"
                             onClick={resetAll}
                         >
                             <RotateCcw className="mr-2 h-4 w-4" />
@@ -471,7 +467,7 @@ export function ArLedgerTable({
                 </div>
 
                 {activeChips.length > 0 ? (
-                    <div className="flex flex-wrap items-center gap-1.5 border-t bg-slate-50/60 px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-1.5 border-t bg-slate-50/60 px-3 py-1.5">
                         <span className="text-muted-foreground text-xs font-medium">
                             Đang lọc:
                         </span>
@@ -501,7 +497,7 @@ export function ArLedgerTable({
                 id="ar-ledger-print"
                 className="overflow-hidden rounded-xl border bg-white shadow-sm"
             >
-                <div className="ar-no-print flex flex-wrap items-center justify-between gap-2 border-b bg-white px-4 py-2.5">
+                <div className="ar-no-print flex flex-wrap items-center justify-between gap-2 border-b bg-white px-3 py-2">
                     <div className="flex items-center gap-2 text-xs">
                         <Badge variant="outline" className="rounded-sm bg-slate-50 font-mono">
                             {fmtNumber(totals.rows)} dòng
@@ -554,7 +550,7 @@ export function ArLedgerTable({
             </section>
 
             {/* PAGINATION */}
-            <div className="ar-no-print rounded-xl border bg-white px-4 py-3 shadow-sm">
+            <div className="ar-no-print rounded-xl border bg-white px-3 py-2 shadow-sm">
                 <CardPagination
                     pageIndex={pagination.pageIndex}
                     pageCount={pageCount}
@@ -668,7 +664,7 @@ function MetricCard({
     return (
         <div
             className={cn(
-                "group relative overflow-hidden rounded-xl border bg-white p-5 shadow-sm transition-all",
+                "group relative overflow-hidden rounded-xl border bg-white p-3 shadow-sm transition-all",
                 "hover:-translate-y-0.5 hover:shadow-md",
             )}
         >
@@ -678,12 +674,12 @@ function MetricCard({
                     tones[tone].accent,
                 )}
             />
-            <div className="relative flex items-start justify-between gap-3">
+            <div className="relative flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                     <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                         {label}
                     </div>
-                    <div className="mt-2 text-2xl font-bold tabular-nums leading-tight text-slate-950">
+                    <div className="mt-1 text-xl font-bold tabular-nums leading-tight text-slate-950">
                         {value}
                     </div>
                     {sub ? (
@@ -692,11 +688,11 @@ function MetricCard({
                 </div>
                 <div
                     className={cn(
-                        "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ring-1",
+                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1",
                         tones[tone].iconBg,
                     )}
                 >
-                    <Icon className="h-6 w-6" />
+                    <Icon className="h-5 w-5" />
                 </div>
             </div>
         </div>
@@ -707,8 +703,8 @@ function CustomerGroup({ group }: { group: Group }) {
     return (
         <>
             <tr className="border-y bg-slate-100/80">
-                <td colSpan={13} className="px-4 py-3">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
+                <td colSpan={13} className="px-3 py-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex min-w-0 flex-wrap items-center gap-2">
                             <span className="font-semibold text-slate-950">{group.name}</span>
                             <Badge variant="outline" className="rounded-sm bg-white font-mono text-[11px]">
@@ -718,10 +714,10 @@ function CustomerGroup({ group }: { group: Group }) {
                                 <span className="text-xs text-slate-500">MST: {group.taxCode}</span>
                             ) : null}
                         </div>
-                        <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500">
+                        <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
                             <span>{fmtNumber(group.items.length)} phát sinh</span>
                             {
-                                <span className="rounded-sm bg-white px-2 py-1 text-slate-700 ring-1 ring-slate-200">
+                                    <span className="rounded-sm bg-white px-2 py-0.5 text-slate-700 ring-1 ring-slate-200">
                                     Dư đầu kỳ:{" "}
                                     <strong className="tabular-nums text-slate-950">
                                         {group.opening === 0 ? "0" : fmtCurrency(Math.abs(group.opening))}
@@ -811,7 +807,7 @@ function Th({
         <th
             colSpan={colSpan}
             rowSpan={rowSpan}
-            className={cn("px-3 py-3 text-left font-semibold", className)}
+            className={cn("px-2 py-2 text-left font-semibold", className)}
         >
             {children}
         </th>
@@ -819,7 +815,7 @@ function Th({
 }
 
 function Td({ className, children }: { className?: string; children?: React.ReactNode }) {
-    return <td className={cn("px-3 py-3 align-top", className)}>{children}</td>
+    return <td className={cn("px-2 py-2 align-top", className)}>{children}</td>
 }
 
 type Group = {
@@ -1134,11 +1130,7 @@ async function exportReportXlsx(groups: Group[], period: string) {
 
 function formatExcelNumber(value?: number | string) {
     const amount = Number(value || 0)
-    if (!amount) return ""
-    return amount.toLocaleString("en-US", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 6,
-    })
+    return Number.isFinite(amount) ? amount : ""
 }
 
 function excelBorder() {

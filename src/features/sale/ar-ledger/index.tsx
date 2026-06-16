@@ -63,7 +63,6 @@ export default function ArLedgerPage() {
             isLoading={isLoading}
             error={error}
             title="Công nợ phải thu"
-            description="Sổ chi tiết công nợ phải thu khách hàng (tài khoản 131)."
             actions={
                 showReturnToSummary ? (
                     <Button asChild variant="outline">

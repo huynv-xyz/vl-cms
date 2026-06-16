@@ -208,17 +208,13 @@ function normalizeCellValue(
     column: ExportColumn,
 ) {
     if (value == null) return ""
-    if (column.type === "number") return formatExcelNumber(value)
+    if (column.type === "number") return normalizeExcelNumber(value)
     return value
 }
 
-function formatExcelNumber(value?: string | number | Date) {
+function normalizeExcelNumber(value?: string | number | Date) {
     const amount = Number(value || 0)
-    if (!amount) return ""
-    return amount.toLocaleString("en-US", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 6,
-    })
+    return Number.isFinite(amount) ? amount : ""
 }
 
 function parseDate(value?: string) {

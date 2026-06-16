@@ -748,10 +748,10 @@ export async function exportOrdersXlsx(data: Order[], filename?: string) {
                 item?.description || "",
                 lineTypeLabel(item?.line_type),
                 item?.product?.unit || item?.unit || "",
-                formatExcelNumber(quantity),
-                formatExcelNumber(unitPrice),
-                formatExcelNumber(discount),
-                formatExcelNumber(amount),
+                normalizeExcelNumber(quantity),
+                normalizeExcelNumber(unitPrice),
+                normalizeExcelNumber(discount),
+                normalizeExcelNumber(amount),
                 order.note || "",
                 item?.note || "",
             ])
@@ -862,13 +862,9 @@ function parseExcelDate(value?: string | number | Date) {
     return raw
 }
 
-function formatExcelNumber(value?: number | string) {
+function normalizeExcelNumber(value?: number | string) {
     const amount = Number(value || 0)
-    if (!amount) return ""
-    return amount.toLocaleString("en-US", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 6,
-    })
+    return Number.isFinite(amount) ? amount : ""
 }
 
 function downloadExcelBuffer(buffer: ArrayBuffer, filename: string) {

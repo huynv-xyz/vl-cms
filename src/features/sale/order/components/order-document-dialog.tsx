@@ -342,9 +342,6 @@ async function exportOrderDocumentXlsx(order: Order, debtTotal: number) {
                 horizontal: [1, 4].includes(colNumber) ? "center" : colNumber >= 5 && colNumber <= 8 ? "right" : "left",
                 wrapText: true,
             }
-            if (colNumber >= 5 && colNumber <= 8) {
-                cell.numFmt = '#,##0.######'
-            }
         })
         rowNumber += 1
     })
@@ -437,7 +434,6 @@ function addSummaryExcelRow(sheet: Worksheet, rowNumber: number, label: string, 
     })
     labelCell.alignment = { horizontal: "left", vertical: "middle" }
     valueCell.alignment = { horizontal: "right", vertical: "middle" }
-    valueCell.numFmt = '#,##0.######'
 }
 
 function estimateRowHeight(value: unknown, charsPerLine: number) {

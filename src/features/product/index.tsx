@@ -5,6 +5,7 @@ import { ProductTable } from './components/product-table'
 import { ProductDialogs } from './components/product-dialogs'
 import { ProductsProvider } from './components/products-provider'
 import { CreateProductButton } from './components/create-product-button'
+import { ExportProductsButton } from './components/export-products-button'
 import { ImportProductButton } from './components/import-product-button'
 import { Route } from '@/routes/_authenticated/products'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
@@ -64,6 +65,18 @@ export default function ProductPage() {
                 description="Quản lý danh mục hàng hóa, VTHH, kho ngầm định và tài khoản kho."
                 actions={
                     <div className="flex items-center gap-2">
+                        <ExportProductsButton
+                            keyword={keyword}
+                            filters={{
+                                status: requestFilters.status,
+                                nature: requestFilters.nature,
+                                group_code: requestFilters.group_code,
+                                default_warehouse_id: requestFilters.default_warehouse_id
+                                    ? Number(requestFilters.default_warehouse_id)
+                                    : undefined,
+                                inventory_account_code: requestFilters.inventory_account_code,
+                            }}
+                        />
                         <ImportProductButton />
                         <CreateProductButton />
                     </div>

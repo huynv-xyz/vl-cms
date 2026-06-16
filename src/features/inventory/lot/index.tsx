@@ -5,6 +5,7 @@ import { useUrlPagination } from "@/hooks/use-url-pagination"
 import { useUrlListFilters } from "@/hooks/use-url-list-filters"
 import { Route } from "@/routes/_authenticated/inventory/lots"
 import { InventoryLotTable } from "./components/inventory-lot-table"
+import { ExportInventoryLotsButton } from "./components/export-inventory-lots-button"
 import { Button } from "@/components/ui/button"
 import { Upload } from "lucide-react"
 import { useRef, type ChangeEvent } from "react"
@@ -132,17 +133,32 @@ export default function InventoryLotPage() {
                 description="Quản lý tồn theo sản phẩm, kho, số lô, HSD và giá vốn để phục vụ FIFO."
                 actions={
                     <div className="flex items-center gap-2">
+                        <ExportInventoryLotsButton
+                            keyword={keyword}
+                            filters={{
+                                product_id: requestFilters.product_id
+                                    ? Number(requestFilters.product_id)
+                                    : undefined,
+                                warehouse_id: requestFilters.warehouse_id
+                                    ? Number(requestFilters.warehouse_id)
+                                    : undefined,
+                                source_type: requestFilters.source_type,
+                                expiry_status: requestFilters.expiry_status,
+                                from_date: requestFilters.from_date,
+                                to_date: requestFilters.to_date,
+                            }}
+                        />
                         <input
                             ref={openingFileRef}
                             type="file"
-                            accept=".csv,text/csv"
+                            accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                             className="hidden"
                             onChange={handleOpeningFileChange}
                         />
                         <input
                             ref={purchaseFileRef}
                             type="file"
-                            accept=".csv,text/csv"
+                            accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                             className="hidden"
                             onChange={handlePurchaseFileChange}
                         />
