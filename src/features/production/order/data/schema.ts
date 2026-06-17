@@ -167,6 +167,8 @@ export type ProductionFifoAllocationRun = {
 
 export type ProductionWarning = {
     id: number
+    production_item_id?: number
+    production_material_id?: number
     warning_code?: string
     severity?: string
     message?: string
