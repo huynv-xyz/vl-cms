@@ -1,10 +1,18 @@
-import { useRef, type ChangeEvent } from "react"
+import { useRef, useState, type ChangeEvent, type RefObject } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import { importOpeningStock, importPurchaseStock, importVthhDetail } from "@/api/inventory/lot"
 import { Button } from "@/components/ui/button"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 
 const OPENING_STOCK_REQUIRED_COLUMNS = [
     "Mã sản phẩm",
@@ -49,11 +57,20 @@ const VTHH_DETAIL_REQUIRED_COLUMNS = [
     "HSD",
 ]
 
+type ImportGuide = {
+    title: string
+    description: string
+    columns: string[]
+    notes: string[]
+    inputRef: RefObject<HTMLInputElement | null>
+}
+
 export function LedgerImportButtons() {
     const queryClient = useQueryClient()
     const openingFileRef = useRef<HTMLInputElement>(null)
     const purchaseFileRef = useRef<HTMLInputElement>(null)
     const vthhDetailFileRef = useRef<HTMLInputElement>(null)
+    const [guide, setGuide] = useState<ImportGuide | null>(null)
 
     const importOpeningMutation = useMutation({
         mutationFn: importOpeningStock,
@@ -125,52 +142,46 @@ export function LedgerImportButtons() {
     }
 
     const openOpeningFilePicker = () => {
-        const accepted = window.confirm(
-            [
-                "File import tồn đầu kỳ cần có đủ các cột:",
-                "",
-                ...OPENING_STOCK_REQUIRED_COLUMNS.map((column) => `- ${column}`),
-                "",
+        setGuide({
+            title: "Import tồn đầu kỳ",
+            description: "File import tồn đầu kỳ cần có đủ các cột sau.",
+            columns: OPENING_STOCK_REQUIRED_COLUMNS,
+            notes: [
                 "HSD có thể nhập nhiều định dạng ngày thông dụng, ví dụ 2026-06-30 hoặc 30/06/2026.",
-            ].join("\n")
-        )
-
-        if (accepted) {
-            openingFileRef.current?.click()
-        }
+            ],
+            inputRef: openingFileRef,
+        })
     }
 
     const openPurchaseFilePicker = () => {
-        const accepted = window.confirm(
-            [
-                "File import mua hàng cần có đủ các cột:",
-                "",
-                ...PURCHASE_STOCK_REQUIRED_COLUMNS.map((column) => `- ${column}`),
-                "",
+        setGuide({
+            title: "Import mua hàng",
+            description: "File import mua hàng cần có đủ các cột sau.",
+            columns: PURCHASE_STOCK_REQUIRED_COLUMNS,
+            notes: [
                 "HSD và Ngày nhập có thể nhập nhiều định dạng ngày thông dụng, ví dụ 2026-06-30 hoặc 30/06/2026.",
-            ].join("\n")
-        )
-
-        if (accepted) {
-            purchaseFileRef.current?.click()
-        }
+            ],
+            inputRef: purchaseFileRef,
+        })
     }
 
     const openVthhDetailFilePicker = () => {
-        const accepted = window.confirm(
-            [
-                "File import chi tiết VTHH cần có đủ các cột:",
-                "",
-                ...VTHH_DETAIL_REQUIRED_COLUMNS.map((column) => `- ${column}`),
-                "",
+        setGuide({
+            title: "Import chi tiết VTHH",
+            description: "File import chi tiết VTHH cần có đủ các cột sau.",
+            columns: VTHH_DETAIL_REQUIRED_COLUMNS,
+            notes: [
                 "Loại chứng từ nhập đúng tên tiếng Việt, ví dụ: Nhập kho khác, Xuất kho khác, Xuất kho sản xuất.",
                 "Ngày chứng từ và HSD có thể nhập nhiều định dạng ngày thông dụng, ví dụ 2026-06-30 hoặc 30/06/2026.",
-            ].join("\n")
-        )
+            ],
+            inputRef: vthhDetailFileRef,
+        })
+    }
 
-        if (accepted) {
-            vthhDetailFileRef.current?.click()
-        }
+    const chooseFileFromGuide = () => {
+        const inputRef = guide?.inputRef
+        setGuide(null)
+        window.setTimeout(() => inputRef?.current?.click(), 0)
     }
 
     return (
@@ -223,6 +234,42 @@ export function LedgerImportButtons() {
                 <Upload className="mr-2 h-4 w-4" />
                 {importVthhDetailMutation.isPending ? "Đang import..." : "Import chi tiết VTHH"}
             </Button>
+
+            <Dialog open={!!guide} onOpenChange={(open) => !open && setGuide(null)}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>{guide?.title}</DialogTitle>
+                        <DialogDescription>{guide?.description}</DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div className="rounded-md border bg-muted/30 p-3">
+                            <div className="mb-2 text-sm font-medium">Tiêu đề cột cần có</div>
+                            <pre className="max-h-[320px] select-text overflow-auto whitespace-pre-wrap rounded bg-background p-3 text-sm leading-6 text-foreground">
+                                {(guide?.columns || []).join("\n")}
+                            </pre>
+                        </div>
+
+                        {guide?.notes?.length ? (
+                            <div className="space-y-1 text-sm text-muted-foreground">
+                                {guide.notes.map((note) => (
+                                    <p key={note}>{note}</p>
+                                ))}
+                            </div>
+                        ) : null}
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setGuide(null)}>
+                            Đóng
+                        </Button>
+                        <Button onClick={chooseFileFromGuide}>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Chọn file import
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     )
 }
