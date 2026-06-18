@@ -43,6 +43,7 @@ export type StockRow = {
 export type OpeningStockImportResult = {
     success: number
     failed: number
+    skipped?: number
     errors: {
         row: number
         message: string

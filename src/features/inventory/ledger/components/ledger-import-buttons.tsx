@@ -15,46 +15,46 @@ import {
 } from "@/components/ui/dialog"
 
 const OPENING_STOCK_REQUIRED_COLUMNS = [
-    "Mã sản phẩm",
-    "Tên sản phẩm",
     "Mã kho",
     "Tên kho",
-    "Mã lô",
-    "Số lượng",
+    "Mã hàng",
+    "Tên hàng",
+    "Số lô",
+    "Hạn sử dụng",
     "ĐVT",
+    "Số lượng tồn",
     "Đơn giá",
-    "HSD",
 ]
 
 const PURCHASE_STOCK_REQUIRED_COLUMNS = [
+    "Ngày hạch toán",
     "Số chứng từ",
-    "Ngày nhập",
-    "Mã sản phẩm",
-    "Tên sản phẩm",
+    "Mã hàng",
+    "Tên hàng",
+    "Số lô",
+    "Hạn sử dụng",
+    "ĐVT",
+    "Số lượng mua",
     "Mã kho",
     "Tên kho",
-    "Mã lô",
-    "Số lượng",
-    "ĐVT",
     "Đơn giá",
-    "Chi phí mua",
-    "Thành tiền",
-    "HSD",
+    "Phí hàng về kho",
+    "Đơn giá bao gồm PLH",
 ]
 
 const VTHH_DETAIL_REQUIRED_COLUMNS = [
-    "Loại chứng từ",
-    "Số chứng từ",
     "Ngày chứng từ",
-    "Mã sản phẩm",
-    "Tên sản phẩm",
+    "Số chứng từ",
+    "Mã hàng",
+    "Tên hàng",
+    "ĐVT",
     "Mã kho",
     "Tên kho",
-    "Mã lô",
+    "Số lô",
+    "Hạn sử dụng",
     "Nhập",
     "Xuất",
-    "ĐVT",
-    "HSD",
+    "Loại chứng từ",
 ]
 
 type ImportGuide = {
@@ -92,12 +92,13 @@ export function LedgerImportButtons() {
         onSuccess: async (res) => {
             await invalidateInventoryQueries(queryClient)
 
+            const skippedText = res.skipped ? `, bỏ qua ${res.skipped} dòng` : ""
             if (res.failed > 0) {
-                toast.warning(`Import mua hàng xong ${res.success} dòng, lỗi ${res.failed} dòng`)
+                toast.warning(`Import mua hàng xong ${res.success} dòng${skippedText}, lỗi ${res.failed} dòng`)
                 return
             }
 
-            toast.success(`Đã import ${res.success} dòng mua hàng`)
+            toast.success(`Đã import ${res.success} dòng mua hàng${skippedText}`)
         },
         onError: (error: any) => toast.error(error?.message || "Không thể import mua hàng"),
     })
@@ -147,7 +148,7 @@ export function LedgerImportButtons() {
             description: "File import tồn đầu kỳ cần có đủ các cột sau.",
             columns: OPENING_STOCK_REQUIRED_COLUMNS,
             notes: [
-                "HSD có thể nhập nhiều định dạng ngày thông dụng, ví dụ 2026-06-30 hoặc 30/06/2026.",
+                "Hạn sử dụng có thể nhập nhiều định dạng ngày thông dụng, ví dụ 2026-06-30 hoặc 30/06/2026.",
             ],
             inputRef: openingFileRef,
         })
@@ -159,7 +160,9 @@ export function LedgerImportButtons() {
             description: "File import mua hàng cần có đủ các cột sau.",
             columns: PURCHASE_STOCK_REQUIRED_COLUMNS,
             notes: [
-                "HSD và Ngày nhập có thể nhập nhiều định dạng ngày thông dụng, ví dụ 2026-06-30 hoặc 30/06/2026.",
+                "Hạn sử dụng và Ngày hạch toán có thể nhập nhiều định dạng ngày thông dụng, ví dụ 2026-06-30 hoặc 30/06/2026.",
+                "Dòng có Mã hàng bắt đầu bằng PHI hoặc Mã hàng chưa có trong danh mục sản phẩm sẽ được bỏ qua.",
+                "Phí hàng về kho chưa được tính vào giá ở bước import này.",
             ],
             inputRef: purchaseFileRef,
         })
@@ -172,7 +175,7 @@ export function LedgerImportButtons() {
             columns: VTHH_DETAIL_REQUIRED_COLUMNS,
             notes: [
                 "Loại chứng từ nhập đúng tên tiếng Việt, ví dụ: Nhập kho khác, Xuất kho khác, Xuất kho sản xuất.",
-                "Ngày chứng từ và HSD có thể nhập nhiều định dạng ngày thông dụng, ví dụ 2026-06-30 hoặc 30/06/2026.",
+                "Ngày chứng từ và Hạn sử dụng có thể nhập nhiều định dạng ngày thông dụng, ví dụ 2026-06-30 hoặc 30/06/2026.",
             ],
             inputRef: vthhDetailFileRef,
         })
