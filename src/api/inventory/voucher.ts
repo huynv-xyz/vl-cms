@@ -1,11 +1,20 @@
 import { apiGet, apiPost, type PagedResult } from "@/api/client"
 
-/**
- * BA Spec §11.4 — seed `voucher_type` cho toàn bộ luồng tồn kho.
- * Dùng chung cho các CT còn vận hành: nhập, xuất bán, sản xuất, đầu kỳ.
- */
 export type VoucherTypeCode =
+    | "OPENING"
+    | "SALES_RETURN"
+    | "IMPORT_PURCHASE"
+    | "DOMESTIC_PURCHASE"
+    | "PRODUCTION"
+    | "OTHER_INBOUND"
+    | "SALES_EXPORT"
+    | "TRANSFER_EXPORT"
+    | "PRODUCTION_MATERIAL"
+    | "TRANSPORT_EXPORT"
+    | "PURCHASE_RETURN"
+    | "OTHER_EXPORT"
     | "OPENING_IN"
+    | "PNK_PURCHASE"
     | "PNK_PURCHASE_DOMESTIC"
     | "PNK_PURCHASE_IMPORT"
     | "PNK_PROD"
@@ -13,6 +22,7 @@ export type VoucherTypeCode =
     | "PNK_SALES_RETURN"
     | "PXK_SALE"
     | "PXK_PROD"
+    | "PXK_OTHER"
     | "PXK_PURCHASE_RETURN"
 
 export type VoucherStatus = "DRAFT" | "POSTED" | "VOID"
@@ -138,15 +148,29 @@ export function unpostVoucher(id: number) {
     )
 }
 
-// Mapping voucher_type_code → nhãn hiển thị (BA Spec §11.4)
 export const VOUCHER_TYPE_LABEL: Record<string, string> = {
-    OPENING_IN: "Khai báo VTHH đầu kỳ",
-    PNK_PURCHASE_DOMESTIC: "Mua trong nước nhập kho",
-    PNK_PURCHASE_IMPORT: "Mua nhập khẩu nhập kho",
-    PNK_PROD: "Nhập kho thành phẩm SX",
+    OPENING: "Khai báo vật tư hàng hóa đầu kỳ",
+    SALES_RETURN: "Nhập kho từ hàng bán trả lại",
+    IMPORT_PURCHASE: "Mua hàng nhập khẩu nhập kho chưa thanh toán",
+    DOMESTIC_PURCHASE: "Mua hàng trong nước nhập kho chưa thanh toán",
+    PRODUCTION: "Nhập kho thành phẩm sản xuất",
+    OTHER_INBOUND: "Nhập kho khác",
+    SALES_EXPORT: "Xuất kho bán hàng",
+    TRANSFER_EXPORT: "Xuất chuyển kho nội bộ",
+    PRODUCTION_MATERIAL: "Xuất kho sản xuất",
+    TRANSPORT_EXPORT: "Xuất kho kiêm vận chuyển nội bộ",
+    PURCHASE_RETURN: "Hàng mua trả lại - Giảm trừ công nợ",
+    OTHER_EXPORT: "Xuất kho khác",
+
+    OPENING_IN: "Khai báo vật tư hàng hóa đầu kỳ",
+    PNK_PURCHASE: "Mua hàng nhập kho",
+    PNK_PURCHASE_DOMESTIC: "Mua hàng trong nước nhập kho chưa thanh toán",
+    PNK_PURCHASE_IMPORT: "Mua hàng nhập khẩu nhập kho chưa thanh toán",
+    PNK_PROD: "Nhập kho thành phẩm sản xuất",
     PNK_OTHER: "Nhập kho khác",
-    PNK_SALES_RETURN: "Nhập từ hàng bán trả lại",
+    PNK_SALES_RETURN: "Nhập kho từ hàng bán trả lại",
     PXK_SALE: "Xuất kho bán hàng",
     PXK_PROD: "Xuất kho sản xuất",
-    PXK_PURCHASE_RETURN: "Hàng mua trả lại NCC",
+    PXK_OTHER: "Xuất kho khác",
+    PXK_PURCHASE_RETURN: "Hàng mua trả lại - Giảm trừ công nợ",
 }

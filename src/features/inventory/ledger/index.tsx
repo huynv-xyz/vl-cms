@@ -1,19 +1,25 @@
-import { PageSection } from "@/components/page-section"
-import { usePaginatedList } from "@/hooks/use-paginated-list"
-import { useUrlPagination } from "@/hooks/use-url-pagination"
-import { useUrlListFilters } from "@/hooks/use-url-list-filters"
-import { Route } from "@/routes/_authenticated/inventory/ledgers"
-import { listInventoryLedgerReport } from "@/api/inventory/ledger"
-import { InventoryLedgerTable } from "./components/ledger-table"
 import type React from "react"
-import { cn } from "@/lib/utils"
+import { useState } from "react"
 import { ArrowDownLeft, ArrowUpRight, Boxes, FileText, type LucideIcon } from "lucide-react"
+
+import { listInventoryLedgerReport } from "@/api/inventory/ledger"
+import { PageSection } from "@/components/page-section"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { usePaginatedList } from "@/hooks/use-paginated-list"
+import { useUrlListFilters } from "@/hooks/use-url-list-filters"
+import { useUrlPagination } from "@/hooks/use-url-pagination"
+import { cn } from "@/lib/utils"
+import { Route } from "@/routes/_authenticated/inventory/ledgers"
+import { InventoryLedgerTable } from "./components/ledger-table"
+import { LedgerImportButtons } from "./components/ledger-import-buttons"
+import { LedgerVoucherDialog } from "./components/ledger-voucher-dialog"
 
 export default function InventoryLedgerPage() {
     const search = Route.useSearch()
     const navigate = Route.useNavigate()
     const { pagination, setPagination } = useUrlPagination(search, navigate)
+    const [voucherDialog, setVoucherDialog] = useState<"in" | "out" | null>(null)
 
     const {
         keyword,
@@ -25,7 +31,7 @@ export default function InventoryLedgerPage() {
         search,
         navigate,
         [],
-        ["product_id", "warehouse_id", "doc_type", "from_date", "to_date"]
+        ["product_id", "warehouse_id", "doc_type", "from_date", "to_date"],
     )
 
     const { data, isLoading, error } = usePaginatedList(
@@ -50,11 +56,29 @@ export default function InventoryLedgerPage() {
             doc_type: requestFilters.doc_type,
             from_date: requestFilters.from_date,
             to_date: requestFilters.to_date,
-        }
+        },
     )
 
     return (
-        <PageSection title="Sổ kho" isLoading={isLoading} error={error} data={data}>
+        <PageSection
+            title="Sổ kho"
+            isLoading={isLoading}
+            error={error}
+            data={data}
+            actions={
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                    <LedgerImportButtons />
+                    <Button size="sm" variant="outline" onClick={() => setVoucherDialog("in")}>
+                        <ArrowDownLeft className="mr-2 h-4 w-4 text-emerald-600" />
+                        Nhập hàng
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setVoucherDialog("out")}>
+                        <ArrowUpRight className="mr-2 h-4 w-4 text-rose-600" />
+                        Xuất hàng
+                    </Button>
+                </div>
+            }
+        >
             {(data) => (
                 <div className="space-y-4">
                     <InventoryLedgerSummary rows={data.items || []} />
@@ -82,6 +106,17 @@ export default function InventoryLedgerPage() {
                                 to_date: next.to_date,
                             })
                         }
+                    />
+
+                    <LedgerVoucherDialog
+                        mode="in"
+                        open={voucherDialog === "in"}
+                        onOpenChange={(open) => setVoucherDialog(open ? "in" : null)}
+                    />
+                    <LedgerVoucherDialog
+                        mode="out"
+                        open={voucherDialog === "out"}
+                        onOpenChange={(open) => setVoucherDialog(open ? "out" : null)}
                     />
                 </div>
             )}

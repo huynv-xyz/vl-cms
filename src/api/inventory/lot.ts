@@ -96,3 +96,13 @@ export async function importPurchaseStock(file: File) {
         formData
     )
 }
+
+export async function importVthhDetail(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<OpeningStockImportResult>(
+        "/inventory/lots/vthh-detail/import-csv",
+        formData
+    )
+}

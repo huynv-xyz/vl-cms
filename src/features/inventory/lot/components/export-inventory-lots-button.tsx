@@ -16,6 +16,7 @@ type Props = {
         | "expiry_status"
         | "from_date"
         | "to_date"
+        | "only_remaining"
     >
 }
 
@@ -69,6 +70,7 @@ export function ExportInventoryLotsButton({ keyword, filters }: Props) {
                 expiry_status: filters.expiry_status || undefined,
                 from_date: filters.from_date || undefined,
                 to_date: filters.to_date || undefined,
+                only_remaining: filters.only_remaining,
             })
 
             if (!rows.length) {

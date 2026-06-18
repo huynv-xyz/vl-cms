@@ -67,7 +67,7 @@ function toDateInput(value?: string) {
 }
 
 function rowsFromBom(bom?: ProductBom): BomRow[] {
-    if (!bom?.items?.length) return [newRow()]
+    if (!bom?.items?.length) return []
 
     return bom.items.map((item) => ({
         material_product_id: item.material_product_id,
@@ -157,8 +157,6 @@ export function CreateBomDialog({ open, onOpenChange, bom }: Props) {
     const submit = () => {
         if (!productId) return toast.error("Chưa chọn thành phẩm")
         if (!validFrom) return toast.error("Ngày hiệu lực là bắt buộc")
-        if (!rows.length) return toast.error("BOM cần ít nhất 1 dòng vật tư")
-
         for (const [index, row] of rows.entries()) {
             if (!row.material_product_id) {
                 return toast.error(`Dòng ${index + 1} chưa chọn vật tư`)
@@ -270,6 +268,11 @@ export function CreateBomDialog({ open, onOpenChange, bom }: Props) {
                                 </div>
 
                                 <div className="divide-y">
+                                    {!rows.length ? (
+                                        <div className="px-3 py-8 text-center text-sm text-muted-foreground">
+                                            BOM này chưa có dòng vật tư. Bấm Thêm dòng để bổ sung.
+                                        </div>
+                                    ) : null}
                                     {rows.map((row, index) => (
                                         <div
                                             key={index}
@@ -352,7 +355,6 @@ export function CreateBomDialog({ open, onOpenChange, bom }: Props) {
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
-                                                disabled={rows.length === 1}
                                                 onClick={() => removeRow(index)}
                                             >
                                                 <Trash2 className="h-4 w-4" />

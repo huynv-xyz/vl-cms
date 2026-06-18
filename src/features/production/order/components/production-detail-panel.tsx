@@ -78,6 +78,7 @@ import type {
     Production,
     ProductionItem,
     ProductionMaterial,
+    ProductionWarning,
 } from "../data/schema"
 import {
     getProductionSubStatusLabel,
@@ -202,7 +203,7 @@ export function ProductionDetailPanel({ production }: Props) {
                         rows={warnings.map((w) => [
                             <Badge key="severity" variant={w.severity === "ERROR" ? "destructive" : "secondary"}>{w.severity}</Badge>,
                             w.warning_code,
-                            w.message,
+                            warningMessage(w, production),
                             w.resolved_at ? "Đã xử lý" : "Chưa xử lý",
                         ])}
                     />
@@ -553,7 +554,7 @@ function ReceiveOutputDialog({
             if (!row.lot_no?.trim()) {
                 return toast.error(`Dòng thành phẩm #${index + 1} chưa nhập số lô TP`)
             }
-            if (!row.expiry_date) {
+            if (false && !row.expiry_date) {
                 return toast.error(`Dòng thành phẩm #${index + 1} chưa nhập HSD TP`)
             }
         }
@@ -606,7 +607,7 @@ function ReceiveOutputDialog({
                                         />
                                     </Field>
 
-                                    <Field label="HSD TP" required>
+                                    <Field label="HSD TP">
                                         <DatePicker
                                             value={row.expiry_date}
                                             onChange={(value) =>
@@ -2122,6 +2123,40 @@ function countShortage(items: ProductionItem[]) {
             (item.materials ?? []).filter((m) => (m.shortage_quantity ?? 0) > 0).length,
         0
     )
+}
+
+function warningMessage(warning: ProductionWarning, production: Production) {
+    const material = findWarningMaterial(warning, production)
+    const materialAny = material as any
+    const productionAny = production as any
+    const productCode =
+        materialAny?.product?.code ??
+        materialAny?.product_code ??
+        (material?.product_id != null ? String(material.product_id) : undefined)
+    const physicalWarehouseName =
+        productionAny.physical_warehouse?.name ??
+        productionAny.physical_warehouse_name ??
+        (production.physical_warehouse_id != null ? String(production.physical_warehouse_id) : undefined)
+
+    if (warning.warning_code === "NOT_ENOUGH_STOCK" && productCode) {
+        const shortage = material?.shortage_quantity
+        return `Vật tư ${productCode} thiếu ${formatNumber(Number(shortage ?? 0))} trong địa điểm kho ${physicalWarehouseName ?? "-"}`
+    }
+
+    if (warning.warning_code === "LOT_COST_MISSING" && productCode) {
+        return `Vật tư ${productCode} có lô chưa có đơn giá vốn, vẫn phân bổ FIFO theo số lượng với giá 0`
+    }
+
+    return warning.message ?? "-"
+}
+
+function findWarningMaterial(warning: ProductionWarning, production: Production) {
+    if (warning.production_material_id == null) return undefined
+    for (const item of production.items ?? []) {
+        const material = (item.materials ?? []).find((m) => m.id === warning.production_material_id)
+        if (material) return material
+    }
+    return undefined
 }
 
 type WorkflowStep =

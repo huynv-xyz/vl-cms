@@ -1,30 +1,23 @@
-import { useMemo } from "react"
+import type React from "react"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import {
-    ArrowDownLeft,
-    ArrowUpRight,
-    CalendarDays,
-    FileText,
-    Filter,
-    Inbox,
-    Package,
-    Scale,
-    Warehouse,
-} from "lucide-react"
+import { CalendarDays, Filter } from "lucide-react"
 
-import { listProducts, getProduct } from "@/api/product"
-import { listWarehouses, getWarehouse } from "@/api/warehouse"
+import { getProduct, listProducts } from "@/api/product"
+import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
 import { cn, formatNumber } from "@/lib/utils"
 import type { InventoryLedgerReportRow } from "../data/schema"
-import { getDocTypeMeta, INVENTORY_DOC_TYPES } from "../data/schema"
+import {
+    getDocTypeMeta,
+    INVENTORY_INBOUND_DOC_TYPES,
+    INVENTORY_OUTBOUND_DOC_TYPES,
+} from "../data/schema"
 
 type Props = {
     data: InventoryLedgerReportRow[]
@@ -43,14 +36,9 @@ type Props = {
     onFiltersChange: (f: Props["filters"]) => void
 }
 
-type LedgerGroup = {
-    key: string
-    label: string
-    sub?: string
-    items: InventoryLedgerReportRow[]
-}
-
-const controlClass = "h-11 min-h-11 rounded-md border-slate-300 bg-white shadow-xs"
+const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
+const inboundDocValues = new Set(INVENTORY_INBOUND_DOC_TYPES.map((type) => type.value))
+const outboundDocValues = new Set(INVENTORY_OUTBOUND_DOC_TYPES.map((type) => type.value))
 
 export function InventoryLedgerTable({
     data,
@@ -62,7 +50,6 @@ export function InventoryLedgerTable({
     filters,
     onFiltersChange,
 }: Props) {
-    const groupedRows = useMemo(() => groupByProduct(data || []), [data])
     const currentPage = pagination.pageIndex + 1
 
     const setFilter = (key: keyof Props["filters"], value: any) => {
@@ -79,174 +66,166 @@ export function InventoryLedgerTable({
         }))
     }
 
+    const inboundValue =
+        filters.doc_type && inboundDocValues.has(filters.doc_type as any)
+            ? filters.doc_type
+            : "ALL"
+    const outboundValue =
+        filters.doc_type && outboundDocValues.has(filters.doc_type as any)
+            ? filters.doc_type
+            : "ALL"
+
     return (
         <Card className="border-border/60 gap-0 overflow-hidden py-0 shadow-sm">
-            <CardHeader className="space-y-4 border-b py-5">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                    <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                            <CardTitle className="text-lg">Sổ kho đã ghi nhận</CardTitle>
-                            <Badge variant="secondary" className="font-mono text-xs">
-                                {formatNumber((data || []).length)} dòng
-                            </Badge>
-                        </div>
-                        <CardDescription className="mt-1">
-                            Xem lịch sử nhập, xuất và tồn sau phát sinh theo từng hàng hóa.
-                        </CardDescription>
+            <CardHeader className="gap-3 border-b px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        <CardTitle className="text-base">Sổ kho đã ghi nhận</CardTitle>
+                        <Badge variant="secondary" className="font-mono text-xs">
+                            {formatNumber((data || []).length)} dòng
+                        </Badge>
                     </div>
                     <Badge variant="outline" className="w-fit font-mono">
                         Trang {formatNumber(currentPage)} / {formatNumber(Math.max(pageCount, 1))}
                     </Badge>
                 </div>
 
-                <div className="bg-muted/40 -mx-6 -mb-5 border-t px-6 py-4">
-                    <div className="text-muted-foreground mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
+                <div className="bg-muted/40 -mx-4 -mb-3 border-t px-4 py-3">
+                    <div className="text-muted-foreground mb-2 flex items-center gap-2 text-xs font-semibold uppercase">
                         <Filter className="h-3.5 w-3.5" />
                         Bộ lọc sổ kho
                     </div>
 
-                    <div className="space-y-2">
-                        <div className="flex w-full flex-wrap items-center gap-2">
-                            <SearchOnBlurInput
-                                value={keyword}
-                                onChange={onKeywordChange}
-                                placeholder="Tìm chứng từ, mã hàng, tên hàng..."
-                                wrapperClassName="relative h-11 min-w-[320px] flex-[1.2_1_0]"
-                                className={cn(controlClass, "pl-10")}
-                            />
+                    <div className="flex flex-wrap items-center gap-2">
+                        <SearchOnBlurInput
+                            value={keyword}
+                            onChange={onKeywordChange}
+                            placeholder="Tìm chứng từ, mã hàng, tên hàng..."
+                            wrapperClassName="relative h-10 min-w-[220px] flex-[1_1_240px] xl:max-w-[300px]"
+                            className={cn(controlClass, "pl-10")}
+                        />
 
-                            <AsyncSelect
-                                className={cn(controlClass, "min-w-[320px] flex-[1.8_1_0] py-0")}
-                                value={filters.product_id}
-                                onChange={(value: any) => setFilter("product_id", value || undefined)}
-                                placeholder="Sản phẩm"
-                                dataSource={{
-                                    getList: listProducts,
-                                    getById: getProduct,
-                                    params: { page: 1, size: 20 },
-                                }}
-                                mapOption={(product: any) => ({
-                                    value: product.id,
-                                    label: `${product.code} - ${product.name}`,
-                                })}
-                            />
-                        </div>
+                        <AsyncSelect
+                            className={cn(controlClass, "min-w-[260px] flex-[1.3_1_280px] py-0 xl:max-w-[380px]")}
+                            value={filters.product_id}
+                            onChange={(value: any) => setFilter("product_id", value || undefined)}
+                            placeholder="Sản phẩm"
+                            dataSource={{
+                                getList: listProducts,
+                                getById: getProduct,
+                                params: { page: 1, size: 20 },
+                            }}
+                            mapOption={(product: any) => ({
+                                value: product.id,
+                                label: `${product.code} - ${product.name}`,
+                            })}
+                        />
 
-                        <div className="flex w-full flex-wrap items-center gap-2">
-                            <AsyncSelect
-                                className={cn(controlClass, "min-w-[220px] flex-1 py-0")}
-                                value={filters.warehouse_id}
-                                onChange={(value: any) => setFilter("warehouse_id", value || undefined)}
-                                placeholder="Kho hàng"
-                                dataSource={{
-                                    getList: listWarehouses,
-                                    getById: getWarehouse,
-                                    params: { page: 1, size: 20 },
-                                }}
-                                mapOption={(warehouse: any) => ({
-                                    value: warehouse.id,
-                                    label: warehouse.name,
-                                })}
-                            />
+                        <AsyncSelect
+                            className={cn(controlClass, "min-w-[180px] flex-[0.8_1_200px] py-0 xl:max-w-[240px]")}
+                            value={filters.warehouse_id}
+                            onChange={(value: any) => setFilter("warehouse_id", value || undefined)}
+                            placeholder="Kho hàng"
+                            dataSource={{
+                                getList: listWarehouses,
+                                getById: getWarehouse,
+                                params: { page: 1, size: 20 },
+                            }}
+                            mapOption={(warehouse: any) => ({
+                                value: warehouse.id,
+                                label: warehouse.name,
+                            })}
+                        />
 
-                            <Select
-                                value={filters.doc_type ?? "ALL"}
-                                onValueChange={(value) => setFilter("doc_type", value === "ALL" ? undefined : value)}
-                            >
-                                <SelectTrigger className={cn(controlClass, "min-w-[200px] flex-1")}>
-                                    <SelectValue placeholder="Loại chứng từ" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="ALL">Tất cả chứng từ</SelectItem>
-                                    {INVENTORY_DOC_TYPES.map((type) => (
-                                        <SelectItem key={type.value} value={type.value}>
-                                            {type.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                        <Select
+                            value={inboundValue}
+                            onValueChange={(value) => setFilter("doc_type", value === "ALL" ? undefined : value)}
+                        >
+                            <SelectTrigger className={cn(controlClass, "min-w-[180px] flex-[0.9_1_210px] xl:max-w-[260px]")}>
+                                <SelectValue placeholder="Chứng từ nhập" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Tất cả chứng từ nhập</SelectItem>
+                                {INVENTORY_INBOUND_DOC_TYPES.map((type) => (
+                                    <SelectItem key={type.value} value={type.value}>
+                                        {type.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
 
-                            <DatePicker
-                                className={cn(
-                                    "h-11 min-w-[160px] flex-1",
-                                    "[&_button]:h-11 [&_button]:min-h-11 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
-                                )}
-                                value={filters.from_date}
-                                onChange={(value) => setFilter("from_date", value || undefined)}
-                                placeholder="Từ ngày"
-                            />
+                        <Select
+                            value={outboundValue}
+                            onValueChange={(value) => setFilter("doc_type", value === "ALL" ? undefined : value)}
+                        >
+                            <SelectTrigger className={cn(controlClass, "min-w-[180px] flex-[0.9_1_210px] xl:max-w-[260px]")}>
+                                <SelectValue placeholder="Chứng từ xuất" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Tất cả chứng từ xuất</SelectItem>
+                                {INVENTORY_OUTBOUND_DOC_TYPES.map((type) => (
+                                    <SelectItem key={type.value} value={type.value}>
+                                        {type.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
 
-                            <DatePicker
-                                className={cn(
-                                    "h-11 min-w-[160px] flex-1",
-                                    "[&_button]:h-11 [&_button]:min-h-11 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
-                                )}
-                                value={filters.to_date}
-                                onChange={(value) => setFilter("to_date", value || undefined)}
-                                placeholder="Đến ngày"
-                            />
-                        </div>
+                        <DatePicker
+                            className="min-w-[140px] flex-[0_1_150px] [&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
+                            value={filters.from_date}
+                            onChange={(value) => setFilter("from_date", value || undefined)}
+                            placeholder="Từ ngày"
+                        />
+
+                        <DatePicker
+                            className="min-w-[140px] flex-[0_1_150px] [&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
+                            value={filters.to_date}
+                            onChange={(value) => setFilter("to_date", value || undefined)}
+                            placeholder="Đến ngày"
+                        />
                     </div>
                 </div>
             </CardHeader>
 
-            <div className="bg-muted/30 flex flex-wrap items-center gap-2 border-b px-6 py-3 text-sm">
-                <Badge variant="secondary" className="font-mono">
-                    {formatNumber(groupedRows.length)} hàng hóa
-                </Badge>
-                <span className="text-muted-foreground">·</span>
-                <span className="text-muted-foreground">
-                    Trang hiện tại có {formatNumber((data || []).length)} dòng sổ kho
-                </span>
-            </div>
-
-            <div className="space-y-6 p-6">
-                {groupedRows.map((group) => (
-                    <section key={group.key} className="space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-md">
-                                    <Package className="h-4 w-4" />
-                                </div>
-                                <div>
-                                    <h3 className="text-base font-semibold leading-tight">{group.label}</h3>
-                                    <p className="text-muted-foreground text-xs">
-                                        {group.sub ? `${group.sub} · ` : ""}
-                                        {formatNumber(group.items.length)} dòng phát sinh
-                                    </p>
-                                </div>
-                            </div>
-                            <GroupSummary rows={group.items} />
-                        </div>
-
-                        <div className="space-y-3">
-                            {group.items.map((item, index) => (
-                                <LedgerItemCard
+            <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1280px] text-sm">
+                        <thead className="bg-muted/50 text-muted-foreground border-b text-xs">
+                            <tr>
+                                <Th className="w-14 text-center">STT</Th>
+                                <Th className="w-28">Ngày</Th>
+                                <Th className="w-44">Chứng từ</Th>
+                                <Th className="min-w-[300px]">Sản phẩm</Th>
+                                <Th className="w-20">ĐVT</Th>
+                                <Th className="w-32">Số lô</Th>
+                                <Th className="w-52">Kho</Th>
+                                <Th className="w-28 text-right">Nhập</Th>
+                                <Th className="w-28 text-right">Xuất</Th>
+                                <Th className="w-32 text-right">Tồn sau</Th>
+                                <Th className="w-56">Loại</Th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {(data || []).map((item, index) => (
+                                <LedgerRow
                                     key={`${item.id}-${index}`}
-                                    index={index + 1}
+                                    index={pagination.pageIndex * pagination.pageSize + index + 1}
                                     item={item}
                                 />
                             ))}
-                        </div>
-                    </section>
-                ))}
+                        </tbody>
+                    </table>
+                </div>
 
-                {!(data || []).length && (
-                    <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
-                        <div className="bg-muted text-muted-foreground flex h-12 w-12 items-center justify-center rounded-xl">
-                            <Inbox className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <div className="font-semibold">Không tìm thấy dòng sổ kho</div>
-                            <div className="text-muted-foreground mt-1 text-sm">
-                                Thử đổi từ khóa, sản phẩm, kho hoặc khoảng ngày.
-                            </div>
-                        </div>
+                {!(data || []).length ? (
+                    <div className="text-muted-foreground flex min-h-[180px] items-center justify-center text-sm">
+                        Không tìm thấy dòng sổ kho.
                     </div>
-                )}
-            </div>
+                ) : null}
+            </CardContent>
 
-            <div className="bg-muted/30 border-t px-6 py-4">
+            <div className="bg-muted/30 border-t px-4 py-3">
                 <CardPagination
                     pageIndex={pagination.pageIndex}
                     pageCount={pageCount}
@@ -258,161 +237,78 @@ export function InventoryLedgerTable({
     )
 }
 
-function LedgerItemCard({ index, item }: { index: number; item: InventoryLedgerReportRow }) {
+function LedgerRow({
+    index,
+    item,
+}: {
+    index: number
+    item: InventoryLedgerReportRow
+}) {
     const meta = getDocTypeMeta(item.doc_type)
-    const movement = Number(item.quantity_in || 0) - Number(item.quantity_out || 0)
-    const MovementIcon = movement >= 0 ? ArrowDownLeft : ArrowUpRight
+    const quantityIn = Number(item.quantity_in || 0)
+    const quantityOut = Number(item.quantity_out || 0)
 
     return (
-        <div className="group bg-card overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md">
-            <div className="bg-muted/30 grid border-b lg:grid-cols-[56px_minmax(280px,1.4fr)_minmax(180px,0.8fr)]">
-                <div className="bg-muted/50 text-muted-foreground flex items-center justify-center border-b font-mono text-sm font-semibold tabular-nums lg:border-b-0 lg:border-r">
-                    #{index}
+        <tr className="hover:bg-muted/30 border-b">
+            <Td className="text-muted-foreground text-center font-mono">{formatNumber(index)}</Td>
+            <Td>
+                <div className="flex items-center gap-1.5 whitespace-nowrap">
+                    <CalendarDays className="text-muted-foreground h-3.5 w-3.5" />
+                    {formatDate(item.posting_date)}
                 </div>
-                <div className="min-w-0 border-b p-4 lg:border-b-0 lg:border-r">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="bg-primary/10 text-primary rounded-md px-2 py-0.5 font-mono text-xs font-bold">
-                            {item.doc_no || `#${item.id}`}
-                        </span>
-                        <Badge variant={meta.variant}>{meta.label}</Badge>
-                    </div>
-                    <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                        <span className="inline-flex items-center gap-1">
-                            <CalendarDays className="h-3.5 w-3.5" />
-                            Ngày {formatDate(item.posting_date)}
-                        </span>
-                        {item.ref_id ? <span>Tham chiếu #{item.ref_id}</span> : null}
-                    </div>
+            </Td>
+            <Td>
+                <div className="text-primary font-mono font-semibold">{item.doc_no || `#${item.id}`}</div>
+            </Td>
+            <Td>
+                <div className="min-w-0">
+                    <div className="font-semibold">{item.product_name || "-"}</div>
+                    <div className="text-muted-foreground font-mono text-xs">{item.product_code || "-"}</div>
                 </div>
-                <div className="p-4">
-                    <div className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">Kho hàng</div>
-                    <div className="mt-1 text-sm font-semibold">{item.warehouse_name || "-"}</div>
-                    <div className="text-muted-foreground mt-2 text-xs">Mã kho: {item.warehouse_id ?? "-"}</div>
+            </Td>
+            <Td className="text-muted-foreground">
+                {item.unit || "-"}
+            </Td>
+            <Td className="font-mono text-xs">
+                {item.lot_code || "-"}
+            </Td>
+            <Td>
+                <div className="truncate font-medium">{item.warehouse_name || "-"}</div>
+            </Td>
+            <Td className="text-right">
+                <Quantity value={quantityIn} tone="in" />
+            </Td>
+            <Td className="text-right">
+                <Quantity value={quantityOut} tone="out" />
+            </Td>
+            <Td className="text-right font-bold tabular-nums">
+                {formatNumber(Number(item.balance_quantity || 0))}
+            </Td>
+            <Td>
+                <div className="text-muted-foreground line-clamp-2 text-xs leading-4">
+                    {meta.label}
                 </div>
-            </div>
-
-            <div className="grid divide-y lg:grid-cols-4 lg:divide-x lg:divide-y-0">
-                <InfoBlock title="Hàng hóa" icon={Package}>
-                    <div className="font-semibold">{item.product_code || "-"}</div>
-                    <div className="text-muted-foreground mt-1 line-clamp-2 text-sm">{item.product_name || "-"}</div>
-                </InfoBlock>
-
-                <InfoBlock title="Nhập / Xuất" icon={MovementIcon}>
-                    <QuantityLine label="Nhập" value={item.quantity_in} tone="in" />
-                    <QuantityLine label="Xuất" value={item.quantity_out} tone="out" />
-                    <Separator className="my-1" />
-                    <QuantityLine
-                        label={movement >= 0 ? "Tăng tồn" : "Giảm tồn"}
-                        value={Math.abs(movement)}
-                        tone={movement >= 0 ? "in" : "out"}
-                        strong
-                    />
-                </InfoBlock>
-
-                <InfoBlock title="Tồn sau phát sinh" icon={Scale}>
-                    <div className="text-xl font-bold tabular-nums">{formatNumber(item.balance_quantity ?? 0)}</div>
-                    <div className="text-muted-foreground mt-1 text-xs">Số lượng sau dòng này</div>
-                </InfoBlock>
-
-                <InfoBlock title="Chứng từ" icon={FileText}>
-                    <div className="text-sm font-semibold">{meta.label}</div>
-                    <div className="text-muted-foreground mt-1 text-xs">{item.doc_no || "-"}</div>
-                </InfoBlock>
-            </div>
-        </div>
+            </Td>
+        </tr>
     )
 }
 
-function InfoBlock({
-    title,
-    icon: Icon,
-    children,
-}: {
-    title: string
-    icon: React.ComponentType<{ className?: string }>
-    children: React.ReactNode
-}) {
-    return (
-        <div className="p-4">
-            <div className="text-muted-foreground mb-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
-                <Icon className="h-3 w-3" />
-                {title}
-            </div>
-            <div>{children}</div>
-        </div>
-    )
-}
-
-function QuantityLine({
-    label,
-    value,
-    tone,
-    strong,
-}: {
-    label: string
-    value?: number
-    tone: "in" | "out"
-    strong?: boolean
-}) {
-    const quantity = Number(value || 0)
+function Quantity({ value, tone }: { value: number; tone: "in" | "out" }) {
+    if (!value) return <span className="text-muted-foreground">-</span>
 
     return (
-        <div className="flex items-baseline justify-between gap-3 text-sm">
-            <span className="text-muted-foreground text-xs">{label}</span>
-            <span
-                className={cn(
-                    "text-right tabular-nums",
-                    strong ? "font-bold" : "font-semibold",
-                    !quantity && "text-muted-foreground",
-                    tone === "in" && quantity > 0 && "text-emerald-600",
-                    tone === "out" && quantity > 0 && "text-rose-600"
-                )}
-            >
-                {quantity ? formatNumber(quantity) : "-"}
-            </span>
-        </div>
+        <span className={cn("font-semibold tabular-nums", tone === "in" ? "text-emerald-600" : "text-rose-600")}>
+            {formatNumber(value)}
+        </span>
     )
 }
 
-function GroupSummary({ rows }: { rows: InventoryLedgerReportRow[] }) {
-    const quantityIn = sumBy(rows, "quantity_in")
-    const quantityOut = sumBy(rows, "quantity_out")
-    const latestBalance = rows.length ? Number(rows[rows.length - 1]?.balance_quantity || 0) : 0
-
-    return (
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-            <Badge variant="outline" className="text-emerald-700">
-                Nhập {formatNumber(quantityIn)}
-            </Badge>
-            <Badge variant="outline" className="text-rose-600">
-                Xuất {formatNumber(quantityOut)}
-            </Badge>
-            <Badge variant="secondary">
-                Tồn cuối {formatNumber(latestBalance)}
-            </Badge>
-        </div>
-    )
+function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
+    return <th className={cn("px-3 py-2 text-left font-semibold", className)} {...props} />
 }
 
-function groupByProduct(rows: InventoryLedgerReportRow[]) {
-    const groups = new Map<string, LedgerGroup>()
-
-    rows.forEach((row) => {
-        const key = row.product_id ? String(row.product_id) : `unknown-${row.product_code || "none"}`
-        const label = row.product_name || "Chưa gắn hàng hóa"
-        const sub = row.product_code || (row.product_id ? `#${row.product_id}` : undefined)
-
-        if (!groups.has(key)) {
-            groups.set(key, { key, label, sub, items: [] })
-        }
-        groups.get(key)!.items.push(row)
-    })
-
-    return Array.from(groups.values()).sort((a, b) => a.label.localeCompare(b.label, "vi"))
-}
-
-function sumBy(rows: InventoryLedgerReportRow[], field: "quantity_in" | "quantity_out") {
-    return rows.reduce((sum, row) => sum + Number(row[field] || 0), 0)
+function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
+    return <td className={cn("px-3 py-1.5 align-middle", className)} {...props} />
 }
 
 function formatDate(value?: string) {
