@@ -7,6 +7,7 @@ export type Transaction = {
     customer_name: string
     customer_address?: string
     description: string
+    product_id?: number
     product_code: string
     product_name: string
     unit: string

@@ -8,6 +8,7 @@ export type TransactionListParams = {
     keyword?: string
     customer_code?: string
     customer_name?: string
+    product_id?: string
     product_code?: string
     product_name?: string
     customer_type?: string
