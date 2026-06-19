@@ -1,5 +1,7 @@
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { Building2, ClipboardList, Hash, MapPin, Users } from "lucide-react"
+import { ClipboardList, Layers, MapPin, Users } from "lucide-react"
+import { useEffect, useState } from "react"
+import { listTransactionOptions } from "@/api/transactions"
 import { CrudTable } from "@/components/crud/crud-table"
 import { DatePicker } from "@/components/date-picker"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
@@ -12,7 +14,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
 import type { Transaction } from "../data/schema"
 import { buildTransactionColumns } from "./transaction-columns"
 
@@ -21,11 +22,9 @@ type TransactionFilters = {
     customer_name?: string[]
     product_code?: string[]
     product_name?: string[]
+    product_group_name?: string[]
     customer_type?: string[]
     hdn_status?: string[]
-    vthh_con?: string
-    npp?: string
-    process_month?: string
     region?: string
     document_date_from?: string
     document_date_to?: string
@@ -34,6 +33,9 @@ type TransactionFilters = {
 type TransactionTableProps = {
     data: Transaction[]
     totalRevenue: number
+    totalSaleQty: number
+    totalReturnQty: number
+    totalActualQty: number
     pagination: PaginationState
     onPaginationChange: OnChangeFn<PaginationState>
     pageCount: number
@@ -46,18 +48,21 @@ type TransactionTableProps = {
 const CUSTOMER_TYPE_OPTIONS = [
     { value: "PP", label: "PP" },
     { value: "PPN.K", label: "PPN.K" },
-    { value: "DAI_LY", label: "Đại lý" },
+    { value: "DAI_LY", label: "Dai ly" },
 ]
 
 const HDN_STATUS_OPTIONS = [
-    { value: "VALID", label: "Hợp lệ" },
-    { value: "INVALID", label: "Không hợp lệ" },
-    { value: "PENDING", label: "Chờ xử lý" },
+    { value: "VALID", label: "Hop le" },
+    { value: "INVALID", label: "Khong hop le" },
+    { value: "PENDING", label: "Cho xu ly" },
 ]
 
 export function TransactionTable({
     data,
     totalRevenue,
+    totalSaleQty,
+    totalReturnQty,
+    totalActualQty,
     pagination,
     onPaginationChange,
     pageCount,
@@ -70,7 +75,12 @@ export function TransactionTable({
         key: K,
         value: TransactionFilters[K],
     ) => onFiltersChange({ ...filters, [key]: value })
-    const columns = buildTransactionColumns(filters, onFiltersChange, totalRevenue)
+    const columns = buildTransactionColumns(filters, onFiltersChange, {
+        revenue: totalRevenue,
+        saleQty: totalSaleQty,
+        returnQty: totalReturnQty,
+        actualQty: totalActualQty,
+    })
 
     return (
         <div className="space-y-4">
@@ -79,14 +89,14 @@ export function TransactionTable({
                     <SearchOnBlurInput
                         value={keyword}
                         onChange={onKeywordChange}
-                        placeholder="Tìm theo số CT, mã KH, tên KH, mã SP..."
+                        placeholder="Tim theo so CT, ma KH, ten KH, ma SP..."
                         wrapperClassName="relative h-10 min-w-[280px] flex-[1.8_1_0]"
                         className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
                     />
 
                     <MultiSelectFilter
                         icon={Users}
-                        label="Loại KH"
+                        label="Loai KH"
                         value={filters.customer_type}
                         onChange={(v) => setFilter("customer_type", v)}
                         options={CUSTOMER_TYPE_OPTIONS}
@@ -95,7 +105,7 @@ export function TransactionTable({
 
                     <MultiSelectFilter
                         icon={ClipboardList}
-                        label="Tình trạng HDN"
+                        label="Tinh trang HDN"
                         value={filters.hdn_status}
                         onChange={(v) => setFilter("hdn_status", v)}
                         options={HDN_STATUS_OPTIONS}
@@ -104,49 +114,36 @@ export function TransactionTable({
                 </div>
 
                 <div className="flex w-full flex-wrap items-center gap-2">
-                    <TextFilter
-                        icon={Hash}
-                        value={filters.vthh_con}
-                        onChange={(v) => setFilter("vthh_con", v)}
-                        placeholder="VTHH con"
-                        className="h-10 min-w-[140px] flex-1"
+                    <DynamicMultiSelectFilter
+                        icon={Layers}
+                        field="product_group_name"
+                        label="Nhom VTHH"
+                        value={filters.product_group_name}
+                        onChange={(v) => setFilter("product_group_name", v)}
+                        className="min-w-[220px] flex-1"
                     />
 
-                    <TextFilter
-                        icon={Building2}
-                        value={filters.npp}
-                        onChange={(v) => setFilter("npp", v)}
-                        placeholder="NPP"
-                        className="h-10 min-w-[140px] flex-1"
-                    />
-
-                    <TextFilter
+                    <DynamicSingleSelectFilter
                         icon={MapPin}
+                        field="region"
+                        label="Khu vuc"
                         value={filters.region}
                         onChange={(v) => setFilter("region", v)}
-                        placeholder="Khu vực"
-                        className="h-10 min-w-[140px] flex-1"
-                    />
-
-                    <TextFilter
-                        value={filters.process_month}
-                        onChange={(v) => setFilter("process_month", v)}
-                        placeholder="Tháng xử lý (YYYYMM)"
-                        className="h-10 min-w-[170px] flex-1"
+                        className="min-w-[180px] flex-1"
                     />
 
                     <DatePicker
                         className="min-w-[150px] flex-1 [&_button]:h-10"
                         value={filters.document_date_from}
                         onChange={(v) => setFilter("document_date_from", v)}
-                        placeholder="Từ ngày CT"
+                        placeholder="Tu ngay CT"
                     />
 
                     <DatePicker
                         className="min-w-[150px] flex-1 [&_button]:h-10"
                         value={filters.document_date_to}
                         onChange={(v) => setFilter("document_date_to", v)}
-                        placeholder="Đến ngày CT"
+                        placeholder="Den ngay CT"
                     />
                 </div>
             </div>
@@ -154,7 +151,7 @@ export function TransactionTable({
             <CrudTable<Transaction>
                 data={data}
                 columns={columns}
-                entityName="giao dịch"
+                entityName="giao dich"
                 pagination={pagination}
                 onPaginationChange={onPaginationChange}
                 pageCount={pageCount}
@@ -165,6 +162,7 @@ export function TransactionTable({
 }
 
 type IconComponent = React.ComponentType<{ className?: string }>
+type Option = { value: string; label: string }
 
 function MultiSelectFilter({
     icon: Icon,
@@ -178,7 +176,7 @@ function MultiSelectFilter({
     label: string
     value?: string[]
     onChange: (value?: string[]) => void
-    options: Array<{ value: string; label: string }>
+    options: Option[]
     className?: string
 }) {
     const selected = value ?? []
@@ -193,20 +191,11 @@ function MultiSelectFilter({
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button
-                    type="button"
-                    variant="outline"
-                    className={`h-10 justify-between rounded-md border-slate-300 bg-white px-3 shadow-xs ${className ?? ""}`}
-                >
-                    <span className="inline-flex min-w-0 items-center gap-2">
-                        {Icon ? <Icon className="h-4 w-4 text-slate-500" /> : null}
-                        <span className="truncate">
-                            {selected.length ? `${label} (${selected.length})` : label}
-                        </span>
-                    </span>
+                <Button type="button" variant="outline" className={filterButtonClass(className)}>
+                    <FilterLabel icon={Icon} label={selected.length ? `${label} (${selected.length})` : label} />
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[220px]">
+            <DropdownMenuContent align="start" className="max-h-[420px] w-[260px] overflow-y-auto">
                 {options.map((option) => (
                     <DropdownMenuCheckboxItem
                         key={option.value}
@@ -220,7 +209,7 @@ function MultiSelectFilter({
                     <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => onChange(undefined)}>
-                            Xóa bộ lọc
+                            Xoa bo loc
                         </DropdownMenuItem>
                     </>
                 ) : null}
@@ -229,45 +218,166 @@ function MultiSelectFilter({
     )
 }
 
-function TextFilter({
+function DynamicMultiSelectFilter({
     icon: Icon,
+    field,
+    label,
     value,
     onChange,
-    placeholder,
     className,
 }: {
     icon?: IconComponent
-    value?: string
-    onChange: (value?: string) => void
-    placeholder?: string
+    field: "product_group_name"
+    label: string
+    value?: string[]
+    onChange: (value?: string[]) => void
     className?: string
 }) {
+    const selected = value ?? []
+    const [open, setOpen] = useState(false)
+    const [options, setOptions] = useState<Option[]>([])
+
+    useEffect(() => {
+        if (!open) return
+        let cancelled = false
+        listTransactionOptions({ field, page: 1, size: 100 })
+            .then((res) => {
+                if (cancelled) return
+                setOptions((res.items ?? []).map((item) => ({
+                    value: String(item.value),
+                    label: String(item.label || item.value),
+                })))
+            })
+            .catch(() => setOptions([]))
+        return () => {
+            cancelled = true
+        }
+    }, [open, field])
+
+    const allOptions = mergeSelectedOptions(selected, options)
+    const toggle = (v: string) => {
+        const next = selected.includes(v)
+            ? selected.filter((item) => item !== v)
+            : [...selected, v]
+        onChange(next.length ? next : undefined)
+    }
+
     return (
-        <div className={`relative ${className ?? ""}`}>
-            {Icon ? (
-                <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            ) : null}
-            <Input
-                defaultValue={value ?? ""}
-                key={value ?? ""}
-                onBlur={(e) => {
-                    const next = e.target.value.trim()
-                    if (next !== (value ?? "")) {
-                        onChange(next || undefined)
-                    }
-                }}
-                onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                        const next = (e.target as HTMLInputElement).value.trim()
-                        if (next !== (value ?? "")) {
-                            onChange(next || undefined)
-                        }
-                            ; (e.target as HTMLInputElement).blur()
-                    }
-                }}
-                placeholder={placeholder}
-                className={`h-10 rounded-md border-slate-300 bg-white shadow-xs ${Icon ? "pl-9" : ""}`}
-            />
-        </div>
+        <DropdownMenu open={open} onOpenChange={setOpen}>
+            <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline" className={filterButtonClass(className)}>
+                    <FilterLabel icon={Icon} label={selected.length ? `${label} (${selected.length})` : label} />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-[420px] w-[320px] overflow-y-auto">
+                {allOptions.length ? allOptions.map((option) => (
+                    <DropdownMenuCheckboxItem
+                        key={option.value}
+                        checked={selected.includes(option.value)}
+                        onCheckedChange={() => toggle(option.value)}
+                    >
+                        {option.label}
+                    </DropdownMenuCheckboxItem>
+                )) : (
+                    <DropdownMenuItem disabled>Khong co du lieu</DropdownMenuItem>
+                )}
+                {selected.length > 0 ? (
+                    <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onChange(undefined)}>
+                            Xoa bo loc
+                        </DropdownMenuItem>
+                    </>
+                ) : null}
+            </DropdownMenuContent>
+        </DropdownMenu>
     )
+}
+
+function DynamicSingleSelectFilter({
+    icon: Icon,
+    field,
+    label,
+    value,
+    onChange,
+    className,
+}: {
+    icon?: IconComponent
+    field: "region"
+    label: string
+    value?: string
+    onChange: (value?: string) => void
+    className?: string
+}) {
+    const [open, setOpen] = useState(false)
+    const [options, setOptions] = useState<Option[]>([])
+
+    useEffect(() => {
+        if (!open) return
+        let cancelled = false
+        listTransactionOptions({ field, page: 1, size: 100 })
+            .then((res) => {
+                if (cancelled) return
+                setOptions((res.items ?? []).map((item) => ({
+                    value: String(item.value),
+                    label: String(item.label || item.value),
+                })))
+            })
+            .catch(() => setOptions([]))
+        return () => {
+            cancelled = true
+        }
+    }, [open, field])
+
+    const selectedLabel = options.find((option) => option.value === value)?.label ?? value
+
+    return (
+        <DropdownMenu open={open} onOpenChange={setOpen}>
+            <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline" className={filterButtonClass(className)}>
+                    <FilterLabel icon={Icon} label={selectedLabel || label} />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-[420px] w-[260px] overflow-y-auto">
+                {options.length ? options.map((option) => (
+                    <DropdownMenuItem
+                        key={option.value}
+                        onClick={() => onChange(option.value)}
+                    >
+                        {option.label}
+                    </DropdownMenuItem>
+                )) : (
+                    <DropdownMenuItem disabled>Khong co du lieu</DropdownMenuItem>
+                )}
+                {value ? (
+                    <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onChange(undefined)}>
+                            Xoa bo loc
+                        </DropdownMenuItem>
+                    </>
+                ) : null}
+            </DropdownMenuContent>
+        </DropdownMenu>
+    )
+}
+
+function FilterLabel({ icon: Icon, label }: { icon?: IconComponent; label: string }) {
+    return (
+        <span className="inline-flex min-w-0 items-center gap-2">
+            {Icon ? <Icon className="h-4 w-4 shrink-0 text-slate-500" /> : null}
+            <span className="truncate">{label}</span>
+        </span>
+    )
+}
+
+function filterButtonClass(className?: string) {
+    return `h-10 justify-between rounded-md border-slate-300 bg-white px-3 shadow-xs ${className ?? ""}`
+}
+
+function mergeSelectedOptions(selected: string[], options: Option[]) {
+    const map = new Map<string, Option>()
+    selected.forEach((item) => map.set(item, { value: item, label: item }))
+    options.forEach((item) => map.set(item.value, item))
+    return Array.from(map.values())
 }

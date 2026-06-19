@@ -77,6 +77,8 @@ export type InventoryLedger = {
 
     doc_type: string
     doc_no: string
+    tk_no?: string | null
+    tk_co?: string | null
     ref_id?: number | null
 
     created_at?: string
@@ -93,8 +95,12 @@ export type InventoryLedgerReportRow = {
     warehouse_id: number
     doc_type: string
     doc_no: string
+    tk_no?: string | null
+    tk_co?: string | null
     ref_id?: number | null
     unit?: string | null
+    unit_price?: number | null
+    amount?: number | null
     lot_code?: string | null
     quantity_in: number
     quantity_out: number

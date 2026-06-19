@@ -52,6 +52,21 @@ const OUTBOUND_TYPES = INVENTORY_OUTBOUND_DOC_TYPES.filter(
     (type) => !["PRODUCTION_MATERIAL", "SALES_EXPORT"].includes(type.value),
 )
 
+const VOUCHER_TYPE_BY_DOC_TYPE: Record<string, VoucherTypeCode> = {
+    OPENING: "OPENING_IN",
+    SALES_RETURN: "PNK_SALES_RETURN",
+    IMPORT_PURCHASE: "PNK_PURCHASE_IMPORT",
+    DOMESTIC_PURCHASE: "PNK_PURCHASE_DOMESTIC",
+    PRODUCTION: "PNK_PROD",
+    OTHER_INBOUND: "PNK_OTHER",
+    SALES_EXPORT: "PXK_SALE",
+    TRANSFER_EXPORT: "PXK_OTHER",
+    PRODUCTION_MATERIAL: "PXK_PROD",
+    TRANSPORT_EXPORT: "PXK_OTHER",
+    PURCHASE_RETURN: "PXK_PURCHASE_RETURN",
+    OTHER_EXPORT: "PXK_OTHER",
+}
+
 function createId() {
     return typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
@@ -146,11 +161,12 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         }
 
         return {
-            voucher_type_code: voucherType,
+            voucher_type_code: VOUCHER_TYPE_BY_DOC_TYPE[voucherType] ?? voucherType,
             posting_date: postingDate,
             document_date: postingDate,
             warehouse_id: warehouseId,
             description: description.trim() || undefined,
+            source_type: voucherType,
             items: validLines.map((line, index) => {
                 const quantity = Number(line.quantity)
                 const unitPrice = Number(line.unit_price || 0)

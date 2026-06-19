@@ -1,12 +1,15 @@
-import { Coins } from "lucide-react"
+import { Boxes, Coins, RotateCcw, Scale } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 
 type Props = {
     revenue: number
+    saleQty: number
+    returnQty: number
+    actualQty: number
     isLoading?: boolean
 }
 
-export function TransactionSummaryStrip({ revenue, isLoading }: Props) {
+export function TransactionSummaryStrip({ revenue, saleQty, returnQty, actualQty, isLoading }: Props) {
     return (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
@@ -15,8 +18,30 @@ export function TransactionSummaryStrip({ revenue, isLoading }: Props) {
                 value={isLoading ? "Đang tải..." : formatCurrency(revenue)}
                 sub="Theo toàn bộ danh sách sau bộ lọc"
             />
+            <MetricCard
+                icon={Boxes}
+                label="Tổng số lượng bán"
+                value={isLoading ? "Đang tải..." : formatNumber(saleQty)}
+                sub="Theo toàn bộ danh sách sau bộ lọc"
+            />
+            <MetricCard
+                icon={RotateCcw}
+                label="Tổng SL trả lại"
+                value={isLoading ? "Đang tải..." : formatNumber(returnQty)}
+                sub="Theo toàn bộ danh sách sau bộ lọc"
+            />
+            <MetricCard
+                icon={Scale}
+                label="Tổng SL bán thực tế"
+                value={isLoading ? "Đang tải..." : formatNumber(actualQty)}
+                sub="SL bán trừ SL trả lại"
+            />
         </div>
     )
+}
+
+function formatNumber(value: number) {
+    return Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 6 })
 }
 
 function MetricCard({

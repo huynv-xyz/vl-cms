@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { Route } from "@/routes/_authenticated/inventory/ledgers"
 import { InventoryLedgerTable } from "./components/ledger-table"
 import { LedgerImportButtons } from "./components/ledger-import-buttons"
+import { LedgerTestResetButton } from "./components/ledger-test-reset-button"
 import { LedgerVoucherDialog } from "./components/ledger-voucher-dialog"
 
 export default function InventoryLedgerPage() {
@@ -68,6 +69,7 @@ export default function InventoryLedgerPage() {
             actions={
                 <div className="flex flex-wrap items-center justify-end gap-2">
                     <LedgerImportButtons />
+                    <LedgerTestResetButton />
                     <Button size="sm" variant="outline" onClick={() => setVoucherDialog("in")}>
                         <ArrowDownLeft className="mr-2 h-4 w-4 text-emerald-600" />
                         Nhập hàng

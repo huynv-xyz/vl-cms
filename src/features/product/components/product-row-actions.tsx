@@ -32,7 +32,15 @@ export function ProductRowActions({ row }: { row: Row<Product> }) {
                             toast.success("Đã xoá sản phẩm")
                             await queryClient.invalidateQueries({ queryKey: ["product"] })
                         } catch (error: any) {
-                            toast.error(error?.message ?? "Xoá sản phẩm thất bại")
+                            const message = error?.message ?? "Xoá sản phẩm thất bại"
+                            if (message.includes("tồn tại dữ liệu liên quan")) {
+                                toast.error("Không thể xoá sản phẩm", {
+                                    description: message,
+                                    duration: 12000,
+                                })
+                            } else {
+                                toast.error(message)
+                            }
                         }
                     }
                     : undefined
