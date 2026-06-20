@@ -512,7 +512,7 @@ export function ArLedgerTable({
                 </div>
 
                 <div className="max-h-[70vh] overflow-auto">
-                    <table className="w-full min-w-[1520px] border-collapse text-sm">
+                    <table className="w-full min-w-[1640px] border-collapse text-sm">
                         <thead className="sticky top-0 z-10 bg-slate-50 shadow-[inset_0_-1px_0_0_var(--color-slate-200)]">
                             <tr className="text-xs uppercase text-slate-500">
                                 <Th rowSpan={2} className="w-[135px] align-middle">Khách hàng</Th>
@@ -524,6 +524,7 @@ export function ArLedgerTable({
                                 <Th rowSpan={2} className="w-[70px] text-center align-middle">ĐVT</Th>
                                 <Th rowSpan={2} className="w-[95px] text-right align-middle">SL</Th>
                                 <Th rowSpan={2} className="w-[110px] text-right align-middle">Đơn giá</Th>
+                                <Th rowSpan={2} className="w-[120px] text-right align-middle">Chiết khấu</Th>
                                 <Th colSpan={2} className="border-l text-center">Phát sinh</Th>
                                 <Th colSpan={2} className="border-l text-center">Số dư</Th>
                             </tr>
@@ -537,7 +538,7 @@ export function ArLedgerTable({
                         <tbody>
                             {groups.length === 0 ? (
                                 <tr>
-                                    <td colSpan={13} className="px-4 py-14 text-center text-sm text-slate-500">
+                                    <td colSpan={14} className="px-4 py-14 text-center text-sm text-slate-500">
                                         Không có dữ liệu công nợ phù hợp với bộ lọc.
                                     </td>
                                 </tr>
@@ -703,7 +704,7 @@ function CustomerGroup({ group }: { group: Group }) {
     return (
         <>
             <tr className="border-y bg-slate-100/80">
-                <td colSpan={13} className="px-3 py-2">
+                <td colSpan={14} className="px-3 py-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex min-w-0 flex-wrap items-center gap-2">
                             <span className="font-semibold text-slate-950">{group.name}</span>
@@ -749,6 +750,7 @@ function CustomerGroup({ group }: { group: Group }) {
                         <Td className="text-center text-xs text-slate-600">{unit}</Td>
                         <Td className="text-right tabular-nums">{fmtQtyBlank(num(item.quantity))}</Td>
                         <Td className="text-right tabular-nums">{fmtNumberBlank(num(item.unit_price))}</Td>
+                        <Td className="text-right tabular-nums">{fmtMoneyBlank(num(item.discount))}</Td>
                         <Td className="border-l text-right font-medium tabular-nums text-rose-700">
                             {fmtMoneyBlank(num(item.debit_amount))}
                         </Td>
@@ -774,6 +776,7 @@ function CustomerGroup({ group }: { group: Group }) {
                 <Td className="text-slate-950">Cộng</Td>
                 <Td />
                 <Td className="text-right tabular-nums">{fmtQtyBlank(group.qtyTotal)}</Td>
+                <Td />
                 <Td />
                 <Td className="border-l text-right tabular-nums text-rose-700">
                     {fmtMoneyBlank(group.debitTotal)}
@@ -1010,6 +1013,7 @@ async function exportReportXlsx(groups: Group[], period: string) {
         { label: "ĐVT", width: 10, align: "center" },
         { label: "Số lượng", width: 16, align: "right" },
         { label: "Đơn giá", width: 16, align: "right" },
+        { label: "Chiết khấu", width: 16, align: "right" },
         { label: "Phát sinh Nợ", width: 18, align: "right" },
         { label: "Phát sinh Có", width: 18, align: "right" },
         { label: "Số dư Nợ", width: 18, align: "right" },
@@ -1042,6 +1046,7 @@ async function exportReportXlsx(groups: Group[], period: string) {
             "",
             formatExcelNumber(group.qtyTotal),
             "",
+            "",
             formatExcelNumber(group.debitTotal),
             formatExcelNumber(group.creditTotal),
             "",
@@ -1058,6 +1063,7 @@ async function exportReportXlsx(groups: Group[], period: string) {
                 "",
                 "",
                 "Số dư đầu kỳ",
+                "",
                 "",
                 "",
                 "",
@@ -1081,6 +1087,7 @@ async function exportReportXlsx(groups: Group[], period: string) {
                 item.unit || item.product?.unit || "",
                 formatExcelNumber(num(item.quantity)),
                 formatExcelNumber(num(item.unit_price)),
+                formatExcelNumber(num(item.discount)),
                 formatExcelNumber(num(item.debit_amount)),
                 formatExcelNumber(num(item.credit_amount)),
                 balance > 0 ? formatExcelNumber(balance) : "",
@@ -1098,6 +1105,7 @@ async function exportReportXlsx(groups: Group[], period: string) {
             "Cộng",
             "",
             formatExcelNumber(group.qtyTotal),
+            "",
             "",
             formatExcelNumber(group.debitTotal),
             formatExcelNumber(group.creditTotal),

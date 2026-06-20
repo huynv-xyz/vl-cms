@@ -334,11 +334,15 @@ function shipmentProductOption(x: ProductOptionSource) {
     }
 }
 
-function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }) {
+function ShipmentItemCard({ item: sourceItem, index }: { item: ShipmentItem; index: number }) {
     const { openEditById } = useShipments()
     const { deleteById } = useCrudDelete(deleteShipmentItem, ["shipment-items"])
 
-    const shipment = item.shipment
+    const shipment = sourceItem.shipment
+    const item = {
+        ...sourceItem,
+        note: formatShipmentItemNote(shipment?.note, sourceItem.note),
+    }
     const quantity = item.quantity ?? 0
     const defect = item.defect_quantity ?? 0
     const real = Math.max(quantity - defect, 0)
@@ -459,6 +463,13 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
             </div>
         </div>
     )
+}
+
+function formatShipmentItemNote(shipmentNote?: string, itemNote?: string) {
+    return [shipmentNote, itemNote]
+        .map((note) => note?.trim())
+        .filter(Boolean)
+        .join(" | ")
 }
 
 function StatusFilter({

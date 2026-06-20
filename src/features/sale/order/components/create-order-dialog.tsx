@@ -61,7 +61,19 @@ export function CreateOrderDialog({ open, onOpenChange, initialData }: any) {
     }, [initialData, open])
 
     const { mutate, isPending } = useMutation({
-        mutationFn: () => createOrder({ ...formData, items }),
+        mutationFn: () => createOrder({
+            ...formData,
+            items: items.map((item) => ({
+                product_id: item.product_id,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                discount: item.discount ?? 0,
+                line_type: item.line_type ?? "NORMAL",
+                hdn_status: item.hdn_status === "KO" ? "KO" : undefined,
+                description: item.description ?? "",
+                note: item.note ?? "",
+            })),
+        } as any),
         onSuccess: async (createdOrder: any) => {
             await queryClient.invalidateQueries({ queryKey: ["orders"] })
             toast.success("Tạo đơn thành công")

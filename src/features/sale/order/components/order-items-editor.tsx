@@ -10,7 +10,7 @@ import { AsyncSelect } from "@/components/rjsf/async-select"
 import { listProducts, getProduct } from "@/api/product"
 import { listGoodsDescriptions } from "@/api/sale/goods-description"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
-import { Check, ChevronsUpDown, PackageOpen, Trash2 } from "lucide-react"
+import { Check, ChevronsUpDown, Copy, GripVertical, PackageOpen, Trash2 } from "lucide-react"
 
 type OrderItem = {
     id?: number
@@ -24,18 +24,21 @@ type OrderItem = {
     hdn_status?: string
     description?: string
     note?: string
+    sort_order?: number
 }
 
 type Props = {
     items: OrderItem[]
     setItems: (items: OrderItem[]) => void
     addRequest?: number
+    enableReorder?: boolean
 }
 
-export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
+export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorder = false }: Props) {
     const rowRefs = useRef<Array<HTMLTableRowElement | null>>([])
     const pendingFocusIndexRef = useRef<number | null>(null)
     const lastAddRequestRef = useRef(addRequest)
+    const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
 
     const createEmptyRow = (): OrderItem => ({
         product_id: undefined,
@@ -93,6 +96,47 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
 
     const removeRow = (index: number) => {
         setItems(items.filter((_, i) => i !== index))
+    }
+
+    const moveRow = (index: number, targetIndex: number) => {
+        if (targetIndex < 0 || targetIndex >= items.length) return
+        if (targetIndex === index) return
+
+        const newItems = [...items]
+        const [item] = newItems.splice(index, 1)
+        newItems.splice(targetIndex, 0, item)
+        setItems(newItems)
+    }
+
+    const startDrag = (event: React.DragEvent, index: number) => {
+        if (!enableReorder) return
+
+        setDraggingIndex(index)
+        event.dataTransfer.effectAllowed = "move"
+        event.dataTransfer.setData("text/plain", String(index))
+    }
+
+    const dropRow = (event: React.DragEvent, targetIndex: number) => {
+        event.preventDefault()
+
+        const sourceIndex = draggingIndex ?? Number(event.dataTransfer.getData("text/plain"))
+        setDraggingIndex(null)
+        if (!Number.isInteger(sourceIndex)) return
+
+        moveRow(sourceIndex, targetIndex)
+    }
+
+    const duplicateRow = (index: number) => {
+        const source = items[index]
+        if (!source) return
+
+        const newItems = [...items]
+        newItems.splice(index + 1, 0, {
+            ...source,
+            id: undefined,
+        })
+        pendingFocusIndexRef.current = index + 1
+        setItems(newItems)
     }
 
     const updateRow = (index: number, patch: Partial<OrderItem>) => {
@@ -161,32 +205,34 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
             }}
         >
             <div className="overflow-x-auto rounded-md border">
-                <table className="w-full min-w-[2000px] table-fixed text-sm">
+                <table className="w-full min-w-[2110px] table-fixed text-sm">
                     <colgroup>
+                        <col className="w-9" />
                         <col className="w-11" />
                         <col className="w-[280px]" />
                         <col className="w-[500px]" />
+                        <col className="w-[260px]" />
                         <col className="w-[50px]" />
                         <col className="w-[90px]" />
                         <col className="w-[130px]" />
                         <col className="w-[95px]" />
-                        <col className="w-[260px]" />
                         <col className="w-[70px]" />
                         <col className="w-[95px]" />
                         <col className="w-[260px]" />
                         <col className="w-[130px]" />
-                        <col className="w-[42px]" />
+                        <col className="w-[70px]" />
                     </colgroup>
                     <thead className="bg-muted/50 text-muted-foreground text-[10px] uppercase tracking-wider">
                         <tr>
+                            <th className="px-1 py-2" />
                             <th className="px-2 py-2 text-center font-semibold">#</th>
                             <th className="px-2 py-2 text-left font-semibold">Mã sản phẩm</th>
                             <th className="px-2 py-2 text-left font-semibold">Tên sản phẩm</th>
+                            <th className="px-2 py-2 text-left font-semibold">Mô tả HH</th>
                             <th className="px-2 py-2 text-center font-semibold">ĐVT</th>
                             <th className="px-2 py-2 text-right font-semibold">Số lượng</th>
                             <th className="px-2 py-2 text-right font-semibold">Đơn giá</th>
                             <th className="px-2 py-2 text-right font-semibold">Chiết khấu</th>
-                            <th className="px-2 py-2 text-left font-semibold">Mô tả HH</th>
                             <th className="px-2 py-2 text-center font-semibold">Hàng KM</th>
                             <th className="px-2 py-2 text-center font-semibold">Không tính HĐN</th>
                             <th className="px-2 py-2 text-left font-semibold">Ghi chú</th>
@@ -212,12 +258,38 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
                                         ref={(node) => {
                                             rowRefs.current[i] = node
                                         }}
+                                        onDragOver={(event) => {
+                                            if (!enableReorder || draggingIndex == null) return
+                                            event.preventDefault()
+                                            event.dataTransfer.dropEffect = "move"
+                                        }}
+                                        onDrop={(event) => dropRow(event, i)}
+                                        onDragEnd={() => setDraggingIndex(null)}
                                         className={cn(
                                             "border-t-4 border-t-slate-300 bg-white transition-colors hover:bg-slate-50",
                                             i > 0 && "shadow-[inset_0_1px_0_rgba(15,23,42,0.08)]",
-                                            isInvalid && "bg-amber-50/30 dark:bg-amber-950/10"
+                                            isInvalid && "bg-amber-50/30 dark:bg-amber-950/10",
+                                            draggingIndex === i && "opacity-50"
                                         )}
                                     >
+                                    <td className="px-1 py-2 text-center align-middle">
+                                        {enableReorder ? (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <button
+                                                        type="button"
+                                                        draggable
+                                                        onDragStart={(event) => startDrag(event, i)}
+                                                        className="text-muted-foreground hover:bg-muted hover:text-foreground inline-flex h-7 w-7 cursor-grab items-center justify-center rounded active:cursor-grabbing"
+                                                        aria-label="Kéo để đổi vị trí dòng"
+                                                    >
+                                                        <GripVertical className="h-4 w-4" />
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Kéo để đổi vị trí</TooltipContent>
+                                            </Tooltip>
+                                        ) : null}
+                                    </td>
                                     <td className="text-muted-foreground px-2 py-2 text-center align-middle font-mono text-xs font-semibold tabular-nums">
                                         {i + 1}
                                     </td>
@@ -247,34 +319,6 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
                                             commandListClassName="max-h-[450px]"
                                         />
                                     </td>
-                                    <td className="px-2 py-2 text-center align-middle text-sm font-medium text-slate-700">
-                                        {row.product?.unit || row.unit || "-"}
-                                    </td>
-                                    <td className="px-2 py-2 align-middle">
-                                        <DecimalInput
-                                            value={row.quantity}
-                                            onKeyDown={(event) => addRowOnEnter(event, i)}
-                                            onChange={(quantity) => updateRow(i, { quantity })}
-                                        />
-                                    </td>
-
-                                    <td className="px-2 py-2 align-middle">
-                                        <DecimalInput
-                                            value={row.unit_price}
-                                            disabled={isPromotion}
-                                            onKeyDown={(event) => addRowOnEnter(event, i)}
-                                            onChange={(unit_price) => updateRow(i, { unit_price })}
-                                        />
-                                    </td>
-                                    <td className="px-2 py-2 align-middle">
-                                        <DecimalInput
-                                            value={row.discount ?? 0}
-                                            disabled={isPromotion}
-                                            onKeyDown={(event) => addRowOnEnter(event, i)}
-                                            onChange={(discount) => updateRow(i, { discount })}
-                                        />
-                                    </td>
-
                                     <td className="min-w-0 px-2 py-2 align-middle">
                                         <AsyncSelect
                                             value={row.description}
@@ -307,6 +351,33 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
                                             className="min-w-0"
                                             popoverContentClassName="w-[360px] max-w-[calc(100vw-2rem)]"
                                             commandListClassName="max-h-[360px]"
+                                        />
+                                    </td>
+                                    <td className="px-2 py-2 text-center align-middle text-sm font-medium text-slate-700">
+                                        {row.product?.unit || row.unit || "-"}
+                                    </td>
+                                    <td className="px-2 py-2 align-middle">
+                                        <DecimalInput
+                                            value={row.quantity}
+                                            onKeyDown={(event) => addRowOnEnter(event, i)}
+                                            onChange={(quantity) => updateRow(i, { quantity })}
+                                        />
+                                    </td>
+
+                                    <td className="px-2 py-2 align-middle">
+                                        <DecimalInput
+                                            value={row.unit_price}
+                                            disabled={isPromotion}
+                                            onKeyDown={(event) => addRowOnEnter(event, i)}
+                                            onChange={(unit_price) => updateRow(i, { unit_price })}
+                                        />
+                                    </td>
+                                    <td className="px-2 py-2 align-middle">
+                                        <DecimalInput
+                                            value={row.discount ?? 0}
+                                            disabled={isPromotion}
+                                            onKeyDown={(event) => addRowOnEnter(event, i)}
+                                            onChange={(discount) => updateRow(i, { discount })}
                                         />
                                     </td>
 
@@ -350,21 +421,37 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
                                         </div>
                                     </td>
 
-                                    <td className="px-2 py-2 text-center align-middle">
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    type="button"
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-7 w-7"
-                                                    onClick={() => removeRow(i)}
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>Xoá dòng</TooltipContent>
-                                        </Tooltip>
+                                    <td className="px-2 py-2 align-middle">
+                                        <div className="flex items-center justify-center gap-1">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        type="button"
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="text-muted-foreground h-7 w-7"
+                                                        onClick={() => duplicateRow(i)}
+                                                    >
+                                                        <Copy className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Nhân bản dòng</TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        type="button"
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-7 w-7"
+                                                        onClick={() => removeRow(i)}
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Xoá dòng</TooltipContent>
+                                            </Tooltip>
+                                        </div>
                                     </td>
                                     </tr>
                                 </Fragment>
@@ -373,7 +460,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0 }: Props) {
 
                         {!items.length && (
                             <tr>
-                                <td colSpan={13} className="px-4 py-14">
+                                <td colSpan={14} className="px-4 py-14">
                                     <div
                                         className="text-muted-foreground flex flex-col items-center gap-3 text-center text-sm"
                                         tabIndex={0}

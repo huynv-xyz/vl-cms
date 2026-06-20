@@ -2,7 +2,7 @@ import type React from "react"
 import { useRef, useState } from "react"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Download, Loader2, Plus, Upload, WalletCards } from "lucide-react"
+import { Copy, Download, Loader2, Plus, Upload, WalletCards } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -37,6 +37,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
 import { DatePicker } from "@/components/date-picker"
 import { CrudRowActions } from "@/components/crud/crud-row-actions"
@@ -263,11 +264,11 @@ export function CashBankLedgerTable({
         }
     }
 
-    const openEdit = (row: ArLedger) => {
+    const buildFormFromRow = (row: ArLedger, mode: "edit" | "clone"): FormState => {
         const debit = Number(row.debit_amount || 0)
         const credit = Number(row.credit_amount || 0)
-        setForm({
-            id: row.id,
+        return {
+            id: mode === "edit" ? row.id : undefined,
             posting_date: dateOnly(row.posting_date) || new Date().toISOString().slice(0, 10),
             doc_date: dateOnly(row.doc_date) || dateOnly(row.posting_date) || new Date().toISOString().slice(0, 10),
             doc_no: row.doc_no || "",
@@ -278,7 +279,16 @@ export function CashBankLedgerTable({
             amount: String(debit > 0 ? debit : credit),
             account_code: row.account_code || "131",
             description: row.description || "",
-        })
+        }
+    }
+
+    const openEdit = (row: ArLedger) => {
+        setForm(buildFormFromRow(row, "edit"))
+        setOpen(true)
+    }
+
+    const openClone = (row: ArLedger) => {
+        setForm(buildFormFromRow(row, "clone"))
         setOpen(true)
     }
 
@@ -486,6 +496,14 @@ export function CashBankLedgerTable({
                                             <CrudRowActions
                                                 row={row}
                                                 onEdit={openEdit}
+                                                extraActions={sourceType === "ADJUST"
+                                                    ? (item) => (
+                                                        <DropdownMenuItem onClick={() => openClone(item)}>
+                                                            <Copy className="mr-2 h-4 w-4" />
+                                                            Nhân bản
+                                                        </DropdownMenuItem>
+                                                    )
+                                                    : undefined}
                                                 onDelete={async (item) => {
                                                     await deleteMutation.mutateAsync(item.id)
                                                 }}
