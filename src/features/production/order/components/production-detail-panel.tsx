@@ -141,7 +141,7 @@ export function ProductionDetailPanel({ production }: Props) {
                         className="data-[state=active]:border-primary data-[state=active]:text-primary h-10 shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-4 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
                     >
                         <Factory className="mr-2 h-4 w-4" />
-                        Thành phẩm & vật tư
+                        {"Th\u00e0nh ph\u1ea9m & v\u1eadt t\u01b0"}
                     </TabsTrigger>
                     <TabsTrigger
                         value="fifo"
@@ -155,21 +155,21 @@ export function ProductionDetailPanel({ production }: Props) {
                         className="data-[state=active]:border-primary data-[state=active]:text-primary h-10 shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-4 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
                     >
                         <PackageCheck className="mr-2 h-4 w-4" />
-                        Nhập TP
+                        {"Nh\u1eadp TP"}
                     </TabsTrigger>
                     <TabsTrigger
                         value="vouchers"
                         className="data-[state=active]:border-primary data-[state=active]:text-primary h-10 shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-4 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
                     >
                         <FileText className="mr-2 h-4 w-4" />
-                        Chứng từ
+                        {"Ch\u1ee9ng t\u1eeb"}
                     </TabsTrigger>
                     <TabsTrigger
                         value="warnings"
                         className="data-[state=active]:border-primary data-[state=active]:text-primary h-10 shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-4 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
                     >
                         <AlertTriangle className="mr-2 h-4 w-4" />
-                        Cảnh báo
+                        {"C\u1ea3nh b\u00e1o"}
                     </TabsTrigger>
                     <TabsTrigger
                         value="logs"
@@ -314,7 +314,6 @@ function ProductionActionBar({ production }: { production: Production }) {
     const queryClient = useQueryClient()
     const perms = useProductionPermissions()
     const shortageCount = countShortage(production.items ?? [])
-    const isClosed = isProductionClosed(production)
     // BA Spec BR-07: chỉ KT có quyền post mới được sinh vật tư / chạy FIFO / xuất NL / nhập TP.
     const canGenerate = canGenerateMaterials(production) && perms.canPost
     const canAllocateFifo = canRunFifo(production) && perms.canPost
@@ -322,7 +321,7 @@ function ProductionActionBar({ production }: { production: Production }) {
         canIssueProductionMaterials(production) && perms.canPost
     const canConfirm = canReceiveOutput(production) && perms.canPost
     const canCancel = canCancelProduction(production) && perms.canCancel
-    const canUnpost = isClosed && perms.canUnpost
+    const canUnpost = canReverseProductionStep(production) && perms.canUnpost
     const workflowButtonClass = (step: WorkflowStep) =>
         getWorkflowStepClass(getWorkflowStepState(production, step))
 
@@ -344,48 +343,48 @@ function ProductionActionBar({ production }: { production: Production }) {
     const fifoMutation = useMutation({
         mutationFn: () => allocateProductionFifo(production.id),
         onSuccess: () => {
-            toast.success("Đã chạy FIFO")
+            toast.success("\u0110\u00e3 ch\u1ea1y FIFO")
             refresh()
         },
-        onError: (e: any) => toast.error(e.message || "Không thể chạy FIFO"),
+        onError: (e: any) => toast.error(e.message || "Kh\u00f4ng th\u1ec3 ch\u1ea1y FIFO"),
     })
 
     const issueMutation = useMutation({
         mutationFn: () => issueProductionMaterials(production.id),
         onSuccess: () => {
-            toast.success("Đã xuất nguyên liệu")
+            toast.success("\u0110\u00e3 xu\u1ea5t nguy\u00ean li\u1ec7u")
             refresh()
         },
-        onError: (e: any) => toast.error(e.message || "Không thể xuất nguyên liệu"),
+        onError: (e: any) => toast.error(e.message || "Kh\u00f4ng th\u1ec3 xu\u1ea5t nguy\u00ean li\u1ec7u"),
     })
 
     const cancelMutation = useMutation({
         mutationFn: () => cancelProduction(production.id),
         onSuccess: () => {
-            toast.success("Đã hủy lệnh sản xuất")
+            toast.success("\u0110\u00e3 h\u1ee7y l\u1ec7nh s\u1ea3n xu\u1ea5t")
             refresh()
         },
-        onError: (e: any) => toast.error(e.message || "Không thể hủy lệnh"),
+        onError: (e: any) => toast.error(e.message || "Kh\u00f4ng th\u1ec3 h\u1ee7y l\u1ec7nh"),
     })
 
     // BA Spec BR-06.2 / BR-06.3 / US-06: cho phép UNPOST LSX đã đóng để sửa rồi POST lại
     const unpostMutation = useMutation({
         mutationFn: (reason: string) => unpostProduction(production.id, reason),
         onSuccess: () => {
-            toast.success("Đã đảo lệnh, mời sửa và POST lại")
+            toast.success("\u0110\u00e3 l\u00f9i v\u1ec1 b\u01b0\u1edbc tr\u01b0\u1edbc")
             refresh()
         },
-        onError: (e: any) => toast.error(e.message || "Không thể đảo lệnh"),
+        onError: (e: any) => toast.error(e.message || "Kh\u00f4ng th\u1ec3 l\u00f9i b\u01b0\u1edbc"),
     })
 
     const handleUnpost = () => {
         const reason = window.prompt(
-            "Lý do đảo lệnh (UNPOST)? Hệ thống sẽ hoàn nguyên tồn lô và cho phép sửa lại.",
+            "L\u00fd do l\u00f9i b\u01b0\u1edbc? H\u1ec7 th\u1ed1ng ch\u1ec9 l\u00f9i 1 b\u01b0\u1edbc trong lu\u1ed3ng x\u1eed l\u00fd v\u00e0 ho\u00e0n nguy\u00ean d\u1eef li\u1ec7u kho n\u1ebfu b\u01b0\u1edbc \u0111\u00f3 \u0111\u00e3 ghi s\u1ed5.",
             "",
         )
         if (reason == null) return
         if (!reason.trim()) {
-            toast.error("Vui lòng nhập lý do để ghi audit log")
+            toast.error("Vui l\u00f2ng nh\u1eadp l\u00fd do \u0111\u1ec3 ghi audit log")
             return
         }
         unpostMutation.mutate(reason.trim())
@@ -401,7 +400,7 @@ function ProductionActionBar({ production }: { production: Production }) {
     return (
         <div className="border-b pb-3">
             <div className="flex flex-wrap items-center justify-end gap-2">
-                <div className="mr-1 text-sm font-medium">Luồng xử lý:</div>
+                <div className="mr-1 text-sm font-medium">{"Lu\u1ed3ng x\u1eed l\u00fd:"}</div>
                 <Button
                     variant="outline"
                     size="sm"
@@ -413,7 +412,7 @@ function ProductionActionBar({ production }: { production: Production }) {
                     onClick={() => generateMutation.mutate()}
                 >
                     <Wand2 className="mr-2 h-4 w-4" />
-                    Sinh vật tư
+                    {"Sinh v\u1eadt t\u01b0"}
                 </Button>
                 <ArrowRight className="h-4 w-4 text-muted-foreground" />
                 <Button
@@ -427,7 +426,7 @@ function ProductionActionBar({ production }: { production: Production }) {
                     onClick={() => fifoMutation.mutate()}
                 >
                     <Route className="mr-2 h-4 w-4" />
-                    Chạy FIFO
+                    {"Ch\u1ea1y FIFO"}
                 </Button>
                 <ArrowRight className="h-4 w-4 text-muted-foreground" />
                 <Button
@@ -439,10 +438,10 @@ function ProductionActionBar({ production }: { production: Production }) {
                     )}
                     disabled={isBusy || !canIssueMaterials || shortageCount > 0}
                     onClick={() => issueMutation.mutate()}
-                    title="Tạo phiếu xuất kho NL/BB theo phân bổ FIFO"
+                    title="T\u1ea1o phi\u1ebfu xu\u1ea5t kho NL/BB theo ph\u00e2n b\u1ed5 FIFO"
                 >
                     <PackageCheck className="mr-2 h-4 w-4" />
-                    Xuất nguyên liệu
+                    {"Xu\u1ea5t nguy\u00ean li\u1ec7u"}
                 </Button>
                 <ArrowRight className="h-4 w-4 text-muted-foreground" />
                 <ReceiveOutputDialog
@@ -458,10 +457,10 @@ function ProductionActionBar({ production }: { production: Production }) {
                     className="h-9"
                     disabled={isBusy || !canUnpost}
                     onClick={handleUnpost}
-                    title="Đảo lệnh đã ghi sổ để sửa và POST lại"
+                    title="L\u00f9i v\u1ec1 b\u01b0\u1edbc tr\u01b0\u1edbc trong lu\u1ed3ng x\u1eed l\u00fd"
                 >
                     <Undo2 className="mr-2 h-4 w-4" />
-                    Đảo lệnh
+                    {"L\u00f9i b\u01b0\u1edbc"}
                 </Button>
                 <Button
                     variant="outline"
@@ -471,13 +470,13 @@ function ProductionActionBar({ production }: { production: Production }) {
                     onClick={() => cancelMutation.mutate()}
                 >
                     <AlertTriangle className="mr-2 h-4 w-4" />
-                    Hủy lệnh
+                    {"H\u1ee7y l\u1ec7nh"}
                 </Button>
             </div>
 
             {shortageCount > 0 ? (
                 <div className="mt-2 text-right text-sm text-destructive">
-                    Còn {shortageCount} dòng vật tư chưa được FIFO đủ. Vào tab Vật tư để xem dòng thiếu, bổ sung tồn kho hoặc giảm số lượng sản xuất rồi chạy FIFO lại trước khi nhập TP.
+                    {"C\u00f2n"} {shortageCount} {"d\u00f2ng v\u1eadt t\u01b0 ch\u01b0a \u0111\u01b0\u1ee3c FIFO \u0111\u1ee7. V\u00e0o tab Th\u00e0nh ph\u1ea9m & v\u1eadt t\u01b0 \u0111\u1ec3 xem d\u00f2ng thi\u1ebfu, b\u1ed5 sung t\u1ed3n kho ho\u1eb7c gi\u1ea3m s\u1ed1 l\u01b0\u1ee3ng s\u1ea3n xu\u1ea5t r\u1ed3i ch\u1ea1y FIFO l\u1ea1i tr\u01b0\u1edbc khi nh\u1eadp TP."}
                 </div>
             ) : null}
         </div>
@@ -523,11 +522,11 @@ function ReceiveOutputDialog({
                 })),
             }),
         onSuccess: () => {
-            toast.success("Đã nhập thành phẩm")
+            toast.success("\u0110\u00e3 nh\u1eadp th\u00e0nh ph\u1ea9m")
             setOpen(false)
             onDone()
         },
-        onError: (e: any) => toast.error(e.message || "Không thể nhập thành phẩm"),
+        onError: (e: any) => toast.error(e.message || "Kh\u00f4ng th\u1ec3 nh\u1eadp th\u00e0nh ph\u1ea9m"),
     })
 
     const handleOpenChange = (nextOpen: boolean) => {
@@ -547,15 +546,15 @@ function ReceiveOutputDialog({
 
     const submit = () => {
         if (!rows.length) {
-            return toast.error("Không có dòng thành phẩm để nhập kho")
+            return toast.error("Kh\u00f4ng c\u00f3 d\u00f2ng th\u00e0nh ph\u1ea9m \u0111\u1ec3 nh\u1eadp kho")
         }
 
         for (const [index, row] of rows.entries()) {
             if (!row.lot_no?.trim()) {
-                return toast.error(`Dòng thành phẩm #${index + 1} chưa nhập số lô TP`)
+                return toast.error(`D\u00f2ng th\u00e0nh ph\u1ea9m #${index + 1} ch\u01b0a nh\u1eadp s\u1ed1 l\u00f4 TP`)
             }
             if (false && !row.expiry_date) {
-                return toast.error(`Dòng thành phẩm #${index + 1} chưa nhập HSD TP`)
+                return toast.error(`D\u00f2ng th\u00e0nh ph\u1ea9m #${index + 1} ch\u01b0a nh\u1eadp HSD TP`)
             }
         }
 
@@ -567,14 +566,14 @@ function ReceiveOutputDialog({
             <DialogTrigger asChild>
                 <Button variant="outline" className={triggerClassName} disabled={disabled}>
                     <PackageCheck className="mr-2 h-4 w-4" />
-                    Nhập TP
+                    {"Nh\u1eadp TP"}
                 </Button>
             </DialogTrigger>
             <DialogContent className="flex max-h-[88vh] !max-w-4xl flex-col gap-0 overflow-hidden p-0">
                 <DialogHeader className="border-b px-6 py-5">
-                    <DialogTitle>Nhập thành phẩm</DialogTitle>
+                    <DialogTitle>{"Nh\u1eadp th\u00e0nh ph\u1ea9m"}</DialogTitle>
                     <DialogDescription>
-                        Kiểm tra số lượng nhập kho và nhập số lô, hạn sử dụng thực tế của thành phẩm.
+                        {"Ki\u1ec3m tra s\u1ed1 l\u01b0\u1ee3ng nh\u1eadp kho v\u00e0 nh\u1eadp s\u1ed1 l\u00f4, h\u1ea1n s\u1eed d\u1ee5ng th\u1ef1c t\u1ebf c\u1ee7a th\u00e0nh ph\u1ea9m."}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -584,20 +583,20 @@ function ReceiveOutputDialog({
                             <div key={`${row.production_item_id}-${row.output_id ?? index}`} className="rounded-md border">
                                 <div className="grid gap-3 p-3 lg:grid-cols-[minmax(260px,1fr)_160px_180px_180px]">
                                     <div className="min-w-0">
-                                        <Label className="text-sm">Thành phẩm #{index + 1}</Label>
+                                        <Label className="text-sm">{"Th\u00e0nh ph\u1ea9m"} #{index + 1}</Label>
                                         <div className="mt-2 truncate font-medium">
                                             {row.product_label}
                                         </div>
                                         <div className="mt-1 text-sm text-muted-foreground">
-                                            Kho nhập: {row.warehouse_label}
+                                            {"Kho nh\u1eadp:"} {row.warehouse_label}
                                         </div>
                                     </div>
 
-                                    <Field label="SL nhập">
+                                    <Field label="SL nh\u1eadp">
                                         <Input value={row.quantity_label} disabled />
                                     </Field>
 
-                                    <Field label="Số lô TP" required>
+                                    <Field label="S\u1ed1 l\u00f4 TP" required>
                                         <Input
                                             value={row.lot_no}
                                             onChange={(event) =>
@@ -613,19 +612,19 @@ function ReceiveOutputDialog({
                                             onChange={(value) =>
                                                 updateRow(index, { expiry_date: value || "" })
                                             }
-                                            placeholder="Chọn HSD"
+                                            placeholder="Ch\u1ecdn HSD"
                                         />
                                     </Field>
                                 </div>
 
                                 <div className="border-t bg-muted/20 p-3">
-                                    <Field label="Ghi chú">
+                                    <Field label="Ghi ch\u00fa">
                                         <Input
                                             value={row.note ?? ""}
                                             onChange={(event) =>
                                                 updateRow(index, { note: event.target.value })
                                             }
-                                            placeholder="Ghi chú riêng cho dòng nhập TP"
+                                            placeholder="Ghi ch\u00fa ri\u00eang cho d\u00f2ng nh\u1eadp TP"
                                         />
                                     </Field>
                                 </div>
@@ -637,12 +636,12 @@ function ReceiveOutputDialog({
                 <DialogFooter className="border-t px-6 py-4">
                     <DialogClose asChild>
                         <Button type="button" variant="outline">
-                            Hủy
+                            {"H\u1ee7y"}
                         </Button>
                     </DialogClose>
                     <Button onClick={submit} disabled={confirmMutation.isPending}>
                         <PackageCheck className="mr-2 h-4 w-4" />
-                        {confirmMutation.isPending ? "Đang nhập..." : "Xác nhận nhập TP"}
+                        {confirmMutation.isPending ? "\u0110ang nh\u1eadp..." : "X\u00e1c nh\u1eadn nh\u1eadp TP"}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -1281,7 +1280,7 @@ function OutputsTab({ production }: { production: Production }) {
     return (
         <SimpleTable
             empty="Chưa nhập thành phẩm"
-            headers={["Thành phẩm", "Kho", "SL kế hoạch", "SL nhập", "Số lô", "HSD", "Giá thành/ĐV", "Trạng thái"]}
+            headers={["Thành phẩm", "Kho nhập", "SL kế hoạch", "SL đã nhập", "Số lô TP", "HSD", "Giá thành/ĐV", "Thành tiền", "Trạng thái"]}
             rows={rows.map(({ item, output }) => [
                 <ProductCell key="product" product={item.product} />,
                 output?.warehouse?.name || item.warehouse?.name || "-",
@@ -1307,6 +1306,9 @@ type OutputVoucherRow = {
     output?: NonNullable<ProductionItem["outputs"]>[number]
 }
 
+const PRODUCTION_ISSUE_TK_NO = "621"
+const PRODUCTION_OUTPUT_TK_CO = "154"
+
 function ProductionVoucherTab({ production }: { production: Production }) {
     const issueRows = getIssueVoucherRows(production)
     const outputRows = getOutputVoucherRows(production)
@@ -1322,6 +1324,8 @@ function ProductionVoucherTab({ production }: { production: Production }) {
         "Đối tượng THCP": productName(row.item.product),
         "Vật tư xuất": productName(row.material.product || row.allocation.material_product),
         "Kho xuất": row.allocation.warehouse?.name || row.material.warehouse?.name || "-",
+        ["TK N\u1ee3"]: PRODUCTION_ISSUE_TK_NO,
+        ["TK C\u00f3"]: inventoryAccount(row.material.product || row.allocation.material_product),
         "Lô xuất": row.allocation.lot_no || "-",
         "Ngày lô": formatDate(row.allocation.inbound_date),
         "HSD": formatDate(row.allocation.expiry_date),
@@ -1332,6 +1336,8 @@ function ProductionVoucherTab({ production }: { production: Production }) {
     const outputCsvRows = outputRows.map(({ item, output }) => ({
         "Thành phẩm": productName(item.product),
         "Kho nhập": output?.warehouse?.name || item.warehouse?.name || "-",
+        ["TK N\u1ee3"]: inventoryAccount(item.product),
+        ["TK C\u00f3"]: PRODUCTION_OUTPUT_TK_CO,
         "Số lô TP": output?.lot_no || item.output_lot_no || "-",
         "HSD": formatDate(output?.expiry_date || item.output_expiry_date),
         "SL nhập": formatQty(output?.quantity ?? item.quantity_done, item.product?.unit),
@@ -1368,11 +1374,13 @@ function ProductionVoucherTab({ production }: { production: Production }) {
             >
                 <SimpleTable
                     empty="Chưa có dòng xuất kho sản xuất"
-                    headers={["Đối tượng THCP", "Vật tư xuất", "Kho xuất", "Lô xuất", "Ngày lô", "HSD", "Cảnh báo", "SL xuất", "Đơn giá", "Thành tiền"]}
+                    headers={["\u0110\u1ed1i t\u01b0\u1ee3ng THCP", "V\u1eadt t\u01b0 xu\u1ea5t", "Kho xu\u1ea5t", "TK N\u1ee3", "TK C\u00f3", "L\u00f4 xu\u1ea5t", "Ng\u00e0y l\u00f4", "HSD", "C\u1ea3nh b\u00e1o", "SL xu\u1ea5t", "\u0110\u01a1n gi\u00e1", "Th\u00e0nh ti\u1ec1n"]}
                     rows={issueRows.map((row) => [
                         <ProductCell key="finished-product" product={row.item.product} />,
                         <ProductCell key="material" product={row.material.product || row.allocation.material_product} />,
                         row.allocation.warehouse?.name || row.material.warehouse?.name || "-",
+                        PRODUCTION_ISSUE_TK_NO,
+                        inventoryAccount(row.material.product || row.allocation.material_product),
                         row.allocation.lot_no || "-",
                         formatDate(row.allocation.inbound_date),
                         formatDate(row.allocation.expiry_date),
@@ -1410,10 +1418,12 @@ function ProductionVoucherTab({ production }: { production: Production }) {
             >
                 <SimpleTable
                     empty="Chưa có dòng nhập kho thành phẩm"
-                    headers={["Thành phẩm", "Kho nhập", "Số lô TP", "HSD", "SL nhập", "Giá thành/ĐV", "Thành tiền", "Trạng thái"]}
+                    headers={["Th\u00e0nh ph\u1ea9m", "Kho nh\u1eadp", "TK N\u1ee3", "TK C\u00f3", "S\u1ed1 l\u00f4 TP", "HSD", "SL nh\u1eadp", "Gi\u00e1 th\u00e0nh/\u0110V", "Th\u00e0nh ti\u1ec1n", "Tr\u1ea1ng th\u00e1i"]}
                     rows={outputRows.map(({ item, output }) => [
                         <ProductCell key="product" product={item.product} />,
                         output?.warehouse?.name || item.warehouse?.name || "-",
+                        inventoryAccount(item.product),
+                        PRODUCTION_OUTPUT_TK_CO,
                         output?.lot_no || item.output_lot_no || "-",
                         formatDate(output?.expiry_date || item.output_expiry_date),
                         formatQty(output?.quantity ?? item.quantity_done, item.product?.unit),
@@ -1887,6 +1897,11 @@ function productName(product?: any) {
     return [product.code, product.name].filter(Boolean).join(" - ")
 }
 
+
+function inventoryAccount(product?: any) {
+    return product?.inventory_account_code || "-"
+}
+
 function downloadCsv(fileName: string, rows: Record<string, unknown>[]) {
     if (!rows.length) {
         toast.info("Chưa có dữ liệu để xuất")
@@ -2238,6 +2253,10 @@ function canReceiveOutput(production?: Pick<Production, "status">) {
 
 function canCancelProduction(production?: Pick<Production, "status">) {
     return ["DRAFT", "PLANNED", "MATERIAL_GENERATED", "FIFO_ALLOCATED"].includes(productionStatus(production))
+}
+
+function canReverseProductionStep(production?: Pick<Production, "status">) {
+    return ["FIFO_ALLOCATED", "MATERIAL_ISSUED"].includes(productionStatus(production))
 }
 
 function getProductionStepMessage(production?: Pick<Production, "status">) {

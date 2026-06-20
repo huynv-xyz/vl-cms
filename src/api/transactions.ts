@@ -11,6 +11,7 @@ export type TransactionListParams = {
     product_id?: string
     product_code?: string
     product_name?: string
+    product_group_name?: string
     customer_type?: string
     vthh_con?: string
     npp?: string
@@ -24,7 +25,7 @@ export type TransactionListParams = {
 export type TransactionOptionParams = Omit<TransactionListParams, "page" | "size"> & {
     page?: number
     size?: number
-    field: "customer_code" | "customer_name" | "product_code" | "product_name"
+    field: "customer_code" | "customer_name" | "product_code" | "product_name" | "product_group_name" | "region"
 }
 
 export type TransactionColumnOption = {
@@ -41,6 +42,9 @@ export type ImportTransactionsResponse = {
 
 export type TransactionSummary = {
     revenue: number
+    sale_qty: number
+    return_qty: number
+    actual_qty: number
 }
 
 const transactionApi = createCrudApi<

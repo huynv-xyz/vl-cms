@@ -1,9 +1,14 @@
 import { useRef, useState, type ChangeEvent, type RefObject } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Upload } from "lucide-react"
+import { Copy, Upload } from "lucide-react"
 import { toast } from "sonner"
 
-import { importOpeningStock, importPurchaseStock, importVthhDetail } from "@/api/inventory/lot"
+import {
+    importOpeningStock,
+    importPurchaseStock,
+    importVthhDetail,
+    type OpeningStockImportResult,
+} from "@/api/inventory/lot"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -35,11 +40,13 @@ const PURCHASE_STOCK_REQUIRED_COLUMNS = [
     "Hạn sử dụng",
     "ĐVT",
     "Số lượng mua",
+    "Số lượng trả lại",
     "Mã kho",
-    "Tên kho",
     "Đơn giá",
     "Phí hàng về kho",
     "Đơn giá bao gồm PLH",
+    "TK Nợ",
+    "TK Có",
 ]
 
 const VTHH_DETAIL_REQUIRED_COLUMNS = [
@@ -54,6 +61,8 @@ const VTHH_DETAIL_REQUIRED_COLUMNS = [
     "Hạn sử dụng",
     "Nhập",
     "Xuất",
+    "TK Nợ",
+    "TK Có",
     "Loại chứng từ",
 ]
 
@@ -65,17 +74,24 @@ type ImportGuide = {
     inputRef: RefObject<HTMLInputElement | null>
 }
 
+type ImportResultDialog = {
+    title: string
+    result: OpeningStockImportResult
+}
+
 export function LedgerImportButtons() {
     const queryClient = useQueryClient()
     const openingFileRef = useRef<HTMLInputElement>(null)
     const purchaseFileRef = useRef<HTMLInputElement>(null)
     const vthhDetailFileRef = useRef<HTMLInputElement>(null)
     const [guide, setGuide] = useState<ImportGuide | null>(null)
+    const [importResultDialog, setImportResultDialog] = useState<ImportResultDialog | null>(null)
 
     const importOpeningMutation = useMutation({
         mutationFn: importOpeningStock,
         onSuccess: async (res) => {
             await invalidateInventoryQueries(queryClient)
+            setImportResultDialog(res.failed > 0 ? { title: "Lỗi import tồn đầu kỳ", result: res } : null)
 
             if (res.failed > 0) {
                 toast.warning(`Import tồn đầu kỳ xong ${res.success} dòng, lỗi ${res.failed} dòng`)
@@ -94,10 +110,12 @@ export function LedgerImportButtons() {
 
             const skippedText = res.skipped ? `, bỏ qua ${res.skipped} dòng` : ""
             if (res.failed > 0) {
+                setImportResultDialog({ title: "Lỗi import mua hàng", result: res })
                 toast.warning(`Import mua hàng xong ${res.success} dòng${skippedText}, lỗi ${res.failed} dòng`)
                 return
             }
 
+            setImportResultDialog(null)
             toast.success(`Đã import ${res.success} dòng mua hàng${skippedText}`)
         },
         onError: (error: any) => toast.error(error?.message || "Không thể import mua hàng"),
@@ -109,10 +127,12 @@ export function LedgerImportButtons() {
             await invalidateInventoryQueries(queryClient)
 
             if (res.failed > 0) {
+                setImportResultDialog({ title: "Lỗi import chi tiết VTHH", result: res })
                 toast.warning(`Import chi tiết VTHH xong ${res.success} dòng, lỗi ${res.failed} dòng`)
                 return
             }
 
+            setImportResultDialog(null)
             toast.success(`Đã import ${res.success} dòng chi tiết VTHH`)
         },
         onError: (error: any) => toast.error(error?.message || "Không thể import chi tiết VTHH"),
@@ -123,6 +143,7 @@ export function LedgerImportButtons() {
         event.target.value = ""
 
         if (!file) return
+        setImportResultDialog(null)
         importOpeningMutation.mutate(file)
     }
 
@@ -131,6 +152,7 @@ export function LedgerImportButtons() {
         event.target.value = ""
 
         if (!file) return
+        setImportResultDialog(null)
         importPurchaseMutation.mutate(file)
     }
 
@@ -139,6 +161,7 @@ export function LedgerImportButtons() {
         event.target.value = ""
 
         if (!file) return
+        setImportResultDialog(null)
         importVthhDetailMutation.mutate(file)
     }
 
@@ -148,7 +171,7 @@ export function LedgerImportButtons() {
             description: "File import tồn đầu kỳ cần có đủ các cột sau.",
             columns: OPENING_STOCK_REQUIRED_COLUMNS,
             notes: [
-                "Hạn sử dụng có thể nhập nhiều định dạng ngày thông dụng, ví dụ 2026-06-30 hoặc 30/06/2026.",
+                "Hạn sử dụng bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy, ví dụ 24/10/2028 hoặc 24-10-2028.",
             ],
             inputRef: openingFileRef,
         })
@@ -160,7 +183,7 @@ export function LedgerImportButtons() {
             description: "File import mua hàng cần có đủ các cột sau.",
             columns: PURCHASE_STOCK_REQUIRED_COLUMNS,
             notes: [
-                "Hạn sử dụng và Ngày hạch toán có thể nhập nhiều định dạng ngày thông dụng, ví dụ 2026-06-30 hoặc 30/06/2026.",
+                "Hạn sử dụng và Ngày hạch toán bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy, ví dụ 24/10/2028 hoặc 24-10-2028.",
                 "Dòng có Mã hàng bắt đầu bằng PHI hoặc Mã hàng chưa có trong danh mục sản phẩm sẽ được bỏ qua.",
                 "Phí hàng về kho chưa được tính vào giá ở bước import này.",
             ],
@@ -175,7 +198,7 @@ export function LedgerImportButtons() {
             columns: VTHH_DETAIL_REQUIRED_COLUMNS,
             notes: [
                 "Loại chứng từ nhập đúng tên tiếng Việt, ví dụ: Nhập kho khác, Xuất kho khác, Xuất kho sản xuất.",
-                "Ngày chứng từ và Hạn sử dụng có thể nhập nhiều định dạng ngày thông dụng, ví dụ 2026-06-30 hoặc 30/06/2026.",
+                "Ngày chứng từ và Hạn sử dụng bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy, ví dụ 24/10/2028 hoặc 24-10-2028.",
             ],
             inputRef: vthhDetailFileRef,
         })
@@ -185,6 +208,16 @@ export function LedgerImportButtons() {
         const inputRef = guide?.inputRef
         setGuide(null)
         window.setTimeout(() => inputRef?.current?.click(), 0)
+    }
+
+    const copyImportErrors = async () => {
+        if (!importResultDialog?.result.errors?.length) return
+        const text = importResultDialog.result.errors
+            .map((error) => `Dòng ${error.row}: ${error.message}`)
+            .join("\n")
+
+        await navigator.clipboard.writeText(text)
+        toast.success("Đã copy danh sách lỗi")
     }
 
     return (
@@ -269,6 +302,47 @@ export function LedgerImportButtons() {
                         <Button onClick={chooseFileFromGuide}>
                             <Upload className="mr-2 h-4 w-4" />
                             Chọn file import
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!importResultDialog} onOpenChange={(open) => !open && setImportResultDialog(null)}>
+                <DialogContent className="max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>{importResultDialog?.title}</DialogTitle>
+                        <DialogDescription>
+                            Đã import {importResultDialog?.result.success ?? 0} dòng, lỗi {importResultDialog?.result.failed ?? 0} dòng.
+                            Kiểm tra lại các dòng dưới đây trong file rồi import lại.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="max-h-[520px] overflow-auto rounded-md border">
+                        <table className="w-full border-collapse text-sm">
+                            <thead className="sticky top-0 bg-muted text-muted-foreground">
+                                <tr>
+                                    <th className="w-24 border-b px-3 py-2 text-left font-medium">Dòng</th>
+                                    <th className="border-b px-3 py-2 text-left font-medium">Lý do lỗi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {(importResultDialog?.result.errors || []).map((error, index) => (
+                                    <tr key={`${error.row}-${index}`} className="border-b last:border-b-0">
+                                        <td className="px-3 py-2 align-top font-medium">{error.row}</td>
+                                        <td className="px-3 py-2 align-top text-muted-foreground">{error.message}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setImportResultDialog(null)}>
+                            Đóng
+                        </Button>
+                        <Button variant="outline" onClick={copyImportErrors}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy lỗi
                         </Button>
                     </DialogFooter>
                 </DialogContent>

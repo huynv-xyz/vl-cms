@@ -190,18 +190,22 @@ export function InventoryLedgerTable({
 
             <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1280px] text-sm">
+                    <table className="w-full min-w-[1560px] text-sm">
                         <thead className="bg-muted/50 text-muted-foreground border-b text-xs">
                             <tr>
                                 <Th className="w-14 text-center">STT</Th>
                                 <Th className="w-28">Ngày</Th>
                                 <Th className="w-44">Chứng từ</Th>
+                                <Th className="w-20">TK Nợ</Th>
+                                <Th className="w-20">TK Có</Th>
                                 <Th className="min-w-[300px]">Sản phẩm</Th>
                                 <Th className="w-20">ĐVT</Th>
                                 <Th className="w-32">Số lô</Th>
                                 <Th className="w-52">Kho</Th>
                                 <Th className="w-28 text-right">Nhập</Th>
                                 <Th className="w-28 text-right">Xuất</Th>
+                                <Th className="w-28 text-right">{"\u0110\u01a1n gi\u00e1"}</Th>
+                                <Th className="w-32 text-right">{"Th\u00e0nh ti\u1ec1n"}</Th>
                                 <Th className="w-32 text-right">Tồn sau</Th>
                                 <Th className="w-56">Loại</Th>
                             </tr>
@@ -260,6 +264,12 @@ function LedgerRow({
             <Td>
                 <div className="text-primary font-mono font-semibold">{item.doc_no || `#${item.id}`}</div>
             </Td>
+            <Td className="text-muted-foreground font-mono text-xs">
+                {item.tk_no || "-"}
+            </Td>
+            <Td className="text-muted-foreground font-mono text-xs">
+                {item.tk_co || "-"}
+            </Td>
             <Td>
                 <div className="min-w-0">
                     <div className="font-semibold">{item.product_name || "-"}</div>
@@ -280,6 +290,12 @@ function LedgerRow({
             </Td>
             <Td className="text-right">
                 <Quantity value={quantityOut} tone="out" />
+            </Td>
+            <Td className="text-right tabular-nums">
+                {formatNumber(Number(item.unit_price || 0))}
+            </Td>
+            <Td className="text-right tabular-nums">
+                {formatNumber(Number(item.amount || 0))}
             </Td>
             <Td className="text-right font-bold tabular-nums">
                 {formatNumber(Number(item.balance_quantity || 0))}

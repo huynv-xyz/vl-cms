@@ -29,11 +29,9 @@ export type TransactionColumnFilters = {
     customer_name?: string[]
     product_code?: string[]
     product_name?: string[]
+    product_group_name?: string[]
     customer_type?: string[]
     hdn_status?: string[]
-    vthh_con?: string
-    npp?: string
-    process_month?: string
     region?: string
     document_date_from?: string
     document_date_to?: string
@@ -71,6 +69,7 @@ function numberColumn(
     accessorKey: TextColumnKey,
     title: string,
     width = 120,
+    footer?: React.ReactNode,
 ): ColumnDef<Transaction> {
     return {
         accessorKey: accessorKey as string,
@@ -92,6 +91,38 @@ function numberColumn(
         meta: {
             thClassName: `w-[${width}px] whitespace-nowrap text-right`,
             tdClassName: `w-[${width}px] whitespace-nowrap`,
+            footer: footer ? () => footer : undefined,
+        },
+    }
+}
+
+function actualQuantityColumn(totalActualQty = 0): ColumnDef<Transaction> {
+    return {
+        id: "actual_qty",
+        accessorFn: (row) => Number(row.sale_qty || 0) - Number(row.return_qty || 0),
+        enableSorting: false,
+        header: ({ column }) => (
+            <div className="text-right">
+                <DataTableColumnHeader column={column} title="SL bán thực tế theo ĐVC" />
+            </div>
+        ),
+        cell: ({ row }) => {
+            const value = Number(row.getValue("actual_qty") ?? 0)
+            return (
+                <span className="block text-right tabular-nums whitespace-nowrap">
+                    {formatNumber(value)}
+                </span>
+            )
+        },
+        size: 180,
+        meta: {
+            thClassName: "w-[180px] whitespace-nowrap text-right",
+            tdClassName: "w-[180px] whitespace-nowrap",
+            footer: () => (
+                <span className="block text-right tabular-nums whitespace-nowrap">
+                    {formatNumber(totalActualQty)}
+                </span>
+            ),
         },
     }
 }
@@ -152,7 +183,12 @@ function dateColumn(
 export function buildTransactionColumns(
     filters: TransactionColumnFilters,
     onFiltersChange: (filters: TransactionColumnFilters) => void,
-    totalRevenue = 0,
+    totals: { revenue: number; saleQty: number; returnQty: number; actualQty: number } = {
+        revenue: 0,
+        saleQty: 0,
+        returnQty: 0,
+        actualQty: 0,
+    },
 ): ColumnDef<Transaction>[] {
     const setColumnFilter = (key: FilterableColumnKey, value?: string[]) => {
         onFiltersChange({
@@ -188,17 +224,32 @@ export function buildTransactionColumns(
         textColumn("product_code", "Mã hàng", 180, () => filterHeader("product_code", "Mã hàng")),
         textColumn("product_name", "Tên hàng trên chứng từ", 300, () => filterHeader("product_name", "Tên hàng trên chứng từ")),
         textColumn("unit", "Đơn vị chính (ĐVC)", 140),
-        numberColumn("sale_qty", "Tổng SL bán theo ĐVC", 160),
+        numberColumn(
+            "sale_qty",
+            "Tổng SL bán theo ĐVC",
+            160,
+            <span className="block text-right tabular-nums whitespace-nowrap">
+                {formatNumber(totals.saleQty)}
+            </span>,
+        ),
         moneyColumn("unit_price", "Đơn giá theo ĐVC", 150),
         moneyColumn(
             "revenue",
             "Doanh số bán",
             160,
             <span className="block text-right tabular-nums whitespace-nowrap">
-                {formatCurrency(totalRevenue)}
+                {formatCurrency(totals.revenue)}
             </span>,
         ),
-        numberColumn("return_qty", "SL trả lại theo ĐVC", 160),
+        numberColumn(
+            "return_qty",
+            "SL trả lại theo ĐVC",
+            160,
+            <span className="block text-right tabular-nums whitespace-nowrap">
+                {formatNumber(totals.returnQty)}
+            </span>,
+        ),
+        actualQuantityColumn(totals.actualQty),
         textColumn("sale_user_code", "Mã nhân viên bán hàng", 180),
         textColumn("sale_user_name", "Tên nhân viên bán hàng", 220),
         textColumn("warehouse_code", "Mã kho", 120),
@@ -419,11 +470,9 @@ function buildOptionParams(filters: TransactionColumnFilters, currentField: Filt
         customer_name: currentField === "customer_name" ? undefined : encodeMulti(filters.customer_name),
         product_code: currentField === "product_code" ? undefined : encodeMulti(filters.product_code),
         product_name: currentField === "product_name" ? undefined : encodeMulti(filters.product_name),
+        product_group_name: encodeMulti(filters.product_group_name),
         customer_type: encodeMulti(filters.customer_type),
         hdn_status: encodeMulti(filters.hdn_status),
-        vthh_con: filters.vthh_con,
-        npp: filters.npp,
-        process_month: filters.process_month,
         region: filters.region,
         document_date_from: filters.document_date_from,
         document_date_to: filters.document_date_to,

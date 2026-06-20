@@ -14,10 +14,8 @@ type Props = {
         | "customer_name"
         | "product_code"
         | "product_name"
+        | "product_group_name"
         | "customer_type"
-        | "vthh_con"
-        | "npp"
-        | "process_month"
         | "hdn_status"
         | "region"
         | "document_date_from"
@@ -45,6 +43,7 @@ const COLUMNS: ExportColumn[] = [
     { label: "Đơn giá theo ĐVC", value: (row) => row.unit_price, width: 18, type: "number" },
     { label: "Doanh số bán", value: (row) => row.revenue, width: 18, type: "number" },
     { label: "SL trả lại theo ĐVC", value: (row) => row.return_qty, width: 18, type: "number" },
+    { label: "SL bán thực tế theo ĐVC", value: (row) => Number(row.sale_qty || 0) - Number(row.return_qty || 0), width: 22, type: "number" },
     { label: "Mã nhân viên bán hàng", value: (row) => row.sale_user_code, width: 20 },
     { label: "Tên nhân viên bán hàng", value: (row) => row.sale_user_name, width: 26 },
     { label: "Mã kho", value: (row) => row.warehouse_code, width: 14 },
@@ -86,10 +85,8 @@ export function ExportTransactionButton({ keyword, filters }: Props) {
                 customer_name: filters.customer_name || undefined,
                 product_code: filters.product_code || undefined,
                 product_name: filters.product_name || undefined,
+                product_group_name: filters.product_group_name || undefined,
                 customer_type: filters.customer_type || undefined,
-                vthh_con: filters.vthh_con || undefined,
-                npp: filters.npp || undefined,
-                process_month: filters.process_month || undefined,
                 hdn_status: filters.hdn_status || undefined,
                 region: filters.region || undefined,
                 document_date_from: filters.document_date_from || undefined,
@@ -192,6 +189,9 @@ async function exportTransactionsXlsx(rows: Transaction[]) {
             }
             if (column.type === "date") {
                 cell.numFmt = "dd/mm/yyyy"
+            }
+            if (column.type === "number") {
+                cell.numFmt = "#,##0.######"
             }
         })
     }
