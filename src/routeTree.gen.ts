@@ -51,8 +51,13 @@ import { Route as AuthenticatedSalesArSummaryIndexRouteImport } from './routes/_
 import { Route as AuthenticatedSalesArOpeningsIndexRouteImport } from './routes/_authenticated/sales/ar-openings/index'
 import { Route as AuthenticatedSalesArLedgersIndexRouteImport } from './routes/_authenticated/sales/ar-ledgers/index'
 import { Route as AuthenticatedSalesArAdjustmentsIndexRouteImport } from './routes/_authenticated/sales/ar-adjustments/index'
+import { Route as AuthenticatedSalaryYearBonusIndexRouteImport } from './routes/_authenticated/salary/year-bonus/index'
 import { Route as AuthenticatedSalarySalesTargetsIndexRouteImport } from './routes/_authenticated/salary/sales-targets/index'
 import { Route as AuthenticatedSalarySalesActualsIndexRouteImport } from './routes/_authenticated/salary/sales-actuals/index'
+import { Route as AuthenticatedSalaryRegionPoolIndexRouteImport } from './routes/_authenticated/salary/region-pool/index'
+import { Route as AuthenticatedSalaryPayrollRunIndexRouteImport } from './routes/_authenticated/salary/payroll-run/index'
+import { Route as AuthenticatedSalaryPayrollResultIndexRouteImport } from './routes/_authenticated/salary/payroll-result/index'
+import { Route as AuthenticatedSalaryAdjustmentsIndexRouteImport } from './routes/_authenticated/salary/adjustments/index'
 import { Route as AuthenticatedPurchasingSuppliersIndexRouteImport } from './routes/_authenticated/purchasing/suppliers/index'
 import { Route as AuthenticatedPurchasingShipmentsIndexRouteImport } from './routes/_authenticated/purchasing/shipments/index'
 import { Route as AuthenticatedPurchasingPortsIndexRouteImport } from './routes/_authenticated/purchasing/ports/index'
@@ -318,6 +323,12 @@ const AuthenticatedSalesArAdjustmentsIndexRoute =
     path: '/sales/ar-adjustments/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSalaryYearBonusIndexRoute =
+  AuthenticatedSalaryYearBonusIndexRouteImport.update({
+    id: '/salary/year-bonus/',
+    path: '/salary/year-bonus/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSalarySalesTargetsIndexRoute =
   AuthenticatedSalarySalesTargetsIndexRouteImport.update({
     id: '/salary/sales-targets/',
@@ -328,6 +339,30 @@ const AuthenticatedSalarySalesActualsIndexRoute =
   AuthenticatedSalarySalesActualsIndexRouteImport.update({
     id: '/salary/sales-actuals/',
     path: '/salary/sales-actuals/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalaryRegionPoolIndexRoute =
+  AuthenticatedSalaryRegionPoolIndexRouteImport.update({
+    id: '/salary/region-pool/',
+    path: '/salary/region-pool/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalaryPayrollRunIndexRoute =
+  AuthenticatedSalaryPayrollRunIndexRouteImport.update({
+    id: '/salary/payroll-run/',
+    path: '/salary/payroll-run/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalaryPayrollResultIndexRoute =
+  AuthenticatedSalaryPayrollResultIndexRouteImport.update({
+    id: '/salary/payroll-result/',
+    path: '/salary/payroll-result/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalaryAdjustmentsIndexRoute =
+  AuthenticatedSalaryAdjustmentsIndexRouteImport.update({
+    id: '/salary/adjustments/',
+    path: '/salary/adjustments/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedPurchasingSuppliersIndexRoute =
@@ -503,8 +538,13 @@ export interface FileRoutesByFullPath {
   '/purchasing/ports/': typeof AuthenticatedPurchasingPortsIndexRoute
   '/purchasing/shipments/': typeof AuthenticatedPurchasingShipmentsIndexRoute
   '/purchasing/suppliers/': typeof AuthenticatedPurchasingSuppliersIndexRoute
+  '/salary/adjustments/': typeof AuthenticatedSalaryAdjustmentsIndexRoute
+  '/salary/payroll-result/': typeof AuthenticatedSalaryPayrollResultIndexRoute
+  '/salary/payroll-run/': typeof AuthenticatedSalaryPayrollRunIndexRoute
+  '/salary/region-pool/': typeof AuthenticatedSalaryRegionPoolIndexRoute
   '/salary/sales-actuals/': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/salary/sales-targets/': typeof AuthenticatedSalarySalesTargetsIndexRoute
+  '/salary/year-bonus/': typeof AuthenticatedSalaryYearBonusIndexRoute
   '/sales/ar-adjustments/': typeof AuthenticatedSalesArAdjustmentsIndexRoute
   '/sales/ar-ledgers/': typeof AuthenticatedSalesArLedgersIndexRoute
   '/sales/ar-openings/': typeof AuthenticatedSalesArOpeningsIndexRoute
@@ -570,8 +610,13 @@ export interface FileRoutesByTo {
   '/purchasing/ports': typeof AuthenticatedPurchasingPortsIndexRoute
   '/purchasing/shipments': typeof AuthenticatedPurchasingShipmentsIndexRoute
   '/purchasing/suppliers': typeof AuthenticatedPurchasingSuppliersIndexRoute
+  '/salary/adjustments': typeof AuthenticatedSalaryAdjustmentsIndexRoute
+  '/salary/payroll-result': typeof AuthenticatedSalaryPayrollResultIndexRoute
+  '/salary/payroll-run': typeof AuthenticatedSalaryPayrollRunIndexRoute
+  '/salary/region-pool': typeof AuthenticatedSalaryRegionPoolIndexRoute
   '/salary/sales-actuals': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/salary/sales-targets': typeof AuthenticatedSalarySalesTargetsIndexRoute
+  '/salary/year-bonus': typeof AuthenticatedSalaryYearBonusIndexRoute
   '/sales/ar-adjustments': typeof AuthenticatedSalesArAdjustmentsIndexRoute
   '/sales/ar-ledgers': typeof AuthenticatedSalesArLedgersIndexRoute
   '/sales/ar-openings': typeof AuthenticatedSalesArOpeningsIndexRoute
@@ -639,8 +684,13 @@ export interface FileRoutesById {
   '/_authenticated/purchasing/ports/': typeof AuthenticatedPurchasingPortsIndexRoute
   '/_authenticated/purchasing/shipments/': typeof AuthenticatedPurchasingShipmentsIndexRoute
   '/_authenticated/purchasing/suppliers/': typeof AuthenticatedPurchasingSuppliersIndexRoute
+  '/_authenticated/salary/adjustments/': typeof AuthenticatedSalaryAdjustmentsIndexRoute
+  '/_authenticated/salary/payroll-result/': typeof AuthenticatedSalaryPayrollResultIndexRoute
+  '/_authenticated/salary/payroll-run/': typeof AuthenticatedSalaryPayrollRunIndexRoute
+  '/_authenticated/salary/region-pool/': typeof AuthenticatedSalaryRegionPoolIndexRoute
   '/_authenticated/salary/sales-actuals/': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/_authenticated/salary/sales-targets/': typeof AuthenticatedSalarySalesTargetsIndexRoute
+  '/_authenticated/salary/year-bonus/': typeof AuthenticatedSalaryYearBonusIndexRoute
   '/_authenticated/sales/ar-adjustments/': typeof AuthenticatedSalesArAdjustmentsIndexRoute
   '/_authenticated/sales/ar-ledgers/': typeof AuthenticatedSalesArLedgersIndexRoute
   '/_authenticated/sales/ar-openings/': typeof AuthenticatedSalesArOpeningsIndexRoute
@@ -708,8 +758,13 @@ export interface FileRouteTypes {
     | '/purchasing/ports/'
     | '/purchasing/shipments/'
     | '/purchasing/suppliers/'
+    | '/salary/adjustments/'
+    | '/salary/payroll-result/'
+    | '/salary/payroll-run/'
+    | '/salary/region-pool/'
     | '/salary/sales-actuals/'
     | '/salary/sales-targets/'
+    | '/salary/year-bonus/'
     | '/sales/ar-adjustments/'
     | '/sales/ar-ledgers/'
     | '/sales/ar-openings/'
@@ -775,8 +830,13 @@ export interface FileRouteTypes {
     | '/purchasing/ports'
     | '/purchasing/shipments'
     | '/purchasing/suppliers'
+    | '/salary/adjustments'
+    | '/salary/payroll-result'
+    | '/salary/payroll-run'
+    | '/salary/region-pool'
     | '/salary/sales-actuals'
     | '/salary/sales-targets'
+    | '/salary/year-bonus'
     | '/sales/ar-adjustments'
     | '/sales/ar-ledgers'
     | '/sales/ar-openings'
@@ -843,8 +903,13 @@ export interface FileRouteTypes {
     | '/_authenticated/purchasing/ports/'
     | '/_authenticated/purchasing/shipments/'
     | '/_authenticated/purchasing/suppliers/'
+    | '/_authenticated/salary/adjustments/'
+    | '/_authenticated/salary/payroll-result/'
+    | '/_authenticated/salary/payroll-run/'
+    | '/_authenticated/salary/region-pool/'
     | '/_authenticated/salary/sales-actuals/'
     | '/_authenticated/salary/sales-targets/'
+    | '/_authenticated/salary/year-bonus/'
     | '/_authenticated/sales/ar-adjustments/'
     | '/_authenticated/sales/ar-ledgers/'
     | '/_authenticated/sales/ar-openings/'
@@ -1177,6 +1242,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSalesArAdjustmentsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/salary/year-bonus/': {
+      id: '/_authenticated/salary/year-bonus/'
+      path: '/salary/year-bonus'
+      fullPath: '/salary/year-bonus/'
+      preLoaderRoute: typeof AuthenticatedSalaryYearBonusIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/salary/sales-targets/': {
       id: '/_authenticated/salary/sales-targets/'
       path: '/salary/sales-targets'
@@ -1189,6 +1261,34 @@ declare module '@tanstack/react-router' {
       path: '/salary/sales-actuals'
       fullPath: '/salary/sales-actuals/'
       preLoaderRoute: typeof AuthenticatedSalarySalesActualsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/salary/region-pool/': {
+      id: '/_authenticated/salary/region-pool/'
+      path: '/salary/region-pool'
+      fullPath: '/salary/region-pool/'
+      preLoaderRoute: typeof AuthenticatedSalaryRegionPoolIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/salary/payroll-run/': {
+      id: '/_authenticated/salary/payroll-run/'
+      path: '/salary/payroll-run'
+      fullPath: '/salary/payroll-run/'
+      preLoaderRoute: typeof AuthenticatedSalaryPayrollRunIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/salary/payroll-result/': {
+      id: '/_authenticated/salary/payroll-result/'
+      path: '/salary/payroll-result'
+      fullPath: '/salary/payroll-result/'
+      preLoaderRoute: typeof AuthenticatedSalaryPayrollResultIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/salary/adjustments/': {
+      id: '/_authenticated/salary/adjustments/'
+      path: '/salary/adjustments'
+      fullPath: '/salary/adjustments/'
+      preLoaderRoute: typeof AuthenticatedSalaryAdjustmentsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/purchasing/suppliers/': {
@@ -1382,8 +1482,13 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPurchasingPortsIndexRoute: typeof AuthenticatedPurchasingPortsIndexRoute
   AuthenticatedPurchasingShipmentsIndexRoute: typeof AuthenticatedPurchasingShipmentsIndexRoute
   AuthenticatedPurchasingSuppliersIndexRoute: typeof AuthenticatedPurchasingSuppliersIndexRoute
+  AuthenticatedSalaryAdjustmentsIndexRoute: typeof AuthenticatedSalaryAdjustmentsIndexRoute
+  AuthenticatedSalaryPayrollResultIndexRoute: typeof AuthenticatedSalaryPayrollResultIndexRoute
+  AuthenticatedSalaryPayrollRunIndexRoute: typeof AuthenticatedSalaryPayrollRunIndexRoute
+  AuthenticatedSalaryRegionPoolIndexRoute: typeof AuthenticatedSalaryRegionPoolIndexRoute
   AuthenticatedSalarySalesActualsIndexRoute: typeof AuthenticatedSalarySalesActualsIndexRoute
   AuthenticatedSalarySalesTargetsIndexRoute: typeof AuthenticatedSalarySalesTargetsIndexRoute
+  AuthenticatedSalaryYearBonusIndexRoute: typeof AuthenticatedSalaryYearBonusIndexRoute
   AuthenticatedSalesArAdjustmentsIndexRoute: typeof AuthenticatedSalesArAdjustmentsIndexRoute
   AuthenticatedSalesArLedgersIndexRoute: typeof AuthenticatedSalesArLedgersIndexRoute
   AuthenticatedSalesArOpeningsIndexRoute: typeof AuthenticatedSalesArOpeningsIndexRoute
@@ -1457,10 +1562,20 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedPurchasingShipmentsIndexRoute,
   AuthenticatedPurchasingSuppliersIndexRoute:
     AuthenticatedPurchasingSuppliersIndexRoute,
+  AuthenticatedSalaryAdjustmentsIndexRoute:
+    AuthenticatedSalaryAdjustmentsIndexRoute,
+  AuthenticatedSalaryPayrollResultIndexRoute:
+    AuthenticatedSalaryPayrollResultIndexRoute,
+  AuthenticatedSalaryPayrollRunIndexRoute:
+    AuthenticatedSalaryPayrollRunIndexRoute,
+  AuthenticatedSalaryRegionPoolIndexRoute:
+    AuthenticatedSalaryRegionPoolIndexRoute,
   AuthenticatedSalarySalesActualsIndexRoute:
     AuthenticatedSalarySalesActualsIndexRoute,
   AuthenticatedSalarySalesTargetsIndexRoute:
     AuthenticatedSalarySalesTargetsIndexRoute,
+  AuthenticatedSalaryYearBonusIndexRoute:
+    AuthenticatedSalaryYearBonusIndexRoute,
   AuthenticatedSalesArAdjustmentsIndexRoute:
     AuthenticatedSalesArAdjustmentsIndexRoute,
   AuthenticatedSalesArLedgersIndexRoute: AuthenticatedSalesArLedgersIndexRoute,

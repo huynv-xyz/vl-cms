@@ -1,0 +1,1 @@
+import{y as a}from"./index-BpacLYah.js";import{c as o}from"./crud-D3tsnRM6.js";const s=o("/customer-aliases"),c=s.list,l=s.detail,m=s.create,n=s.update,u=s.delete;async function p(t){const e=new FormData;return e.append("file",t),a("/customer-aliases/import-invoice-excel",e)}export{m as c,u as d,l as g,p as i,c as l,n as u};

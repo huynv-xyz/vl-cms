@@ -29,6 +29,11 @@
     GitMerge,
     History,
     Building2,
+    Play,
+    TableProperties,
+    SlidersVertical,
+    PieChart,
+    Trophy,
 } from 'lucide-react'
 import { SidebarData } from '../types'
 import { Logo } from '@/assets/logo'
@@ -108,22 +113,47 @@ export const sidebarData: SidebarData = {
             ],
         },
 
-        /*
+
         {
             title: 'Lương sale',
             items: [
                 {
-                    title: 'Chỉ tiêu tháng',
-                    url: '/salary/sales-targets',
-                    icon: Target, 
+                    title: 'Chạy bảng lương',
+                    url: '/salary/payroll-run',
+                    icon: Play,
                 },
                 {
-                    title: 'Thực hiện',
+                    title: 'Bảng lương',
+                    url: '/salary/payroll-result',
+                    icon: TableProperties,
+                },
+                {
+                    title: 'Điều chỉnh lương',
+                    url: '/salary/adjustments',
+                    icon: SlidersVertical,
+                },
+                {
+                    title: 'Quỹ vùng RM',
+                    url: '/salary/region-pool',
+                    icon: PieChart,
+                },
+                {
+                    title: 'Thưởng vượt năm',
+                    url: '/salary/year-bonus',
+                    icon: Trophy,
+                },
+                {
+                    title: 'Chỉ tiêu tháng',
+                    url: '/salary/sales-targets',
+                    icon: Target,
+                },
+                {
+                    title: 'Thực hiện DS',
                     url: '/salary/sales-actuals',
-                    icon: TrendingUp, 
-                }
+                    icon: TrendingUp,
+                },
             ],
-        },*/
+        },
 
         {
             title: 'Xuất nhập khẩu',

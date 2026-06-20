@@ -1,1 +1,0 @@
-import{c as r}from"./crud-urSbRc0V.js";import{x as n}from"./index-DzyBFixK.js";const a=r("/inventory/lots"),e=a.list;async function p(o){const t=new FormData;return t.append("file",o),n("/inventory/lots/opening/import-csv",t)}async function c(o){const t=new FormData;return t.append("file",o),n("/inventory/lots/purchase/import-csv",t)}export{c as a,p as i,e as l};
