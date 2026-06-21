@@ -13,17 +13,6 @@ export type VoucherTypeCode =
     | "TRANSPORT_EXPORT"
     | "PURCHASE_RETURN"
     | "OTHER_EXPORT"
-    | "OPENING_IN"
-    | "PNK_PURCHASE"
-    | "PNK_PURCHASE_DOMESTIC"
-    | "PNK_PURCHASE_IMPORT"
-    | "PNK_PROD"
-    | "PNK_OTHER"
-    | "PNK_SALES_RETURN"
-    | "PXK_SALE"
-    | "PXK_PROD"
-    | "PXK_OTHER"
-    | "PXK_PURCHASE_RETURN"
 
 export type VoucherStatus = "DRAFT" | "POSTED" | "VOID"
 
@@ -67,6 +56,44 @@ export type InventoryVoucherItem = {
     source_id?: number
     note?: string
     product?: { id: number; code: string; name: string; unit?: string }
+}
+
+export type InventoryVoucherType = {
+    id: number
+    code: VoucherTypeCode | string
+    name: string
+    direction: "I" | "O" | string
+    source?: string
+    prefix?: string
+    active?: number
+}
+
+export const DEFAULT_INBOUND_VOUCHER_TYPES: InventoryVoucherType[] = [
+    { id: 3, code: "IMPORT_PURCHASE", name: "Mua hàng nhập khẩu nhập kho chưa thanh toán", direction: "I", prefix: "PN", active: 1 },
+    { id: 4, code: "DOMESTIC_PURCHASE", name: "Mua hàng trong nước nhập kho chưa thanh toán", direction: "I", prefix: "PN", active: 1 },
+    { id: 5, code: "PRODUCTION", name: "Nhập kho thành phẩm sản xuất", direction: "I", prefix: "PN", active: 1 },
+    { id: 6, code: "OTHER_INBOUND", name: "Nhập kho khác", direction: "I", prefix: "PN", active: 1 },
+]
+
+export const DEFAULT_OUTBOUND_VOUCHER_TYPES: InventoryVoucherType[] = [
+    { id: 8, code: "TRANSFER_EXPORT", name: "Xuất chuyển kho nội bộ", direction: "O", prefix: "PX", active: 1 },
+    { id: 9, code: "PRODUCTION_MATERIAL", name: "Xuất kho sản xuất", direction: "O", prefix: "PX", active: 1 },
+    { id: 10, code: "TRANSPORT_EXPORT", name: "Xuất kho kiêm vận chuyển nội bộ", direction: "O", prefix: "PX", active: 1 },
+    { id: 11, code: "PURCHASE_RETURN", name: "Hàng mua trả lại - Giảm trừ công nợ", direction: "O", prefix: "PX", active: 1 },
+    { id: 12, code: "OTHER_EXPORT", name: "Xuất kho khác", direction: "O", prefix: "PX", active: 1 },
+]
+
+export type InventoryVoucherPrintDetail = Omit<InventoryVoucher, "items"> & {
+    type?: {
+        code?: string
+        name?: string
+        direction?: "I" | "O" | string
+    } | null
+    warehouse?: { id: number; code?: string; name?: string } | null
+    items?: Array<InventoryVoucherItem & {
+        product?: { id: number; code?: string; name?: string; unit?: string } | null
+        warehouse?: { id: number; code?: string; name?: string } | null
+    }>
 }
 
 export type ListVouchersParams = {
@@ -131,6 +158,14 @@ export function getVoucher(id: number) {
     return apiGet<InventoryVoucher>(`/inventory/vouchers/${id}`)
 }
 
+export function getVoucherPrintDetail(id: number) {
+    return apiGet<InventoryVoucherPrintDetail>(`/inventory/vouchers/${id}/print`)
+}
+
+export function listVoucherTypes(direction?: "I" | "O") {
+    return apiGet<InventoryVoucherType[]>("/inventory/vouchers/types", { direction })
+}
+
 export function createVoucher(body: CreateVoucherRequest) {
     return apiPost<InventoryVoucher>("/inventory/vouchers", body)
 }
@@ -161,16 +196,4 @@ export const VOUCHER_TYPE_LABEL: Record<string, string> = {
     TRANSPORT_EXPORT: "Xuất kho kiêm vận chuyển nội bộ",
     PURCHASE_RETURN: "Hàng mua trả lại - Giảm trừ công nợ",
     OTHER_EXPORT: "Xuất kho khác",
-
-    OPENING_IN: "Khai báo vật tư hàng hóa đầu kỳ",
-    PNK_PURCHASE: "Mua hàng nhập kho",
-    PNK_PURCHASE_DOMESTIC: "Mua hàng trong nước nhập kho chưa thanh toán",
-    PNK_PURCHASE_IMPORT: "Mua hàng nhập khẩu nhập kho chưa thanh toán",
-    PNK_PROD: "Nhập kho thành phẩm sản xuất",
-    PNK_OTHER: "Nhập kho khác",
-    PNK_SALES_RETURN: "Nhập kho từ hàng bán trả lại",
-    PXK_SALE: "Xuất kho bán hàng",
-    PXK_PROD: "Xuất kho sản xuất",
-    PXK_OTHER: "Xuất kho khác",
-    PXK_PURCHASE_RETURN: "Hàng mua trả lại - Giảm trừ công nợ",
 }

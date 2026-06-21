@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowDownLeft, ArrowUpRight, Plus, Save, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
-import { createVoucher, postVoucher, type CreateVoucherRequest, type VoucherTypeCode } from "@/api/inventory/voucher"
+import { createVoucher, listVoucherTypes, postVoucher, type CreateVoucherRequest, type VoucherTypeCode } from "@/api/inventory/voucher"
 import { getProduct, listProducts } from "@/api/product"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { AsyncSelect } from "@/components/rjsf/async-select"
@@ -20,10 +20,6 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import {
-    INVENTORY_INBOUND_DOC_TYPES,
-    INVENTORY_OUTBOUND_DOC_TYPES,
-} from "../data/schema"
 
 type VoucherMode = "in" | "out"
 
@@ -42,29 +38,6 @@ type Props = {
     mode: VoucherMode
     open: boolean
     onOpenChange: (open: boolean) => void
-}
-
-const INBOUND_TYPES = INVENTORY_INBOUND_DOC_TYPES.filter(
-    (type) => !["OPENING", "PRODUCTION", "SALES_RETURN"].includes(type.value),
-)
-
-const OUTBOUND_TYPES = INVENTORY_OUTBOUND_DOC_TYPES.filter(
-    (type) => !["PRODUCTION_MATERIAL", "SALES_EXPORT"].includes(type.value),
-)
-
-const VOUCHER_TYPE_BY_DOC_TYPE: Record<string, VoucherTypeCode> = {
-    OPENING: "OPENING_IN",
-    SALES_RETURN: "PNK_SALES_RETURN",
-    IMPORT_PURCHASE: "PNK_PURCHASE_IMPORT",
-    DOMESTIC_PURCHASE: "PNK_PURCHASE_DOMESTIC",
-    PRODUCTION: "PNK_PROD",
-    OTHER_INBOUND: "PNK_OTHER",
-    SALES_EXPORT: "PXK_SALE",
-    TRANSFER_EXPORT: "PXK_OTHER",
-    PRODUCTION_MATERIAL: "PXK_PROD",
-    TRANSPORT_EXPORT: "PXK_OTHER",
-    PURCHASE_RETURN: "PXK_PURCHASE_RETURN",
-    OTHER_EXPORT: "PXK_OTHER",
 }
 
 function createId() {
@@ -91,8 +64,12 @@ function today() {
 export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     const queryClient = useQueryClient()
     const isInbound = mode === "in"
-    const voucherTypes = isInbound ? INBOUND_TYPES : OUTBOUND_TYPES
-    const [voucherType, setVoucherType] = useState<VoucherTypeCode>(voucherTypes[0].value as VoucherTypeCode)
+    const { data: voucherTypes = [], isLoading: isLoadingTypes } = useQuery({
+        queryKey: ["inventory-voucher-types", isInbound ? "I" : "O"],
+        queryFn: () => listVoucherTypes(isInbound ? "I" : "O"),
+        enabled: open,
+    })
+    const [voucherType, setVoucherType] = useState<VoucherTypeCode | "">("")
     const [postingDate, setPostingDate] = useState(today())
     const [warehouseId, setWarehouseId] = useState<number | undefined>()
     const [description, setDescription] = useState("")
@@ -103,14 +80,31 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
 
     useEffect(() => {
         if (!open) return
-        setVoucherType(voucherTypes[0].value as VoucherTypeCode)
+        setVoucherType("")
     }, [mode, open])
+
+    useEffect(() => {
+        if (!open || voucherType || !voucherTypes.length) return
+        setVoucherType(voucherTypes[0].code as VoucherTypeCode)
+    }, [open, voucherType, voucherTypes])
 
     const mutation = useMutation({
         mutationFn: async () => {
             const payload = buildPayload()
-            const voucher = await createVoucher(payload)
-            await postVoucher(voucher.id)
+            let voucher
+            try {
+                voucher = await createVoucher(payload)
+            } catch (error: any) {
+                console.error("[inventory voucher] create draft failed", { payload, error })
+                throw error
+            }
+
+            try {
+                await postVoucher(voucher.id)
+            } catch (error: any) {
+                console.error("[inventory voucher] post voucher failed", { voucher, error })
+                throw error
+            }
             return voucher
         },
         onSuccess: async () => {
@@ -121,8 +115,8 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
             onOpenChange(false)
             resetForm()
         },
-        onError: (error: any) => {
-            toast.error(error?.message || "Không tạo được phiếu kho")
+        onError: () => {
+            toast.error("Không tạo được phiếu kho")
         },
     })
 
@@ -142,7 +136,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     }
 
     const resetForm = () => {
-        setVoucherType(voucherTypes[0].value as VoucherTypeCode)
+        setVoucherType((voucherTypes[0]?.code as VoucherTypeCode) || "")
         setPostingDate(today())
         setWarehouseId(undefined)
         setDescription("")
@@ -156,12 +150,15 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         if (!postingDate) {
             throw new Error("Chọn ngày chứng từ")
         }
+        if (!voucherType) {
+            throw new Error("Chon loai chung tu")
+        }
         if (!validLines.length) {
             throw new Error("Thêm ít nhất 1 dòng sản phẩm có số lượng")
         }
 
         return {
-            voucher_type_code: VOUCHER_TYPE_BY_DOC_TYPE[voucherType] ?? voucherType,
+            voucher_type_code: voucherType,
             posting_date: postingDate,
             document_date: postingDate,
             warehouse_id: warehouseId,
@@ -213,12 +210,12 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                             <Label>Loại chứng từ</Label>
                             <Select value={voucherType} onValueChange={(value) => setVoucherType(value as VoucherTypeCode)}>
                                 <SelectTrigger className="w-full min-w-0">
-                                    <SelectValue />
+                                    <SelectValue placeholder={isLoadingTypes ? "Dang tai..." : "Chon loai chung tu"} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {voucherTypes.map((type) => (
-                                        <SelectItem key={type.value} value={type.value}>
-                                            {type.label}
+                                        <SelectItem key={type.code} value={type.code}>
+                                            {type.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

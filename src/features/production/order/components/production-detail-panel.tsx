@@ -592,11 +592,11 @@ function ReceiveOutputDialog({
                                         </div>
                                     </div>
 
-                                    <Field label="SL nh\u1eadp">
+                                    <Field label="SL nhập">
                                         <Input value={row.quantity_label} disabled />
                                     </Field>
 
-                                    <Field label="S\u1ed1 l\u00f4 TP" required>
+                                    <Field label="Số lô TP" required>
                                         <Input
                                             value={row.lot_no}
                                             onChange={(event) =>
@@ -612,19 +612,19 @@ function ReceiveOutputDialog({
                                             onChange={(value) =>
                                                 updateRow(index, { expiry_date: value || "" })
                                             }
-                                            placeholder="Ch\u1ecdn HSD"
+                                            placeholder="Chọn HSD"
                                         />
                                     </Field>
                                 </div>
 
                                 <div className="border-t bg-muted/20 p-3">
-                                    <Field label="Ghi ch\u00fa">
+                                    <Field label="Ghi chú">
                                         <Input
                                             value={row.note ?? ""}
                                             onChange={(event) =>
                                                 updateRow(index, { note: event.target.value })
                                             }
-                                            placeholder="Ghi ch\u00fa ri\u00eang cho d\u00f2ng nh\u1eadp TP"
+                                            placeholder="Ghi chú riêng cho dòng nhập TP"
                                         />
                                     </Field>
                                 </div>
@@ -1313,8 +1313,8 @@ function ProductionVoucherTab({ production }: { production: Production }) {
     const issueRows = getIssueVoucherRows(production)
     const outputRows = getOutputVoucherRows(production)
     const status = productionStatus(production)
-    const issueDocNo = getProductionVoucherNo(production, "PXK_PROD", "XK-SX")
-    const outputDocNo = getProductionVoucherNo(production, "PNK_PROD", "NK-TP")
+    const issueDocNo = getProductionVoucherNo(production, "PRODUCTION_MATERIAL", "XK-SX")
+    const outputDocNo = getProductionVoucherNo(production, "PRODUCTION", "NK-TP")
     const issueQuantity = sumBy(issueRows, (row) => row.allocation.quantity)
     const issueAmount = sumBy(issueRows, (row) => row.allocation.amount)
     const outputQuantity = sumBy(outputRows, (row) => row.output?.quantity ?? row.item.quantity_done)

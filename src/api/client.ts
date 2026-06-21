@@ -65,12 +65,17 @@ export async function request<T>(
         headers.set("Authorization", `Bearer ${token}`)
     }
 
-    const response = await fetch(url.toString(), {
-        ...options,
-        headers,
-        body: options.body,
-        signal: options.signal ?? AbortSignal.timeout(120_000),
-    })
+    let response: Response
+    try {
+        response = await fetch(url.toString(), {
+            ...options,
+            headers,
+            body: options.body,
+            signal: options.signal ?? AbortSignal.timeout(120_000),
+        })
+    } catch {
+        throw new Error("Failed to fetch")
+    }
 
     if (!response.ok) {
         const errorText = await response.text().catch(() => "")
