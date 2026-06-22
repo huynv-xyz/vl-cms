@@ -1,5 +1,5 @@
-import type React from "react"
-import { useMemo } from "react"
+﻿import type React from "react"
+import { useMemo, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { CalendarDays, Filter, Printer } from "lucide-react"
@@ -16,6 +16,13 @@ import { CardPagination } from "@/components/table/card-pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn, formatNumber } from "@/lib/utils"
 import type { InventoryLedgerReportRow } from "../data/schema"
@@ -51,6 +58,7 @@ export function InventoryLedgerTable({
     onFiltersChange,
 }: Props) {
     const currentPage = pagination.pageIndex + 1
+    const [detailVoucherId, setDetailVoucherId] = useState<number | null>(null)
     const { data: inboundDocTypes = [] } = useQuery({
         queryKey: ["inventory-voucher-types", "I"],
         queryFn: () => listVoucherTypes("I"),
@@ -214,11 +222,11 @@ export function InventoryLedgerTable({
                                 <Th className="w-20">ĐVT</Th>
                                 <Th className="w-32">Số lô</Th>
                                 <Th className="w-52">Kho</Th>
+                                <Th className="w-28 text-right">{"\u0110\u01a1n gi\u00e1"}</Th>
                                 <Th className="w-28 text-right">Nhập</Th>
                                 <Th className="w-28 text-right">Xuất</Th>
-                                <Th className="w-28 text-right">{"\u0110\u01a1n gi\u00e1"}</Th>
-                                <Th className="w-32 text-right">{"Th\u00e0nh ti\u1ec1n"}</Th>
                                 <Th className="w-32 text-right">Tồn sau</Th>
+                                <Th className="w-32 text-right">{"Th\u00e0nh ti\u1ec1n"}</Th>
                                 <Th className="w-56">Loại</Th>
                             </tr>
                         </thead>
@@ -228,6 +236,7 @@ export function InventoryLedgerTable({
                                     key={`${item.id}-${index}`}
                                     index={pagination.pageIndex * pagination.pageSize + index + 1}
                                     item={item}
+                                    onOpenVoucher={setDetailVoucherId}
                                 />
                             ))}
                         </tbody>
@@ -249,6 +258,13 @@ export function InventoryLedgerTable({
                     className="px-0"
                 />
             </div>
+            <VoucherDetailDialog
+                voucherId={detailVoucherId}
+                open={!!detailVoucherId}
+                onOpenChange={(open) => {
+                    if (!open) setDetailVoucherId(null)
+                }}
+            />
         </Card>
     )
 }
@@ -256,9 +272,11 @@ export function InventoryLedgerTable({
 function LedgerRow({
     index,
     item,
+    onOpenVoucher,
 }: {
     index: number
     item: InventoryLedgerReportRow
+    onOpenVoucher: (voucherId: number) => void
 }) {
     const meta = getDocTypeMeta(item.doc_type)
     const quantityIn = Number(item.quantity_in || 0)
@@ -275,7 +293,17 @@ function LedgerRow({
             </Td>
             <Td>
                 <div className="flex items-center gap-1.5">
-                    <div className="text-primary font-mono font-semibold">{item.doc_no || `#${item.id}`}</div>
+                    {item.voucher_id ? (
+                        <button
+                            type="button"
+                            className="text-primary font-mono font-semibold underline-offset-2 hover:underline"
+                            onClick={() => onOpenVoucher(Number(item.voucher_id))}
+                        >
+                            {item.doc_no || `#${item.id}`}
+                        </button>
+                    ) : (
+                        <div className="text-primary font-mono font-semibold">{item.doc_no || `#${item.id}`}</div>
+                    )}
                     {item.voucher_id ? <VoucherPrintButton voucherId={item.voucher_id} /> : null}
                 </div>
             </Td>
@@ -306,20 +334,20 @@ function LedgerRow({
             <Td>
                 <div className="truncate font-medium">{item.warehouse_name || "-"}</div>
             </Td>
+            <Td className="text-right tabular-nums">
+                {formatNumber(Number(item.unit_price || 0))}
+            </Td>
             <Td className="text-right">
                 <Quantity value={quantityIn} tone="in" />
             </Td>
             <Td className="text-right">
                 <Quantity value={quantityOut} tone="out" />
             </Td>
-            <Td className="text-right tabular-nums">
-                {formatNumber(Number(item.unit_price || 0))}
+            <Td className="text-right font-bold tabular-nums">
+                {formatNumber(Number(item.balance_quantity || 0))}
             </Td>
             <Td className="text-right tabular-nums">
                 {formatNumber(Number(item.amount || 0))}
-            </Td>
-            <Td className="text-right font-bold tabular-nums">
-                {formatNumber(Number(item.balance_quantity || 0))}
             </Td>
             <Td>
                 <div className="text-muted-foreground line-clamp-2 text-xs leading-4">
@@ -327,6 +355,136 @@ function LedgerRow({
                 </div>
             </Td>
         </tr>
+    )
+}
+
+function VoucherDetailDialog({
+    voucherId,
+    open,
+    onOpenChange,
+}: {
+    voucherId: number | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+}) {
+    const { data: voucher, isLoading } = useQuery({
+        queryKey: ["inventory-voucher-detail", voucherId],
+        queryFn: () => getVoucherPrintDetail(Number(voucherId)),
+        enabled: open && !!voucherId,
+    })
+
+    const items = voucher?.items || []
+    const voucherTypeCode = String(voucher?.voucher_type_code || voucher?.type?.code || "")
+    const isTransfer = voucherTypeCode === "TRANSFER_EXPORT"
+    const isInbound = String(voucher?.type?.direction || "").toUpperCase() === "I"
+    const detailType = isTransfer ? "chuyển kho" : isInbound ? "nhập" : "xuất"
+    const sourceWarehouse = voucher?.from_warehouse || voucher?.warehouse
+    const targetWarehouse = voucher?.to_warehouse
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="flex max-h-[92vh] flex-col overflow-hidden"
+                style={{
+                    width: "min(1680px, calc(100vw - 32px))",
+                    maxWidth: "calc(100vw - 32px)",
+                }}
+            >
+                <DialogHeader>
+                    <DialogTitle>Chi tiết phiếu {detailType}</DialogTitle>
+                    <DialogDescription>
+                        {voucher?.voucher_no || (voucherId ? `#${voucherId}` : "")}
+                        {voucher?.type?.name ? ` - ${voucher.type.name}` : ""}
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="max-h-[calc(92vh-96px)] overflow-y-auto">
+                    {isLoading ? (
+                        <div className="text-muted-foreground py-10 text-center text-sm">Đang tải phiếu...</div>
+                    ) : voucher ? (
+                        <div className="space-y-3">
+                            <div className={cn("grid gap-2 rounded-md border bg-muted/20 p-3 text-sm", isTransfer ? "md:grid-cols-4" : "md:grid-cols-3")}>
+                                <InfoItem label="Ngày chứng từ" value={formatDate(voucher.posting_date || voucher.document_date)} />
+                                {isTransfer ? (
+                                    <>
+                                        <InfoItem label="Kho xuất" value={formatWarehouse(sourceWarehouse)} />
+                                        <InfoItem label="Kho nhập" value={formatWarehouse(targetWarehouse)} />
+                                    </>
+                                ) : (
+                                    <InfoItem label="Kho" value={formatWarehouse(voucher.warehouse)} />
+                                )}
+                                <InfoItem label="Loại phiếu" value={voucher.type?.name || VOUCHER_TYPE_LABEL[voucher.voucher_type_code || ""] || "-"} />
+                                <InfoItem label="Diễn giải" value={voucher.description || "-"} className="md:col-span-full" />
+                            </div>
+
+                            <div className="overflow-x-auto rounded-md border">
+                                <table className="w-full min-w-[1320px] text-sm">
+                                    <thead className="bg-muted/50 text-muted-foreground border-b text-xs">
+                                        <tr>
+                                            <Th className="w-12 text-center">STT</Th>
+                                            <Th className="min-w-[320px]">Sản phẩm</Th>
+                                            <Th className="w-20">ĐVT</Th>
+                                            <Th className="w-32">Số lô</Th>
+                                            <Th className="w-28">HSD</Th>
+                                            <Th className="w-28 text-right">Số lượng</Th>
+                                            {!isTransfer ? <Th className="w-28 text-right">Đơn giá</Th> : null}
+                                            {!isTransfer ? <Th className="w-32 text-right">Thành tiền</Th> : null}
+                                            <Th className="w-56">{isTransfer ? "Kho xuất" : "Kho"}</Th>
+                                            <Th className="min-w-[220px]">Ghi chú</Th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {items.map((item, index) => (
+                                            <tr key={item.id || index} className="border-b last:border-b-0">
+                                                <Td className="text-muted-foreground text-center font-mono">{index + 1}</Td>
+                                                <Td>
+                                                    <div className="font-semibold">{item.product?.name || `[SP #${item.product_id || ""}]`}</div>
+                                                    <div className="text-muted-foreground font-mono text-xs">{item.product?.code || "-"}</div>
+                                                </Td>
+                                                <Td className="text-muted-foreground">{item.unit || item.product?.unit || "-"}</Td>
+                                                <Td className="font-mono text-xs">{item.lot_code || "-"}</Td>
+                                                <Td>{formatDate(item.expiry_date)}</Td>
+                                                <Td className="text-right tabular-nums">{formatNumber(Number(item.quantity || 0))}</Td>
+                                                {!isTransfer ? <Td className="text-right tabular-nums">{formatMoney(item.unit_price)}</Td> : null}
+                                                {!isTransfer ? <Td className="text-right tabular-nums">{formatMoney(item.amount)}</Td> : null}
+                                                <Td>{formatWarehouse(isTransfer ? item.warehouse || sourceWarehouse : item.warehouse)}</Td>
+                                                <Td>
+                                                    <LedgerLongText value={item.note} className="max-w-[260px]" />
+                                                </Td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {!items.length ? (
+                                <div className="text-muted-foreground rounded-md border py-8 text-center text-sm">
+                                    Phiếu chưa có dòng chi tiết.
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : (
+                        <div className="text-muted-foreground py-10 text-center text-sm">Không tải được chi tiết phiếu.</div>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+function InfoItem({
+    label,
+    value,
+    className,
+}: {
+    label: string
+    value?: string | null
+    className?: string
+}) {
+    return (
+        <div className={cn("min-w-0", className)}>
+            <div className="text-muted-foreground text-xs">{label}</div>
+            <div className="break-words font-medium">{value || "-"}</div>
+        </div>
     )
 }
 
@@ -517,7 +675,12 @@ function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement
 
 function formatDate(value?: string) {
     if (!value) return "-"
-    return value.split("T")[0]
+    const datePart = value.split("T")[0]
+    const [year, month, day] = datePart.split("-")
+    if (year && month && day) {
+        return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`
+    }
+    return datePart
 }
 
 function formatViPrintDate(dateStr?: string): string {
@@ -531,7 +694,7 @@ function formatViPrintDate(dateStr?: string): string {
 
 function formatWarehouse(warehouse?: { code?: string; name?: string } | null) {
     if (!warehouse) return "-"
-    return warehouse.code ? `${warehouse.code} - ${warehouse.name || ""}` : warehouse.name || "-"
+    return warehouse.name || warehouse.code || "-"
 }
 
 function formatQty(value?: number | string | null) {

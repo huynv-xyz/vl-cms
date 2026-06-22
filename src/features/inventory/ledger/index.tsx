@@ -1,6 +1,6 @@
-import type React from "react"
+﻿import type React from "react"
 import { useState } from "react"
-import { ArrowDownLeft, ArrowUpRight, Boxes, FileText, type LucideIcon } from "lucide-react"
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Boxes, FileText, type LucideIcon } from "lucide-react"
 
 import { listInventoryLedgerReport } from "@/api/inventory/ledger"
 import { PageSection } from "@/components/page-section"
@@ -20,7 +20,7 @@ export default function InventoryLedgerPage() {
     const search = Route.useSearch()
     const navigate = Route.useNavigate()
     const { pagination, setPagination } = useUrlPagination(search, navigate)
-    const [voucherDialog, setVoucherDialog] = useState<"in" | "out" | null>(null)
+    const [voucherDialog, setVoucherDialog] = useState<"in" | "out" | "transfer" | null>(null)
 
     const {
         keyword,
@@ -78,6 +78,10 @@ export default function InventoryLedgerPage() {
                         <ArrowUpRight className="mr-2 h-4 w-4 text-rose-600" />
                         Xuất hàng
                     </Button>
+                    <Button size="sm" variant="outline" onClick={() => setVoucherDialog("transfer")}>
+                        <ArrowLeftRight className="mr-2 h-4 w-4 text-blue-600" />
+                        Chuyển kho
+                    </Button>
                 </div>
             }
         >
@@ -119,6 +123,11 @@ export default function InventoryLedgerPage() {
                         mode="out"
                         open={voucherDialog === "out"}
                         onOpenChange={(open) => setVoucherDialog(open ? "out" : null)}
+                    />
+                    <LedgerVoucherDialog
+                        mode="transfer"
+                        open={voucherDialog === "transfer"}
+                        onOpenChange={(open) => setVoucherDialog(open ? "transfer" : null)}
                     />
                 </div>
             )}

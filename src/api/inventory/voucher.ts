@@ -35,6 +35,10 @@ export type InventoryVoucher = {
     created_at?: string
     updated_at?: string
     warehouse?: { id: number; name: string; code?: string }
+    from_warehouse_id?: number
+    to_warehouse_id?: number
+    from_warehouse?: { id: number; name: string; code?: string } | null
+    to_warehouse?: { id: number; name: string; code?: string } | null
     items?: InventoryVoucherItem[]
 }
 
@@ -90,6 +94,8 @@ export type InventoryVoucherPrintDetail = Omit<InventoryVoucher, "items"> & {
         direction?: "I" | "O" | string
     } | null
     warehouse?: { id: number; code?: string; name?: string } | null
+    from_warehouse?: { id: number; code?: string; name?: string } | null
+    to_warehouse?: { id: number; code?: string; name?: string } | null
     items?: Array<InventoryVoucherItem & {
         product?: { id: number; code?: string; name?: string; unit?: string } | null
         warehouse?: { id: number; code?: string; name?: string } | null
@@ -129,7 +135,9 @@ export type CreateVoucherRequest = {
     voucher_type_code: VoucherTypeCode | string
     posting_date: string
     document_date: string
-    warehouse_id: number
+    warehouse_id?: number
+    from_warehouse_id?: number
+    to_warehouse_id?: number
     description?: string
     transfer_id?: number
     production_id?: number
