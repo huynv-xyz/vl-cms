@@ -222,12 +222,12 @@ function parseDate(value?: string) {
     const dateOnly = value.trim().split(/[T\s]/)[0]
     const dmy = dateOnly.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
     if (dmy) {
-        return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
+        return new Date(Date.UTC(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1])))
     }
 
     const ymd = dateOnly.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
     if (ymd) {
-        return new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]))
+        return new Date(Date.UTC(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3])))
     }
 
     return value
