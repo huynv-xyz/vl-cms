@@ -45,6 +45,8 @@ const PURCHASE_STOCK_REQUIRED_COLUMNS = [
     "Đơn giá",
     "Phí hàng về kho",
     "Đơn giá bao gồm PLH",
+    "Diễn giải",
+    "Tên nhà cung cấp",
     "TK Nợ",
     "TK Có",
 ]
@@ -61,6 +63,7 @@ const VTHH_DETAIL_REQUIRED_COLUMNS = [
     "Hạn sử dụng",
     "Nhập",
     "Xuất",
+    "Diễn giải",
     "TK Nợ",
     "TK Có",
     "Loại chứng từ",

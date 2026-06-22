@@ -46,7 +46,8 @@ export function OrderItems({ order, items }: any) {
 
         const quantity = Number(i.quantity || 0)
         const unitPrice = Number(i.unit_price || 0)
-        return sum + Number(i.line_total ?? quantity * unitPrice)
+        const discount = Number(i.discount || 0)
+        return sum + Number(i.line_total ?? Math.max(quantity * unitPrice - discount, 0))
     }, 0)
 
     return (
@@ -93,6 +94,7 @@ export function OrderItems({ order, items }: any) {
                                 <TableHead className="text-right text-xs font-semibold uppercase">Đã xuất</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">Đã trả</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">Còn lại</TableHead>
+                                <TableHead className="text-right text-xs font-semibold uppercase">Chiết khấu</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">Đơn giá</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">Thành tiền</TableHead>
                                 {isEditable && <TableHead className="w-[96px]" />}
@@ -106,6 +108,7 @@ export function OrderItems({ order, items }: any) {
                                 const returned = Number(i.returned_quantity || 0)
                                 const remain = Number(i.remain_quantity || 0)
                                 const unitPrice = Number(i.unit_price || 0)
+                                const discount = Number(i.discount || 0)
                                 const isPromotion = i.line_type === "PROMOTION"
                                 const isRowLocked = !isEditable
 
@@ -175,11 +178,15 @@ export function OrderItems({ order, items }: any) {
                                         </TableCell>
 
                                         <TableCell className="text-right tabular-nums text-muted-foreground">
+                                            {formatCurrency(discount)}
+                                        </TableCell>
+
+                                        <TableCell className="text-right tabular-nums text-muted-foreground">
                                             {formatCurrency(unitPrice)}
                                         </TableCell>
 
                                         <TableCell className="text-right font-semibold tabular-nums">
-                                            {formatCurrency(isPromotion ? 0 : (i.line_total ?? quantity * unitPrice))}
+                                            {formatCurrency(isPromotion ? 0 : (i.line_total ?? Math.max(quantity * unitPrice - discount, 0)))}
                                         </TableCell>
 
                                         {isEditable && (
@@ -219,7 +226,7 @@ export function OrderItems({ order, items }: any) {
                         <TableFooter className="bg-muted/40">
                             <TableRow className="hover:bg-transparent">
                                 <TableCell
-                                    colSpan={10}
+                                    colSpan={11}
                                     className="text-right text-sm font-semibold uppercase tracking-wide text-muted-foreground"
                                 >
                                     Tổng cộng

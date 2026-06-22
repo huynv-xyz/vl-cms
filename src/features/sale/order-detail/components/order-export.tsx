@@ -342,6 +342,7 @@ function ItemsTable({
                         <TableHead className="w-[56px] text-center text-xs font-semibold uppercase">#</TableHead>
                         <TableHead className="min-w-[240px] text-xs font-semibold uppercase">Sản phẩm</TableHead>
                         <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">ĐVT</TableHead>
+                        <TableHead className="text-right text-xs font-semibold uppercase">Chiết khấu</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Số lượng</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Đơn giá</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Thành tiền</TableHead>
@@ -356,7 +357,8 @@ function ItemsTable({
                         const quantity = Number(item.quantity || 0)
                         const orderItem = resolveOrderItem(item, orderItemById, orderItemByProductId)
                         const unitPrice = resolveUnitPrice(orderItem)
-                        const amount = resolveExportItemAmount(item, orderItem, quantity, unitPrice)
+                        const discount = resolveProratedDiscount(orderItem, quantity)
+                        const amount = resolveExportItemAmount(item, orderItem, quantity, unitPrice, discount)
 
                         return (
                             <TableRow
@@ -380,6 +382,9 @@ function ItemsTable({
                                 </TableCell>
                                 <TableCell className="text-center text-sm font-medium text-muted-foreground">
                                     {item.product?.unit || "-"}
+                                </TableCell>
+                                <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                                    {formatCurrency(discount)}
                                 </TableCell>
                                 <TableCell className="text-right font-medium tabular-nums">
                                     {formatNumber(quantity)}
@@ -502,7 +507,8 @@ function sumExportAmount(items: any[], orderItems: any[]) {
         const quantity = Number(item.quantity || 0)
         const orderItem = resolveOrderItem(item, orderItemById, orderItemByProductId)
         const unitPrice = resolveUnitPrice(orderItem)
-        return sum + resolveExportItemAmount(item, orderItem, quantity, unitPrice)
+        const discount = resolveProratedDiscount(orderItem, quantity)
+        return sum + resolveExportItemAmount(item, orderItem, quantity, unitPrice, discount)
     }, 0)
 }
 
@@ -524,7 +530,14 @@ function resolveUnitPrice(orderItem?: any) {
     return Number(orderItem?.unit_price ?? orderItem?.unitPrice ?? 0)
 }
 
-function resolveExportItemAmount(item: any, orderItem: any, quantity: number, unitPrice: number) {
+function resolveProratedDiscount(orderItem: any, quantity: number) {
+    const discount = Number(orderItem?.discount ?? 0)
+    const orderQty = Number(orderItem?.quantity ?? 0)
+    if (!discount || !orderQty || orderQty <= 0) return 0
+    return discount * Number(quantity || 0) / orderQty
+}
+
+function resolveExportItemAmount(item: any, orderItem: any, quantity: number, unitPrice: number, discount: number) {
     const lineType =
         item?.line_type ??
         item?.lineType ??
@@ -535,7 +548,7 @@ function resolveExportItemAmount(item: any, orderItem: any, quantity: number, un
         orderItem?.line_type ??
         orderItem?.lineType
     if (lineType === "PROMOTION") return 0
-    return quantity * unitPrice
+    return Math.max(quantity * unitPrice - Number(discount || 0), 0)
 }
 
 function formatNumber(value: unknown) {

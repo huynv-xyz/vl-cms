@@ -173,6 +173,7 @@ export function OrderFormDialog({
                                         items={items}
                                         setItems={setItems}
                                         addRequest={addItemRequest}
+                                        enableReorder
                                     />
                                 </OrderFormCard>
                             </div>

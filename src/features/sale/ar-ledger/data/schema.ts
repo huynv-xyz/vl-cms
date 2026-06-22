@@ -30,6 +30,7 @@ export type ArLedger = {
     unit?: string
     quantity?: number
     unit_price?: number
+    discount?: number
 
     debit_amount: number
     credit_amount: number
