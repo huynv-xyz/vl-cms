@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Plus, Save, Settings2, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
-import { createVoucher, listVoucherTypes, postVoucher, type CreateVoucherRequest, type VoucherTypeCode } from "@/api/inventory/voucher"
+import { createVoucher, listVoucherTypes, postVoucher, type CreateVoucherRequest, type InventoryVoucherType, type VoucherTypeCode } from "@/api/inventory/voucher"
 import { getProduct, listProducts } from "@/api/product"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { AsyncSelect } from "@/components/rjsf/async-select"
@@ -32,6 +32,9 @@ type VoucherLine = {
     unit_price: string
     lot_code: string
     expiry_date: string
+    product_inventory_account?: string
+    tk_no: string
+    tk_co: string
     note: string
 }
 
@@ -40,6 +43,8 @@ type Props = {
     open: boolean
     onOpenChange: (open: boolean) => void
 }
+
+const PRODUCT_ACCOUNT_MARKER = "PRODUCT_ACCOUNT"
 
 function createId() {
     return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -54,12 +59,30 @@ function createEmptyLine(): VoucherLine {
         unit_price: "",
         lot_code: "",
         expiry_date: "",
+        tk_no: "",
+        tk_co: "",
         note: "",
     }
 }
 
 function today() {
     return new Date().toISOString().slice(0, 10)
+}
+
+function resolveConfiguredAccount(value: string | null | undefined, productAccount?: string) {
+    const configured = (value || "").trim()
+    if (!configured) return ""
+    if (configured.toUpperCase() === PRODUCT_ACCOUNT_MARKER) {
+        return (productAccount || "").trim()
+    }
+    return configured
+}
+
+function resolveLineAccounts(line: VoucherLine, voucherType?: InventoryVoucherType) {
+    return {
+        tk_no: resolveConfiguredAccount(voucherType?.tk_no, line.product_inventory_account),
+        tk_co: resolveConfiguredAccount(voucherType?.tk_co, line.product_inventory_account),
+    }
 }
 
 export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
@@ -90,6 +113,10 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     const descriptionPlaceholder = isTransfer ? "Diễn giải phiếu chuyển kho" : "Ghi chú chung của phiếu"
     const itemListTitle = isTransfer ? "Danh sách hàng chuyển" : "Danh sách sản phẩm"
     const productColumnLabel = isTransfer ? "Hàng hóa" : "Sản phẩm"
+    const selectedVoucherType = useMemo(
+        () => selectableVoucherTypes.find((type) => type.code === voucherType),
+        [selectableVoucherTypes, voucherType],
+    )
     useEffect(() => {
         if (!open) return
         setVoucherType(isTransfer ? "TRANSFER_EXPORT" : "")
@@ -100,6 +127,14 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         if (!open || isTransfer || voucherType || !selectableVoucherTypes.length) return
         setVoucherType(selectableVoucherTypes[0].code as VoucherTypeCode)
     }, [isTransfer, open, selectableVoucherTypes, voucherType])
+
+    useEffect(() => {
+        if (!open || isTransfer || !selectedVoucherType) return
+        setLines((current) => current.map((line) => ({
+            ...line,
+            ...resolveLineAccounts(line, selectedVoucherType),
+        })))
+    }, [isTransfer, open, selectedVoucherType?.code])
 
     const mutation = useMutation({
         mutationFn: async () => {
@@ -201,6 +236,8 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                     amount: quantity * unitPrice,
                     lot_code: line.lot_code.trim() ? line.lot_code.trim() : undefined,
                     expiry_date: isInbound && line.expiry_date ? line.expiry_date : undefined,
+                    tk_no: !isTransfer && line.tk_no.trim() ? line.tk_no.trim() : undefined,
+                    tk_co: !isTransfer && line.tk_co.trim() ? line.tk_co.trim() : undefined,
                     note: line.note.trim() || undefined,
                 }
             }),
@@ -219,7 +256,10 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex max-h-[92vh] w-[96vw] max-w-[96vw] flex-col overflow-hidden sm:max-w-[1500px]">
+            <DialogContent
+                className="flex max-h-[92vh] flex-col overflow-hidden"
+                style={{ width: "calc(100vw - 24px)", maxWidth: "calc(100vw - 24px)" }}
+            >
                 <DialogHeader className="shrink-0">
                     <DialogTitle className="flex items-center gap-2">
                         <Icon className={cn("h-5 w-5", isTransfer ? "text-blue-600" : isInbound ? "text-emerald-600" : "text-rose-600")} />
@@ -316,12 +356,14 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[1320px] text-sm">
+                            <table className="w-full min-w-[1540px] text-sm">
                                 <thead className="text-muted-foreground bg-muted/30 border-b text-xs">
                                     <tr>
                                         <th className="w-12 px-3 py-2 text-center">STT</th>
                                         <th className="min-w-[420px] px-3 py-2 text-left">{productColumnLabel}</th>
                                         <th className="w-20 px-3 py-2 text-left">ĐVT</th>
+                                        {!isTransfer ? <th className="w-32 px-3 py-2 text-left">TK Nợ</th> : null}
+                                        {!isTransfer ? <th className="w-32 px-3 py-2 text-left">TK Có</th> : null}
                                         <th className="w-32 px-3 py-2 text-right">Số lượng</th>
                                         {!isInbound ? <th className="w-52 px-3 py-2 text-left">Lô xuất</th> : null}
                                         {isInbound ? <th className="w-36 px-3 py-2 text-left">Số lô</th> : null}
@@ -340,14 +382,24 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                             <td className="px-3 py-2">
                                                 <AsyncSelect
                                                     value={line.product_id}
-                                                    onChange={(_value: any, option: any) =>
-                                                        updateLine(line.id, {
+                                                    onChange={(_value: any, option: any) => {
+                                                        const nextLine = {
+                                                            ...line,
                                                             product_id: option?.value || undefined,
                                                             lot_id: undefined,
                                                             lot_code: "",
                                                             unit: option?.raw?.unit || undefined,
+                                                            product_inventory_account: option?.raw?.inventory_account_code || undefined,
+                                                        }
+                                                        updateLine(line.id, {
+                                                            product_id: nextLine.product_id,
+                                                            lot_id: undefined,
+                                                            lot_code: "",
+                                                            unit: nextLine.unit,
+                                                            product_inventory_account: nextLine.product_inventory_account,
+                                                            ...(!isTransfer && selectedVoucherType ? resolveLineAccounts(nextLine, selectedVoucherType) : {}),
                                                         })
-                                                    }
+                                                    }}
                                                     placeholder={isTransfer ? "Chọn hàng chuyển" : "Chọn sản phẩm"}
                                                     dataSource={{
                                                         getList: listProducts,
@@ -364,6 +416,24 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                             <td className="text-muted-foreground px-3 py-2">
                                                 {line.unit || "-"}
                                             </td>
+                                            {!isTransfer ? (
+                                                <td className="px-3 py-2">
+                                                    <Input
+                                                        value={line.tk_no}
+                                                        onChange={(event) => updateLine(line.id, { tk_no: event.target.value })}
+                                                        placeholder={selectedVoucherType?.tk_no === PRODUCT_ACCOUNT_MARKER ? "Theo sản phẩm" : "TK Nợ"}
+                                                    />
+                                                </td>
+                                            ) : null}
+                                            {!isTransfer ? (
+                                                <td className="px-3 py-2">
+                                                    <Input
+                                                        value={line.tk_co}
+                                                        onChange={(event) => updateLine(line.id, { tk_co: event.target.value })}
+                                                        placeholder={selectedVoucherType?.tk_co === PRODUCT_ACCOUNT_MARKER ? "Theo sản phẩm" : "TK Có"}
+                                                    />
+                                                </td>
+                                            ) : null}
                                             <td className="px-3 py-2">
                                                 <Input
                                                     type="number"

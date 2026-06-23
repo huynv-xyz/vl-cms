@@ -56,6 +56,8 @@ export type InventoryVoucherItem = {
     unit_price?: number
     amount?: number
     cost_object_id?: number
+    tk_no?: string | null
+    tk_co?: string | null
     source_type?: string
     source_id?: number
     note?: string
@@ -69,6 +71,8 @@ export type InventoryVoucherType = {
     direction: "I" | "O" | string
     source?: string
     prefix?: string
+    tk_no?: string | null
+    tk_co?: string | null
     active?: number
 }
 
@@ -126,6 +130,8 @@ export type CreateVoucherItemRequest = {
     unit_price?: number
     amount?: number
     cost_object_id?: number
+    tk_no?: string | null
+    tk_co?: string | null
     source_type?: string
     source_id?: number
     note?: string
@@ -178,9 +184,9 @@ export function createVoucher(body: CreateVoucherRequest) {
     return apiPost<InventoryVoucher>("/inventory/vouchers", body)
 }
 
-export function postVoucher(id: number, postedBy?: number) {
+export function postVoucher(id: number, body?: { posted_by?: number }) {
     return apiPost<InventoryVoucher>(`/inventory/vouchers/${id}/post`, {
-        posted_by: postedBy,
+        ...(body || {}),
     })
 }
 
