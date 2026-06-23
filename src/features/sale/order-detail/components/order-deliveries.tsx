@@ -233,7 +233,7 @@ export function OrderDeliveries({ order, deliveries }: any) {
                                     </div>
                                 </div>
 
-                                <ItemsTable items={delivery.items ?? []} />
+                                <ItemsTable items={delivery.items ?? []} orderItems={order.items ?? []} />
                             </div>
                         )
                     })}
@@ -272,7 +272,14 @@ function hasPermission(permissions: any[], module: string, action: string) {
     return permissions.some((p: any) => p.module === module && p.action === action)
 }
 
-function ItemsTable({ items }: { items: any[] }) {
+function ItemsTable({ items, orderItems }: { items: any[]; orderItems: any[] }) {
+    const orderItemById = new Map<number, any>()
+    const orderItemByProductId = new Map<number, any>()
+    for (const orderItem of orderItems ?? []) {
+        if (orderItem?.id != null) orderItemById.set(Number(orderItem.id), orderItem)
+        if (orderItem?.product_id != null) orderItemByProductId.set(Number(orderItem.product_id), orderItem)
+    }
+
     if (!items.length) {
         return (
             <div className="px-4 py-5 text-center text-xs text-muted-foreground">
@@ -291,6 +298,7 @@ function ItemsTable({ items }: { items: any[] }) {
                         <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">ĐVT</TableHead>
                         <TableHead className="text-xs font-semibold uppercase">Kho xuất</TableHead>
                         <TableHead className="w-[140px] text-right text-xs font-semibold uppercase">Số lượng</TableHead>
+                        <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Ghi chú</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -319,12 +327,43 @@ function ItemsTable({ items }: { items: any[] }) {
                             <TableCell className="text-right font-medium tabular-nums">
                                 {formatNumber(item.quantity)}
                             </TableCell>
+                            <TableCell>
+                                {item.note || resolveOrderItem(item, orderItemById, orderItemByProductId)?.note ? (
+                                    <span
+                                        className="block max-w-[260px] truncate text-sm text-muted-foreground"
+                                        title={item.note || resolveOrderItem(item, orderItemById, orderItemByProductId)?.note}
+                                    >
+                                        {item.note || resolveOrderItem(item, orderItemById, orderItemByProductId)?.note}
+                                    </span>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
             </Table>
         </div>
     )
+}
+
+function resolveOrderItem(
+    item: any,
+    orderItemById: Map<number, any>,
+    orderItemByProductId: Map<number, any>
+) {
+    const orderItemId = item.order_item_id ?? item.orderItemId
+    if (orderItemId != null) {
+        const orderItem = orderItemById.get(Number(orderItemId))
+        if (orderItem) return orderItem
+    }
+
+    const productId = item.product_id ?? item.productId
+    if (productId != null) {
+        return orderItemByProductId.get(Number(productId))
+    }
+
+    return null
 }
 
 function EmptyState({

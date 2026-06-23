@@ -92,11 +92,14 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     const { data: voucherTypes = [], isLoading: isLoadingTypes } = useQuery({
         queryKey: ["inventory-voucher-types", isInbound ? "I" : "O", mode],
         queryFn: () => listVoucherTypes(isInbound ? "I" : "O"),
-        enabled: open && !isTransfer,
+        enabled: open,
     })
     const selectableVoucherTypes = useMemo(
-        () => voucherTypes.filter((type) => mode !== "out" || type.code !== "TRANSFER_EXPORT"),
-        [mode, voucherTypes],
+        () => voucherTypes.filter((type) => {
+            if (isTransfer) return type.code === "TRANSFER_EXPORT"
+            return mode !== "out" || type.code !== "TRANSFER_EXPORT"
+        }),
+        [isTransfer, mode, voucherTypes],
     )
     const [voucherType, setVoucherType] = useState<VoucherTypeCode | "">("")
     const [postingDate, setPostingDate] = useState(today())
@@ -129,12 +132,12 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     }, [isTransfer, open, selectableVoucherTypes, voucherType])
 
     useEffect(() => {
-        if (!open || isTransfer || !selectedVoucherType) return
+        if (!open || !selectedVoucherType) return
         setLines((current) => current.map((line) => ({
             ...line,
             ...resolveLineAccounts(line, selectedVoucherType),
         })))
-    }, [isTransfer, open, selectedVoucherType?.code])
+    }, [open, selectedVoucherType?.code])
 
     const mutation = useMutation({
         mutationFn: async () => {
@@ -236,8 +239,8 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                     amount: quantity * unitPrice,
                     lot_code: line.lot_code.trim() ? line.lot_code.trim() : undefined,
                     expiry_date: isInbound && line.expiry_date ? line.expiry_date : undefined,
-                    tk_no: !isTransfer && line.tk_no.trim() ? line.tk_no.trim() : undefined,
-                    tk_co: !isTransfer && line.tk_co.trim() ? line.tk_co.trim() : undefined,
+                    tk_no: line.tk_no.trim() ? line.tk_no.trim() : undefined,
+                    tk_co: line.tk_co.trim() ? line.tk_co.trim() : undefined,
                     note: line.note.trim() || undefined,
                 }
             }),
@@ -362,8 +365,8 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                         <th className="w-12 px-3 py-2 text-center">STT</th>
                                         <th className="min-w-[420px] px-3 py-2 text-left">{productColumnLabel}</th>
                                         <th className="w-20 px-3 py-2 text-left">ĐVT</th>
-                                        {!isTransfer ? <th className="w-32 px-3 py-2 text-left">TK Nợ</th> : null}
-                                        {!isTransfer ? <th className="w-32 px-3 py-2 text-left">TK Có</th> : null}
+                                        <th className="w-32 px-3 py-2 text-left">TK Nợ</th>
+                                        <th className="w-32 px-3 py-2 text-left">TK Có</th>
                                         <th className="w-32 px-3 py-2 text-right">Số lượng</th>
                                         {!isInbound ? <th className="w-52 px-3 py-2 text-left">Lô xuất</th> : null}
                                         {isInbound ? <th className="w-36 px-3 py-2 text-left">Số lô</th> : null}
@@ -397,7 +400,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                                             lot_code: "",
                                                             unit: nextLine.unit,
                                                             product_inventory_account: nextLine.product_inventory_account,
-                                                            ...(!isTransfer && selectedVoucherType ? resolveLineAccounts(nextLine, selectedVoucherType) : {}),
+                                                            ...(selectedVoucherType ? resolveLineAccounts(nextLine, selectedVoucherType) : {}),
                                                         })
                                                     }}
                                                     placeholder={isTransfer ? "Chọn hàng chuyển" : "Chọn sản phẩm"}
@@ -416,24 +419,20 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                             <td className="text-muted-foreground px-3 py-2">
                                                 {line.unit || "-"}
                                             </td>
-                                            {!isTransfer ? (
-                                                <td className="px-3 py-2">
-                                                    <Input
-                                                        value={line.tk_no}
-                                                        onChange={(event) => updateLine(line.id, { tk_no: event.target.value })}
-                                                        placeholder={selectedVoucherType?.tk_no === PRODUCT_ACCOUNT_MARKER ? "Theo sản phẩm" : "TK Nợ"}
-                                                    />
-                                                </td>
-                                            ) : null}
-                                            {!isTransfer ? (
-                                                <td className="px-3 py-2">
-                                                    <Input
-                                                        value={line.tk_co}
-                                                        onChange={(event) => updateLine(line.id, { tk_co: event.target.value })}
-                                                        placeholder={selectedVoucherType?.tk_co === PRODUCT_ACCOUNT_MARKER ? "Theo sản phẩm" : "TK Có"}
-                                                    />
-                                                </td>
-                                            ) : null}
+                                            <td className="px-3 py-2">
+                                                <Input
+                                                    value={line.tk_no}
+                                                    onChange={(event) => updateLine(line.id, { tk_no: event.target.value })}
+                                                    placeholder={selectedVoucherType?.tk_no === PRODUCT_ACCOUNT_MARKER ? "Theo sản phẩm" : "TK Nợ"}
+                                                />
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                <Input
+                                                    value={line.tk_co}
+                                                    onChange={(event) => updateLine(line.id, { tk_co: event.target.value })}
+                                                    placeholder={selectedVoucherType?.tk_co === PRODUCT_ACCOUNT_MARKER ? "Theo sản phẩm" : "TK Có"}
+                                                />
+                                            </td>
                                             <td className="px-3 py-2">
                                                 <Input
                                                     type="number"

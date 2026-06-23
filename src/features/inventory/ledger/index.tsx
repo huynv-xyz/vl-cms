@@ -12,7 +12,9 @@ import { useUrlPagination } from "@/hooks/use-url-pagination"
 import { cn } from "@/lib/utils"
 import { Route } from "@/routes/_authenticated/inventory/ledgers"
 import { InventoryLedgerTable } from "./components/ledger-table"
+import { ExportInventoryLedgerButton } from "./components/export-inventory-ledger-button"
 import { LedgerImportButtons } from "./components/ledger-import-buttons"
+import { LedgerSalesSyncButton } from "./components/ledger-sales-sync-button"
 import { LedgerTestResetButton } from "./components/ledger-test-reset-button"
 import { LedgerVoucherDialog } from "./components/ledger-voucher-dialog"
 
@@ -69,6 +71,17 @@ export default function InventoryLedgerPage() {
             actions={
                 <div className="flex flex-wrap items-center justify-end gap-2">
                     <LedgerImportButtons />
+                    <ExportInventoryLedgerButton
+                        keyword={keyword}
+                        filters={{
+                            product_id: requestFilters.product_id ? Number(requestFilters.product_id) : undefined,
+                            warehouse_id: requestFilters.warehouse_id ? Number(requestFilters.warehouse_id) : undefined,
+                            doc_type: requestFilters.doc_type,
+                            from_date: requestFilters.from_date,
+                            to_date: requestFilters.to_date,
+                        }}
+                    />
+                    <LedgerSalesSyncButton />
                     <LedgerTestResetButton />
                     <Button size="sm" variant="outline" onClick={() => setVoucherDialog("in")}>
                         <ArrowDownLeft className="mr-2 h-4 w-4 text-emerald-600" />
