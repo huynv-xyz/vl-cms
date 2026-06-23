@@ -89,6 +89,7 @@ export function OrderItems({ order, items }: any) {
                                 <TableHead className="min-w-[280px] text-xs font-semibold uppercase">Sản phẩm</TableHead>
                                 <TableHead className="w-[90px] text-center text-xs font-semibold uppercase">ĐVT</TableHead>
                                 <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Mô tả HH</TableHead>
+                                <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Ghi chú</TableHead>
                                 <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">Khuyến mãi</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">SL đặt</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">Đã xuất</TableHead>
@@ -137,6 +138,19 @@ export function OrderItems({ order, items }: any) {
                                             {i.description ? (
                                                 <span className="inline-flex max-w-[260px] rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
                                                     {i.description}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">—</span>
+                                            )}
+                                        </TableCell>
+
+                                        <TableCell>
+                                            {i.note ? (
+                                                <span
+                                                    className="block max-w-[260px] truncate text-sm text-muted-foreground"
+                                                    title={i.note}
+                                                >
+                                                    {i.note}
                                                 </span>
                                             ) : (
                                                 <span className="text-xs text-muted-foreground">—</span>
@@ -226,7 +240,7 @@ export function OrderItems({ order, items }: any) {
                         <TableFooter className="bg-muted/40">
                             <TableRow className="hover:bg-transparent">
                                 <TableCell
-                                    colSpan={11}
+                                    colSpan={12}
                                     className="text-right text-sm font-semibold uppercase tracking-wide text-muted-foreground"
                                 >
                                     Tổng cộng

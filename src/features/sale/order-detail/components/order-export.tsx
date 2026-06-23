@@ -348,6 +348,7 @@ function ItemsTable({
                         <TableHead className="text-right text-xs font-semibold uppercase">Thành tiền</TableHead>
                         <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Kho xuất</TableHead>
                         <TableHead className="text-xs font-semibold uppercase">Lô hàng</TableHead>
+                        <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Ghi chú</TableHead>
                     </TableRow>
                 </TableHeader>
 
@@ -454,6 +455,18 @@ function ItemsTable({
                                 </TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
                                     {item.lot_no || item.lot_nos || "—"}
+                                </TableCell>
+                                <TableCell>
+                                    {item.note || orderItem?.note ? (
+                                        <span
+                                            className="block max-w-[260px] truncate text-sm text-muted-foreground"
+                                            title={item.note || orderItem?.note}
+                                        >
+                                            {item.note || orderItem?.note}
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">—</span>
+                                    )}
                                 </TableCell>
                             </TableRow>
                         )
