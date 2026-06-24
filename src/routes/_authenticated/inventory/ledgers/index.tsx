@@ -11,11 +11,6 @@ export const Route = createFileRoute("/_authenticated/inventory/ledgers/")({
                 ? search.keyword
                 : "",
 
-        product_id:
-            search.product_id !== undefined && !isNaN(Number(search.product_id))
-                ? Number(search.product_id)
-                : undefined,
-
         warehouse_id:
             search.warehouse_id !== undefined && !isNaN(Number(search.warehouse_id))
                 ? Number(search.warehouse_id)
@@ -34,7 +29,27 @@ export const Route = createFileRoute("/_authenticated/inventory/ledgers/")({
         to_date:
             typeof search.to_date === "string"
                 ? search.to_date
-                : undefined,
+                : todayYmd(),
+
+        doc_text: typeof search.doc_text === "string" ? search.doc_text : undefined,
+        doc_text_op: typeof search.doc_text_op === "string" ? search.doc_text_op : undefined,
+        description_text: typeof search.description_text === "string" ? search.description_text : undefined,
+        description_text_op: typeof search.description_text_op === "string" ? search.description_text_op : undefined,
+        supplier_text: typeof search.supplier_text === "string" ? search.supplier_text : undefined,
+        supplier_text_op: typeof search.supplier_text_op === "string" ? search.supplier_text_op : undefined,
+        product_text: typeof search.product_text === "string" ? search.product_text : undefined,
+        product_text_op: typeof search.product_text_op === "string" ? search.product_text_op : undefined,
+        unit: typeof search.unit === "string" ? search.unit : undefined,
+        lot_text: typeof search.lot_text === "string" ? search.lot_text : undefined,
+        lot_text_op: typeof search.lot_text_op === "string" ? search.lot_text_op : undefined,
     }),
     component: InventoryLedgerPage,
 })
+
+function todayYmd() {
+    const date = new Date()
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+}
