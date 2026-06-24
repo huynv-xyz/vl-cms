@@ -12,11 +12,17 @@ type Props = {
         InventoryLotListParams,
         | "product_id"
         | "warehouse_id"
-        | "source_type"
-        | "expiry_status"
         | "from_date"
         | "to_date"
         | "only_remaining"
+        | "product_text"
+        | "product_text_op"
+        | "quote_text"
+        | "quote_text_op"
+        | "unit"
+        | "lot_text"
+        | "lot_text_op"
+        | "lot_warning"
     >
 }
 
@@ -31,27 +37,26 @@ const EXPORT_PAGE_SIZE = 500
 
 const COLUMNS: ExportColumn[] = [
     { label: "STT", value: (_row, index) => index + 1, width: 8, type: "number" },
-    { label: "Mã sản phẩm", value: (row) => row.product?.code, width: 20 },
-    { label: "Tên sản phẩm", value: (row) => row.product?.name, width: 38 },
-    { label: "Mã kho", value: (row) => row.warehouse?.code, width: 14 },
-    { label: "Kho", value: (row) => row.warehouse?.name, width: 24 },
-    { label: "Số lô", value: (row) => row.lot_no, width: 22 },
-    { label: "Ngày nhập", value: (row) => parseDate(row.inbound_date), width: 14, type: "date" },
-    { label: "HSD", value: (row) => parseDate(row.expiry_date), width: 14, type: "date" },
-    { label: "Cảnh báo HSD", value: (row) => expiryStatusLabel(row), width: 20 },
-    { label: "Nguồn", value: (row) => sourceTypeLabel(row.source_type), width: 16 },
-    { label: "Số chứng từ nguồn", value: (row) => row.source_no, width: 24 },
-    { label: "ID nguồn", value: (row) => row.source_id, width: 12, type: "number" },
-    { label: "SL nhập", value: (row) => row.quantity_in, width: 14, type: "number" },
-    { label: "SL còn", value: (row) => row.quantity_remaining, width: 14, type: "number" },
-    { label: "Giá vốn", value: (row) => row.unit_cost, width: 16, type: "number" },
-    {
-        label: "Giá trị tồn",
-        value: (row) => Number(row.quantity_remaining || 0) * Number(row.unit_cost || 0),
-        width: 18,
-        type: "number",
-    },
-    { label: "Ghi chú HSD", value: (row) => row.expiry_message, width: 28 },
+    { label: "Mã hàng", value: (row) => rowString(row, "product_code") || row.product?.code, width: 18 },
+    { label: "Tên hàng", value: (row) => rowString(row, "product_name") || row.product?.name, width: 42 },
+    { label: "ĐVT", value: (row) => rowString(row, "unit") || row.product?.unit, width: 10 },
+    { label: "Mã kho", value: (row) => rowString(row, "warehouse_code") || row.warehouse?.code, width: 18 },
+    { label: "Kho", value: (row) => rowString(row, "warehouse_name") || row.warehouse?.name, width: 28 },
+    { label: "Số lô", value: (row) => rowString(row, "lot_no") || row.lot_no, width: 22 },
+    { label: "Ngày nhập", value: (row) => parseDate(rowString(row, "inbound_date") || row.inbound_date), width: 14, type: "date" },
+    { label: "HSD", value: (row) => parseDate(rowString(row, "expiry_date") || row.expiry_date), width: 14, type: "date" },
+    { label: "Cảnh báo", value: (row) => lotWarningLabel(row), width: 28 },
+    { label: "Tồn đầu kỳ - Số lượng", value: (row) => rowNumber(row, "opening_quantity"), width: 18, type: "number" },
+    { label: "Tồn đầu kỳ - Giá trị", value: (row) => rowNumber(row, "opening_value"), width: 18, type: "number" },
+    { label: "Nhập kho - Số lượng", value: (row) => rowNumber(row, "inbound_quantity"), width: 18, type: "number" },
+    { label: "Nhập kho - Giá trị", value: (row) => rowNumber(row, "inbound_value"), width: 18, type: "number" },
+    { label: "Xuất kho - Số lượng", value: (row) => rowNumber(row, "outbound_quantity"), width: 18, type: "number" },
+    { label: "Xuất kho - Giá trị", value: (row) => rowNumber(row, "outbound_value"), width: 18, type: "number" },
+    { label: "Tồn cuối kỳ - Số lượng", value: (row) => rowNumber(row, "closing_quantity"), width: 18, type: "number" },
+    { label: "Tồn cuối kỳ - Giá trị", value: (row) => rowNumber(row, "closing_value"), width: 18, type: "number" },
+    { label: "Nhóm hàng", value: (row) => rowString(row, "quote_name") || row.product?.quote_name, width: 28 },
+    { label: "Tính chất", value: (row) => rowString(row, "nature") || row.product?.nature, width: 16 },
+    { label: "Dạng hàng", value: () => "", width: 16 },
 ]
 
 export function ExportInventoryLotsButton({ keyword, filters }: Props) {
@@ -66,10 +71,16 @@ export function ExportInventoryLotsButton({ keyword, filters }: Props) {
                 keyword: keyword || undefined,
                 product_id: filters.product_id,
                 warehouse_id: filters.warehouse_id,
-                source_type: filters.source_type || undefined,
-                expiry_status: filters.expiry_status || undefined,
                 from_date: filters.from_date || undefined,
                 to_date: filters.to_date || undefined,
+                product_text: filters.product_text,
+                product_text_op: filters.product_text_op,
+                quote_text: filters.quote_text,
+                quote_text_op: filters.quote_text_op,
+                unit: filters.unit,
+                lot_text: filters.lot_text,
+                lot_text_op: filters.lot_text_op,
+                lot_warning: filters.lot_warning,
                 only_remaining: filters.only_remaining,
             })
 
@@ -89,11 +100,7 @@ export function ExportInventoryLotsButton({ keyword, filters }: Props) {
 
     return (
         <Button type="button" variant="outline" onClick={handleExport} disabled={loading}>
-            {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-                <Download className="mr-2 h-4 w-4" />
-            )}
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
             Xuất Excel
         </Button>
     )
@@ -142,9 +149,7 @@ async function exportInventoryLotsXlsx(rows: InventoryLot[]) {
         sheet.addRow(COLUMNS.map((column) => normalizeCellValue(column.value(row, index), column)))
     })
 
-    sheet.columns = COLUMNS.map((column) => ({
-        width: column.width ?? 18,
-    }))
+    sheet.columns = COLUMNS.map((column) => ({ width: column.width ?? 18 }))
     sheet.autoFilter = {
         from: { row: 4, column: 1 },
         to: { row: 4, column: COLUMNS.length },
@@ -161,11 +166,7 @@ async function exportInventoryLotsXlsx(rows: InventoryLot[]) {
     header.height = 28
     header.eachCell((cell) => {
         cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
-        cell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "FF0F766E" },
-        }
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F766E" } }
         cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
         cell.border = border
     })
@@ -178,22 +179,19 @@ async function exportInventoryLotsXlsx(rows: InventoryLot[]) {
             cell.alignment = {
                 vertical: "middle",
                 horizontal: column.type === "number" ? "right" : "left",
-                wrapText: true,
+                wrapText: false,
             }
-            if (column.type === "date") {
-                cell.numFmt = "dd/mm/yyyy"
-            }
+            if (column.type === "date") cell.numFmt = "dd/mm/yyyy"
+            if (column.type === "number") cell.numFmt = "#,##0.###"
         })
+        row.height = 22
     }
 
     const buffer = await workbook.xlsx.writeBuffer()
     downloadBlob(buffer, `ton-kho-theo-lo-${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
-function normalizeCellValue(
-    value: string | number | Date | null | undefined,
-    column: ExportColumn,
-) {
+function normalizeCellValue(value: string | number | Date | null | undefined, column: ExportColumn) {
     if (value == null || value === "") return ""
     if (column.type === "number") {
         const numberValue = Number(value)
@@ -202,52 +200,76 @@ function normalizeCellValue(
     return value
 }
 
+function rowNumber(row: InventoryLot, key: string) {
+    const value = (row as any)?.[key]
+    const numberValue = Number(value || 0)
+    return Number.isFinite(numberValue) ? numberValue : 0
+}
+
+function rowString(row: InventoryLot, key: string) {
+    const value = (row as any)?.[key]
+    return value == null ? "" : String(value)
+}
+
 function parseDate(value?: string | null) {
     if (!value) return ""
     const dateOnly = value.trim().split(/[T\s]/)[0]
     const ymd = dateOnly.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
-    if (ymd) {
-        return new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]))
-    }
+    if (ymd) return new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]))
 
     const dmy = dateOnly.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
-    if (dmy) {
-        return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
-    }
+    if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
 
     return value
 }
 
-function sourceTypeLabel(value?: string) {
-    switch (value) {
-        case "OPENING":
-            return "Tồn đầu kỳ"
-        case "PURCHASE":
-            return "Mua hàng"
-        case "PRODUCTION":
-            return "Sản xuất"
-        case "ADJUSTMENT":
-            return "Điều chỉnh"
-        default:
-            return value
+function lotWarningLabel(row: InventoryLot) {
+    const today = startOfDay(new Date())
+    const expiryDate = parseLocalDate(rowString(row, "expiry_date") || row.expiry_date)
+
+    if (expiryDate && expiryDate < today) return "Hết hạn"
+
+    if (expiryDate) {
+        const days = Math.ceil((expiryDate.getTime() - today.getTime()) / 86_400_000)
+        if (days >= 0 && days <= 180) return `Còn ${formatRemainingTime(days)}`
     }
+
+    const inboundDate = parseLocalDate(rowString(row, "inbound_date") || row.inbound_date)
+    if (
+        inboundDate &&
+        monthDiff(inboundDate, today) >= 6 &&
+        rowNumber(row, "closing_quantity") !== 0 &&
+        rowNumber(row, "outbound_quantity") === 0
+    ) {
+        return "Nhập 6 tháng chưa xuất"
+    }
+
+    return ""
 }
 
-function expiryStatusLabel(row: InventoryLot) {
-    switch (row.expiry_status) {
-        case "EXPIRED":
-            return "Hết hạn"
-        case "NEAR_EXPIRY":
-            return typeof row.days_to_expiry === "number"
-                ? `Cận date ${row.days_to_expiry} ngày`
-                : "Cận date"
-        case "VALID":
-            return "Còn hạn"
-        case "NO_EXPIRY":
-            return "Chưa có HSD"
-        default:
-            return ""
-    }
+function formatRemainingTime(days: number) {
+    const months = Math.floor(days / 30)
+    const restDays = days % 30
+    if (months <= 0) return `${restDays} ngày nữa hết hạn`
+    if (restDays <= 0) return `${months} tháng nữa hết hạn`
+    return `${months} tháng ${restDays} ngày nữa hết hạn`
+}
+
+function monthDiff(from: Date, to: Date) {
+    let months = (to.getFullYear() - from.getFullYear()) * 12 + to.getMonth() - from.getMonth()
+    if (to.getDate() < from.getDate()) months -= 1
+    return months
+}
+
+function parseLocalDate(value?: string | null) {
+    if (!value) return null
+    const [year, month, day] = value.trim().split(/[T\s]/)[0].split("-").map(Number)
+    if (!year || !month || !day) return null
+    return startOfDay(new Date(year, month - 1, day))
+}
+
+function startOfDay(date: Date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
 
 function downloadBlob(buffer: ArrayBuffer, filename: string) {

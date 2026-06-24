@@ -2,51 +2,84 @@ import { createFileRoute } from "@tanstack/react-router"
 import InventoryLotPage from "@/features/inventory/lot"
 
 export const Route = createFileRoute("/_authenticated/inventory/lots/")({
-    validateSearch: (search: Record<string, unknown>) => ({
-        page: Number(search.page ?? 1),
-        size: Number(search.size ?? 20),
+    validateSearch: (search: Record<string, unknown>) => {
+        const today = todayYmd()
+        const fromDate = normalizeFromDate(search.from_date, today)
+        const toDate = normalizeToDate(search.to_date, fromDate, today)
 
-        keyword:
-            typeof search.keyword === "string"
-                ? search.keyword
-                : "",
+        return {
+            page: Number(search.page ?? 1),
+            size: Number(search.size ?? 20),
 
-        product_id:
-            search.product_id !== undefined &&
+            keyword:
+                typeof search.keyword === "string"
+                    ? search.keyword
+                    : "",
+
+            product_id:
+                search.product_id !== undefined &&
                 !isNaN(Number(search.product_id))
-                ? Number(search.product_id)
-                : undefined,
+                    ? Number(search.product_id)
+                    : undefined,
 
-        warehouse_id:
-            search.warehouse_id !== undefined &&
+            warehouse_id:
+                search.warehouse_id !== undefined &&
                 !isNaN(Number(search.warehouse_id))
-                ? Number(search.warehouse_id)
-                : undefined,
+                    ? Number(search.warehouse_id)
+                    : undefined,
 
-        source_type:
-            typeof search.source_type === "string"
-                ? search.source_type
-                : undefined,
+            from_date: fromDate,
+            to_date: toDate,
 
-        expiry_status:
-            typeof search.expiry_status === "string"
-                ? search.expiry_status
-                : undefined,
-
-        from_date:
-            typeof search.from_date === "string"
-                ? search.from_date
-                : undefined,
-
-        to_date:
-            typeof search.to_date === "string"
-                ? search.to_date
-                : undefined,
-
-        only_remaining:
-            search.only_remaining !== undefined
-                ? search.only_remaining === "true"
-                : undefined,
-    }),
+            only_remaining:
+                search.only_remaining !== undefined
+                    ? search.only_remaining === "true"
+                    : undefined,
+            product_text: typeof search.product_text === "string" ? search.product_text : undefined,
+            product_text_op: normalizeTextOp(search.product_text_op),
+            quote_text: typeof search.quote_text === "string" ? search.quote_text : undefined,
+            quote_text_op: normalizeTextOp(search.quote_text_op),
+            unit: typeof search.unit === "string" ? search.unit : undefined,
+            lot_text: typeof search.lot_text === "string" ? search.lot_text : undefined,
+            lot_text_op: normalizeTextOp(search.lot_text_op),
+            lot_warning: normalizeLotWarning(search.lot_warning),
+        }
+    },
     component: InventoryLotPage,
 })
+
+function todayYmd() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, "0")
+    const day = String(now.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+}
+
+function validYmd(value: unknown): value is string {
+    return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
+function normalizeFromDate(value: unknown, today: string) {
+    if (!validYmd(value)) return undefined
+    return value > today ? today : value
+}
+
+function normalizeToDate(value: unknown, fromDate: string | undefined, today: string) {
+    if (!validYmd(value)) return fromDate && fromDate > today ? fromDate : today
+    return fromDate && value < fromDate ? fromDate : value
+}
+
+function normalizeTextOp(value: unknown) {
+    return typeof value === "string" &&
+        ["contains", "equals", "not_equals", "not_contains"].includes(value)
+        ? value
+        : undefined
+}
+
+function normalizeLotWarning(value: unknown) {
+    return typeof value === "string" &&
+        ["EXPIRED", "NEAR_EXPIRY", "STALE"].includes(value)
+        ? value
+        : undefined
+}

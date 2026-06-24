@@ -1,11 +1,23 @@
 
 import { createCrudApi } from "@/api/crud"
+import { apiGet, type PagedResult } from "@/api/client"
 import type { InventorySummary } from "@/features/inventory/summary/data/schema"
 
 export type SummaryListParams = {
     page: number
     size: number
     keyword?: string
+    product_id?: number
+    warehouse_id?: number
+    physical_warehouse_id?: number
+    from_date?: string
+    to_date?: string
+    product_text?: string
+    product_text_op?: string
+    quote_text?: string
+    quote_text_op?: string
+    unit?: string
+    summary_status?: string
 }
 
 export type CreateSummaryRequest = Partial<InventorySummary>
@@ -23,3 +35,6 @@ export const listInventorySummarys = summaryApi.list
 export const createInventorySummary = summaryApi.create
 export const updateInventorySummary = summaryApi.update
 export const deleteInventorySummary = summaryApi.delete
+
+export const listInventorySummaryForSales = (params: SummaryListParams) =>
+    apiGet<PagedResult<InventorySummary> & { totals?: Record<string, number> }>("/inventory/summary/sales", params)

@@ -1,6 +1,8 @@
 import { createCrudApi } from "@/api/crud"
 import type { InventoryLot } from "@/features/inventory/lot/data/schema"
-import { apiGet, apiPostMultipart } from "../client"
+import { apiGet, apiPostMultipart, type PagedResult } from "../client"
+
+export type LotTextFilterOp = "contains" | "equals" | "not_equals" | "not_contains"
 
 export type InventoryLotListParams = {
     page: number
@@ -14,6 +16,30 @@ export type InventoryLotListParams = {
     from_date?: string
     to_date?: string
     only_remaining?: boolean
+    product_text?: string
+    product_text_op?: LotTextFilterOp
+    quote_text?: string
+    quote_text_op?: LotTextFilterOp
+    unit?: string
+    lot_text?: string
+    lot_text_op?: LotTextFilterOp
+    lot_warning?: string
+}
+
+export type InventoryLotTotals = {
+    lot_count: number
+    warning_count: number
+    expired_count: number
+    near_expiry_count: number
+    stale_count: number
+    opening_quantity: number
+    opening_value: number
+    inbound_quantity: number
+    inbound_value: number
+    outbound_quantity: number
+    outbound_value: number
+    closing_quantity: number
+    closing_value: number
 }
 
 export type CreateInventoryLotRequest = {
@@ -57,11 +83,20 @@ const inventoryLotApi = createCrudApi<
     InventoryLotListParams
 >("/inventory/lots")
 
-export const listInventoryLots = inventoryLotApi.list
+export const listInventoryLots = (params: InventoryLotListParams) => {
+    return apiGet<PagedResult<InventoryLot>>("/inventory/lots/report", {
+        ...params,
+        limit: params.size,
+    })
+}
 export const getInventoryLot = inventoryLotApi.detail
 export const createInventoryLot = inventoryLotApi.create
 export const updateInventoryLot = inventoryLotApi.update
 export const deleteInventoryLot = inventoryLotApi.delete
+
+export function getInventoryLotTotals(params: Omit<InventoryLotListParams, "page" | "size">) {
+    return apiGet<InventoryLotTotals>("/inventory/lots/totals", params)
+}
 
 export async function getStockLots(params: {
     warehouse_id?: number

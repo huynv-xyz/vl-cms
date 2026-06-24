@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
-import SummaryPage from "@/features/inventory/summary"
+import SalesInventorySummaryPage from "@/features/sale/inventory-summary"
 
-export const Route = createFileRoute("/_authenticated/inventory/summary/")({
+export const Route = createFileRoute("/_authenticated/sales/inventory-summary/")({
     validateSearch: (search: Record<string, unknown>) => {
         const page = Number(search.page ?? 1)
         const size = Number(search.size ?? 20)
@@ -12,24 +12,15 @@ export const Route = createFileRoute("/_authenticated/inventory/summary/")({
         return {
             page: Number.isNaN(page) ? 1 : page,
             size: Number.isNaN(size) ? 20 : size,
-
-            keyword:
-                typeof search.keyword === "string"
-                    ? search.keyword
-                    : "",
-
+            keyword: typeof search.keyword === "string" ? search.keyword : "",
             product_id:
-                search.product_id !== undefined &&
-                    !isNaN(Number(search.product_id))
+                search.product_id !== undefined && !isNaN(Number(search.product_id))
                     ? Number(search.product_id)
                     : undefined,
-
             warehouse_id:
-                search.warehouse_id !== undefined &&
-                    !isNaN(Number(search.warehouse_id))
+                search.warehouse_id !== undefined && !isNaN(Number(search.warehouse_id))
                     ? Number(search.warehouse_id)
                     : undefined,
-
             from_date: fromDate,
             to_date: toDate,
             product_text: typeof search.product_text === "string" ? search.product_text : undefined,
@@ -41,7 +32,7 @@ export const Route = createFileRoute("/_authenticated/inventory/summary/")({
         }
     },
 
-    component: SummaryPage,
+    component: SalesInventorySummaryPage,
 })
 
 function todayYmd() {

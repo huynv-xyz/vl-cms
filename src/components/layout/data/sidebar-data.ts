@@ -249,13 +249,18 @@ export const sidebarData: SidebarData = {
                     url: '/sales/ar-adjustments',
                     icon: Calculator,
                 },
+                {
+                    title: 'Tồn kho',
+                    url: '/sales/inventory-summary',
+                    icon: BarChart3,
+                },
             ],
         },
         {
             title: 'Tồn kho',
             items: [
                 {
-                    title: 'Tồn kho',
+                    title: 'Tồn kho (KT)',
                     url: '/inventory/summary',
                     icon: BarChart3,
                 },
@@ -265,7 +270,7 @@ export const sidebarData: SidebarData = {
                     icon: ListOrdered,
                 },
                 {
-                    title: 'Tồn theo lô (FIFO)',
+                    title: 'Tồn kho theo lô',
                     url: '/inventory/lots',
                     icon: Layers3,
                 },
