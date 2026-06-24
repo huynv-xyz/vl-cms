@@ -1,61 +1,181 @@
-import { useMemo } from "react"
-import type { PaginationState, OnChangeFn } from "@tanstack/react-table"
+import { useState } from "react"
+import type React from "react"
+import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import {
     AlertTriangle,
-    Boxes,
-    Filter,
-    Inbox,
-    Layers,
+    CircleCheck,
+    CircleMinus,
+    Download,
+    Funnel,
+    Loader2,
     Package,
-    PackageCheck,
-    Tag,
+    TrendingDown,
+    TrendingUp,
     Warehouse,
-    type LucideIcon,
+    X,
 } from "lucide-react"
+import { toast } from "sonner"
 
-import type { InventorySummary } from "../data/schema"
+import { listInventorySummarys, type SummaryListParams } from "@/api/inventory/summary"
+import { getProduct, listProducts } from "@/api/product"
+import { getWarehouse, listWarehouses } from "@/api/warehouse"
+import { DatePicker } from "@/components/date-picker"
+import { LongText } from "@/components/long-text"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
-import { listProducts, getProduct } from "@/api/product"
-import { listWarehouses, getWarehouse } from "@/api/warehouse"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
+import type { InventorySummary, InventorySummaryTotals } from "../data/schema"
+
+type TextFilterOp = "contains" | "equals" | "not_equals" | "not_contains"
+
+export type SummaryFilters = {
+    product_id?: number
+    warehouse_id?: number
+    from_date?: string
+    to_date?: string
+    product_text?: string
+    product_text_op?: TextFilterOp
+    quote_text?: string
+    quote_text_op?: TextFilterOp
+    unit?: string
+    summary_status?: string
+}
 
 type Props = {
     data: InventorySummary[]
-
+    totals?: InventorySummaryTotals
     pagination: PaginationState
     onPaginationChange: OnChangeFn<PaginationState>
     pageCount: number
-
     keyword: string
     onKeywordChange: (v: string) => void
-
-    filters: {
-        product_id?: number
-        warehouse_id?: number
-    }
-
-    onFiltersChange: (f: {
-        product_id?: number
-        warehouse_id?: number
-    }) => void
+    filters: SummaryFilters
+    onFiltersChange: (f: SummaryFilters) => void
+    showValues?: boolean
 }
 
-type WarehouseGroup = {
-    key: string
+type ExportColumn = {
     label: string
-    sub?: string
-    items: InventorySummary[]
+    value: (row: InventorySummary, index: number) => string | number | null | undefined
+    width?: number
+    type?: "number" | "text"
+    numberFormat?: "integer" | "quantity" | "money"
 }
 
-const controlClass = "h-11 min-h-11 rounded-md border-slate-300 bg-white shadow-xs"
+type ExportColumnGroup = {
+    label: string
+    columns: ExportColumn[]
+}
+
+const EXPORT_PAGE_SIZE = 200
+const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
+
+const TEXT_FILTER_OPERATORS: Array<{ value: TextFilterOp; label: string }> = [
+    { value: "contains", label: "Chứa" },
+    { value: "equals", label: "Bằng" },
+    { value: "not_equals", label: "Khác" },
+    { value: "not_contains", label: "Không chứa" },
+]
+
+const UNIT_OPTIONS = ["Kg", "Lít", "Bao", "Cái", "Thùng", "Mét"]
+
+const SUMMARY_STATUS_OPTIONS = [
+    { value: "NEGATIVE", label: "Âm tồn" },
+    { value: "OUT_OF_STOCK", label: "Hết hàng" },
+    { value: "DECREASE", label: "Giảm tồn" },
+    { value: "INCREASE", label: "Tăng tồn" },
+    { value: "STABLE", label: "Ổn định" },
+]
+
+const EXPORT_COLUMN_GROUPS: ExportColumnGroup[] = [
+    { label: "STT", columns: [{ label: "STT", value: (_row, index) => index + 1, width: 8, type: "number", numberFormat: "integer" }] },
+    {
+        label: "Hàng hóa",
+        columns: [
+            { label: "Mã hàng", value: (row) => row.product_code, width: 22 },
+            { label: "Tên hàng", value: (row) => row.product_name, width: 40 },
+        ],
+    },
+    { label: "ĐVT", columns: [{ label: "ĐVT", value: (row) => row.unit, width: 10 }] },
+    {
+        label: "Kho",
+        columns: [
+            { label: "Mã kho", value: (row) => row.warehouse_code, width: 20 },
+            { label: "Tên kho", value: (row) => row.warehouse_name, width: 28 },
+        ],
+    },
+    {
+        label: "Tồn đầu kỳ",
+        columns: [
+            { label: "Số lượng", value: (row) => row.opening_quantity, width: 14, type: "number", numberFormat: "quantity" },
+            { label: "Giá trị", value: (row) => row.opening_value, width: 16, type: "number", numberFormat: "money" },
+        ],
+    },
+    {
+        label: "Nhập kho",
+        columns: [
+            { label: "Số lượng", value: (row) => row.inbound_quantity, width: 14, type: "number", numberFormat: "quantity" },
+            { label: "Giá trị", value: (row) => row.inbound_value, width: 16, type: "number", numberFormat: "money" },
+        ],
+    },
+    {
+        label: "Xuất kho",
+        columns: [
+            { label: "Số lượng", value: (row) => row.outbound_quantity, width: 14, type: "number", numberFormat: "quantity" },
+            { label: "Giá trị", value: (row) => row.outbound_value, width: 16, type: "number", numberFormat: "money" },
+        ],
+    },
+    {
+        label: "Tồn cuối kỳ",
+        columns: [
+            { label: "Số lượng", value: (row) => row.closing_quantity, width: 14, type: "number", numberFormat: "quantity" },
+            { label: "Giá trị", value: (row) => row.closing_value, width: 16, type: "number", numberFormat: "money" },
+        ],
+    },
+    { label: "Nhóm hàng", columns: [{ label: "Nhóm hàng", value: (row) => row.quote_name, width: 24 }] },
+    { label: "Tính chất", columns: [{ label: "Tính chất", value: (row) => row.nature, width: 16 }] },
+    { label: "Tình trạng", columns: [{ label: "Tình trạng", value: (row) => getInventoryStatus(row).label, width: 14 }] },
+    { label: "Dạng hàng", columns: [{ label: "Dạng hàng", value: () => "", width: 14 }] },
+]
+
+const EXPORT_COLUMNS = EXPORT_COLUMN_GROUPS.flatMap((group) => group.columns)
+
+const VALUE_GROUP_LABELS = new Set(["Tồn đầu kỳ", "Nhập kho", "Xuất kho", "Tồn cuối kỳ"])
+
+function exportColumnGroups(showValues: boolean) {
+    if (showValues) return EXPORT_COLUMN_GROUPS
+    return EXPORT_COLUMN_GROUPS.map((group) => {
+        if (!VALUE_GROUP_LABELS.has(group.label)) return group
+        return {
+            ...group,
+            columns: group.columns
+                .filter((column) => column.numberFormat !== "money")
+                .map((column) => ({ ...column, label: group.label })),
+        }
+    })
+}
+
+const emptyTotals: InventorySummaryTotals = {
+    opening_quantity: 0,
+    opening_value: 0,
+    inbound_quantity: 0,
+    inbound_value: 0,
+    outbound_quantity: 0,
+    outbound_value: 0,
+    closing_quantity: 0,
+    closing_value: 0,
+}
 
 export function SummaryTable({
     data,
+    totals,
     pagination,
     onPaginationChange,
     pageCount,
@@ -63,21 +183,39 @@ export function SummaryTable({
     onKeywordChange,
     filters,
     onFiltersChange,
+    showValues = true,
 }: Props) {
-    const totalQuantity = sum(data, "total_quantity")
-    const totalValue = sum(data, "total_value")
-    const avgCost = totalQuantity > 0 ? totalValue / totalQuantity : 0
-    const warehouseCount = new Set(data.map((row) => row.warehouse_id).filter(Boolean)).size
-    const productCount = new Set(data.map((row) => row.product_id).filter(Boolean)).size
-    const missingCostCount = data.filter((row) => Number(row.total_quantity || 0) > 0 && Number(row.total_value || 0) <= 0).length
-    const groupedRows = useMemo(() => groupByWarehouse(data), [data])
+    const summaryTotals = normalizeTotals(totals)
+    const today = todayYmd()
 
-    const currentPage = pagination.pageIndex + 1
-
-    const setFilter = (key: keyof Props["filters"], value: any) => {
+    const setFilter = <K extends keyof SummaryFilters>(key: K, value: SummaryFilters[K] | undefined) => {
         onFiltersChange({
             ...filters,
-            [key]: value,
+            [key]: value || undefined,
+        })
+    }
+
+    const setTextFilter = (
+        textKey: "product_text" | "quote_text",
+        opKey: "product_text_op" | "quote_text_op",
+        value: string,
+        op: TextFilterOp,
+    ) => {
+        onFiltersChange({
+            ...filters,
+            [textKey]: value.trim() || undefined,
+            [opKey]: value.trim() ? op : undefined,
+        })
+    }
+
+    const clearTextFilter = (
+        textKey: "product_text" | "quote_text",
+        opKey: "product_text_op" | "quote_text_op",
+    ) => {
+        onFiltersChange({
+            ...filters,
+            [textKey]: undefined,
+            [opKey]: undefined,
         })
     }
 
@@ -88,169 +226,306 @@ export function SummaryTable({
         }))
     }
 
+    const activeFilterChips = [
+        keyword
+            ? {
+                key: "keyword",
+                label: `Tìm kiếm "${keyword}"`,
+                onClear: () => onKeywordChange(""),
+            }
+            : null,
+        filters.product_text
+            ? {
+                key: "product_text",
+                label: textFilterDescription("Hàng hóa", filters.product_text_op, filters.product_text),
+                onClear: () => clearTextFilter("product_text", "product_text_op"),
+            }
+            : null,
+        filters.warehouse_id
+            ? {
+                key: "warehouse_id",
+                label: "Kho: đã chọn",
+                onClear: () => setFilter("warehouse_id", undefined),
+            }
+            : null,
+        filters.quote_text
+            ? {
+                key: "quote_text",
+                label: textFilterDescription("Nhóm hàng", filters.quote_text_op, filters.quote_text),
+                onClear: () => clearTextFilter("quote_text", "quote_text_op"),
+            }
+            : null,
+        filters.unit
+            ? {
+                key: "unit",
+                label: `ĐVT: ${filters.unit}`,
+                onClear: () => setFilter("unit", undefined),
+            }
+            : null,
+        filters.summary_status
+            ? {
+                key: "summary_status",
+                label: `Tình trạng: ${SUMMARY_STATUS_OPTIONS.find((item) => item.value === filters.summary_status)?.label || filters.summary_status}`,
+                onClear: () => setFilter("summary_status", undefined),
+            }
+            : null,
+    ].filter(Boolean) as Array<{ key: string; label: string; onClear: () => void }>
+
+    const clearAllActiveFilters = () => {
+        onKeywordChange("")
+        onFiltersChange({
+            ...filters,
+            product_id: undefined,
+            warehouse_id: undefined,
+            product_text: undefined,
+            product_text_op: undefined,
+            quote_text: undefined,
+            quote_text_op: undefined,
+            unit: undefined,
+            summary_status: undefined,
+        })
+    }
+
     return (
-        <div className="space-y-5">
+        <div className="space-y-3">
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <SummaryMetric
-                    icon={Boxes}
-                    label="Tổng tồn"
-                    value={formatNumber(totalQuantity)}
-                    hint="Số lượng của các dòng đang hiển thị"
-                    tone="success"
+                    icon={Package}
+                    label="Tồn đầu kỳ"
+                    quantity={summaryTotals.opening_quantity}
+                    value={summaryTotals.opening_value}
+                    showValue={showValues}
+                />
+                <SummaryMetric
+                    icon={TrendingUp}
+                    label="Nhập kho"
+                    quantity={summaryTotals.inbound_quantity}
+                    value={summaryTotals.inbound_value}
+                    tone="in"
+                    showValue={showValues}
+                />
+                <SummaryMetric
+                    icon={TrendingDown}
+                    label="Xuất kho"
+                    quantity={summaryTotals.outbound_quantity}
+                    value={summaryTotals.outbound_value}
+                    tone="out"
+                    showValue={showValues}
                 />
                 <SummaryMetric
                     icon={Warehouse}
-                    label="Tổng giá trị"
-                    value={formatCurrency(totalValue)}
-                    hint="Tổng tiền tồn kho"
-                    tone="primary"
-                />
-                <SummaryMetric
-                    icon={Tag}
-                    label="Giá vốn bình quân"
-                    value={formatCurrency(avgCost)}
-                    hint="Tổng giá trị / tổng tồn"
-                    tone="info"
-                />
-                <SummaryMetric
-                    icon={missingCostCount ? AlertTriangle : PackageCheck}
-                    label="Phạm vi"
-                    value={`${formatNumber(productCount)} SP · ${formatNumber(warehouseCount)} kho`}
-                    hint={missingCostCount ? `${formatNumber(missingCostCount)} dòng thiếu giá vốn` : "Theo bộ lọc hiện tại"}
-                    tone={missingCostCount ? "warn" : "muted"}
+                    label="Tồn cuối kỳ"
+                    quantity={summaryTotals.closing_quantity}
+                    value={summaryTotals.closing_value}
+                    tone="stock"
+                    showValue={showValues}
                 />
             </div>
 
             <Card className="border-border/60 gap-0 overflow-hidden py-0 shadow-sm">
-                <CardHeader className="space-y-4 border-b py-5">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                                <CardTitle className="text-lg">Tồn kho đã ghi nhận</CardTitle>
-                                <Badge variant="secondary" className="font-mono text-xs">
-                                    {formatNumber(data.length)} dòng
-                                </Badge>
-                            </div>
-                            <CardDescription className="mt-1">
-                                Xem tồn kho theo kho, sản phẩm, số lượng và giá trị tồn.
-                            </CardDescription>
-                        </div>
-                        <Badge variant="outline" className="w-fit font-mono">
-                            Trang {formatNumber(currentPage)} / {formatNumber(Math.max(pageCount, 1))}
-                        </Badge>
-                    </div>
+                <CardHeader className="bg-muted/40 border-b px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <SearchOnBlurInput
+                            value={keyword}
+                            onChange={onKeywordChange}
+                            placeholder="Tìm mã hàng, tên hàng, kho, nhóm hàng..."
+                            wrapperClassName="relative h-10 min-w-[220px] flex-[1_1_240px] xl:max-w-[320px]"
+                            className={cn(controlClass, "pl-10")}
+                        />
 
-                    <div className="bg-muted/40 -mx-6 -mb-5 border-t px-6 py-4">
-                        <div className="text-muted-foreground mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
-                            <Filter className="h-3.5 w-3.5" />
-                            Bộ lọc tồn kho
-                        </div>
+                        <AsyncSelect
+                            className={cn(controlClass, "min-w-[260px] flex-[1.3_1_280px] py-0 xl:max-w-[420px]")}
+                            value={filters.product_id}
+                            onChange={(value: any) => setFilter("product_id", value || undefined)}
+                            placeholder="Sản phẩm"
+                            dataSource={{
+                                getList: listProducts,
+                                getById: getProduct,
+                                params: { page: 1, size: 20 },
+                            }}
+                            mapOption={(product: any) => ({
+                                value: product.id,
+                                label: `${product.name} - ${product.code}`,
+                            })}
+                        />
 
-                        <div className="space-y-2">
-                            <div className="flex w-full flex-wrap items-center gap-2">
-                                <SearchOnBlurInput
-                                    value={keyword}
-                                    onChange={onKeywordChange}
-                                    placeholder="Tìm theo mã hoặc tên sản phẩm..."
-                                    wrapperClassName="relative h-11 min-w-[320px] flex-[1.2_1_0]"
-                                    className={cn(controlClass, "pl-10")}
-                                />
+                        <AsyncSelect
+                            className={cn(controlClass, "min-w-[190px] flex-[0.8_1_220px] py-0 xl:max-w-[260px]")}
+                            value={filters.warehouse_id}
+                            onChange={(value: any) => setFilter("warehouse_id", value || undefined)}
+                            placeholder="Kho hàng"
+                            dataSource={{
+                                getList: listWarehouses,
+                                getById: getWarehouse,
+                                params: { page: 1, size: 20 },
+                            }}
+                            mapOption={(warehouse: any) => ({
+                                value: warehouse.id,
+                                label: warehouse.name,
+                            })}
+                        />
 
-                                <AsyncSelect
-                                    className={cn(controlClass, "min-w-[320px] flex-[1.8_1_0] py-0")}
-                                    value={filters.product_id}
-                                    onChange={(value: any) => setFilter("product_id", value || undefined)}
-                                    placeholder="Sản phẩm"
-                                    dataSource={{
-                                        getList: listProducts,
-                                        getById: getProduct,
-                                        params: { page: 1, size: 20 },
-                                    }}
-                                    mapOption={(x: any) => ({
-                                        value: x.id,
-                                        label: `${x.code} - ${x.name}`,
-                                    })}
-                                />
-                            </div>
+                        <DatePicker
+                            className="h-10 min-w-[170px] flex-1 [&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
+                            value={filters.from_date}
+                            onChange={(value) => setFilter("from_date", value || undefined)}
+                            disabled={(date) => {
+                                const value = dateToYmd(date)
+                                return value > today || Boolean(filters.to_date && value > filters.to_date)
+                            }}
+                            placeholder="Từ ngày"
+                        />
 
-                            <div className="flex w-full flex-wrap items-center gap-2">
-                                <AsyncSelect
-                                    className={cn(controlClass, "min-w-[260px] flex-1 py-0")}
-                                    value={filters.warehouse_id}
-                                    onChange={(value: any) => setFilter("warehouse_id", value || undefined)}
-                                    placeholder="Kho hàng"
-                                    dataSource={{
-                                        getList: listWarehouses,
-                                        getById: getWarehouse,
-                                        params: { page: 1, size: 20 },
-                                    }}
-                                    mapOption={(x: any) => ({
-                                        value: x.id,
-                                        label: x.name,
-                                    })}
-                                />
-                            </div>
-                        </div>
+                        <DatePicker
+                            className="h-10 min-w-[170px] flex-1 [&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
+                            value={filters.to_date}
+                            onChange={(value) => setFilter("to_date", value || undefined)}
+                            disabled={(date) => {
+                                const value = dateToYmd(date)
+                                return Boolean(filters.from_date && value < filters.from_date)
+                            }}
+                            placeholder="Đến ngày"
+                        />
                     </div>
                 </CardHeader>
 
-                <div className="bg-muted/30 flex flex-wrap items-center gap-2 border-b px-6 py-3 text-sm">
-                    <Badge variant="secondary" className="font-mono">
-                        {formatNumber(groupedRows.length)} kho
-                    </Badge>
-                    <span className="text-muted-foreground">·</span>
-                    <span className="text-muted-foreground">
-                        Trang hiện tại có {formatNumber(data.length)} dòng tồn kho
-                    </span>
-                </div>
-
-                <div className="space-y-6 p-6">
-                    {groupedRows.map((group) => (
-                        <section key={group.key} className="space-y-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="flex items-center gap-3">
-                                    <div className="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-md">
-                                        <Warehouse className="h-4 w-4" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-base font-semibold leading-tight">{group.label}</h3>
-                                        <p className="text-muted-foreground text-xs">
-                                            {group.sub ? `${group.sub} · ` : ""}
-                                            {formatNumber(group.items.length)} dòng tồn
-                                        </p>
-                                    </div>
-                                </div>
-                                <GroupSummary rows={group.items} />
-                            </div>
-
-                            <div className="space-y-3">
-                                {group.items.map((item, index) => (
-                                    <InventoryItemCard
-                                        key={`${item.warehouse_id}-${item.product_id}-${item.id ?? index}`}
-                                        index={index + 1}
+                <CardContent className="p-0">
+                    {activeFilterChips.length ? (
+                        <div className="flex flex-wrap items-center gap-2 border-b bg-white px-4 py-2">
+                            {activeFilterChips.map((chip) => (
+                                <Badge key={chip.key} variant="secondary" className="gap-1.5 rounded-md font-medium">
+                                    {chip.label}
+                                    <button
+                                        type="button"
+                                        className="text-muted-foreground hover:text-foreground"
+                                        onClick={chip.onClear}
+                                        aria-label={`Xóa bộ lọc ${chip.label}`}
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </Badge>
+                            ))}
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                onClick={clearAllActiveFilters}
+                            >
+                                <X className="mr-1 h-3 w-3" />
+                                Xóa tất cả
+                            </Button>
+                        </div>
+                    ) : null}
+                    <div className="overflow-x-auto">
+                        <table className="w-max min-w-full table-auto whitespace-nowrap text-sm">
+                            <thead className="bg-muted/50 text-muted-foreground border-b text-xs">
+                                <tr>
+                                    <Th rowSpan={showValues ? 2 : 1} className="text-center">STT</Th>
+                                    <Th rowSpan={showValues ? 2 : 1}>
+                                        <ColumnTextFilter
+                                            label="Hàng hóa"
+                                            value={filters.product_text}
+                                            op={filters.product_text_op}
+                                            onApply={(value, op) => setTextFilter("product_text", "product_text_op", value, op)}
+                                            onClear={() => clearTextFilter("product_text", "product_text_op")}
+                                        />
+                                    </Th>
+                                    <Th rowSpan={showValues ? 2 : 1}>
+                                        <ColumnSelectFilter
+                                            label="ĐVT"
+                                            value={filters.unit}
+                                            options={UNIT_OPTIONS.map((unit) => ({ value: unit, label: unit }))}
+                                            onChange={(value) => setFilter("unit", value)}
+                                        />
+                                    </Th>
+                                    <Th rowSpan={showValues ? 2 : 1}>
+                                        <ColumnWarehouseFilter
+                                            label="Kho"
+                                            value={filters.warehouse_id}
+                                            onChange={(value) => setFilter("warehouse_id", value)}
+                                        />
+                                    </Th>
+                                    <Th colSpan={showValues ? 2 : 1} className="text-center">Tồn đầu kỳ</Th>
+                                    <Th colSpan={showValues ? 2 : 1} className="text-center">Nhập kho</Th>
+                                    <Th colSpan={showValues ? 2 : 1} className="text-center">Xuất kho</Th>
+                                    <Th colSpan={showValues ? 2 : 1} className="text-center">Tồn cuối kỳ</Th>
+                                    <Th rowSpan={showValues ? 2 : 1}>
+                                        <ColumnTextFilter
+                                            label="Nhóm hàng"
+                                            value={filters.quote_text}
+                                            op={filters.quote_text_op}
+                                            onApply={(value, op) => setTextFilter("quote_text", "quote_text_op", value, op)}
+                                            onClear={() => clearTextFilter("quote_text", "quote_text_op")}
+                                        />
+                                    </Th>
+                                    <Th rowSpan={showValues ? 2 : 1}>Tính chất</Th>
+                                    <Th rowSpan={showValues ? 2 : 1}>
+                                        <ColumnSelectFilter
+                                            label="Tình trạng"
+                                            value={filters.summary_status}
+                                            options={SUMMARY_STATUS_OPTIONS}
+                                            onChange={(value) => setFilter("summary_status", value)}
+                                        />
+                                    </Th>
+                                    <Th rowSpan={showValues ? 2 : 1}>Dạng hàng</Th>
+                                </tr>
+                                {showValues ? (
+                                <tr>
+                                    <Th className="text-right">Số lượng</Th>
+                                    <Th className="text-right">Giá trị</Th>
+                                    <Th className="text-right">Số lượng</Th>
+                                    <Th className="text-right">Giá trị</Th>
+                                    <Th className="text-right">Số lượng</Th>
+                                    <Th className="text-right">Giá trị</Th>
+                                    <Th className="text-right">Số lượng</Th>
+                                    <Th className="text-right">Giá trị</Th>
+                                </tr>
+                                ) : null}
+                            </thead>
+                            <tbody>
+                                {data.map((item, index) => (
+                                    <SummaryRow
+                                        key={`${item.product_id}-${item.warehouse_id}-${index}`}
+                                        index={pagination.pageIndex * pagination.pageSize + index + 1}
                                         item={item}
+                                        showValues={showValues}
                                     />
                                 ))}
-                            </div>
-                        </section>
-                    ))}
+                            </tbody>
+                            <tfoot className="bg-muted/40 border-t font-semibold">
+                                <tr>
+                                    <Td colSpan={4}>Tổng cộng theo bộ lọc</Td>
+                                    <NumberTd>{summaryTotals.opening_quantity}</NumberTd>
+                                    {showValues ? (
+                                    <MoneyTd>{summaryTotals.opening_value}</MoneyTd>
+                                    ) : null}
+                                    <NumberTd>{summaryTotals.inbound_quantity}</NumberTd>
+                                    {showValues ? (
+                                    <MoneyTd>{summaryTotals.inbound_value}</MoneyTd>
+                                    ) : null}
+                                    <NumberTd>{summaryTotals.outbound_quantity}</NumberTd>
+                                    {showValues ? (
+                                    <MoneyTd>{summaryTotals.outbound_value}</MoneyTd>
+                                    ) : null}
+                                    <NumberTd>{summaryTotals.closing_quantity}</NumberTd>
+                                    {showValues ? (
+                                    <MoneyTd>{summaryTotals.closing_value}</MoneyTd>
+                                    ) : null}
+                                    <Td colSpan={4} />
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
 
-                    {!data.length && (
-                        <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
-                            <div className="bg-muted text-muted-foreground flex h-12 w-12 items-center justify-center rounded-xl">
-                                <Inbox className="h-6 w-6" />
-                            </div>
-                            <div>
-                                <div className="font-semibold">Không tìm thấy dòng tồn kho</div>
-                                <div className="text-muted-foreground mt-1 text-sm">
-                                    Thử đổi từ khóa, sản phẩm hoặc kho hàng.
-                                </div>
-                            </div>
+                    {!data.length ? (
+                        <div className="text-muted-foreground flex min-h-[180px] items-center justify-center text-sm">
+                            Không tìm thấy dữ liệu nhập xuất tồn.
                         </div>
-                    )}
-                </div>
+                    ) : null}
+                </CardContent>
 
-                <div className="bg-muted/30 border-t px-6 py-4">
+                <div className="bg-muted/30 border-t px-4 py-3">
                     <CardPagination
                         pageIndex={pagination.pageIndex}
                         pageCount={pageCount}
@@ -263,227 +538,621 @@ export function SummaryTable({
     )
 }
 
-function InventoryItemCard({ index, item }: { index: number; item: InventorySummary }) {
-    const quantity = Number(item.total_quantity ?? 0)
-    const value = Number(item.total_value ?? 0)
-    const avgCost = quantity > 0 ? value / quantity : 0
+function SummaryRow({ index, item, showValues }: { index: number; item: InventorySummary; showValues: boolean }) {
     const status = getInventoryStatus(item)
-    const product = item.product
 
     return (
-        <div
-            className={cn(
-                "group bg-card overflow-hidden rounded-xl border shadow-sm transition-all hover:shadow-md",
-                status.tone === "bad" && "border-destructive/30",
-                status.tone === "warn" && "border-amber-300/70"
-            )}
-        >
-            <div className="bg-muted/30 grid border-b lg:grid-cols-[56px_minmax(280px,1.4fr)_minmax(180px,0.8fr)]">
-                <div className="bg-muted/50 text-muted-foreground flex items-center justify-center border-b font-mono text-sm font-semibold tabular-nums lg:border-b-0 lg:border-r">
-                    #{index}
-                </div>
-                <div className="min-w-0 border-b p-4 lg:border-b-0 lg:border-r">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="bg-primary/10 text-primary rounded-md px-2 py-0.5 font-mono text-xs font-bold">
-                            {product?.code ?? item.product_id}
-                        </span>
-                    </div>
-                    <div className="mt-2 text-base font-bold leading-snug">
-                        {product?.name ?? "-"}
-                    </div>
-                    <div className="text-muted-foreground mt-1 text-xs">
-                        ĐVT: <span className="font-medium">{product?.unit || "đơn vị"}</span>
-                    </div>
-                </div>
-                <div className="p-4">
-                    <div className="text-muted-foreground text-[10px] font-semibold uppercase tracking-wider">Kho hàng</div>
-                    <div className="mt-1 text-sm font-semibold">{item.warehouse?.name ?? "-"}</div>
-                    <div className="text-muted-foreground mt-2 text-xs">Mã kho: {item.warehouse_id ?? "-"}</div>
-                </div>
-            </div>
+        <tr className="hover:bg-muted/30 border-b">
+            <Td className="text-muted-foreground text-center font-mono">{formatNumber(index)}</Td>
+            <Td className="min-w-[360px] max-w-[520px]">
+                <LongText
+                    className="max-w-[520px] font-semibold"
+                    contentClassName="max-w-[520px] whitespace-normal break-words leading-relaxed"
+                >
+                    {item.product_name || "-"}
+                </LongText>
+                <div className="text-muted-foreground line-clamp-1 font-mono text-xs">{item.product_code || "-"}</div>
+            </Td>
+            <Td className="text-muted-foreground">{item.unit || "-"}</Td>
+            <Td className="min-w-[220px] max-w-[360px]">
+                <LongText
+                    className="max-w-[360px]"
+                    contentClassName="max-w-[420px] whitespace-normal break-words leading-relaxed"
+                >
+                    {item.warehouse_name || "-"}
+                </LongText>
+                <div className="text-muted-foreground line-clamp-1 font-mono text-xs">{item.warehouse_code || "-"}</div>
+            </Td>
+            <NumberTd>{item.opening_quantity}</NumberTd>
+            {showValues ? (
+            <MoneyTd>{item.opening_value}</MoneyTd>
+            ) : null}
+            <NumberTd>{item.inbound_quantity}</NumberTd>
+            {showValues ? (
+            <MoneyTd>{item.inbound_value}</MoneyTd>
+            ) : null}
+            <NumberTd>{item.outbound_quantity}</NumberTd>
+            {showValues ? (
+            <MoneyTd>{item.outbound_value}</MoneyTd>
+            ) : null}
+            <NumberTd className={Number(item.closing_quantity || 0) < 0 ? "text-destructive font-bold" : ""}>
+                {item.closing_quantity}
+            </NumberTd>
+            {showValues ? (
+            <MoneyTd>{item.closing_value}</MoneyTd>
+            ) : null}
+            <Td className="max-w-[260px]">
+                <LongText
+                    className="max-w-[260px] text-xs"
+                    contentClassName="max-w-[420px] whitespace-normal break-words leading-relaxed"
+                >
+                    {item.quote_name || "-"}
+                </LongText>
+            </Td>
+            <Td className="text-xs">{item.nature || "-"}</Td>
+            <Td>
+                <Badge variant={status.variant} className={cn("inline-flex items-center gap-1.5 whitespace-nowrap", status.className)}>
+                    <status.icon className="h-3.5 w-3.5 shrink-0" />
+                    {status.label}
+                </Badge>
+            </Td>
+            <Td className="text-muted-foreground">-</Td>
+        </tr>
+    )
+}
 
-            <div className="grid divide-y lg:grid-cols-4 lg:divide-x lg:divide-y-0">
-                <InfoBlock title="Số lượng tồn" icon={Boxes}>
-                    <div className="text-xl font-bold text-emerald-700 tabular-nums dark:text-emerald-400">
-                        {formatNumber(quantity)}
+function ColumnTextFilter({
+    label,
+    value,
+    op,
+    onApply,
+    onClear,
+}: {
+    label: string
+    value?: string
+    op?: TextFilterOp
+    onApply: (value: string, op: TextFilterOp) => void
+    onClear: () => void
+}) {
+    const [open, setOpen] = useState(false)
+    const [draftValue, setDraftValue] = useState(value || "")
+    const [draftOp, setDraftOp] = useState<TextFilterOp>(op || "contains")
+    const active = Boolean(value)
+
+    const apply = () => {
+        onApply(draftValue, draftOp)
+        setOpen(false)
+    }
+
+    const clear = () => {
+        setDraftValue("")
+        setDraftOp("contains")
+        onClear()
+        setOpen(false)
+    }
+
+    return (
+        <div className="flex items-center gap-1">
+            <span>{label}</span>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-6 w-6", active && "bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800")}
+                        onClick={() => {
+                            setDraftValue(value || "")
+                            setDraftOp(op || "contains")
+                        }}
+                    >
+                        <Funnel className="h-3.5 w-3.5" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72 space-y-3 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-semibold">Lọc {label.toLowerCase()}</div>
+                        <Select value={draftOp} onValueChange={(next) => setDraftOp(next as TextFilterOp)}>
+                            <SelectTrigger className="h-7 w-auto border-0 bg-transparent px-1 text-xs font-semibold shadow-none focus:ring-0">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent align="end">
+                                {TEXT_FILTER_OPERATORS.map((item) => (
+                                    <SelectItem key={item.value} value={item.value}>
+                                        {item.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
-                    <div className="text-muted-foreground mt-1 text-xs">{product?.unit || "đơn vị"}</div>
-                </InfoBlock>
-
-                <InfoBlock title="Giá trị tồn" icon={Warehouse}>
-                    <div className="text-xl font-bold tabular-nums">{formatCurrency(value)}</div>
-                    <div className="text-muted-foreground mt-1 text-xs">VNĐ</div>
-                </InfoBlock>
-
-                <InfoBlock title="Giá vốn bình quân" icon={Tag}>
-                    <div className="text-xl font-bold tabular-nums">{formatCurrency(avgCost)}</div>
-                    <div className="text-muted-foreground mt-1 text-xs">Giá trị / số lượng</div>
-                </InfoBlock>
-
-                <InfoBlock title="Tình trạng" icon={status.icon}>
-                    <div className={cn("text-xl font-bold", status.textClassName)}>{status.label}</div>
-                    <div className="text-muted-foreground mt-1 text-xs">{status.description}</div>
-                </InfoBlock>
-            </div>
+                    <Input
+                        value={draftValue}
+                        onChange={(event) => setDraftValue(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") apply()
+                        }}
+                        placeholder={`Nhập ${label.toLowerCase()}`}
+                    />
+                    <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={clear}>
+                            Xóa
+                        </Button>
+                        <Button type="button" size="sm" onClick={apply}>
+                            Áp dụng
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
         </div>
     )
 }
 
-function InfoBlock({
-    title,
-    icon: Icon,
+function ColumnWarehouseFilter({
+    label,
+    value,
+    onChange,
+}: {
+    label: string
+    value?: number
+    onChange: (value: number | undefined) => void
+}) {
+    const active = Boolean(value)
+
+    return (
+        <div className="flex items-center gap-1">
+            <span>{label}</span>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-6 w-6", active && "bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800")}
+                    >
+                        <Funnel className="h-3.5 w-3.5" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-80 space-y-2 p-3">
+                    <div className="text-sm font-semibold">Lọc {label.toLowerCase()}</div>
+                    <AsyncSelect
+                        className="h-9 min-h-9 rounded-md border-slate-300 bg-white py-0"
+                        autoOpen
+                        value={value}
+                        onChange={(next: any) => onChange(next ? Number(next) : undefined)}
+                        placeholder="Tìm và chọn kho"
+                        dataSource={{
+                            getList: listWarehouses,
+                            getById: getWarehouse,
+                            params: { page: 1, size: 20 },
+                        }}
+                        mapOption={(warehouse: any) => ({
+                            value: warehouse.id,
+                            label: warehouse.name,
+                        })}
+                    />
+                    {active ? (
+                        <div className="flex justify-end">
+                            <Button type="button" variant="outline" size="sm" onClick={() => onChange(undefined)}>
+                                Xóa
+                            </Button>
+                        </div>
+                    ) : null}
+                </PopoverContent>
+            </Popover>
+            {active && (
+                <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => onChange(undefined)}>
+                    <X className="h-3 w-3" />
+                </Button>
+            )}
+        </div>
+    )
+}
+
+function ColumnSelectFilter({
+    label,
+    value,
+    options,
+    onChange,
+}: {
+    label: string
+    value?: string
+    options: Array<{ value: string; label: string }>
+    onChange: (value: string | undefined) => void
+}) {
+    const active = Boolean(value)
+
+    return (
+        <div className="flex items-center gap-1">
+            <span>{label}</span>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-6 w-6", active && "bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800")}
+                    >
+                        <Funnel className="h-3.5 w-3.5" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-48 p-2">
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Lọc {label.toLowerCase()}</div>
+                    <FilterOptionButton active={!value} onClick={() => onChange(undefined)}>
+                        Tất cả
+                    </FilterOptionButton>
+                    {options.map((item) => (
+                        <FilterOptionButton key={item.value} active={item.value === value} onClick={() => onChange(item.value)}>
+                            {item.label}
+                        </FilterOptionButton>
+                    ))}
+                </PopoverContent>
+            </Popover>
+            {active && (
+                <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => onChange(undefined)}>
+                    <X className="h-3 w-3" />
+                </Button>
+            )}
+        </div>
+    )
+}
+
+function FilterOptionButton({
+    active,
+    onClick,
     children,
 }: {
-    title: string
-    icon: LucideIcon
+    active?: boolean
+    onClick: () => void
     children: React.ReactNode
 }) {
     return (
-        <div className="p-4">
-            <div className="text-muted-foreground mb-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider">
-                <Icon className="h-3 w-3" />
-                {title}
-            </div>
-            <div>{children}</div>
-        </div>
-    )
-}
-
-function GroupSummary({ rows }: { rows: InventorySummary[] }) {
-    const quantity = sum(rows, "total_quantity")
-    const value = sum(rows, "total_value")
-
-    return (
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-            <Badge variant="outline" className="text-emerald-700">
-                Tồn {formatNumber(quantity)}
-            </Badge>
-            <Badge variant="secondary">
-                Giá trị {formatCurrency(value)}
-            </Badge>
-        </div>
+        <button
+            type="button"
+            className={cn(
+                "flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted",
+                active && "bg-teal-50 font-semibold text-teal-700",
+            )}
+            onClick={onClick}
+        >
+            {children}
+        </button>
     )
 }
 
 function SummaryMetric({
     icon: Icon,
     label,
+    quantity,
     value,
-    hint,
     tone = "muted",
+    showValue = true,
 }: {
-    icon: LucideIcon
+    icon: React.ElementType
     label: string
-    value: React.ReactNode
-    hint: string
-    tone?: keyof typeof SUMMARY_TONES
+    quantity: number
+    value: number
+    tone?: "muted" | "in" | "out" | "stock"
+    showValue?: boolean
 }) {
-    const styles = SUMMARY_TONES[tone]
+    const toneClass = {
+        muted: "bg-slate-50 text-slate-700 border-slate-200",
+        in: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        out: "bg-rose-50 text-rose-700 border-rose-200",
+        stock: "bg-blue-50 text-blue-700 border-blue-200",
+    }[tone]
 
     return (
-        <Card className={cn("gap-0 py-4 shadow-sm transition-shadow hover:shadow-md", styles.ring)}>
+        <Card className={cn("gap-0 py-4 shadow-sm", toneClass)}>
             <CardContent className="flex items-center gap-3 px-4">
-                <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-lg", styles.iconBg)}>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/70">
                     <Icon className="h-5 w-5" />
                 </div>
-                <div className="min-w-0 flex-1">
-                    <div className="text-muted-foreground truncate text-[11px] font-semibold uppercase tracking-wider">
-                        {label}
-                    </div>
-                    <div className={cn("mt-1 truncate text-xl font-bold tabular-nums", styles.value)}>
-                        {value}
-                    </div>
-                    <div className="text-muted-foreground mt-1 truncate text-xs">{hint}</div>
+                <div className="min-w-0">
+                    <div className="text-xs font-semibold uppercase">{label}</div>
+                    <div className="mt-1 text-sm tabular-nums">Số lượng: <span className="font-bold">{formatNumber(quantity || 0)}</span></div>
+                    {showValue ? (
+                    <div className="text-sm tabular-nums">Giá trị: <span className="font-bold">{formatCurrency(value || 0)}</span></div>
+                    ) : null}
                 </div>
             </CardContent>
         </Card>
     )
 }
 
-const SUMMARY_TONES = {
-    info: {
-        ring: "border-blue-200/60 dark:border-blue-900/40",
-        iconBg: "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400",
-        value: "",
-    },
-    primary: {
-        ring: "border-primary/20 bg-primary/[0.02]",
-        iconBg: "bg-primary/10 text-primary",
-        value: "text-primary",
-    },
-    success: {
-        ring: "border-emerald-200/60 dark:border-emerald-900/40",
-        iconBg: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400",
-        value: "text-emerald-700 dark:text-emerald-400",
-    },
-    warn: {
-        ring: "border-amber-300/70 bg-amber-50/40 dark:border-amber-900/60 dark:bg-amber-950/20",
-        iconBg: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
-        value: "text-amber-700 dark:text-amber-400",
-    },
-    muted: {
-        ring: "border-border/60",
-        iconBg: "bg-muted text-muted-foreground",
-        value: "text-muted-foreground",
-    },
-} as const
+export function ExportInventorySummaryButton({
+    keyword,
+    filters,
+    showValues = true,
+    listFn = listInventorySummarys,
+}: {
+    keyword: string
+    filters: SummaryFilters
+    showValues?: boolean
+    listFn?: (params: SummaryListParams) => Promise<any>
+}) {
+    const [loading, setLoading] = useState(false)
 
-function getInventoryStatus(row: InventorySummary) {
-    const quantity = Number(row.total_quantity ?? 0)
-    const value = Number(row.total_value ?? 0)
+    const handleExport = async () => {
+        try {
+            setLoading(true)
+            const rows = await fetchAllSummary({
+                page: 1,
+                size: EXPORT_PAGE_SIZE,
+                keyword,
+                product_id: filters.product_id,
+                warehouse_id: filters.warehouse_id,
+                from_date: filters.from_date,
+                to_date: filters.to_date,
+                product_text: filters.product_text,
+                product_text_op: filters.product_text_op,
+                quote_text: filters.quote_text,
+                quote_text_op: filters.quote_text_op,
+                unit: filters.unit,
+                summary_status: filters.summary_status,
+            }, listFn)
 
-    if (quantity <= 0) {
-        return {
-            label: "Hết tồn",
-            description: "Số lượng tồn bằng 0 hoặc âm",
-            icon: Inbox,
-            tone: "muted",
-            variant: "secondary" as const,
-            className: "",
-            textClassName: "text-muted-foreground",
+            if (!rows.length) {
+                toast.warning("Không có dữ liệu để xuất")
+                return
+            }
+
+            await exportSummaryXlsx(rows, filters, showValues)
+            toast.success(`Đã xuất ${formatNumber(rows.length)} dòng nhập xuất tồn`)
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Xuất Excel thất bại")
+        } finally {
+            setLoading(false)
         }
     }
 
-    if (value <= 0) {
-        return {
-            label: "Thiếu giá vốn",
-            description: "Có số lượng nhưng chưa có giá trị tồn",
-            icon: AlertTriangle,
-            tone: "bad",
-            variant: "destructive" as const,
-            className: "",
-            textClassName: "text-destructive",
-        }
-    }
-
-    return {
-        label: "Còn tồn",
-        description: "Có số lượng và giá trị tồn",
-        icon: PackageCheck,
-        tone: "success",
-        variant: "default" as const,
-        className: "bg-emerald-600 hover:bg-emerald-600",
-        textClassName: "text-emerald-700 dark:text-emerald-400",
-    }
+    return (
+        <Button type="button" size="sm" variant="outline" onClick={handleExport} disabled={loading}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            Xuất Excel
+        </Button>
+    )
 }
 
-function groupByWarehouse(rows: InventorySummary[]) {
-    const groups = new Map<string, WarehouseGroup>()
+async function fetchAllSummary(base: SummaryListParams, listFn: (params: SummaryListParams) => Promise<any>): Promise<InventorySummary[]> {
+    const all: InventorySummary[] = []
+    let page = 1
 
-    rows.forEach((row) => {
-        const key = row.warehouse_id ? String(row.warehouse_id) : "unknown"
-        const label = row.warehouse?.name || "Chưa gắn kho"
-        const sub = row.warehouse_id ? `#${row.warehouse_id}` : undefined
+    for (let guard = 0; guard < 500; guard++) {
+        const res: any = await listFn({ ...base, page, size: EXPORT_PAGE_SIZE })
+        all.push(...(res.items || []))
+        if (page >= (res.total_page || 1) || !res.items?.length) break
+        page += 1
+    }
 
-        if (!groups.has(key)) {
-            groups.set(key, { key, label, sub, items: [] })
-        }
-        groups.get(key)!.items.push(row)
+    return all
+}
+
+async function exportSummaryXlsx(rows: InventorySummary[], filters: SummaryFilters, showValues: boolean) {
+    const { Workbook } = await import("exceljs")
+    const workbook = new Workbook()
+    workbook.creator = "VLIFE"
+    workbook.created = new Date()
+    const columnGroups = exportColumnGroups(showValues)
+    const columns = columnGroups.flatMap((group) => group.columns)
+
+    const sheet = workbook.addWorksheet("Nhập xuất tồn", {
+        views: [{ state: "frozen", ySplit: showValues ? 4 : 3 }],
     })
 
-    return Array.from(groups.values()).sort((a, b) => a.label.localeCompare(b.label, "vi"))
+    sheet.mergeCells(1, 1, 1, columns.length)
+    sheet.getCell(1, 1).value = "BÁO CÁO TỒN KHO"
+    sheet.getCell(1, 1).font = { bold: true, size: 16 }
+    sheet.getCell(1, 1).alignment = { horizontal: "center", vertical: "middle" }
+
+    sheet.mergeCells(2, 1, 2, columns.length)
+    sheet.getCell(2, 1).value = `Thời gian lọc: ${formatPeriod(filters.from_date, filters.to_date)} | Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}`
+    sheet.getCell(2, 1).font = { italic: true, color: { argb: "FF64748B" } }
+    sheet.getCell(2, 1).alignment = { horizontal: "center" }
+
+    sheet.addRow([])
+    if (showValues) {
+        sheet.addRow(buildExportTopHeader(columnGroups))
+        sheet.addRow(columns.map((column) => column.label))
+    } else {
+        sheet.addRow(columns.map((column) => column.label))
+    }
+    rows.forEach((row, index) => {
+        sheet.addRow(columns.map((column) => normalizeCellValue(column.value(row, index), column)))
+    })
+
+    sheet.columns = columns.map((column) => ({ width: column.width ?? 18 }))
+    if (showValues) {
+        mergeExportHeaders(sheet, columnGroups)
+    }
+    applyAutoColumnWidths(sheet, columns, showValues ? 6 : 5)
+    sheet.autoFilter = {
+        from: { row: 4, column: 1 },
+        to: { row: showValues ? 5 : 4, column: columns.length },
+    }
+
+    const border = {
+        top: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        left: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        bottom: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        right: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+    }
+
+    for (const rowNumber of showValues ? [4, 5] : [4]) {
+        const header = sheet.getRow(rowNumber)
+        header.height = 28
+        header.eachCell({ includeEmpty: true }, (cell) => {
+            cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F766E" } }
+            cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
+            cell.border = border
+        })
+    }
+
+    for (let rowIndex = showValues ? 6 : 5; rowIndex <= sheet.rowCount; rowIndex++) {
+        const row = sheet.getRow(rowIndex)
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            const column = columns[colNumber - 1]
+            cell.border = border
+            cell.alignment = {
+                vertical: "middle",
+                horizontal: column.type === "number" ? "right" : "left",
+                wrapText: false,
+            }
+            if (column.type === "number") cell.numFmt = getExcelNumberFormat(cell.value, column)
+        })
+        row.height = 22
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    downloadBlob(buffer, `nhap-xuat-ton-${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
-function sum(rows: InventorySummary[], key: "total_quantity" | "total_value") {
-    return rows.reduce((total, row) => total + Number(row[key] ?? 0), 0)
+function getInventoryStatus(row: InventorySummary) {
+    const closing = Number(row.closing_quantity || 0)
+    const inbound = Number(row.inbound_quantity || 0)
+    const outbound = Number(row.outbound_quantity || 0)
+
+    if (closing < 0) return { label: "Âm tồn", variant: "destructive" as const, className: "", icon: AlertTriangle }
+    if (closing === 0) return { label: "Hết hàng", variant: "secondary" as const, className: "", icon: CircleMinus }
+    if (outbound > inbound)
+        return {
+            label: "Giảm tồn",
+            variant: "outline" as const,
+            className: "border-amber-300 text-amber-700",
+            icon: TrendingDown,
+        }
+    if (outbound < inbound)
+        return {
+            label: "Tăng tồn",
+            variant: "outline" as const,
+            className: "border-emerald-300 text-emerald-700",
+            icon: TrendingUp,
+        }
+    return { label: "Ổn định", variant: "outline" as const, className: "", icon: CircleCheck }
+}
+
+function textFilterDescription(label: string, op: TextFilterOp | undefined, value: string) {
+    return `${label} ${textOpLabel(op)} "${value}"`
+}
+
+function textOpLabel(op?: TextFilterOp) {
+    return TEXT_FILTER_OPERATORS.find((item) => item.value === (op || "contains"))?.label.toLowerCase() || "chứa"
+}
+
+function normalizeTotals(totals?: InventorySummaryTotals): InventorySummaryTotals {
+    return {
+        ...emptyTotals,
+        ...(totals || {}),
+    }
+}
+
+function normalizeCellValue(value: string | number | null | undefined, column: ExportColumn) {
+    if (value == null || value === "") return ""
+    if (column.type === "number") {
+        const numberValue = Number(value)
+        return Number.isFinite(numberValue) ? numberValue : ""
+    }
+    return value
+}
+
+function getExcelNumberFormat(value: unknown, column: ExportColumn) {
+    const numberValue = Number(value)
+    if (column.numberFormat === "integer" || column.numberFormat === "money") return "#,##0"
+    if (Number.isFinite(numberValue) && Number.isInteger(numberValue)) return "#,##0"
+    return "#,##0.###"
+}
+
+function buildExportTopHeader(groups: ExportColumnGroup[]) {
+    return groups.flatMap((group) => [
+        group.label,
+        ...Array(Math.max(group.columns.length - 1, 0)).fill(""),
+    ])
+}
+
+function mergeExportHeaders(sheet: any, groups: ExportColumnGroup[]) {
+    let columnIndex = 1
+    for (const group of groups) {
+        const columnCount = group.columns.length
+        if (columnCount === 1) {
+            sheet.mergeCells(4, columnIndex, 5, columnIndex)
+        } else {
+            sheet.mergeCells(4, columnIndex, 4, columnIndex + columnCount - 1)
+        }
+        columnIndex += columnCount
+    }
+}
+
+function applyAutoColumnWidths(sheet: any, columns: ExportColumn[], firstDataRow: number) {
+    sheet.columns.forEach((column: any, index: number) => {
+        const config = columns[index]
+        let maxLength = config?.label?.length || 8
+
+        for (let rowIndex = firstDataRow; rowIndex <= sheet.rowCount; rowIndex++) {
+            const cell = sheet.getRow(rowIndex).getCell(index + 1)
+            const text = cell.value == null
+                ? ""
+                : typeof cell.value === "object" && "richText" in cell.value
+                    ? cell.value.richText.map((part: any) => part.text).join("")
+                    : String(cell.value)
+            const longestLine = text.split(/\r?\n/).reduce((max: number, line: string) => Math.max(max, line.length), 0)
+            maxLength = Math.max(maxLength, longestLine)
+        }
+
+        const maxWidth = config?.width ?? 18
+        const minWidth = config?.type === "number" ? 10 : Math.min(maxWidth, 8)
+        column.width = Math.min(Math.max(maxLength + 2, minWidth), maxWidth)
+    })
+}
+
+function todayYmd() {
+    return dateToYmd(new Date())
+}
+
+function dateToYmd(date: Date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+}
+
+function formatPeriod(fromDate?: string, toDate?: string) {
+    const fromText = fromDate ? formatDate(fromDate) : "Không chọn từ ngày"
+    const toText = toDate ? formatDate(toDate) : formatDate(new Date().toISOString().slice(0, 10))
+    return `${fromText} - ${toText}`
+}
+
+function formatDate(value: string) {
+    const [year, month, day] = value.split("-")
+    if (!year || !month || !day) return value
+    return `${day}/${month}/${year}`
+}
+
+function downloadBlob(buffer: ArrayBuffer, filename: string) {
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+}
+
+function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
+    return <th className={cn("border-r px-3 py-2 text-left font-semibold last:border-r-0", className)} {...props} />
+}
+
+function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
+    return <td className={cn("border-r px-3 py-1.5 align-middle last:border-r-0", className)} {...props} />
+}
+
+function NumberTd({ className, children }: { className?: string; children: React.ReactNode }) {
+    return <Td className={cn("text-right tabular-nums", className)}>{formatNumber(Number(children || 0))}</Td>
+}
+
+function MoneyTd({ className, children }: { className?: string; children: React.ReactNode }) {
+    return <Td className={cn("text-right tabular-nums", className)}>{formatCurrency(Number(children || 0))}</Td>
 }

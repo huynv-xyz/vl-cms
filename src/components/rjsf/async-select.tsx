@@ -30,6 +30,7 @@ export const AsyncSelect = React.memo(function AsyncSelect({
     commandListClassName,
     optionWrapLabel = false,
     wrapLabel = false,
+    autoOpen = false,
 }: any) {
     const [open, setOpen] = React.useState(false)
     const [keyword, setKeyword] = React.useState("")
@@ -40,6 +41,12 @@ export const AsyncSelect = React.memo(function AsyncSelect({
     const cacheRef = React.useRef<Map<string, any[]>>(new Map())
     const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     const dataSourceParamsKey = JSON.stringify(dataSource?.params ?? {})
+
+    React.useEffect(() => {
+        if (autoOpen && !disabled) {
+            setOpen(true)
+        }
+    }, [autoOpen, disabled])
 
     React.useEffect(() => {
         if (!open || !dataSource?.getList) return

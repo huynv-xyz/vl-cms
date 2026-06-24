@@ -1,16 +1,16 @@
-import { listInventorySummarys } from "@/api/inventory/summary"
+import { listInventorySummaryForSales } from "@/api/inventory/summary"
 import { PageSection } from "@/components/page-section"
 import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { useUrlListFilters } from "@/hooks/use-url-list-filters"
 import { useUrlPagination } from "@/hooks/use-url-pagination"
-import { Route } from "@/routes/_authenticated/inventory/summary"
-import { ExportInventorySummaryButton, SummaryTable, type SummaryFilters } from "./components/summary-table"
+import { Route } from "@/routes/_authenticated/sales/inventory-summary"
+import { ExportInventorySummaryButton, SummaryTable, type SummaryFilters } from "@/features/inventory/summary/components/summary-table"
 
 function today() {
     return new Date().toISOString().slice(0, 10)
 }
 
-export default function InventorySummaryPage() {
+export default function SalesInventorySummaryPage() {
     const search = Route.useSearch()
     const navigate = Route.useNavigate()
 
@@ -59,7 +59,7 @@ export default function InventorySummaryPage() {
 
     const { data, isLoading, error } = usePaginatedList(
         [
-            "inventory-summary",
+            "sales-inventory-summary",
             search.page,
             search.size,
             keyword,
@@ -74,7 +74,7 @@ export default function InventorySummaryPage() {
             singleFilters.unit,
             singleFilters.summary_status,
         ],
-        listInventorySummarys,
+        listInventorySummaryForSales,
         {
             page: search.page,
             size: search.size,
@@ -96,9 +96,16 @@ export default function InventorySummaryPage() {
         <PageSection
             isLoading={isLoading}
             error={error}
-            title="Báo cáo tồn kho"
+            title="Tồn kho"
             data={data}
-            actions={<ExportInventorySummaryButton keyword={keyword} filters={tableFilters} />}
+            actions={
+                <ExportInventorySummaryButton
+                    keyword={keyword}
+                    filters={tableFilters}
+                    showValues={false}
+                    listFn={listInventorySummaryForSales as any}
+                />
+            }
         >
             {(data) => (
                 <SummaryTable
@@ -110,6 +117,7 @@ export default function InventorySummaryPage() {
                     keyword={keyword}
                     onKeywordChange={setKeyword}
                     filters={tableFilters}
+                    showValues={false}
                     onFiltersChange={(next) => {
                         setSingleFilters({
                             product_id: next.product_id ? String(next.product_id) : undefined,
