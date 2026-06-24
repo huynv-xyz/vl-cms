@@ -9,10 +9,7 @@ import { getDocTypeMeta } from "../data/schema"
 
 type Props = {
     keyword?: string
-    filters: Pick<
-        InventoryLedgerReportParams,
-        "product_id" | "warehouse_id" | "doc_type" | "from_date" | "to_date"
-    >
+    filters: Partial<InventoryLedgerReportParams>
 }
 
 type ExportColumn = {
@@ -20,12 +17,13 @@ type ExportColumn = {
     value: (row: InventoryLedgerReportRow, index: number) => string | number | Date | null | undefined
     width?: number
     type?: "date" | "number" | "text"
+    numberFormat?: "integer" | "quantity" | "money"
 }
 
 const EXPORT_PAGE_SIZE = 500
 
 const COLUMNS: ExportColumn[] = [
-    { label: "STT", value: (_row, index) => index + 1, width: 8, type: "number" },
+    { label: "STT", value: (_row, index) => index + 1, width: 8, type: "number", numberFormat: "integer" },
     { label: "Ngày", value: (row) => parseDate(row.posting_date), width: 14, type: "date" },
     { label: "Chứng từ", value: (row) => row.doc_no, width: 22 },
     { label: "Diễn giải", value: (row) => row.description, width: 36 },
@@ -37,11 +35,12 @@ const COLUMNS: ExportColumn[] = [
     { label: "ĐVT", value: (row) => row.unit, width: 10 },
     { label: "Số lô", value: (row) => row.lot_code, width: 24 },
     { label: "Kho", value: (row) => row.warehouse_name, width: 28 },
-    { label: "Đơn giá", value: (row) => row.unit_price, width: 16, type: "number" },
-    { label: "Nhập", value: (row) => row.quantity_in, width: 16, type: "number" },
-    { label: "Xuất", value: (row) => row.quantity_out, width: 16, type: "number" },
-    { label: "Tồn sau", value: (row) => row.balance_quantity, width: 16, type: "number" },
-    { label: "Thành tiền", value: (row) => row.amount, width: 18, type: "number" },
+    { label: "Đơn giá", value: (row) => row.unit_price, width: 16, type: "number", numberFormat: "money" },
+    { label: "Tồn đầu", value: (row) => Number(row.balance_quantity || 0) - Number(row.quantity_in || 0) + Number(row.quantity_out || 0), width: 16, type: "number", numberFormat: "quantity" },
+    { label: "Nhập", value: (row) => row.quantity_in, width: 16, type: "number", numberFormat: "quantity" },
+    { label: "Xuất", value: (row) => row.quantity_out, width: 16, type: "number", numberFormat: "quantity" },
+    { label: "Tồn sau", value: (row) => row.balance_quantity, width: 16, type: "number", numberFormat: "quantity" },
+    { label: "Thành tiền", value: (row) => row.amount, width: 18, type: "number", numberFormat: "money" },
     { label: "Loại chứng từ", value: (row) => getDocTypeMeta(row.doc_type).label, width: 34 },
     { label: "Mã loại", value: (row) => row.doc_type, width: 20 },
 ]
@@ -61,6 +60,17 @@ export function ExportInventoryLedgerButton({ keyword, filters }: Props) {
                 doc_type: filters.doc_type || undefined,
                 from_date: filters.from_date || undefined,
                 to_date: filters.to_date || undefined,
+                doc_text: filters.doc_text || undefined,
+                doc_text_op: filters.doc_text_op || undefined,
+                description_text: filters.description_text || undefined,
+                description_text_op: filters.description_text_op || undefined,
+                supplier_text: filters.supplier_text || undefined,
+                supplier_text_op: filters.supplier_text_op || undefined,
+                product_text: filters.product_text || undefined,
+                product_text_op: filters.product_text_op || undefined,
+                unit: filters.unit || undefined,
+                lot_text: filters.lot_text || undefined,
+                lot_text_op: filters.lot_text_op || undefined,
             })
 
             if (!rows.length) {
@@ -68,7 +78,7 @@ export function ExportInventoryLedgerButton({ keyword, filters }: Props) {
                 return
             }
 
-            await exportInventoryLedgerXlsx(rows)
+            await exportInventoryLedgerXlsx(rows, filters)
             toast.success(`Đã xuất ${rows.length} dòng sổ kho`)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Xuất Excel thất bại")
@@ -105,7 +115,7 @@ async function fetchAllInventoryLedger(base: InventoryLedgerReportParams): Promi
     return all
 }
 
-async function exportInventoryLedgerXlsx(rows: InventoryLedgerReportRow[]) {
+async function exportInventoryLedgerXlsx(rows: InventoryLedgerReportRow[], filters: Partial<InventoryLedgerReportParams>) {
     const { Workbook } = await import("exceljs")
     const workbook = new Workbook()
     workbook.creator = "VLIFE"
@@ -122,8 +132,8 @@ async function exportInventoryLedgerXlsx(rows: InventoryLedgerReportRow[]) {
     sheet.getRow(1).height = 24
 
     sheet.mergeCells(2, 1, 2, COLUMNS.length)
-    sheet.getCell(2, 1).value = `Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}`
-    sheet.getCell(2, 1).alignment = { horizontal: "right", vertical: "middle" }
+    sheet.getCell(2, 1).value = `Thời gian lọc: ${formatPeriod(filters.from_date, filters.to_date)} | Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}`
+    sheet.getCell(2, 1).alignment = { horizontal: "center", vertical: "middle" }
     sheet.getCell(2, 1).font = { italic: true, color: { argb: "FF64748B" } }
 
     sheet.addRow([])
@@ -132,7 +142,7 @@ async function exportInventoryLedgerXlsx(rows: InventoryLedgerReportRow[]) {
         sheet.addRow(COLUMNS.map((column) => normalizeCellValue(column.value(row, index), column)))
     })
 
-    sheet.columns = COLUMNS.map((column) => ({ width: column.width ?? 18 }))
+    autoFitColumns(sheet, COLUMNS)
     sheet.autoFilter = {
         from: { row: 4, column: 1 },
         to: { row: 4, column: COLUMNS.length },
@@ -172,13 +182,49 @@ async function exportInventoryLedgerXlsx(rows: InventoryLedgerReportRow[]) {
                 cell.numFmt = "dd/mm/yyyy"
             }
             if (column.type === "number") {
-                cell.numFmt = "#,##0.######"
+                cell.numFmt = getExcelNumberFormat(cell.value, column)
             }
         })
     }
 
     const buffer = await workbook.xlsx.writeBuffer()
     downloadBlob(buffer, `so-kho-${new Date().toISOString().slice(0, 10)}.xlsx`)
+}
+
+function autoFitColumns(sheet: any, columns: ExportColumn[]) {
+    columns.forEach((column, index) => {
+        const excelColumn = sheet.getColumn(index + 1)
+        let maxLength = String(column.label || "").length
+
+        excelColumn.eachCell({ includeEmpty: true }, (cell: any, rowNumber: number) => {
+            if (rowNumber < 4) return
+            maxLength = Math.max(maxLength, displayLength(cell.value, column))
+        })
+
+        const minWidth = column.type === "number" ? 12 : column.type === "date" ? 12 : 10
+        const maxWidth = ["Diá»…n giáº£i", "TÃªn sáº£n pháº©m"].includes(column.label)
+            ? 64
+            : ["TÃªn nhÃ  cung cáº¥p", "Loáº¡i chá»©ng tá»«", "Kho"].includes(column.label)
+                ? 44
+                : 28
+
+        excelColumn.width = Math.min(Math.max(maxLength + 2, minWidth), maxWidth)
+    })
+}
+
+function displayLength(value: any, column: ExportColumn) {
+    if (value == null || value === "") return 0
+    if (value instanceof Date) return 10
+    if (column.type === "number") {
+        const numberValue = Number(value)
+        if (!Number.isFinite(numberValue)) return 0
+        return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 6 }).format(numberValue).length
+    }
+    if (typeof value === "object" && "text" in value) return String(value.text || "").length
+    if (typeof value === "object" && "richText" in value) {
+        return (value.richText || []).reduce((sum: number, part: any) => sum + String(part.text || "").length, 0)
+    }
+    return String(value).length
 }
 
 function normalizeCellValue(
@@ -191,6 +237,13 @@ function normalizeCellValue(
         return Number.isFinite(numberValue) ? numberValue : ""
     }
     return value
+}
+
+function getExcelNumberFormat(value: unknown, column: ExportColumn) {
+    const numberValue = Number(value)
+    if (column.numberFormat === "integer" || column.numberFormat === "money") return "#,##0"
+    if (Number.isFinite(numberValue) && Number.isInteger(numberValue)) return "#,##0"
+    return "#,##0.###"
 }
 
 function parseDate(value?: string | null) {
@@ -206,6 +259,21 @@ function parseDate(value?: string | null) {
         return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
     }
 
+    return value
+}
+
+function formatPeriod(fromDate?: string, toDate?: string) {
+    const from = fromDate ? formatDateText(fromDate) : "Đầu kỳ"
+    const to = toDate ? formatDateText(toDate) : "Hôm nay"
+    return `${from} - ${to}`
+}
+
+function formatDateText(value: string) {
+    const dateOnly = value.trim().split(/[T\s]/)[0]
+    const ymd = dateOnly.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+    if (ymd) {
+        return `${ymd[3].padStart(2, "0")}/${ymd[2].padStart(2, "0")}/${ymd[1]}`
+    }
     return value
 }
 

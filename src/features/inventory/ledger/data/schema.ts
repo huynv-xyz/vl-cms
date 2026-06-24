@@ -82,3 +82,14 @@ export type InventoryLedgerReportRow = {
     product_name: string
     warehouse_name: string
 }
+
+export type InventoryLedgerTotals = {
+    opening_quantity?: number
+    opening_value?: number
+    inbound_quantity?: number
+    inbound_value?: number
+    outbound_quantity?: number
+    outbound_value?: number
+    closing_quantity?: number
+    closing_value?: number
+}

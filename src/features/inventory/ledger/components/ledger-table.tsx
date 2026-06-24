@@ -2,11 +2,10 @@
 import { useMemo, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { CalendarDays, Filter, Printer } from "lucide-react"
+import { CalendarDays, Funnel, Printer, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { getVoucherPrintDetail, listVoucherTypes, VOUCHER_TYPE_LABEL, type InventoryVoucherPrintDetail } from "@/api/inventory/voucher"
-import { getProduct, listProducts } from "@/api/product"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
 import { LongText } from "@/components/long-text"
@@ -15,7 +14,7 @@ import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
     Dialog,
     DialogContent,
@@ -23,10 +22,14 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn, formatNumber } from "@/lib/utils"
 import type { InventoryLedgerReportRow } from "../data/schema"
 import { getDocTypeMeta } from "../data/schema"
+
+type TextFilterOp = "contains" | "equals" | "not_equals" | "not_contains"
 
 type Props = {
     data: InventoryLedgerReportRow[]
@@ -36,16 +39,35 @@ type Props = {
     keyword: string
     onKeywordChange: (v: string) => void
     filters: {
-        product_id?: number
         warehouse_id?: number
         doc_type?: string
         from_date?: string
         to_date?: string
+        doc_text?: string
+        doc_text_op?: string
+        description_text?: string
+        description_text_op?: string
+        supplier_text?: string
+        supplier_text_op?: string
+        product_text?: string
+        product_text_op?: string
+        unit?: string
+        lot_text?: string
+        lot_text_op?: string
     }
     onFiltersChange: (f: Props["filters"]) => void
 }
 
 const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
+
+const TEXT_FILTER_OPERATORS: Array<{ value: TextFilterOp; label: string }> = [
+    { value: "contains", label: "Chứa" },
+    { value: "equals", label: "Bằng" },
+    { value: "not_equals", label: "Khác" },
+    { value: "not_contains", label: "Không chứa" },
+]
+
+const UNIT_OPTIONS = ["Kg", "Lít", "Bao", "Cái", "Thùng", "Mét"]
 
 export function InventoryLedgerTable({
     data,
@@ -57,7 +79,6 @@ export function InventoryLedgerTable({
     filters,
     onFiltersChange,
 }: Props) {
-    const currentPage = pagination.pageIndex + 1
     const [detailVoucherId, setDetailVoucherId] = useState<number | null>(null)
     const { data: inboundDocTypes = [] } = useQuery({
         queryKey: ["inventory-voucher-types", "I"],
@@ -73,7 +94,32 @@ export function InventoryLedgerTable({
     const setFilter = (key: keyof Props["filters"], value: any) => {
         onFiltersChange({
             ...filters,
-            [key]: value,
+            [key]: value || undefined,
+        })
+    }
+
+    const setTextFilter = (
+        textKey: "doc_text" | "description_text" | "supplier_text" | "product_text" | "lot_text",
+        opKey: "doc_text_op" | "description_text_op" | "supplier_text_op" | "product_text_op" | "lot_text_op",
+        value: string,
+        op: TextFilterOp,
+    ) => {
+        const nextValue = value.trim()
+        onFiltersChange({
+            ...filters,
+            [textKey]: nextValue || undefined,
+            [opKey]: nextValue ? op : undefined,
+        })
+    }
+
+    const clearTextFilter = (
+        textKey: "doc_text" | "description_text" | "supplier_text" | "product_text" | "lot_text",
+        opKey: "doc_text_op" | "description_text_op" | "supplier_text_op" | "product_text_op" | "lot_text_op",
+    ) => {
+        onFiltersChange({
+            ...filters,
+            [textKey]: undefined,
+            [opKey]: undefined,
         })
     }
 
@@ -93,141 +139,245 @@ export function InventoryLedgerTable({
             ? filters.doc_type
             : "ALL"
 
+    const activeFilterChips = [
+        keyword
+            ? { key: "keyword", label: `Tìm kiếm "${keyword}"`, onClear: () => onKeywordChange("") }
+            : null,
+        filters.doc_text
+            ? {
+                key: "doc_text",
+                label: textFilterDescription("Chứng từ", filters.doc_text_op, filters.doc_text),
+                onClear: () => clearTextFilter("doc_text", "doc_text_op"),
+            }
+            : null,
+        filters.description_text
+            ? {
+                key: "description_text",
+                label: textFilterDescription("Diễn giải", filters.description_text_op, filters.description_text),
+                onClear: () => clearTextFilter("description_text", "description_text_op"),
+            }
+            : null,
+        filters.supplier_text
+            ? {
+                key: "supplier_text",
+                label: textFilterDescription("NCC", filters.supplier_text_op, filters.supplier_text),
+                onClear: () => clearTextFilter("supplier_text", "supplier_text_op"),
+            }
+            : null,
+        filters.product_text
+            ? {
+                key: "product_text",
+                label: textFilterDescription("Sản phẩm", filters.product_text_op, filters.product_text),
+                onClear: () => clearTextFilter("product_text", "product_text_op"),
+            }
+            : null,
+        filters.unit
+            ? { key: "unit", label: `ĐVT: ${filters.unit}`, onClear: () => setFilter("unit", undefined) }
+            : null,
+        filters.lot_text
+            ? {
+                key: "lot_text",
+                label: textFilterDescription("Số lô", filters.lot_text_op, filters.lot_text),
+                onClear: () => clearTextFilter("lot_text", "lot_text_op"),
+            }
+            : null,
+        filters.warehouse_id
+            ? { key: "warehouse_id", label: "Kho: đã chọn", onClear: () => setFilter("warehouse_id", undefined) }
+            : null,
+    ].filter(Boolean) as Array<{ key: string; label: string; onClear: () => void }>
+
+    const clearAllActiveFilters = () => {
+        onKeywordChange("")
+        onFiltersChange({
+            ...filters,
+            warehouse_id: undefined,
+            doc_text: undefined,
+            doc_text_op: undefined,
+            description_text: undefined,
+            description_text_op: undefined,
+            supplier_text: undefined,
+            supplier_text_op: undefined,
+            product_text: undefined,
+            product_text_op: undefined,
+            unit: undefined,
+            lot_text: undefined,
+            lot_text_op: undefined,
+        })
+    }
+
     return (
         <Card className="border-border/60 gap-0 overflow-hidden py-0 shadow-sm">
-            <CardHeader className="gap-3 border-b px-4 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                        <CardTitle className="text-base">Sổ kho đã ghi nhận</CardTitle>
-                        <Badge variant="secondary" className="font-mono text-xs">
-                            {formatNumber((data || []).length)} dòng
-                        </Badge>
-                    </div>
-                    <Badge variant="outline" className="w-fit font-mono">
-                        Trang {formatNumber(currentPage)} / {formatNumber(Math.max(pageCount, 1))}
-                    </Badge>
-                </div>
+            <CardHeader className="bg-muted/40 border-b px-4 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                    <SearchOnBlurInput
+                        value={keyword}
+                        onChange={onKeywordChange}
+                        placeholder="Tìm chứng từ, diễn giải, NCC, sản phẩm, lô, kho..."
+                        wrapperClassName="relative h-10 min-w-[220px] flex-[1_1_260px] xl:max-w-[360px]"
+                        className={cn(controlClass, "pl-10")}
+                    />
 
-                <div className="bg-muted/40 -mx-4 -mb-3 border-t px-4 py-3">
-                    <div className="text-muted-foreground mb-2 flex items-center gap-2 text-xs font-semibold uppercase">
-                        <Filter className="h-3.5 w-3.5" />
-                        Bộ lọc sổ kho
-                    </div>
+                    <Select
+                        value={inboundValue}
+                        onValueChange={(value) => setFilter("doc_type", value === "ALL" ? undefined : value)}
+                    >
+                        <SelectTrigger className={cn(controlClass, "min-w-[180px] flex-[0.9_1_210px] xl:max-w-[260px]")}>
+                            <SelectValue placeholder="Chứng từ nhập" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Tất cả chứng từ nhập</SelectItem>
+                            {inboundDocTypes.map((type) => (
+                                <SelectItem key={type.code} value={type.code}>
+                                    {type.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                        <SearchOnBlurInput
-                            value={keyword}
-                            onChange={onKeywordChange}
-                            placeholder="Tìm chứng từ, mã hàng, tên hàng..."
-                            wrapperClassName="relative h-10 min-w-[220px] flex-[1_1_240px] xl:max-w-[300px]"
-                            className={cn(controlClass, "pl-10")}
-                        />
+                    <Select
+                        value={outboundValue}
+                        onValueChange={(value) => setFilter("doc_type", value === "ALL" ? undefined : value)}
+                    >
+                        <SelectTrigger className={cn(controlClass, "min-w-[180px] flex-[0.9_1_210px] xl:max-w-[260px]")}>
+                            <SelectValue placeholder="Chứng từ xuất" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Tất cả chứng từ xuất</SelectItem>
+                            {outboundDocTypes.map((type) => (
+                                <SelectItem key={type.code} value={type.code}>
+                                    {type.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
 
-                        <AsyncSelect
-                            className={cn(controlClass, "min-w-[260px] flex-[1.3_1_280px] py-0 xl:max-w-[380px]")}
-                            value={filters.product_id}
-                            onChange={(value: any) => setFilter("product_id", value || undefined)}
-                            placeholder="Sản phẩm"
-                            dataSource={{
-                                getList: listProducts,
-                                getById: getProduct,
-                                params: { page: 1, size: 20 },
-                            }}
-                            mapOption={(product: any) => ({
-                                value: product.id,
-                                label: `${product.code} - ${product.name}`,
-                            })}
-                        />
+                    <DatePicker
+                        className="min-w-[180px] flex-[0_1_190px] [&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
+                        value={filters.from_date}
+                        onChange={(value) => setFilter("from_date", value || undefined)}
+                        disabled={(date) => {
+                            const value = dateToYmd(date)
+                            return Boolean(filters.to_date && value > filters.to_date)
+                        }}
+                        placeholder="Từ ngày"
+                    />
 
-                        <AsyncSelect
-                            className={cn(controlClass, "min-w-[180px] flex-[0.8_1_200px] py-0 xl:max-w-[240px]")}
-                            value={filters.warehouse_id}
-                            onChange={(value: any) => setFilter("warehouse_id", value || undefined)}
-                            placeholder="Kho hàng"
-                            dataSource={{
-                                getList: listWarehouses,
-                                getById: getWarehouse,
-                                params: { page: 1, size: 20 },
-                            }}
-                            mapOption={(warehouse: any) => ({
-                                value: warehouse.id,
-                                label: warehouse.name,
-                            })}
-                        />
-
-                        <Select
-                            value={inboundValue}
-                            onValueChange={(value) => setFilter("doc_type", value === "ALL" ? undefined : value)}
-                        >
-                            <SelectTrigger className={cn(controlClass, "min-w-[180px] flex-[0.9_1_210px] xl:max-w-[260px]")}>
-                                <SelectValue placeholder="Chứng từ nhập" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">Tất cả chứng từ nhập</SelectItem>
-                                {inboundDocTypes.map((type) => (
-                                    <SelectItem key={type.code} value={type.code}>
-                                        {type.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-
-                        <Select
-                            value={outboundValue}
-                            onValueChange={(value) => setFilter("doc_type", value === "ALL" ? undefined : value)}
-                        >
-                            <SelectTrigger className={cn(controlClass, "min-w-[180px] flex-[0.9_1_210px] xl:max-w-[260px]")}>
-                                <SelectValue placeholder="Chứng từ xuất" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">Tất cả chứng từ xuất</SelectItem>
-                                {outboundDocTypes.map((type) => (
-                                    <SelectItem key={type.code} value={type.code}>
-                                        {type.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-
-                        <DatePicker
-                            className="min-w-[140px] flex-[0_1_150px] [&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
-                            value={filters.from_date}
-                            onChange={(value) => setFilter("from_date", value || undefined)}
-                            placeholder="Từ ngày"
-                        />
-
-                        <DatePicker
-                            className="min-w-[140px] flex-[0_1_150px] [&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
-                            value={filters.to_date}
-                            onChange={(value) => setFilter("to_date", value || undefined)}
-                            placeholder="Đến ngày"
-                        />
-                    </div>
+                    <DatePicker
+                        className="min-w-[180px] flex-[0_1_190px] [&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
+                        value={filters.to_date}
+                        onChange={(value) => setFilter("to_date", value || undefined)}
+                        disabled={(date) => {
+                            const value = dateToYmd(date)
+                            return Boolean(filters.from_date && value < filters.from_date)
+                        }}
+                        placeholder="Đến ngày"
+                    />
                 </div>
             </CardHeader>
 
             <CardContent className="p-0">
+                {activeFilterChips.length ? (
+                    <div className="flex flex-wrap items-center gap-2 border-b bg-white px-4 py-2">
+                        {activeFilterChips.map((chip) => (
+                            <Badge key={chip.key} variant="secondary" className="gap-1.5 rounded-md font-medium">
+                                {chip.label}
+                                <button
+                                    type="button"
+                                    className="text-muted-foreground hover:text-foreground"
+                                    onClick={chip.onClear}
+                                    aria-label={`Xóa bộ lọc ${chip.label}`}
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </Badge>
+                        ))}
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                            onClick={clearAllActiveFilters}
+                        >
+                            <X className="mr-1 h-3 w-3" />
+                            Xóa tất cả
+                        </Button>
+                    </div>
+                ) : null}
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1900px] text-sm">
+                    <table className="w-max min-w-full table-auto whitespace-nowrap text-sm">
                         <thead className="bg-muted/50 text-muted-foreground border-b text-xs">
                             <tr>
-                                <Th className="w-14 text-center">STT</Th>
-                                <Th className="w-28">Ngày</Th>
-                                <Th className="w-44">Chứng từ</Th>
-                                <Th className="w-64">Diễn giải</Th>
-                                <Th className="w-52">Tên nhà cung cấp</Th>
-                                <Th className="w-20">TK Nợ</Th>
-                                <Th className="w-20">TK Có</Th>
-                                <Th className="min-w-[300px]">Sản phẩm</Th>
-                                <Th className="w-20">ĐVT</Th>
-                                <Th className="w-32">Số lô</Th>
-                                <Th className="w-52">Kho</Th>
-                                <Th className="w-28 text-right">{"\u0110\u01a1n gi\u00e1"}</Th>
-                                <Th className="w-28 text-right">Nhập</Th>
-                                <Th className="w-28 text-right">Xuất</Th>
-                                <Th className="w-32 text-right">Tồn sau</Th>
-                                <Th className="w-32 text-right">{"Th\u00e0nh ti\u1ec1n"}</Th>
-                                <Th className="w-56">Loại</Th>
+                                <Th className="min-w-[56px] text-center">STT</Th>
+                                <Th className="min-w-[110px]">Ngày</Th>
+                                <Th className="min-w-[170px]">
+                                    <ColumnTextFilter
+                                        label="Chứng từ"
+                                        value={filters.doc_text}
+                                        op={filters.doc_text_op}
+                                        onApply={(value, op) => setTextFilter("doc_text", "doc_text_op", value, op)}
+                                        onClear={() => clearTextFilter("doc_text", "doc_text_op")}
+                                    />
+                                </Th>
+                                <Th className="min-w-[260px]">
+                                    <ColumnTextFilter
+                                        label="Diễn giải"
+                                        value={filters.description_text}
+                                        op={filters.description_text_op}
+                                        onApply={(value, op) => setTextFilter("description_text", "description_text_op", value, op)}
+                                        onClear={() => clearTextFilter("description_text", "description_text_op")}
+                                    />
+                                </Th>
+                                <Th className="min-w-[260px]">
+                                    <ColumnTextFilter
+                                        label="Tên nhà cung cấp"
+                                        value={filters.supplier_text}
+                                        op={filters.supplier_text_op}
+                                        onApply={(value, op) => setTextFilter("supplier_text", "supplier_text_op", value, op)}
+                                        onClear={() => clearTextFilter("supplier_text", "supplier_text_op")}
+                                    />
+                                </Th>
+                                <Th className="min-w-[70px]">TK Nợ</Th>
+                                <Th className="min-w-[70px]">TK Có</Th>
+                                <Th className="min-w-[360px]">
+                                    <ColumnTextFilter
+                                        label="Sản phẩm"
+                                        value={filters.product_text}
+                                        op={filters.product_text_op}
+                                        onApply={(value, op) => setTextFilter("product_text", "product_text_op", value, op)}
+                                        onClear={() => clearTextFilter("product_text", "product_text_op")}
+                                    />
+                                </Th>
+                                <Th className="min-w-[80px]">
+                                    <ColumnSelectFilter
+                                        label="ĐVT"
+                                        value={filters.unit}
+                                        options={UNIT_OPTIONS.map((unit) => ({ value: unit, label: unit }))}
+                                        onChange={(value) => setFilter("unit", value)}
+                                    />
+                                </Th>
+                                <Th className="min-w-[140px]">
+                                    <ColumnTextFilter
+                                        label="Số lô"
+                                        value={filters.lot_text}
+                                        op={filters.lot_text_op}
+                                        onApply={(value, op) => setTextFilter("lot_text", "lot_text_op", value, op)}
+                                        onClear={() => clearTextFilter("lot_text", "lot_text_op")}
+                                    />
+                                </Th>
+                                <Th className="min-w-[220px]">
+                                    <ColumnWarehouseFilter
+                                        label="Kho"
+                                        value={filters.warehouse_id}
+                                        onChange={(value) => setFilter("warehouse_id", value)}
+                                    />
+                                </Th>
+                                <Th className="min-w-[120px] text-right">{"\u0110\u01a1n gi\u00e1"}</Th>
+                                <Th className="min-w-[120px] text-right">Tồn đầu</Th>
+                                <Th className="min-w-[110px] text-right">Nhập</Th>
+                                <Th className="min-w-[110px] text-right">Xuất</Th>
+                                <Th className="min-w-[120px] text-right">Tồn sau</Th>
+                                <Th className="min-w-[140px] text-right">{"Th\u00e0nh ti\u1ec1n"}</Th>
+                                <Th className="min-w-[260px]">Loại</Th>
                             </tr>
                         </thead>
                         <tbody>
@@ -269,6 +419,256 @@ export function InventoryLedgerTable({
     )
 }
 
+function ColumnTextFilter({
+    label,
+    value,
+    op = "contains",
+    onApply,
+    onClear,
+}: {
+    label: string
+    value?: string
+    op?: string
+    onApply: (value: string, op: TextFilterOp) => void
+    onClear: () => void
+}) {
+    const [open, setOpen] = useState(false)
+    const [draftValue, setDraftValue] = useState(value || "")
+    const [draftOp, setDraftOp] = useState<TextFilterOp>(normalizeTextOp(op))
+    const active = Boolean(value)
+
+    const apply = () => {
+        onApply(draftValue, draftOp)
+        setOpen(false)
+    }
+
+    const clear = () => {
+        setDraftValue("")
+        onClear()
+        setOpen(false)
+    }
+
+    return (
+        <div className="flex items-center gap-1.5">
+            <span>{label}</span>
+            <Popover
+                open={open}
+                onOpenChange={(next) => {
+                    setOpen(next)
+                    if (next) {
+                        setDraftValue(value || "")
+                        setDraftOp(normalizeTextOp(op))
+                    }
+                }}
+            >
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className={cn(
+                            "inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent",
+                            active ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                        )}
+                        aria-label={`Lọc ${label}`}
+                    >
+                        <Funnel className="h-4 w-4" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-80 p-3">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="font-semibold text-foreground">Lọc {label}</div>
+                        <Select value={draftOp} onValueChange={(next) => setDraftOp(next as TextFilterOp)}>
+                            <SelectTrigger className="h-8 w-32 border-0 bg-transparent px-1 shadow-none">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {TEXT_FILTER_OPERATORS.map((operator) => (
+                                    <SelectItem key={operator.value} value={operator.value}>
+                                        {operator.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Input
+                        value={draftValue}
+                        onChange={(event) => setDraftValue(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") apply()
+                        }}
+                        placeholder={`Nhập ${label.toLowerCase()}`}
+                    />
+                    <div className="mt-3 flex justify-end gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={clear}>
+                            Xóa
+                        </Button>
+                        <Button type="button" size="sm" onClick={apply}>
+                            Áp dụng
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
+            {active ? (
+                <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={onClear}
+                    aria-label={`Xóa lọc ${label}`}
+                >
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            ) : null}
+        </div>
+    )
+}
+
+function ColumnSelectFilter({
+    label,
+    value,
+    options,
+    onChange,
+}: {
+    label: string
+    value?: string
+    options: Array<{ value: string; label: string }>
+    onChange: (value: string | undefined) => void
+}) {
+    const active = Boolean(value)
+
+    return (
+        <div className="flex items-center gap-1.5">
+            <span>{label}</span>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className={cn(
+                            "inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent",
+                            active ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                        )}
+                        aria-label={`Lọc ${label}`}
+                    >
+                        <Funnel className="h-4 w-4" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-56 p-2">
+                    <div className="px-2 pb-2 font-semibold text-foreground">Lọc {label}</div>
+                    <FilterOptionButton active={!value} label="Tất cả" onClick={() => onChange(undefined)} />
+                    {options.map((option) => (
+                        <FilterOptionButton
+                            key={option.value}
+                            active={value === option.value}
+                            label={option.label}
+                            onClick={() => onChange(option.value)}
+                        />
+                    ))}
+                </PopoverContent>
+            </Popover>
+            {active ? (
+                <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => onChange(undefined)}
+                    aria-label={`Xóa lọc ${label}`}
+                >
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            ) : null}
+        </div>
+    )
+}
+
+function ColumnWarehouseFilter({
+    label,
+    value,
+    onChange,
+}: {
+    label: string
+    value?: number
+    onChange: (value: number | undefined) => void
+}) {
+    const active = Boolean(value)
+
+    return (
+        <div className="flex items-center gap-1.5">
+            <span>{label}</span>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className={cn(
+                            "inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent",
+                            active ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                        )}
+                        aria-label={`Lọc ${label}`}
+                    >
+                        <Funnel className="h-4 w-4" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-80 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="font-semibold text-foreground">Lọc {label}</div>
+                        {active ? (
+                            <Button type="button" variant="ghost" size="sm" className="h-7 px-2" onClick={() => onChange(undefined)}>
+                                Xóa
+                            </Button>
+                        ) : null}
+                    </div>
+                    <AsyncSelect
+                        autoOpen
+                        className={cn(controlClass, "w-full py-0")}
+                        value={value}
+                        onChange={(next: any) => onChange(next || undefined)}
+                        placeholder="Chọn kho"
+                        dataSource={{
+                            getList: listWarehouses,
+                            getById: getWarehouse,
+                            params: { page: 1, size: 20 },
+                        }}
+                        mapOption={(warehouse: any) => ({
+                            value: warehouse.id,
+                            label: warehouse.name,
+                        })}
+                    />
+                </PopoverContent>
+            </Popover>
+            {active ? (
+                <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => onChange(undefined)}
+                    aria-label={`Xóa lọc ${label}`}
+                >
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            ) : null}
+        </div>
+    )
+}
+
+function FilterOptionButton({
+    label,
+    active,
+    onClick,
+}: {
+    label: string
+    active: boolean
+    onClick: () => void
+}) {
+    return (
+        <button
+            type="button"
+            className={cn(
+                "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm",
+                active ? "bg-primary/10 text-primary font-semibold" : "hover:bg-muted text-foreground",
+            )}
+            onClick={onClick}
+        >
+            <span>{label}</span>
+            {active ? <span className="text-xs">✓</span> : null}
+        </button>
+    )
+}
+
 function LedgerRow({
     index,
     item,
@@ -281,6 +681,7 @@ function LedgerRow({
     const meta = getDocTypeMeta(item.doc_type)
     const quantityIn = Number(item.quantity_in || 0)
     const quantityOut = Number(item.quantity_out || 0)
+    const openingBalance = Number(item.balance_quantity || 0) - quantityIn + quantityOut
 
     return (
         <tr className="hover:bg-muted/30 border-b">
@@ -308,10 +709,10 @@ function LedgerRow({
                 </div>
             </Td>
             <Td>
-                <LedgerLongText value={item.description} className="max-w-[240px]" />
+                <LedgerLongText value={item.description} className="max-w-[360px]" />
             </Td>
             <Td>
-                <LedgerLongText value={item.supplier_name} className="max-w-[190px]" />
+                <LedgerLongText value={item.supplier_name} className="max-w-[340px]" />
             </Td>
             <Td className="text-muted-foreground font-mono text-xs">
                 {item.tk_no || "-"}
@@ -320,7 +721,7 @@ function LedgerRow({
                 {item.tk_co || "-"}
             </Td>
             <Td>
-                <div className="min-w-0">
+                <div className="min-w-[340px] whitespace-nowrap">
                     <div className="font-semibold">{item.product_name || "-"}</div>
                     <div className="text-muted-foreground font-mono text-xs">{item.product_code || "-"}</div>
                 </div>
@@ -332,10 +733,13 @@ function LedgerRow({
                 {item.lot_code || "-"}
             </Td>
             <Td>
-                <div className="truncate font-medium">{item.warehouse_name || "-"}</div>
+                <div className="font-medium whitespace-nowrap">{item.warehouse_name || "-"}</div>
             </Td>
             <Td className="text-right tabular-nums">
                 {formatNumber(Number(item.unit_price || 0))}
+            </Td>
+            <Td className="text-right font-semibold tabular-nums">
+                {formatNumber(openingBalance)}
             </Td>
             <Td className="text-right">
                 <Quantity value={quantityIn} tone="in" />
@@ -350,7 +754,7 @@ function LedgerRow({
                 {formatNumber(Number(item.amount || 0))}
             </Td>
             <Td>
-                <div className="text-muted-foreground line-clamp-2 text-xs leading-4">
+                <div className="text-muted-foreground whitespace-nowrap text-xs leading-4">
                     {meta.label}
                 </div>
             </Td>
@@ -681,6 +1085,25 @@ function formatDate(value?: string) {
         return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`
     }
     return datePart
+}
+
+function textFilterDescription(label: string, op: string | undefined, value: string) {
+    return `${label} ${textOpLabel(op)} "${value}"`
+}
+
+function textOpLabel(op?: string) {
+    return TEXT_FILTER_OPERATORS.find((item) => item.value === normalizeTextOp(op))?.label.toLowerCase() || "chứa"
+}
+
+function normalizeTextOp(op?: string): TextFilterOp {
+    return TEXT_FILTER_OPERATORS.some((item) => item.value === op) ? (op as TextFilterOp) : "contains"
+}
+
+function dateToYmd(date: Date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
 }
 
 function formatViPrintDate(dateStr?: string): string {

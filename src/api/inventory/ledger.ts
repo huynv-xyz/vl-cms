@@ -15,6 +15,17 @@ export type InventoryLedgerListParams = {
     doc_no?: string
     from_date?: string
     to_date?: string
+    doc_text?: string
+    doc_text_op?: string
+    description_text?: string
+    description_text_op?: string
+    supplier_text?: string
+    supplier_text_op?: string
+    product_text?: string
+    product_text_op?: string
+    unit?: string
+    lot_text?: string
+    lot_text_op?: string
 }
 
 export type InventoryLedgerReportParams = InventoryLedgerListParams
