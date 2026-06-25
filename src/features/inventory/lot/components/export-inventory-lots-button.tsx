@@ -11,12 +11,18 @@ type Props = {
     filters: Pick<
         InventoryLotListParams,
         | "product_id"
+        | "product_ids"
         | "warehouse_id"
+        | "warehouse_ids"
         | "from_date"
         | "to_date"
         | "only_remaining"
         | "product_text"
         | "product_text_op"
+        | "product_code_text"
+        | "product_code_text_op"
+        | "product_name_text"
+        | "product_name_text_op"
         | "quote_text"
         | "quote_text_op"
         | "unit"
@@ -58,7 +64,6 @@ const COLUMNS: ExportColumn[] = [
     { label: "Tính chất", value: (row) => rowString(row, "nature") || row.product?.nature, width: 16 },
     { label: "Dạng hàng", value: () => "", width: 16 },
 ]
-
 export function ExportInventoryLotsButton({ keyword, filters }: Props) {
     const [loading, setLoading] = useState(false)
 
@@ -70,11 +75,17 @@ export function ExportInventoryLotsButton({ keyword, filters }: Props) {
                 size: EXPORT_PAGE_SIZE,
                 keyword: keyword || undefined,
                 product_id: filters.product_id,
+                product_ids: filters.product_ids,
                 warehouse_id: filters.warehouse_id,
+                warehouse_ids: filters.warehouse_ids,
                 from_date: filters.from_date || undefined,
                 to_date: filters.to_date || undefined,
                 product_text: filters.product_text,
                 product_text_op: filters.product_text_op,
+                product_code_text: filters.product_code_text,
+                product_code_text_op: filters.product_code_text_op,
+                product_name_text: filters.product_name_text,
+                product_name_text_op: filters.product_name_text_op,
                 quote_text: filters.quote_text,
                 quote_text_op: filters.quote_text_op,
                 unit: filters.unit,

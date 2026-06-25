@@ -15,6 +15,8 @@ export const Route = createFileRoute("/_authenticated/inventory/ledgers/")({
             search.warehouse_id !== undefined && !isNaN(Number(search.warehouse_id))
                 ? Number(search.warehouse_id)
                 : undefined,
+        warehouse_ids: typeof search.warehouse_ids === "string" ? search.warehouse_ids : undefined,
+        product_ids: typeof search.product_ids === "string" ? search.product_ids : undefined,
 
         doc_type:
             typeof search.doc_type === "string"
@@ -39,6 +41,14 @@ export const Route = createFileRoute("/_authenticated/inventory/ledgers/")({
         supplier_text_op: typeof search.supplier_text_op === "string" ? search.supplier_text_op : undefined,
         product_text: typeof search.product_text === "string" ? search.product_text : undefined,
         product_text_op: typeof search.product_text_op === "string" ? search.product_text_op : undefined,
+        product_code_text: typeof search.product_code_text === "string" ? search.product_code_text : undefined,
+        product_code_text_op: typeof search.product_code_text_op === "string" ? search.product_code_text_op : undefined,
+        product_name_text: typeof search.product_name_text === "string" ? search.product_name_text : undefined,
+        product_name_text_op: typeof search.product_name_text_op === "string" ? search.product_name_text_op : undefined,
+        warehouse_code_text: typeof search.warehouse_code_text === "string" ? search.warehouse_code_text : undefined,
+        warehouse_code_text_op: typeof search.warehouse_code_text_op === "string" ? search.warehouse_code_text_op : undefined,
+        warehouse_name_text: typeof search.warehouse_name_text === "string" ? search.warehouse_name_text : undefined,
+        warehouse_name_text_op: typeof search.warehouse_name_text_op === "string" ? search.warehouse_name_text_op : undefined,
         unit: typeof search.unit === "string" ? search.unit : undefined,
         lot_text: typeof search.lot_text === "string" ? search.lot_text : undefined,
         lot_text_op: typeof search.lot_text_op === "string" ? search.lot_text_op : undefined,

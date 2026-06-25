@@ -21,12 +21,14 @@ export const Route = createFileRoute("/_authenticated/inventory/lots/")({
                 !isNaN(Number(search.product_id))
                     ? Number(search.product_id)
                     : undefined,
+            product_ids: typeof search.product_ids === "string" ? search.product_ids : undefined,
 
             warehouse_id:
                 search.warehouse_id !== undefined &&
                 !isNaN(Number(search.warehouse_id))
                     ? Number(search.warehouse_id)
                     : undefined,
+            warehouse_ids: typeof search.warehouse_ids === "string" ? search.warehouse_ids : undefined,
 
             from_date: fromDate,
             to_date: toDate,
@@ -37,6 +39,14 @@ export const Route = createFileRoute("/_authenticated/inventory/lots/")({
                     : undefined,
             product_text: typeof search.product_text === "string" ? search.product_text : undefined,
             product_text_op: normalizeTextOp(search.product_text_op),
+            product_code_text: typeof search.product_code_text === "string" ? search.product_code_text : undefined,
+            product_code_text_op: normalizeTextOp(search.product_code_text_op),
+            product_name_text: typeof search.product_name_text === "string" ? search.product_name_text : undefined,
+            product_name_text_op: normalizeTextOp(search.product_name_text_op),
+            warehouse_code_text: typeof search.warehouse_code_text === "string" ? search.warehouse_code_text : undefined,
+            warehouse_code_text_op: normalizeTextOp(search.warehouse_code_text_op),
+            warehouse_name_text: typeof search.warehouse_name_text === "string" ? search.warehouse_name_text : undefined,
+            warehouse_name_text_op: normalizeTextOp(search.warehouse_name_text_op),
             quote_text: typeof search.quote_text === "string" ? search.quote_text : undefined,
             quote_text_op: normalizeTextOp(search.quote_text_op),
             unit: typeof search.unit === "string" ? search.unit : undefined,

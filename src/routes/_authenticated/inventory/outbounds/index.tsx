@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { InventoryLedgerReportPage } from "@/features/inventory/ledger"
 
-export const Route = createFileRoute("/_authenticated/inventory/inbounds/")({
+export const Route = createFileRoute("/_authenticated/inventory/outbounds/")({
     validateSearch: validateLedgerSearch,
-    component: InventoryInboundLedgerPage,
+    component: InventoryOutboundLedgerPage,
 })
 
-function InventoryInboundLedgerPage() {
-    return <InventoryLedgerReportPage route={Route} mode="in" />
+function InventoryOutboundLedgerPage() {
+    return <InventoryLedgerReportPage route={Route} mode="out" />
 }
 
 function validateLedgerSearch(search: Record<string, unknown>) {

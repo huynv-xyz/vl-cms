@@ -280,9 +280,9 @@ export const sidebarData: SidebarData = {
                     icon: Truck,
                 },
                 {
-                    title: 'Cảnh báo HSD',
-                    url: '/inventory/alerts',
-                    icon: Boxes,
+                    title: 'Xuất kho',
+                    url: '/inventory/outbounds',
+                    icon: ReceiptText,
                 },
             ],
         },

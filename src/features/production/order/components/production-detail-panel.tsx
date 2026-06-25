@@ -60,6 +60,7 @@ import {
 } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { listProducts, getProduct } from "@/api/product"
+import type { Product } from "@/features/product/data/schema"
 import { listWarehouses, getWarehouse } from "@/api/warehouse"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import {
@@ -1577,6 +1578,11 @@ function MaterialForm({
     const [quantity, setQuantity] = useState(material?.quantity_required ? String(material.quantity_required) : "")
     const [note, setNote] = useState(material?.note || "")
 
+    const handleProductChange = (value: number | undefined, option: { raw?: Product } | null) => {
+        setProductId(value || undefined)
+        setWarehouseId(option?.raw?.default_warehouse_id || undefined)
+    }
+
     const mutation = useMutation({
         mutationFn: () => {
             const body = {
@@ -1642,10 +1648,10 @@ function MaterialForm({
                     <Field label="Vật tư">
                         <AsyncSelect
                             value={productId}
-                            onChange={(v: any) => setProductId(v || undefined)}
+                            onChange={handleProductChange}
                             placeholder="Chọn vật tư"
                             dataSource={{ getList: listProducts, getById: getProduct, params: { page: 1, size: 20 } }}
-                            mapOption={(x: any) => ({ value: x.id, label: `${x.code} - ${x.name}` })}
+                            mapOption={(x: Product) => ({ value: x.id, label: `${x.code} - ${x.name}`, raw: x })}
                         />
                     </Field>
                     <Field label="Kho xuất">

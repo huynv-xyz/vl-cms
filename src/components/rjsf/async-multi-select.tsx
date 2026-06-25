@@ -1,4 +1,4 @@
-import * as React from "react"
+﻿import * as React from "react"
 import { Check, ChevronsUpDown, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -37,10 +37,14 @@ export function AsyncMultiSelect({
     emptyText = "Không có dữ liệu",
     className,
     dedupeByLabel = false,
+    closeOnSelect = false,
+    deferChange = false,
 }: any) {
+    const [draftValue, setDraftValue] = React.useState<Array<string | number>>(value ?? [])
+    const activeValue = deferChange ? draftValue : value
     const selectedValues = React.useMemo<Set<string>>(
-        () => new Set((value ?? []).map((item: any) => String(item))),
-        [value]
+        () => new Set((activeValue ?? []).map((item: any) => String(item))),
+        [activeValue]
     )
     const [open, setOpen] = React.useState(false)
     const [keyword, setKeyword] = React.useState("")
@@ -49,6 +53,11 @@ export function AsyncMultiSelect({
     const [selectedOptions, setSelectedOptions] = React.useState<Option[]>([])
     const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     const keepOpenAfterSelectRef = React.useRef(false)
+
+    React.useEffect(() => {
+        if (!deferChange) return
+        setDraftValue(value ?? [])
+    }, [deferChange, value])
 
     React.useEffect(() => {
         if (!open || !dataSource?.getList) return
@@ -112,7 +121,7 @@ export function AsyncMultiSelect({
         return () => {
             active = false
         }
-    }, [value])
+    }, [activeValue])
 
     const selected = normalizeOptions(
         selectedOptions.filter((option) =>
@@ -136,10 +145,14 @@ export function AsyncMultiSelect({
             optionValues.forEach((item) => next.add(item))
         }
 
-        keepOpenAfterSelectRef.current = true
+        keepOpenAfterSelectRef.current = !closeOnSelect
         setSelectedOptions((current) => mergeOptions(current, [option], next))
-        onChange?.(Array.from(next))
-        setOpen(true)
+        if (deferChange) {
+            setDraftValue(Array.from(next))
+        } else {
+            onChange?.(Array.from(next))
+        }
+        setOpen(!closeOnSelect)
         window.setTimeout(() => {
             keepOpenAfterSelectRef.current = false
         }, 0)
@@ -147,8 +160,25 @@ export function AsyncMultiSelect({
 
     const clear = (event?: React.MouseEvent, keepOpen = false) => {
         event?.stopPropagation()
-        onChange?.([])
+        if (deferChange) {
+            setDraftValue([])
+            if (!keepOpen) {
+                onChange?.([])
+            }
+        } else {
+            onChange?.([])
+        }
         if (keepOpen) setOpen(true)
+    }
+
+    const apply = () => {
+        onChange?.(Array.from(selectedValues))
+        setOpen(false)
+    }
+
+    const cancel = () => {
+        setDraftValue(value ?? [])
+        setOpen(false)
     }
 
     return (
@@ -262,6 +292,16 @@ export function AsyncMultiSelect({
                         )}
                     </CommandList>
                 </Command>
+                {deferChange ? (
+                    <div className="flex items-center justify-end gap-2 border-t p-2">
+                        <Button type="button" variant="ghost" size="sm" onClick={cancel}>
+                            Hủy
+                        </Button>
+                        <Button type="button" size="sm" onClick={apply}>
+                            Áp dụng
+                        </Button>
+                    </div>
+                ) : null}
             </PopoverContent>
         </Popover>
     )
@@ -327,3 +367,4 @@ function groupOptionsByLabel(options: Option[]) {
 function getOptionValues(option: Option) {
     return option.values?.length ? option.values : [option.value]
 }
+
