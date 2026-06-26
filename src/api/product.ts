@@ -27,7 +27,14 @@ const productApi = createCrudApi<
     ProductListParams
 >("/products")
 
-export const listProducts = productApi.list
+const ACTIVE_PRODUCT_STATUS = "1"
+
+export const listAllProducts = productApi.list
+export const listProducts = (params: ProductListParams) =>
+    productApi.list({
+        ...params,
+        status: params.status || ACTIVE_PRODUCT_STATUS,
+    })
 export const getProduct = productApi.detail
 export const createProduct = productApi.create
 export const updateProduct = productApi.update

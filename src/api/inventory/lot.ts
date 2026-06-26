@@ -9,7 +9,9 @@ export type InventoryLotListParams = {
     size: number
     keyword?: string
     product_id?: number
+    product_ids?: string
     warehouse_id?: number
+    warehouse_ids?: string
     lot_no?: string
     source_type?: string
     expiry_status?: string
@@ -18,6 +20,14 @@ export type InventoryLotListParams = {
     only_remaining?: boolean
     product_text?: string
     product_text_op?: LotTextFilterOp
+    product_code_text?: string
+    product_code_text_op?: LotTextFilterOp
+    product_name_text?: string
+    product_name_text_op?: LotTextFilterOp
+    warehouse_code_text?: string
+    warehouse_code_text_op?: LotTextFilterOp
+    warehouse_name_text?: string
+    warehouse_name_text_op?: LotTextFilterOp
     quote_text?: string
     quote_text_op?: LotTextFilterOp
     unit?: string

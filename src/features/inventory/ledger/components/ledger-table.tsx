@@ -6,10 +6,10 @@ import { CalendarDays, Funnel, Printer, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { getVoucherPrintDetail, listVoucherTypes, VOUCHER_TYPE_LABEL, type InventoryVoucherPrintDetail } from "@/api/inventory/voucher"
-import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
+import { ProductMultiFilter } from "@/features/inventory/components/product-multi-filter"
+import { WarehouseTreeFilter } from "@/features/inventory/components/warehouse-tree-filter"
 import { LongText } from "@/components/long-text"
-import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
 import { Badge } from "@/components/ui/badge"
@@ -40,6 +40,8 @@ type Props = {
     onKeywordChange: (v: string) => void
     filters: {
         warehouse_id?: number
+        warehouse_ids?: number[]
+        product_ids?: string[]
         doc_type?: string
         from_date?: string
         to_date?: string
@@ -51,11 +53,17 @@ type Props = {
         supplier_text_op?: string
         product_text?: string
         product_text_op?: string
+        product_code_text?: string
+        product_code_text_op?: string
+        product_name_text?: string
+        product_name_text_op?: string
         unit?: string
         lot_text?: string
         lot_text_op?: string
     }
     onFiltersChange: (f: Props["filters"]) => void
+    direction?: "IN" | "OUT"
+    showValues?: boolean
 }
 
 const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
@@ -78,6 +86,8 @@ export function InventoryLedgerTable({
     onKeywordChange,
     filters,
     onFiltersChange,
+    direction,
+    showValues = true,
 }: Props) {
     const [detailVoucherId, setDetailVoucherId] = useState<number | null>(null)
     const { data: inboundDocTypes = [] } = useQuery({
@@ -99,8 +109,8 @@ export function InventoryLedgerTable({
     }
 
     const setTextFilter = (
-        textKey: "doc_text" | "description_text" | "supplier_text" | "product_text" | "lot_text",
-        opKey: "doc_text_op" | "description_text_op" | "supplier_text_op" | "product_text_op" | "lot_text_op",
+        textKey: "doc_text" | "description_text" | "supplier_text" | "product_text" | "product_code_text" | "product_name_text" | "lot_text",
+        opKey: "doc_text_op" | "description_text_op" | "supplier_text_op" | "product_text_op" | "product_code_text_op" | "product_name_text_op" | "lot_text_op",
         value: string,
         op: TextFilterOp,
     ) => {
@@ -113,8 +123,8 @@ export function InventoryLedgerTable({
     }
 
     const clearTextFilter = (
-        textKey: "doc_text" | "description_text" | "supplier_text" | "product_text" | "lot_text",
-        opKey: "doc_text_op" | "description_text_op" | "supplier_text_op" | "product_text_op" | "lot_text_op",
+        textKey: "doc_text" | "description_text" | "supplier_text" | "product_text" | "product_code_text" | "product_name_text" | "lot_text",
+        opKey: "doc_text_op" | "description_text_op" | "supplier_text_op" | "product_text_op" | "product_code_text_op" | "product_name_text_op" | "lot_text_op",
     ) => {
         onFiltersChange({
             ...filters,
@@ -171,6 +181,20 @@ export function InventoryLedgerTable({
                 onClear: () => clearTextFilter("product_text", "product_text_op"),
             }
             : null,
+        filters.product_code_text
+            ? {
+                key: "product_code_text",
+                label: textFilterDescription("Mã hàng", filters.product_code_text_op, filters.product_code_text),
+                onClear: () => clearTextFilter("product_code_text", "product_code_text_op"),
+            }
+            : null,
+        filters.product_name_text
+            ? {
+                key: "product_name_text",
+                label: textFilterDescription("Tên hàng", filters.product_name_text_op, filters.product_name_text),
+                onClear: () => clearTextFilter("product_name_text", "product_name_text_op"),
+            }
+            : null,
         filters.unit
             ? { key: "unit", label: `ĐVT: ${filters.unit}`, onClear: () => setFilter("unit", undefined) }
             : null,
@@ -181,9 +205,6 @@ export function InventoryLedgerTable({
                 onClear: () => clearTextFilter("lot_text", "lot_text_op"),
             }
             : null,
-        filters.warehouse_id
-            ? { key: "warehouse_id", label: "Kho: đã chọn", onClear: () => setFilter("warehouse_id", undefined) }
-            : null,
     ].filter(Boolean) as Array<{ key: string; label: string; onClear: () => void }>
 
     const clearAllActiveFilters = () => {
@@ -191,6 +212,8 @@ export function InventoryLedgerTable({
         onFiltersChange({
             ...filters,
             warehouse_id: undefined,
+            warehouse_ids: undefined,
+            product_ids: undefined,
             doc_text: undefined,
             doc_text_op: undefined,
             description_text: undefined,
@@ -199,6 +222,10 @@ export function InventoryLedgerTable({
             supplier_text_op: undefined,
             product_text: undefined,
             product_text_op: undefined,
+            product_code_text: undefined,
+            product_code_text_op: undefined,
+            product_name_text: undefined,
+            product_name_text_op: undefined,
             unit: undefined,
             lot_text: undefined,
             lot_text_op: undefined,
@@ -217,39 +244,66 @@ export function InventoryLedgerTable({
                         className={cn(controlClass, "pl-10")}
                     />
 
-                    <Select
-                        value={inboundValue}
-                        onValueChange={(value) => setFilter("doc_type", value === "ALL" ? undefined : value)}
-                    >
-                        <SelectTrigger className={cn(controlClass, "min-w-[180px] flex-[0.9_1_210px] xl:max-w-[260px]")}>
-                            <SelectValue placeholder="Chứng từ nhập" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="ALL">Tất cả chứng từ nhập</SelectItem>
-                            {inboundDocTypes.map((type) => (
-                                <SelectItem key={type.code} value={type.code}>
-                                    {type.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <ProductMultiFilter
+                        className="min-w-[280px] flex-[1.4_1_320px] xl:max-w-[440px]"
+                        value={filters.product_ids}
+                        onChange={(value) =>
+                            onFiltersChange({
+                                ...filters,
+                                product_ids: value,
+                            })
+                        }
+                    />
 
-                    <Select
-                        value={outboundValue}
-                        onValueChange={(value) => setFilter("doc_type", value === "ALL" ? undefined : value)}
-                    >
-                        <SelectTrigger className={cn(controlClass, "min-w-[180px] flex-[0.9_1_210px] xl:max-w-[260px]")}>
-                            <SelectValue placeholder="Chứng từ xuất" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="ALL">Tất cả chứng từ xuất</SelectItem>
-                            {outboundDocTypes.map((type) => (
-                                <SelectItem key={type.code} value={type.code}>
-                                    {type.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <WarehouseTreeFilter
+                        value={filters.warehouse_ids || []}
+                        onChange={(value) =>
+                            onFiltersChange({
+                                ...filters,
+                                warehouse_id: undefined,
+                                warehouse_ids: value.length ? value : undefined,
+                            })
+                        }
+                        className="min-w-[240px] flex-[1_1_280px] xl:max-w-[360px]"
+                    />
+
+                    {direction !== "OUT" ? (
+                        <Select
+                            value={inboundValue}
+                            onValueChange={(value) => setFilter("doc_type", value === "ALL" ? undefined : value)}
+                        >
+                            <SelectTrigger className={cn(controlClass, "min-w-[180px] flex-[0.9_1_210px] xl:max-w-[260px]")}>
+                                <SelectValue placeholder="Chứng từ nhập" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Tất cả chứng từ nhập</SelectItem>
+                                {inboundDocTypes.map((type) => (
+                                    <SelectItem key={type.code} value={type.code}>
+                                        {type.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    ) : null}
+
+                    {direction !== "IN" ? (
+                        <Select
+                            value={outboundValue}
+                            onValueChange={(value) => setFilter("doc_type", value === "ALL" ? undefined : value)}
+                        >
+                            <SelectTrigger className={cn(controlClass, "min-w-[180px] flex-[0.9_1_210px] xl:max-w-[260px]")}>
+                                <SelectValue placeholder="Chứng từ xuất" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Tất cả chứng từ xuất</SelectItem>
+                                {outboundDocTypes.map((type) => (
+                                    <SelectItem key={type.code} value={type.code}>
+                                        {type.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    ) : null}
 
                     <DatePicker
                         className="min-w-[180px] flex-[0_1_190px] [&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
@@ -272,6 +326,7 @@ export function InventoryLedgerTable({
                         }}
                         placeholder="Đến ngày"
                     />
+
                 </div>
             </CardHeader>
 
@@ -338,13 +393,22 @@ export function InventoryLedgerTable({
                                 </Th>
                                 <Th className="min-w-[70px]">TK Nợ</Th>
                                 <Th className="min-w-[70px]">TK Có</Th>
-                                <Th className="min-w-[360px]">
+                                <Th className="min-w-[150px]">
                                     <ColumnTextFilter
-                                        label="Sản phẩm"
-                                        value={filters.product_text}
-                                        op={filters.product_text_op}
-                                        onApply={(value, op) => setTextFilter("product_text", "product_text_op", value, op)}
-                                        onClear={() => clearTextFilter("product_text", "product_text_op")}
+                                        label="Mã hàng"
+                                        value={filters.product_code_text}
+                                        op={filters.product_code_text_op}
+                                        onApply={(value, op) => setTextFilter("product_code_text", "product_code_text_op", value, op)}
+                                        onClear={() => clearTextFilter("product_code_text", "product_code_text_op")}
+                                    />
+                                </Th>
+                                <Th className="min-w-[300px]">
+                                    <ColumnTextFilter
+                                        label="Tên hàng"
+                                        value={filters.product_name_text}
+                                        op={filters.product_name_text_op}
+                                        onApply={(value, op) => setTextFilter("product_name_text", "product_name_text_op", value, op)}
+                                        onClear={() => clearTextFilter("product_name_text", "product_name_text_op")}
                                     />
                                 </Th>
                                 <Th className="min-w-[80px]">
@@ -364,19 +428,14 @@ export function InventoryLedgerTable({
                                         onClear={() => clearTextFilter("lot_text", "lot_text_op")}
                                     />
                                 </Th>
-                                <Th className="min-w-[220px]">
-                                    <ColumnWarehouseFilter
-                                        label="Kho"
-                                        value={filters.warehouse_id}
-                                        onChange={(value) => setFilter("warehouse_id", value)}
-                                    />
-                                </Th>
-                                <Th className="min-w-[120px] text-right">{"\u0110\u01a1n gi\u00e1"}</Th>
+                                <Th className="min-w-[160px]">Mã kho</Th>
+                                <Th className="min-w-[220px]">Kho</Th>
+                                {showValues ? <Th className="min-w-[120px] text-right">{"\u0110\u01a1n gi\u00e1"}</Th> : null}
                                 <Th className="min-w-[120px] text-right">Tồn đầu</Th>
                                 <Th className="min-w-[110px] text-right">Nhập</Th>
                                 <Th className="min-w-[110px] text-right">Xuất</Th>
                                 <Th className="min-w-[120px] text-right">Tồn sau</Th>
-                                <Th className="min-w-[140px] text-right">{"Th\u00e0nh ti\u1ec1n"}</Th>
+                                {showValues ? <Th className="min-w-[140px] text-right">{"Th\u00e0nh ti\u1ec1n"}</Th> : null}
                                 <Th className="min-w-[260px]">Loại</Th>
                             </tr>
                         </thead>
@@ -387,6 +446,7 @@ export function InventoryLedgerTable({
                                     index={pagination.pageIndex * pagination.pageSize + index + 1}
                                     item={item}
                                     onOpenVoucher={setDetailVoucherId}
+                                    showValues={showValues}
                                 />
                             ))}
                         </tbody>
@@ -577,74 +637,6 @@ function ColumnSelectFilter({
     )
 }
 
-function ColumnWarehouseFilter({
-    label,
-    value,
-    onChange,
-}: {
-    label: string
-    value?: number
-    onChange: (value: number | undefined) => void
-}) {
-    const active = Boolean(value)
-
-    return (
-        <div className="flex items-center gap-1.5">
-            <span>{label}</span>
-            <Popover>
-                <PopoverTrigger asChild>
-                    <button
-                        type="button"
-                        className={cn(
-                            "inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent",
-                            active ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground hover:text-foreground",
-                        )}
-                        aria-label={`Lọc ${label}`}
-                    >
-                        <Funnel className="h-4 w-4" />
-                    </button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-80 p-3">
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                        <div className="font-semibold text-foreground">Lọc {label}</div>
-                        {active ? (
-                            <Button type="button" variant="ghost" size="sm" className="h-7 px-2" onClick={() => onChange(undefined)}>
-                                Xóa
-                            </Button>
-                        ) : null}
-                    </div>
-                    <AsyncSelect
-                        autoOpen
-                        className={cn(controlClass, "w-full py-0")}
-                        value={value}
-                        onChange={(next: any) => onChange(next || undefined)}
-                        placeholder="Chọn kho"
-                        dataSource={{
-                            getList: listWarehouses,
-                            getById: getWarehouse,
-                            params: { page: 1, size: 20 },
-                        }}
-                        mapOption={(warehouse: any) => ({
-                            value: warehouse.id,
-                            label: warehouse.name,
-                        })}
-                    />
-                </PopoverContent>
-            </Popover>
-            {active ? (
-                <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground"
-                    onClick={() => onChange(undefined)}
-                    aria-label={`Xóa lọc ${label}`}
-                >
-                    <X className="h-3.5 w-3.5" />
-                </button>
-            ) : null}
-        </div>
-    )
-}
-
 function FilterOptionButton({
     label,
     active,
@@ -673,10 +665,12 @@ function LedgerRow({
     index,
     item,
     onOpenVoucher,
+    showValues,
 }: {
     index: number
     item: InventoryLedgerReportRow
     onOpenVoucher: (voucherId: number) => void
+    showValues: boolean
 }) {
     const meta = getDocTypeMeta(item.doc_type)
     const quantityIn = Number(item.quantity_in || 0)
@@ -720,11 +714,11 @@ function LedgerRow({
             <Td className="text-muted-foreground font-mono text-xs">
                 {item.tk_co || "-"}
             </Td>
+            <Td className="text-muted-foreground font-mono text-xs">
+                {item.product_code || "-"}
+            </Td>
             <Td>
-                <div className="min-w-[340px] whitespace-nowrap">
-                    <div className="font-semibold">{item.product_name || "-"}</div>
-                    <div className="text-muted-foreground font-mono text-xs">{item.product_code || "-"}</div>
-                </div>
+                <LedgerLongText value={item.product_name} className="max-w-[340px] font-semibold" />
             </Td>
             <Td className="text-muted-foreground">
                 {item.unit || "-"}
@@ -732,12 +726,17 @@ function LedgerRow({
             <Td className="font-mono text-xs">
                 {item.lot_code || "-"}
             </Td>
+            <Td className="text-muted-foreground font-mono text-xs">
+                {item.warehouse_code || "-"}
+            </Td>
             <Td>
-                <div className="font-medium whitespace-nowrap">{item.warehouse_name || "-"}</div>
+                <LedgerLongText value={item.warehouse_name} className="max-w-[260px] font-medium" />
             </Td>
-            <Td className="text-right tabular-nums">
-                {formatNumber(Number(item.unit_price || 0))}
-            </Td>
+            {showValues ? (
+                <Td className="text-right tabular-nums">
+                    {formatNumber(Number(item.unit_price || 0))}
+                </Td>
+            ) : null}
             <Td className="text-right font-semibold tabular-nums">
                 {formatNumber(openingBalance)}
             </Td>
@@ -750,9 +749,11 @@ function LedgerRow({
             <Td className="text-right font-bold tabular-nums">
                 {formatNumber(Number(item.balance_quantity || 0))}
             </Td>
-            <Td className="text-right tabular-nums">
-                {formatNumber(Number(item.amount || 0))}
-            </Td>
+            {showValues ? (
+                <Td className="text-right tabular-nums">
+                    {formatNumber(Number(item.amount || 0))}
+                </Td>
+            ) : null}
             <Td>
                 <div className="text-muted-foreground whitespace-nowrap text-xs leading-4">
                     {meta.label}

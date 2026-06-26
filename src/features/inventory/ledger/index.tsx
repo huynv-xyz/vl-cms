@@ -19,24 +19,42 @@ import { LedgerTestResetButton } from "./components/ledger-test-reset-button"
 import { LedgerVoucherDialog } from "./components/ledger-voucher-dialog"
 import type { InventoryLedgerTotals } from "./data/schema"
 
+type InventoryLedgerPageMode = "all" | "in" | "out"
+
 export default function InventoryLedgerPage() {
-    const search = Route.useSearch()
-    const navigate = Route.useNavigate()
+    return <InventoryLedgerReportPage route={Route} mode="all" />
+}
+
+export function InventoryLedgerReportPage({
+    route,
+    mode,
+}: {
+    route: any
+    mode: InventoryLedgerPageMode
+}) {
+    const search = route.useSearch()
+    const navigate = route.useNavigate()
     const { pagination, setPagination } = useUrlPagination(search, navigate)
     const [voucherDialog, setVoucherDialog] = useState<"in" | "out" | "transfer" | null>(null)
+    const direction = mode === "in" ? "IN" : mode === "out" ? "OUT" : undefined
+    const showValues = mode === "all"
+    const pageTitle = mode === "in" ? "Nhập kho" : mode === "out" ? "Xuất kho" : "Sổ kho"
 
     const {
         keyword,
         setKeyword,
+        multiFilters,
+        setMultiFilters,
         singleFilters,
         setSingleFilters,
         requestFilters,
     } = useUrlListFilters(
         search,
         navigate,
-        [],
+        ["product_ids"],
         [
             "warehouse_id",
+            "warehouse_ids",
             "doc_type",
             "from_date",
             "to_date",
@@ -48,6 +66,10 @@ export default function InventoryLedgerPage() {
             "supplier_text_op",
             "product_text",
             "product_text_op",
+            "product_code_text",
+            "product_code_text_op",
+            "product_name_text",
+            "product_name_text_op",
             "unit",
             "lot_text",
             "lot_text_op",
@@ -60,7 +82,9 @@ export default function InventoryLedgerPage() {
             search.page,
             search.size,
             keyword,
+            multiFilters.product_ids,
             singleFilters.warehouse_id,
+            singleFilters.warehouse_ids,
             singleFilters.doc_type,
             singleFilters.from_date,
             singleFilters.to_date,
@@ -72,16 +96,24 @@ export default function InventoryLedgerPage() {
             singleFilters.supplier_text_op,
             singleFilters.product_text,
             singleFilters.product_text_op,
+            singleFilters.product_code_text,
+            singleFilters.product_code_text_op,
+            singleFilters.product_name_text,
+            singleFilters.product_name_text_op,
             singleFilters.unit,
             singleFilters.lot_text,
             singleFilters.lot_text_op,
+            direction,
+            showValues,
         ],
         listInventoryLedgerReport,
         {
             page: search.page,
             size: search.size,
             keyword,
+            product_ids: requestFilters.product_ids,
             warehouse_id: requestFilters.warehouse_id ? Number(requestFilters.warehouse_id) : undefined,
+            warehouse_ids: requestFilters.warehouse_ids,
             doc_type: requestFilters.doc_type,
             from_date: requestFilters.from_date,
             to_date: requestFilters.to_date,
@@ -93,25 +125,36 @@ export default function InventoryLedgerPage() {
             supplier_text_op: requestFilters.supplier_text_op,
             product_text: requestFilters.product_text,
             product_text_op: requestFilters.product_text_op,
+            product_code_text: requestFilters.product_code_text,
+            product_code_text_op: requestFilters.product_code_text_op,
+            product_name_text: requestFilters.product_name_text,
+            product_name_text_op: requestFilters.product_name_text_op,
             unit: requestFilters.unit,
             lot_text: requestFilters.lot_text,
             lot_text_op: requestFilters.lot_text_op,
+            direction,
+            show_values: showValues,
         },
     )
 
     return (
         <PageSection
-            title="Sổ kho"
+            title={pageTitle}
             isLoading={isLoading}
             error={error}
             data={data}
             actions={
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                    <LedgerImportButtons />
+                    {mode === "all" ? <LedgerImportButtons /> : null}
                     <ExportInventoryLedgerButton
                         keyword={keyword}
+                        showValues={showValues}
+                        title={mode === "in" ? "NHẬP KHO" : mode === "out" ? "XUẤT KHO" : "SỔ KHO"}
+                        filePrefix={mode === "in" ? "nhap-kho" : mode === "out" ? "xuat-kho" : "so-kho"}
                         filters={{
+                            product_ids: requestFilters.product_ids,
                             warehouse_id: requestFilters.warehouse_id ? Number(requestFilters.warehouse_id) : undefined,
+                            warehouse_ids: requestFilters.warehouse_ids,
                             doc_type: requestFilters.doc_type,
                             from_date: requestFilters.from_date,
                             to_date: requestFilters.to_date,
@@ -123,31 +166,43 @@ export default function InventoryLedgerPage() {
                             supplier_text_op: requestFilters.supplier_text_op,
                             product_text: requestFilters.product_text,
                             product_text_op: requestFilters.product_text_op,
+                            product_code_text: requestFilters.product_code_text,
+                            product_code_text_op: requestFilters.product_code_text_op,
+                            product_name_text: requestFilters.product_name_text,
+                            product_name_text_op: requestFilters.product_name_text_op,
                             unit: requestFilters.unit,
                             lot_text: requestFilters.lot_text,
                             lot_text_op: requestFilters.lot_text_op,
+                            direction,
+                            show_values: showValues,
                         }}
                     />
-                    <LedgerSalesSyncButton />
-                    <LedgerTestResetButton />
-                    <Button size="sm" variant="outline" onClick={() => setVoucherDialog("in")}>
-                        <ArrowDownLeft className="mr-2 h-4 w-4 text-emerald-600" />
-                        Nhập hàng
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setVoucherDialog("out")}>
-                        <ArrowUpRight className="mr-2 h-4 w-4 text-rose-600" />
-                        Xuất hàng
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setVoucherDialog("transfer")}>
-                        <ArrowLeftRight className="mr-2 h-4 w-4 text-blue-600" />
-                        Chuyển kho
-                    </Button>
+                    {mode === "all" ? <LedgerSalesSyncButton /> : null}
+                    {mode === "all" ? <LedgerTestResetButton /> : null}
+                    {mode !== "out" ? (
+                        <Button size="sm" variant="outline" onClick={() => setVoucherDialog("in")}>
+                            <ArrowDownLeft className="mr-2 h-4 w-4 text-emerald-600" />
+                            Nhập hàng
+                        </Button>
+                    ) : null}
+                    {mode !== "in" ? (
+                        <Button size="sm" variant="outline" onClick={() => setVoucherDialog("out")}>
+                            <ArrowUpRight className="mr-2 h-4 w-4 text-rose-600" />
+                            Xuất hàng
+                        </Button>
+                    ) : null}
+                    {mode !== "in" ? (
+                        <Button size="sm" variant="outline" onClick={() => setVoucherDialog("transfer")}>
+                            <ArrowLeftRight className="mr-2 h-4 w-4 text-blue-600" />
+                            Chuyển kho
+                        </Button>
+                    ) : null}
                 </div>
             }
         >
             {(data) => (
                 <div className="space-y-4">
-                    <InventoryLedgerSummary totals={(data as any).totals} />
+                    <InventoryLedgerSummary totals={(data as any).totals} showValues={showValues} />
 
                     <InventoryLedgerTable
                         data={data.items || []}
@@ -156,8 +211,12 @@ export default function InventoryLedgerPage() {
                         pageCount={data.total_page}
                         keyword={keyword}
                         onKeywordChange={setKeyword}
+                        direction={direction}
+                        showValues={showValues}
                         filters={{
+                            product_ids: multiFilters.product_ids,
                             warehouse_id: singleFilters.warehouse_id ? Number(singleFilters.warehouse_id) : undefined,
+                            warehouse_ids: parseIdList(singleFilters.warehouse_ids),
                             doc_type: singleFilters.doc_type,
                             from_date: singleFilters.from_date,
                             to_date: singleFilters.to_date,
@@ -169,13 +228,22 @@ export default function InventoryLedgerPage() {
                             supplier_text_op: singleFilters.supplier_text_op,
                             product_text: singleFilters.product_text,
                             product_text_op: singleFilters.product_text_op,
+                            product_code_text: singleFilters.product_code_text,
+                            product_code_text_op: singleFilters.product_code_text_op,
+                            product_name_text: singleFilters.product_name_text,
+                            product_name_text_op: singleFilters.product_name_text_op,
                             unit: singleFilters.unit,
                             lot_text: singleFilters.lot_text,
                             lot_text_op: singleFilters.lot_text_op,
                         }}
                         onFiltersChange={(next) =>
+                        {
+                            setMultiFilters({
+                                product_ids: next.product_ids || [],
+                            })
                             setSingleFilters({
                                 warehouse_id: next.warehouse_id ? String(next.warehouse_id) : undefined,
+                                warehouse_ids: next.warehouse_ids?.length ? next.warehouse_ids.join(",") : undefined,
                                 doc_type: next.doc_type,
                                 from_date: next.from_date,
                                 to_date: next.to_date,
@@ -187,11 +255,15 @@ export default function InventoryLedgerPage() {
                                 supplier_text_op: next.supplier_text_op,
                                 product_text: next.product_text,
                                 product_text_op: next.product_text_op,
+                                product_code_text: next.product_code_text,
+                                product_code_text_op: next.product_code_text_op,
+                                product_name_text: next.product_name_text,
+                                product_name_text_op: next.product_name_text_op,
                                 unit: next.unit,
                                 lot_text: next.lot_text,
                                 lot_text_op: next.lot_text_op,
                             })
-                        }
+                        }}
                     />
 
                     <LedgerVoucherDialog
@@ -215,7 +287,7 @@ export default function InventoryLedgerPage() {
     )
 }
 
-function InventoryLedgerSummary({ totals }: { totals?: InventoryLedgerTotals }) {
+function InventoryLedgerSummary({ totals, showValues = true }: { totals?: InventoryLedgerTotals; showValues?: boolean }) {
     const normalized = {
         opening_quantity: 0,
         opening_value: 0,
@@ -230,12 +302,21 @@ function InventoryLedgerSummary({ totals }: { totals?: InventoryLedgerTotals }) 
 
     return (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <Metric icon={Package} label="Tồn đầu kỳ" quantity={normalized.opening_quantity} value={normalized.opening_value} />
-            <Metric icon={TrendingUp} label="Nhập kho" quantity={normalized.inbound_quantity} value={normalized.inbound_value} tone="ok" />
-            <Metric icon={TrendingDown} label="Xuất kho" quantity={normalized.outbound_quantity} value={normalized.outbound_value} tone="bad" />
-            <Metric icon={Warehouse} label="Tồn cuối kỳ" quantity={normalized.closing_quantity} value={normalized.closing_value} tone="info" />
+            <Metric icon={Package} label="Tồn đầu kỳ" quantity={normalized.opening_quantity} value={normalized.opening_value} showValue={showValues} />
+            <Metric icon={TrendingUp} label="Nhập kho" quantity={normalized.inbound_quantity} value={normalized.inbound_value} showValue={showValues} tone="ok" />
+            <Metric icon={TrendingDown} label="Xuất kho" quantity={normalized.outbound_quantity} value={normalized.outbound_value} showValue={showValues} tone="bad" />
+            <Metric icon={Warehouse} label="Tồn cuối kỳ" quantity={normalized.closing_quantity} value={normalized.closing_value} showValue={showValues} tone="info" />
         </div>
     )
+}
+
+function parseIdList(value?: string) {
+    if (!value) return undefined
+    const ids = value
+        .split(",")
+        .map((item) => Number(item.trim()))
+        .filter((id) => Number.isFinite(id) && id > 0)
+    return ids.length ? ids : undefined
 }
 
 function Metric({
@@ -243,12 +324,14 @@ function Metric({
     label,
     quantity,
     value,
+    showValue = true,
     tone = "muted",
 }: {
     icon: LucideIcon
     label: string
     quantity?: number
     value?: number
+    showValue?: boolean
     tone?: keyof typeof SUMMARY_TONES
 }) {
     const styles = SUMMARY_TONES[tone]
@@ -266,9 +349,11 @@ function Metric({
                     <div className={cn("mt-1 text-sm tabular-nums", styles.value)}>
                         Số lượng: <span className="font-bold">{formatNumber(quantity || 0)}</span>
                     </div>
-                    <div className={cn("text-sm tabular-nums", styles.value)}>
-                        Giá trị: <span className="font-bold">{formatNumber(value || 0)}</span>
-                    </div>
+                    {showValue ? (
+                        <div className={cn("text-sm tabular-nums", styles.value)}>
+                            Giá trị: <span className="font-bold">{formatNumber(value || 0)}</span>
+                        </div>
+                    ) : null}
                 </div>
             </CardContent>
         </Card>

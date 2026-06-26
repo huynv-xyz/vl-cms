@@ -1,5 +1,6 @@
-import { useState } from "react"
+﻿import { useEffect, useMemo, useState } from "react"
 import type React from "react"
+import { useQuery } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import {
     AlertTriangle,
@@ -17,16 +18,18 @@ import {
 import { toast } from "sonner"
 
 import { listInventorySummarys, type SummaryListParams } from "@/api/inventory/summary"
-import { getProduct, listProducts } from "@/api/product"
+import { listPhysicalWarehouses } from "@/api/physical-warehouse"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
 import { LongText } from "@/components/long-text"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
+import { ProductMultiFilter } from "@/features/inventory/components/product-multi-filter"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -37,11 +40,21 @@ type TextFilterOp = "contains" | "equals" | "not_equals" | "not_contains"
 
 export type SummaryFilters = {
     product_id?: number
+    product_ids?: string[]
     warehouse_id?: number
+    warehouse_ids?: number[]
     from_date?: string
     to_date?: string
     product_text?: string
     product_text_op?: TextFilterOp
+    product_code_text?: string
+    product_code_text_op?: TextFilterOp
+    product_name_text?: string
+    product_name_text_op?: TextFilterOp
+    warehouse_code_text?: string
+    warehouse_code_text_op?: TextFilterOp
+    warehouse_name_text?: string
+    warehouse_name_text_op?: TextFilterOp
     quote_text?: string
     quote_text_op?: TextFilterOp
     unit?: string
@@ -196,8 +209,8 @@ export function SummaryTable({
     }
 
     const setTextFilter = (
-        textKey: "product_text" | "quote_text",
-        opKey: "product_text_op" | "quote_text_op",
+        textKey: "product_text" | "product_code_text" | "product_name_text" | "warehouse_code_text" | "warehouse_name_text" | "quote_text",
+        opKey: "product_text_op" | "product_code_text_op" | "product_name_text_op" | "warehouse_code_text_op" | "warehouse_name_text_op" | "quote_text_op",
         value: string,
         op: TextFilterOp,
     ) => {
@@ -209,8 +222,8 @@ export function SummaryTable({
     }
 
     const clearTextFilter = (
-        textKey: "product_text" | "quote_text",
-        opKey: "product_text_op" | "quote_text_op",
+        textKey: "product_text" | "product_code_text" | "product_name_text" | "warehouse_code_text" | "warehouse_name_text" | "quote_text",
+        opKey: "product_text_op" | "product_code_text_op" | "product_name_text_op" | "warehouse_code_text_op" | "warehouse_name_text_op" | "quote_text_op",
     ) => {
         onFiltersChange({
             ...filters,
@@ -241,11 +254,46 @@ export function SummaryTable({
                 onClear: () => clearTextFilter("product_text", "product_text_op"),
             }
             : null,
-        filters.warehouse_id
+        filters.product_code_text
+            ? {
+                key: "product_code_text",
+                label: textFilterDescription("Mã hàng", filters.product_code_text_op, filters.product_code_text),
+                onClear: () => clearTextFilter("product_code_text", "product_code_text_op"),
+            }
+            : null,
+        filters.product_name_text
+            ? {
+                key: "product_name_text",
+                label: textFilterDescription("Tên hàng", filters.product_name_text_op, filters.product_name_text),
+                onClear: () => clearTextFilter("product_name_text", "product_name_text_op"),
+            }
+            : null,
+        false && filters.warehouse_id
             ? {
                 key: "warehouse_id",
                 label: "Kho: đã chọn",
                 onClear: () => setFilter("warehouse_id", undefined),
+            }
+            : null,
+        false && filters.warehouse_ids?.length
+            ? {
+                key: "warehouse_ids",
+                label: `Kho: ${filters.warehouse_ids?.length || 0} kho`,
+                onClear: () => setFilter("warehouse_ids", undefined),
+            }
+            : null,
+        false && filters.warehouse_code_text
+            ? {
+                key: "warehouse_code_text",
+                label: textFilterDescription("Mã kho", filters.warehouse_code_text_op, filters.warehouse_code_text),
+                onClear: () => clearTextFilter("warehouse_code_text", "warehouse_code_text_op"),
+            }
+            : null,
+        false && filters.warehouse_name_text
+            ? {
+                key: "warehouse_name_text",
+                label: textFilterDescription("Tên kho", filters.warehouse_name_text_op, filters.warehouse_name_text),
+                onClear: () => clearTextFilter("warehouse_name_text", "warehouse_name_text_op"),
             }
             : null,
         filters.quote_text
@@ -276,9 +324,19 @@ export function SummaryTable({
         onFiltersChange({
             ...filters,
             product_id: undefined,
+            product_ids: undefined,
             warehouse_id: undefined,
+            warehouse_ids: undefined,
             product_text: undefined,
             product_text_op: undefined,
+            product_code_text: undefined,
+            product_code_text_op: undefined,
+            product_name_text: undefined,
+            product_name_text_op: undefined,
+            warehouse_code_text: undefined,
+            warehouse_code_text_op: undefined,
+            warehouse_name_text: undefined,
+            warehouse_name_text_op: undefined,
             quote_text: undefined,
             quote_text_op: undefined,
             unit: undefined,
@@ -333,36 +391,27 @@ export function SummaryTable({
                             className={cn(controlClass, "pl-10")}
                         />
 
-                        <AsyncSelect
-                            className={cn(controlClass, "min-w-[260px] flex-[1.3_1_280px] py-0 xl:max-w-[420px]")}
-                            value={filters.product_id}
-                            onChange={(value: any) => setFilter("product_id", value || undefined)}
-                            placeholder="Sản phẩm"
-                            dataSource={{
-                                getList: listProducts,
-                                getById: getProduct,
-                                params: { page: 1, size: 20 },
-                            }}
-                            mapOption={(product: any) => ({
-                                value: product.id,
-                                label: `${product.name} - ${product.code}`,
-                            })}
+                        <ProductMultiFilter
+                            className="min-w-[280px] flex-[1.6_1_320px] xl:max-w-[460px]"
+                            value={filters.product_ids}
+                            onChange={(value) =>
+                                onFiltersChange({
+                                    ...filters,
+                                    product_id: undefined,
+                                    product_ids: value,
+                                })
+                            }
                         />
 
-                        <AsyncSelect
-                            className={cn(controlClass, "min-w-[190px] flex-[0.8_1_220px] py-0 xl:max-w-[260px]")}
-                            value={filters.warehouse_id}
-                            onChange={(value: any) => setFilter("warehouse_id", value || undefined)}
-                            placeholder="Kho hàng"
-                            dataSource={{
-                                getList: listWarehouses,
-                                getById: getWarehouse,
-                                params: { page: 1, size: 20 },
-                            }}
-                            mapOption={(warehouse: any) => ({
-                                value: warehouse.id,
-                                label: warehouse.name,
-                            })}
+                        <WarehouseTreeFilter
+                            value={filters.warehouse_ids || []}
+                            onChange={(value) =>
+                                onFiltersChange({
+                                    ...filters,
+                                    warehouse_id: undefined,
+                                    warehouse_ids: value.length ? value : undefined,
+                                })
+                            }
                         />
 
                         <DatePicker
@@ -422,13 +471,22 @@ export function SummaryTable({
                             <thead className="bg-muted/50 text-muted-foreground border-b text-xs">
                                 <tr>
                                     <Th rowSpan={showValues ? 2 : 1} className="text-center">STT</Th>
-                                    <Th rowSpan={showValues ? 2 : 1}>
+                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[150px]">
                                         <ColumnTextFilter
-                                            label="Hàng hóa"
-                                            value={filters.product_text}
-                                            op={filters.product_text_op}
-                                            onApply={(value, op) => setTextFilter("product_text", "product_text_op", value, op)}
-                                            onClear={() => clearTextFilter("product_text", "product_text_op")}
+                                            label="Mã hàng"
+                                            value={filters.product_code_text}
+                                            op={filters.product_code_text_op}
+                                            onApply={(value, op) => setTextFilter("product_code_text", "product_code_text_op", value, op)}
+                                            onClear={() => clearTextFilter("product_code_text", "product_code_text_op")}
+                                        />
+                                    </Th>
+                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[300px]">
+                                        <ColumnTextFilter
+                                            label="Tên hàng"
+                                            value={filters.product_name_text}
+                                            op={filters.product_name_text_op}
+                                            onApply={(value, op) => setTextFilter("product_name_text", "product_name_text_op", value, op)}
+                                            onClear={() => clearTextFilter("product_name_text", "product_name_text_op")}
                                         />
                                     </Th>
                                     <Th rowSpan={showValues ? 2 : 1}>
@@ -439,11 +497,22 @@ export function SummaryTable({
                                             onChange={(value) => setFilter("unit", value)}
                                         />
                                     </Th>
-                                    <Th rowSpan={showValues ? 2 : 1}>
-                                        <ColumnWarehouseFilter
-                                            label="Kho"
-                                            value={filters.warehouse_id}
-                                            onChange={(value) => setFilter("warehouse_id", value)}
+                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[150px]">
+                                        <ColumnTextFilter
+                                            label="Mã kho"
+                                            value={filters.warehouse_code_text}
+                                            op={filters.warehouse_code_text_op}
+                                            onApply={(value, op) => setTextFilter("warehouse_code_text", "warehouse_code_text_op", value, op)}
+                                            onClear={() => clearTextFilter("warehouse_code_text", "warehouse_code_text_op")}
+                                        />
+                                    </Th>
+                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[220px]">
+                                        <ColumnTextFilter
+                                            label="Tên kho"
+                                            value={filters.warehouse_name_text}
+                                            op={filters.warehouse_name_text_op}
+                                            onApply={(value, op) => setTextFilter("warehouse_name_text", "warehouse_name_text_op", value, op)}
+                                            onClear={() => clearTextFilter("warehouse_name_text", "warehouse_name_text_op")}
                                         />
                                     </Th>
                                     <Th colSpan={showValues ? 2 : 1} className="text-center">Tồn đầu kỳ</Th>
@@ -495,7 +564,7 @@ export function SummaryTable({
                             </tbody>
                             <tfoot className="bg-muted/40 border-t font-semibold">
                                 <tr>
-                                    <Td colSpan={4}>Tổng cộng theo bộ lọc</Td>
+                                    <Td colSpan={6}>Tổng cộng theo bộ lọc</Td>
                                     <NumberTd>{summaryTotals.opening_quantity}</NumberTd>
                                     {showValues ? (
                                     <MoneyTd>{summaryTotals.opening_value}</MoneyTd>
@@ -544,16 +613,21 @@ function SummaryRow({ index, item, showValues }: { index: number; item: Inventor
     return (
         <tr className="hover:bg-muted/30 border-b">
             <Td className="text-muted-foreground text-center font-mono">{formatNumber(index)}</Td>
-            <Td className="min-w-[360px] max-w-[520px]">
+            <Td className="text-muted-foreground font-mono text-xs">
+                {item.product_code || "-"}
+            </Td>
+            <Td className="min-w-[300px] max-w-[520px]">
                 <LongText
                     className="max-w-[520px] font-semibold"
                     contentClassName="max-w-[520px] whitespace-normal break-words leading-relaxed"
                 >
                     {item.product_name || "-"}
                 </LongText>
-                <div className="text-muted-foreground line-clamp-1 font-mono text-xs">{item.product_code || "-"}</div>
             </Td>
             <Td className="text-muted-foreground">{item.unit || "-"}</Td>
+            <Td className="text-muted-foreground font-mono text-xs">
+                {item.warehouse_code || "-"}
+            </Td>
             <Td className="min-w-[220px] max-w-[360px]">
                 <LongText
                     className="max-w-[360px]"
@@ -561,7 +635,6 @@ function SummaryRow({ index, item, showValues }: { index: number; item: Inventor
                 >
                     {item.warehouse_name || "-"}
                 </LongText>
-                <div className="text-muted-foreground line-clamp-1 font-mono text-xs">{item.warehouse_code || "-"}</div>
             </Td>
             <NumberTd>{item.opening_quantity}</NumberTd>
             {showValues ? (
@@ -601,6 +674,257 @@ function SummaryRow({ index, item, showValues }: { index: number; item: Inventor
     )
 }
 
+function WarehouseTreeFilter({
+    value,
+    onChange,
+}: {
+    value: number[]
+    onChange: (value: number[]) => void
+}) {
+    const [open, setOpen] = useState(false)
+    const [draftValue, setDraftValue] = useState<number[]>(value)
+    const [warehouseKeyword, setWarehouseKeyword] = useState("")
+    const selected = useMemo(() => new Set(draftValue), [draftValue])
+    const appliedSelected = useMemo(() => new Set(value), [value])
+
+    useEffect(() => {
+        if (open) {
+            setDraftValue(value)
+            setWarehouseKeyword("")
+        }
+    }, [open, value])
+
+    const { data: physicalData, isLoading: loadingPhysical } = useQuery({
+        queryKey: ["inventory-summary-physical-warehouses"],
+        queryFn: () => listPhysicalWarehouses({ page: 1, size: 500, status: "ACTIVE" }),
+    })
+    const { data: warehouseData, isLoading: loadingWarehouses } = useQuery({
+        queryKey: ["inventory-summary-warehouses"],
+        queryFn: () => listWarehouses({ page: 1, size: 1000, status: "ACTIVE" }),
+    })
+
+    const physicalWarehouses = physicalData?.items || []
+    const warehouses = warehouseData?.items || []
+    const warehousesByPhysical = useMemo(() => {
+        const map = new Map<number, any[]>()
+        for (const warehouse of warehouses) {
+            const physicalId = Number(warehouse.physical_warehouse_id || 0)
+            if (!map.has(physicalId)) map.set(physicalId, [])
+            map.get(physicalId)!.push(warehouse)
+        }
+        return map
+    }, [warehouses])
+
+    const selectedWarehouses = useMemo(
+        () => warehouses.filter((warehouse: any) => appliedSelected.has(Number(warehouse.id))),
+        [warehouses, appliedSelected],
+    )
+    const triggerLabel = selectedWarehouses.length
+        ? selectedWarehouses.length <= 2
+            ? selectedWarehouses.map((warehouse: any) => warehouse.name).join(", ")
+            : `${selectedWarehouses.length} kho đã chọn`
+        : "Chọn kho"
+
+    const setSelected = (ids: number[]) => {
+        setDraftValue(Array.from(new Set(ids)).sort((a, b) => a - b))
+    }
+
+    const togglePhysical = (physicalId: number) => {
+        const childIds = (warehousesByPhysical.get(physicalId) || []).map((warehouse: any) => Number(warehouse.id))
+        if (!childIds.length) return
+
+        const allSelected = childIds.every((id) => selected.has(id))
+        if (allSelected) {
+            setSelected(draftValue.filter((id) => !childIds.includes(id)))
+            return
+        }
+        setSelected([...draftValue, ...childIds])
+    }
+
+    const toggleWarehouse = (warehouseId: number) => {
+        if (selected.has(warehouseId)) {
+            setSelected(draftValue.filter((id) => id !== warehouseId))
+            return
+        }
+        setSelected([...draftValue, warehouseId])
+    }
+
+    const filteredWarehouses = useMemo(() => {
+        const keyword = warehouseKeyword.trim().toLowerCase()
+        if (!keyword) return warehouses
+        return warehouses.filter((warehouse: any) => {
+            const text = `${warehouse.code || ""} ${warehouse.name || ""}`.toLowerCase()
+            return text.includes(keyword)
+        })
+    }, [warehouses, warehouseKeyword])
+
+    const allWarehouseIds = useMemo(() => warehouses.map((warehouse: any) => Number(warehouse.id)), [warehouses])
+    const filteredWarehouseIds = useMemo(() => filteredWarehouses.map((warehouse: any) => Number(warehouse.id)), [filteredWarehouses])
+    const selectedAllCount = allWarehouseIds.filter((id) => selected.has(id)).length
+    const selectedFilteredCount = filteredWarehouseIds.filter((id) => selected.has(id)).length
+    const allPhysicalChecked =
+        selectedAllCount === 0 ? false : selectedAllCount === allWarehouseIds.length ? true : "indeterminate"
+    const filteredWarehousesChecked =
+        selectedFilteredCount === 0 ? false : selectedFilteredCount === filteredWarehouseIds.length ? true : "indeterminate"
+
+    const toggleAllWarehouses = (ids: number[]) => {
+        if (!ids.length) return
+        const allSelected = ids.every((id) => selected.has(id))
+        if (allSelected) {
+            setSelected(draftValue.filter((id) => !ids.includes(id)))
+            return
+        }
+        setSelected([...draftValue, ...ids])
+    }
+
+    const loading = loadingPhysical || loadingWarehouses
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(controlClass, "min-w-[240px] flex-[1_1_280px] justify-start overflow-hidden px-3 text-left font-normal xl:max-w-[360px]")}
+                >
+                    <Warehouse className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{triggerLabel}</span>
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-[720px] max-w-[calc(100vw-32px)] p-0">
+                <div className="grid max-h-[420px] grid-cols-[260px_1fr] overflow-hidden">
+                    <div className="border-r bg-muted/30">
+                        <div className="border-b px-3 py-2 text-sm font-semibold">Địa điểm kho</div>
+                        <label className="mx-2 mt-2 flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-sm hover:bg-white">
+                            <Checkbox
+                                checked={allPhysicalChecked}
+                                disabled={!allWarehouseIds.length}
+                                onCheckedChange={() => toggleAllWarehouses(allWarehouseIds)}
+                                className="mt-0.5"
+                            />
+                            <span className="min-w-0">
+                                <span className="block truncate font-medium">Chọn tất cả</span>
+                                <span className="text-xs text-muted-foreground">{selectedAllCount}/{allWarehouseIds.length} kho</span>
+                            </span>
+                        </label>
+                        <div className="max-h-[318px] overflow-y-auto p-2">
+                            {loading ? (
+                                <div className="px-2 py-3 text-sm text-muted-foreground">Đang tải...</div>
+                            ) : physicalWarehouses.length ? (
+                                physicalWarehouses.map((physical: any) => {
+                                    const childIds = (warehousesByPhysical.get(Number(physical.id)) || []).map((warehouse: any) => Number(warehouse.id))
+                                    const checkedCount = childIds.filter((id) => selected.has(id)).length
+                                    const checked = checkedCount === 0 ? false : checkedCount === childIds.length ? true : "indeterminate"
+                                    return (
+                                        <label
+                                            key={physical.id}
+                                            className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-sm hover:bg-white"
+                                        >
+                                            <Checkbox
+                                                checked={checked}
+                                                disabled={!childIds.length}
+                                                onCheckedChange={() => togglePhysical(Number(physical.id))}
+                                                className="mt-0.5"
+                                            />
+                                            <span className="min-w-0">
+                                                <span className="block truncate font-medium">{physical.name}</span>
+                                                <span className="text-xs text-muted-foreground">{checkedCount}/{childIds.length} kho</span>
+                                            </span>
+                                        </label>
+                                    )
+                                })
+                            ) : (
+                                <div className="px-2 py-3 text-sm text-muted-foreground">Chưa có địa điểm kho.</div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div>
+                        <div className="space-y-2 border-b px-3 py-2">
+                            <div className="flex items-center justify-between">
+                            <div className="text-sm font-semibold">Kho</div>
+                            {draftValue.length ? (
+                                <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setSelected([])}>
+                                    Xóa chọn
+                                </Button>
+                            ) : null}
+                            </div>
+                            <Input
+                                value={warehouseKeyword}
+                                onChange={(event) => setWarehouseKeyword(event.target.value)}
+                                placeholder="Tìm kho"
+                                className="h-9"
+                            />
+                            <label className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm hover:bg-muted/50">
+                                <Checkbox
+                                    checked={filteredWarehousesChecked}
+                                    disabled={!filteredWarehouseIds.length}
+                                    onCheckedChange={() => toggleAllWarehouses(filteredWarehouseIds)}
+                                />
+                                <span className="min-w-0 flex-1 truncate font-medium">Chọn tất cả kết quả</span>
+                                <span className="text-xs text-muted-foreground">{selectedFilteredCount}/{filteredWarehouseIds.length}</span>
+                            </label>
+                        </div>
+                        <div className="max-h-[318px] overflow-y-auto p-2">
+                            {loading ? (
+                                <div className="px-2 py-3 text-sm text-muted-foreground">Đang tải...</div>
+                            ) : filteredWarehouses.length ? (
+                                filteredWarehouses.map((warehouse: any) => {
+                                    const physical = physicalWarehouses.find((item: any) => Number(item.id) === Number(warehouse.physical_warehouse_id))
+                                    return (
+                                        <label
+                                            key={warehouse.id}
+                                            className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted/50"
+                                        >
+                                            <Checkbox
+                                                checked={selected.has(Number(warehouse.id))}
+                                                onCheckedChange={() => toggleWarehouse(Number(warehouse.id))}
+                                                className="mt-0.5"
+                                            />
+                                            <span className="min-w-0">
+                                                <span className="block truncate font-medium">{warehouse.name}</span>
+                                                <span className="block truncate text-xs text-muted-foreground">{physical?.name || "Chưa gắn địa điểm kho"}</span>
+                                            </span>
+                                        </label>
+                                    )
+                                })
+                            ) : (
+                                <div className="px-2 py-3 text-sm text-muted-foreground">Chưa có kho.</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex items-center justify-between border-t px-3 py-2">
+                    <div className="text-xs text-muted-foreground">{draftValue.length ? `${draftValue.length} kho đang chọn` : "Chưa chọn kho"}</div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                setDraftValue(value)
+                                setOpen(false)
+                            }}
+                        >
+                            Hủy
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                                onChange(draftValue)
+                                setOpen(false)
+                            }}
+                        >
+                            Áp dụng
+                        </Button>
+                    </div>
+                </div>
+            </PopoverContent>
+        </Popover>
+    )
+}
+
 function ColumnTextFilter({
     label,
     value,
@@ -618,6 +942,11 @@ function ColumnTextFilter({
     const [draftValue, setDraftValue] = useState(value || "")
     const [draftOp, setDraftOp] = useState<TextFilterOp>(op || "contains")
     const active = Boolean(value)
+    const normalizedLabel = label.toLowerCase()
+
+    if (normalizedLabel.includes("kho")) {
+        return <span>{label}</span>
+    }
 
     const apply = () => {
         onApply(draftValue, draftOp)
@@ -880,11 +1209,21 @@ export function ExportInventorySummaryButton({
                 size: EXPORT_PAGE_SIZE,
                 keyword,
                 product_id: filters.product_id,
+                product_ids: filters.product_ids?.join(","),
                 warehouse_id: filters.warehouse_id,
+                warehouse_ids: filters.warehouse_ids?.length ? filters.warehouse_ids.join(",") : undefined,
                 from_date: filters.from_date,
                 to_date: filters.to_date,
                 product_text: filters.product_text,
                 product_text_op: filters.product_text_op,
+                product_code_text: filters.product_code_text,
+                product_code_text_op: filters.product_code_text_op,
+                product_name_text: filters.product_name_text,
+                product_name_text_op: filters.product_name_text_op,
+                warehouse_code_text: filters.warehouse_code_text,
+                warehouse_code_text_op: filters.warehouse_code_text_op,
+                warehouse_name_text: filters.warehouse_name_text,
+                warehouse_name_text_op: filters.warehouse_name_text_op,
                 quote_text: filters.quote_text,
                 quote_text_op: filters.quote_text_op,
                 unit: filters.unit,
@@ -1011,7 +1350,6 @@ function getInventoryStatus(row: InventorySummary) {
     const closing = Number(row.closing_quantity || 0)
     const inbound = Number(row.inbound_quantity || 0)
     const outbound = Number(row.outbound_quantity || 0)
-
     if (closing < 0) return { label: "Âm tồn", variant: "destructive" as const, className: "", icon: AlertTriangle }
     if (closing === 0) return { label: "Hết hàng", variant: "secondary" as const, className: "", icon: CircleMinus }
     if (outbound > inbound)
@@ -1031,7 +1369,7 @@ function getInventoryStatus(row: InventorySummary) {
     return { label: "Ổn định", variant: "outline" as const, className: "", icon: CircleCheck }
 }
 
-function textFilterDescription(label: string, op: TextFilterOp | undefined, value: string) {
+function textFilterDescription(label: string, op: TextFilterOp | undefined, value?: string) {
     return `${label} ${textOpLabel(op)} "${value}"`
 }
 

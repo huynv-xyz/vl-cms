@@ -10,7 +10,9 @@ export type InventoryLedgerListParams = {
     size: number
     keyword?: string
     product_id?: number
+    product_ids?: string
     warehouse_id?: number
+    warehouse_ids?: string
     doc_type?: string
     doc_no?: string
     from_date?: string
@@ -23,9 +25,19 @@ export type InventoryLedgerListParams = {
     supplier_text_op?: string
     product_text?: string
     product_text_op?: string
+    product_code_text?: string
+    product_code_text_op?: string
+    product_name_text?: string
+    product_name_text_op?: string
+    warehouse_code_text?: string
+    warehouse_code_text_op?: string
+    warehouse_name_text?: string
+    warehouse_name_text_op?: string
     unit?: string
     lot_text?: string
     lot_text_op?: string
+    direction?: "IN" | "OUT" | string
+    show_values?: boolean
 }
 
 export type InventoryLedgerReportParams = InventoryLedgerListParams

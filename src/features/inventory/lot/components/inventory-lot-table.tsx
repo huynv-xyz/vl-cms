@@ -1,11 +1,12 @@
-import { useState } from "react"
+﻿import { useState } from "react"
 import type React from "react"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { AlertTriangle, CalendarClock, Clock3, Funnel, HelpCircle, Package, TrendingDown, TrendingUp, Warehouse, X } from "lucide-react"
 
-import { getProduct, listProducts } from "@/api/product"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
+import { ProductMultiFilter } from "@/features/inventory/components/product-multi-filter"
+import { WarehouseTreeFilter } from "@/features/inventory/components/warehouse-tree-filter"
 import { LongText } from "@/components/long-text"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
@@ -24,11 +25,21 @@ type TextFilterOp = "contains" | "equals" | "not_equals" | "not_contains"
 
 export type LotFilters = {
     product_id?: number
+    product_ids?: string[]
     warehouse_id?: number
+    warehouse_ids?: number[]
     from_date?: string
     to_date?: string
     product_text?: string
     product_text_op?: TextFilterOp
+    product_code_text?: string
+    product_code_text_op?: TextFilterOp
+    product_name_text?: string
+    product_name_text_op?: TextFilterOp
+    warehouse_code_text?: string
+    warehouse_code_text_op?: TextFilterOp
+    warehouse_name_text?: string
+    warehouse_name_text_op?: TextFilterOp
     quote_text?: string
     quote_text_op?: TextFilterOp
     unit?: string
@@ -101,8 +112,8 @@ export function InventoryLotTable({
     }
 
     const setTextFilter = (
-        textKey: "product_text" | "quote_text" | "lot_text",
-        opKey: "product_text_op" | "quote_text_op" | "lot_text_op",
+        textKey: "product_text" | "product_code_text" | "product_name_text" | "warehouse_code_text" | "warehouse_name_text" | "quote_text" | "lot_text",
+        opKey: "product_text_op" | "product_code_text_op" | "product_name_text_op" | "warehouse_code_text_op" | "warehouse_name_text_op" | "quote_text_op" | "lot_text_op",
         value: string,
         op: TextFilterOp,
     ) => {
@@ -114,8 +125,8 @@ export function InventoryLotTable({
     }
 
     const clearTextFilter = (
-        textKey: "product_text" | "quote_text" | "lot_text",
-        opKey: "product_text_op" | "quote_text_op" | "lot_text_op",
+        textKey: "product_text" | "product_code_text" | "product_name_text" | "warehouse_code_text" | "warehouse_name_text" | "quote_text" | "lot_text",
+        opKey: "product_text_op" | "product_code_text_op" | "product_name_text_op" | "warehouse_code_text_op" | "warehouse_name_text_op" | "quote_text_op" | "lot_text_op",
     ) => {
         onFiltersChange({
             ...filters,
@@ -140,11 +151,38 @@ export function InventoryLotTable({
                 onClear: () => clearTextFilter("product_text", "product_text_op"),
             }
             : null,
+        filters.product_code_text
+            ? {
+                key: "product_code_text",
+                label: textFilterDescription("Mã hàng", filters.product_code_text_op, filters.product_code_text),
+                onClear: () => clearTextFilter("product_code_text", "product_code_text_op"),
+            }
+            : null,
+        filters.product_name_text
+            ? {
+                key: "product_name_text",
+                label: textFilterDescription("Tên hàng", filters.product_name_text_op, filters.product_name_text),
+                onClear: () => clearTextFilter("product_name_text", "product_name_text_op"),
+            }
+            : null,
         filters.product_id ? { key: "product_id", label: "Sản phẩm: đã chọn", onClear: () => setFilter("product_id", undefined) } : null,
         filters.warehouse_id ? { key: "warehouse_id", label: "Kho: đã chọn", onClear: () => setFilter("warehouse_id", undefined) } : null,
+        false && filters.warehouse_code_text
+            ? {
+                key: "warehouse_code_text",
+                label: textFilterDescription("Mã kho", filters.warehouse_code_text_op, filters.warehouse_code_text),
+                onClear: () => clearTextFilter("warehouse_code_text", "warehouse_code_text_op"),
+            }
+            : null,
+        false && filters.warehouse_name_text
+            ? {
+                key: "warehouse_name_text",
+                label: textFilterDescription("Tên kho", filters.warehouse_name_text_op, filters.warehouse_name_text),
+                onClear: () => clearTextFilter("warehouse_name_text", "warehouse_name_text_op"),
+            }
+            : null,
         filters.lot_text
             ? {
-                key: "lot_text",
                 label: textFilterDescription("Số lô", filters.lot_text_op, filters.lot_text),
                 onClear: () => clearTextFilter("lot_text", "lot_text_op"),
             }
@@ -192,24 +230,32 @@ export function InventoryLotTable({
                             className={cn(controlClass, "pl-10")}
                         />
 
-                        <AsyncSelect
-                            className={cn(controlClass, "min-w-[260px] flex-[1.3_1_280px] py-0 xl:max-w-[420px]")}
-                            value={filters.product_id}
-                            onChange={(value: any) => setFilter("product_id", value || undefined)}
-                            placeholder="Sản phẩm"
-                            dataSource={{
-                                getList: listProducts,
-                                getById: getProduct,
-                                params: { page: 1, size: 20 },
-                            }}
-                            mapOption={(product: any) => ({
-                                value: product.id,
-                                label: `${product.name} - ${product.code}`,
-                            })}
+                        <ProductMultiFilter
+                            className="min-w-[280px] flex-[1.6_1_320px] xl:max-w-[460px]"
+                            value={filters.product_ids}
+                            onChange={(value) =>
+                                onFiltersChange({
+                                    ...filters,
+                                    product_id: undefined,
+                                    product_ids: value,
+                                })
+                            }
+                        />
+
+                        <WarehouseTreeFilter
+                            value={filters.warehouse_ids || []}
+                            onChange={(value) =>
+                                onFiltersChange({
+                                    ...filters,
+                                    warehouse_id: undefined,
+                                    warehouse_ids: value.length ? value : undefined,
+                                })
+                            }
+                            className="min-w-[240px] flex-[1_1_280px] xl:max-w-[360px]"
                         />
 
                         <AsyncSelect
-                            className={cn(controlClass, "min-w-[190px] flex-[0.8_1_220px] py-0 xl:max-w-[260px]")}
+                            className="hidden"
                             value={filters.warehouse_id}
                             onChange={(value: any) => setFilter("warehouse_id", value || undefined)}
                             placeholder="Kho hàng"
@@ -282,13 +328,22 @@ export function InventoryLotTable({
                             <thead className="bg-muted/50 text-muted-foreground border-b text-xs">
                                 <tr>
                                     <Th rowSpan={2} className="text-center">STT</Th>
-                                    <Th rowSpan={2}>
+                                    <Th rowSpan={2} className="min-w-[150px]">
                                         <ColumnTextFilter
-                                            label="Hàng hóa"
-                                            value={filters.product_text}
-                                            op={filters.product_text_op}
-                                            onApply={(value, op) => setTextFilter("product_text", "product_text_op", value, op)}
-                                            onClear={() => clearTextFilter("product_text", "product_text_op")}
+                                            label="Mã hàng"
+                                            value={filters.product_code_text}
+                                            op={filters.product_code_text_op}
+                                            onApply={(value, op) => setTextFilter("product_code_text", "product_code_text_op", value, op)}
+                                            onClear={() => clearTextFilter("product_code_text", "product_code_text_op")}
+                                        />
+                                    </Th>
+                                    <Th rowSpan={2} className="min-w-[300px]">
+                                        <ColumnTextFilter
+                                            label="Tên hàng"
+                                            value={filters.product_name_text}
+                                            op={filters.product_name_text_op}
+                                            onApply={(value, op) => setTextFilter("product_name_text", "product_name_text_op", value, op)}
+                                            onClear={() => clearTextFilter("product_name_text", "product_name_text_op")}
                                         />
                                     </Th>
                                     <Th rowSpan={2}>
@@ -299,11 +354,22 @@ export function InventoryLotTable({
                                             onChange={(value) => setFilter("unit", value)}
                                         />
                                     </Th>
-                                    <Th rowSpan={2}>
-                                        <ColumnWarehouseFilter
-                                            label="Kho"
-                                            value={filters.warehouse_id}
-                                            onChange={(value) => setFilter("warehouse_id", value)}
+                                    <Th rowSpan={2} className="min-w-[150px]">
+                                        <ColumnTextFilter
+                                            label="Mã kho"
+                                            value={filters.warehouse_code_text}
+                                            op={filters.warehouse_code_text_op}
+                                            onApply={(value, op) => setTextFilter("warehouse_code_text", "warehouse_code_text_op", value, op)}
+                                            onClear={() => clearTextFilter("warehouse_code_text", "warehouse_code_text_op")}
+                                        />
+                                    </Th>
+                                    <Th rowSpan={2} className="min-w-[220px]">
+                                        <ColumnTextFilter
+                                            label="Tên kho"
+                                            value={filters.warehouse_name_text}
+                                            op={filters.warehouse_name_text_op}
+                                            onApply={(value, op) => setTextFilter("warehouse_name_text", "warehouse_name_text_op", value, op)}
+                                            onClear={() => clearTextFilter("warehouse_name_text", "warehouse_name_text_op")}
                                         />
                                     </Th>
                                     <Th rowSpan={2}>
@@ -405,18 +471,18 @@ function InventoryLotRow({ index, item }: { index: number; item: InventoryLot })
     return (
         <tr className="hover:bg-muted/30 border-b">
             <Td className="text-muted-foreground text-center font-mono">{formatNumber(index)}</Td>
-            <Td className="min-w-[340px] max-w-[520px]">
+            <Td className="text-muted-foreground font-mono text-xs">{productCode}</Td>
+            <Td className="min-w-[300px] max-w-[520px]">
                 <LongText className="max-w-[520px] font-semibold" contentClassName="max-w-[520px] whitespace-normal break-words leading-relaxed">
                     {productName}
                 </LongText>
-                <div className="text-muted-foreground line-clamp-1 font-mono text-xs">{productCode}</div>
             </Td>
             <Td className="text-muted-foreground">{productUnit}</Td>
+            <Td className="text-muted-foreground font-mono text-xs">{warehouseCode}</Td>
             <Td className="min-w-[220px] max-w-[360px]">
                 <LongText className="max-w-[360px]" contentClassName="max-w-[420px] whitespace-normal break-words leading-relaxed">
                     {warehouseName}
                 </LongText>
-                <div className="text-muted-foreground line-clamp-1 font-mono text-xs">{warehouseCode}</div>
             </Td>
             <Td className="font-mono text-xs">{lotNo}</Td>
             <Td>{formatDate(inboundDate)}</Td>
@@ -540,6 +606,11 @@ function ColumnTextFilter({
     const [draftValue, setDraftValue] = useState(value || "")
     const [draftOp, setDraftOp] = useState<TextFilterOp>(op || "contains")
     const active = Boolean(value)
+    const normalizedLabel = label.toLowerCase()
+
+    if (normalizedLabel.includes("kho")) {
+        return <span>{label}</span>
+    }
 
     const apply = () => {
         onApply(draftValue, draftOp)
@@ -757,7 +828,6 @@ function LotMetric({
                     <Icon className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                    <div className="text-xs font-semibold uppercase">{label}</div>
                     <div className="mt-1 text-sm tabular-nums">Số lượng: <span className="font-bold">{formatNumber(quantity || 0)}</span></div>
                     <div className="text-sm tabular-nums">Giá trị: <span className="font-bold">{formatCurrency(value || 0)}</span></div>
                 </div>
@@ -766,7 +836,7 @@ function LotMetric({
     )
 }
 
-function textFilterDescription(label: string, op: TextFilterOp | undefined, value: string) {
+function textFilterDescription(label: string, op: TextFilterOp | undefined, value?: string) {
     return `${label} ${textOpLabel(op)} "${value}"`
 }
 

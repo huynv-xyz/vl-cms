@@ -1,6 +1,6 @@
 import { PageSection } from '@/components/page-section'
 import { usePaginatedList } from '@/hooks/use-paginated-list'
-import { listProducts } from '@/api/product'
+import { listAllProducts } from '@/api/product'
 import { ProductTable } from './components/product-table'
 import { ProductDialogs } from './components/product-dialogs'
 import { ProductsProvider } from './components/products-provider'
@@ -41,7 +41,7 @@ export default function ProductPage() {
             singleFilters.default_warehouse_id,
             singleFilters.inventory_account_code,
         ],
-        listProducts,
+        listAllProducts,
         {
             page: search.page,
             size: search.size,

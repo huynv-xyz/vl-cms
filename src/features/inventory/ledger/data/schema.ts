@@ -80,6 +80,7 @@ export type InventoryLedgerReportRow = {
     balance_quantity: number
     product_code: string
     product_name: string
+    warehouse_code?: string | null
     warehouse_name: string
 }
 

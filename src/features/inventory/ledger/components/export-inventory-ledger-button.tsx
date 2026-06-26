@@ -1,4 +1,4 @@
-import { useState } from "react"
+﻿import { useState } from "react"
 import { Download, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -10,6 +10,9 @@ import { getDocTypeMeta } from "../data/schema"
 type Props = {
     keyword?: string
     filters: Partial<InventoryLedgerReportParams>
+    showValues?: boolean
+    title?: string
+    filePrefix?: string
 }
 
 type ExportColumn = {
@@ -30,10 +33,11 @@ const COLUMNS: ExportColumn[] = [
     { label: "Tên nhà cung cấp", value: (row) => row.supplier_name, width: 28 },
     { label: "TK Nợ", value: (row) => row.tk_no, width: 12 },
     { label: "TK Có", value: (row) => row.tk_co, width: 12 },
-    { label: "Mã sản phẩm", value: (row) => row.product_code, width: 20 },
-    { label: "Tên sản phẩm", value: (row) => row.product_name, width: 42 },
+    { label: "Mã hàng", value: (row) => row.product_code, width: 20 },
+    { label: "Tên hàng", value: (row) => row.product_name, width: 42 },
     { label: "ĐVT", value: (row) => row.unit, width: 10 },
     { label: "Số lô", value: (row) => row.lot_code, width: 24 },
+    { label: "Mã kho", value: (row) => row.warehouse_code, width: 20 },
     { label: "Kho", value: (row) => row.warehouse_name, width: 28 },
     { label: "Đơn giá", value: (row) => row.unit_price, width: 16, type: "number", numberFormat: "money" },
     { label: "Tồn đầu", value: (row) => Number(row.balance_quantity || 0) - Number(row.quantity_in || 0) + Number(row.quantity_out || 0), width: 16, type: "number", numberFormat: "quantity" },
@@ -45,8 +49,9 @@ const COLUMNS: ExportColumn[] = [
     { label: "Mã loại", value: (row) => row.doc_type, width: 20 },
 ]
 
-export function ExportInventoryLedgerButton({ keyword, filters }: Props) {
+export function ExportInventoryLedgerButton({ keyword, filters, showValues = true, title = "SỔ KHO", filePrefix = "so-kho" }: Props) {
     const [loading, setLoading] = useState(false)
+    const columns = getExportColumns(showValues)
 
     const handleExport = async () => {
         try {
@@ -56,7 +61,9 @@ export function ExportInventoryLedgerButton({ keyword, filters }: Props) {
                 size: EXPORT_PAGE_SIZE,
                 keyword: keyword || undefined,
                 product_id: filters.product_id,
+                product_ids: filters.product_ids,
                 warehouse_id: filters.warehouse_id,
+                warehouse_ids: filters.warehouse_ids,
                 doc_type: filters.doc_type || undefined,
                 from_date: filters.from_date || undefined,
                 to_date: filters.to_date || undefined,
@@ -68,9 +75,15 @@ export function ExportInventoryLedgerButton({ keyword, filters }: Props) {
                 supplier_text_op: filters.supplier_text_op || undefined,
                 product_text: filters.product_text || undefined,
                 product_text_op: filters.product_text_op || undefined,
+                product_code_text: filters.product_code_text || undefined,
+                product_code_text_op: filters.product_code_text_op || undefined,
+                product_name_text: filters.product_name_text || undefined,
+                product_name_text_op: filters.product_name_text_op || undefined,
                 unit: filters.unit || undefined,
                 lot_text: filters.lot_text || undefined,
                 lot_text_op: filters.lot_text_op || undefined,
+                direction: filters.direction || undefined,
+                show_values: filters.show_values,
             })
 
             if (!rows.length) {
@@ -78,7 +91,7 @@ export function ExportInventoryLedgerButton({ keyword, filters }: Props) {
                 return
             }
 
-            await exportInventoryLedgerXlsx(rows, filters)
+            await exportInventoryLedgerXlsx(rows, filters, columns, title, filePrefix)
             toast.success(`Đã xuất ${rows.length} dòng sổ kho`)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Xuất Excel thất bại")
@@ -115,7 +128,18 @@ async function fetchAllInventoryLedger(base: InventoryLedgerReportParams): Promi
     return all
 }
 
-async function exportInventoryLedgerXlsx(rows: InventoryLedgerReportRow[], filters: Partial<InventoryLedgerReportParams>) {
+function getExportColumns(showValues: boolean) {
+    if (showValues) return COLUMNS
+    return COLUMNS.filter((column) => !["Đơn giá", "Thành tiền"].includes(column.label))
+}
+
+async function exportInventoryLedgerXlsx(
+    rows: InventoryLedgerReportRow[],
+    filters: Partial<InventoryLedgerReportParams>,
+    columns: ExportColumn[],
+    title: string,
+    filePrefix: string,
+) {
     const { Workbook } = await import("exceljs")
     const workbook = new Workbook()
     workbook.creator = "VLIFE"
@@ -125,27 +149,27 @@ async function exportInventoryLedgerXlsx(rows: InventoryLedgerReportRow[], filte
         views: [{ state: "frozen", ySplit: 4 }],
     })
 
-    sheet.mergeCells(1, 1, 1, COLUMNS.length)
-    sheet.getCell(1, 1).value = "SỔ KHO"
+    sheet.mergeCells(1, 1, 1, columns.length)
+    sheet.getCell(1, 1).value = title
     sheet.getCell(1, 1).font = { bold: true, size: 16 }
     sheet.getCell(1, 1).alignment = { horizontal: "center", vertical: "middle" }
     sheet.getRow(1).height = 24
 
-    sheet.mergeCells(2, 1, 2, COLUMNS.length)
+    sheet.mergeCells(2, 1, 2, columns.length)
     sheet.getCell(2, 1).value = `Thời gian lọc: ${formatPeriod(filters.from_date, filters.to_date)} | Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}`
     sheet.getCell(2, 1).alignment = { horizontal: "center", vertical: "middle" }
     sheet.getCell(2, 1).font = { italic: true, color: { argb: "FF64748B" } }
 
     sheet.addRow([])
-    sheet.addRow(COLUMNS.map((column) => column.label))
+    sheet.addRow(columns.map((column) => column.label))
     rows.forEach((row, index) => {
-        sheet.addRow(COLUMNS.map((column) => normalizeCellValue(column.value(row, index), column)))
+        sheet.addRow(columns.map((column) => normalizeCellValue(column.value(row, index), column)))
     })
 
-    autoFitColumns(sheet, COLUMNS)
+    autoFitColumns(sheet, columns)
     sheet.autoFilter = {
         from: { row: 4, column: 1 },
-        to: { row: 4, column: COLUMNS.length },
+        to: { row: 4, column: columns.length },
     }
 
     const border = {
@@ -171,7 +195,7 @@ async function exportInventoryLedgerXlsx(rows: InventoryLedgerReportRow[], filte
     for (let rowIndex = 5; rowIndex <= sheet.rowCount; rowIndex++) {
         const row = sheet.getRow(rowIndex)
         row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-            const column = COLUMNS[colNumber - 1]
+            const column = columns[colNumber - 1]
             cell.border = border
             cell.alignment = {
                 vertical: "middle",
@@ -188,7 +212,7 @@ async function exportInventoryLedgerXlsx(rows: InventoryLedgerReportRow[], filte
     }
 
     const buffer = await workbook.xlsx.writeBuffer()
-    downloadBlob(buffer, `so-kho-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    downloadBlob(buffer, `${filePrefix}-${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
 function autoFitColumns(sheet: any, columns: ExportColumn[]) {
@@ -202,9 +226,9 @@ function autoFitColumns(sheet: any, columns: ExportColumn[]) {
         })
 
         const minWidth = column.type === "number" ? 12 : column.type === "date" ? 12 : 10
-        const maxWidth = ["Diá»…n giáº£i", "TÃªn sáº£n pháº©m"].includes(column.label)
+        const maxWidth = ["Di�.n giải", "Tên sản phẩm"].includes(column.label)
             ? 64
-            : ["TÃªn nhÃ  cung cáº¥p", "Loáº¡i chá»©ng tá»«", "Kho"].includes(column.label)
+            : ["Tên nhà cung cấp", "Loại chứng từ", "Kho"].includes(column.label)
                 ? 44
                 : 28
 

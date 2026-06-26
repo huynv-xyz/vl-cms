@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Download, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
-import { listProducts, type ProductListParams } from "@/api/product"
+import { listAllProducts, type ProductListParams } from "@/api/product"
 import { Button } from "@/components/ui/button"
 import type { Product } from "../data/schema"
 
@@ -131,7 +131,7 @@ async function fetchAllProducts(base: ProductListParams): Promise<Product[]> {
     let page = 1
 
     for (let guard = 0; guard < 500; guard++) {
-        const res = await listProducts({ ...base, page, size })
+        const res = await listAllProducts({ ...base, page, size })
         all.push(...res.items)
 
         if (page >= (res.total_page || 1) || res.items.length === 0) break
