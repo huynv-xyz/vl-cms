@@ -104,7 +104,7 @@ export default function SalaryAuditPage() {
                 <TableHead>Nhân viên</TableHead>
                 <TableHead>Vai trò</TableHead>
                 <TableHead>Vùng/Tỉnh</TableHead>
-                <TableHead className="text-right">Lương role</TableHead>
+                <TableHead className="text-right">Lương DS tháng</TableHead>
                 <TableHead className="text-right">Thưởng role</TableHead>
                 <TableHead className="text-right">% HT</TableHead>
                 <TableHead className="text-right">Nợ</TableHead>
@@ -118,7 +118,7 @@ export default function SalaryAuditPage() {
                   <TableCell><EmployeeName code={item.emp_code} name={item.emp_name} id={item.employee_id} /></TableCell>
                   <TableCell><Badge variant="outline">{item.role_code}</Badge></TableCell>
                   <TableCell>{item.region_code || "-"} / {item.province_code || "-"}</TableCell>
-                  <TableCell className="text-right">{fmt(item.role_salary_amount)}</TableCell>
+                  <TableCell className="text-right">{fmt(item.sales_salary_amount)}</TableCell>
                   <TableCell className="text-right">{fmt(item.role_bonus_amount)}</TableCell>
                   <TableCell className="text-right">{pct(item.completion_rate)}</TableCell>
                   <TableCell className="text-right">{pct(item.debt_rate)}</TableCell>

@@ -6,6 +6,7 @@ export type PayrollResultItem = {
   region_code?: string
   total_base_salary: number
   total_allowance: number
+  sales_salary_amount: number
   total_bonus: number
   support_amount: number
   gross_total: number

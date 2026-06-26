@@ -57,8 +57,6 @@ export function AdjustmentDialog({ open, onOpenChange, period, item }: Props) {
 
   const [formPeriod, setFormPeriod] = useState(period)
   const [empId, setEmpId] = useState<string>("")
-  const [luongCb, setLuongCb] = useState("")
-  const [phuCap, setPhuCap] = useState("")
   const [hoTro, setHoTro] = useState("")
   const [ghiChu, setGhiChu] = useState("")
 
@@ -66,8 +64,6 @@ export function AdjustmentDialog({ open, onOpenChange, period, item }: Props) {
     if (!open) return
     setFormPeriod(item?.period ?? period)
     setEmpId(item?.employee_id ? String(item.employee_id) : "")
-    setLuongCb(formatMoneyInput(item?.luong_cb_dieu_chinh))
-    setPhuCap(formatMoneyInput(item?.phu_cap_dieu_chinh))
     setHoTro(formatMoneyInput(item?.ho_tro))
     setGhiChu(item?.ghi_chu ?? "")
   }, [open, item, period])
@@ -95,8 +91,6 @@ export function AdjustmentDialog({ open, onOpenChange, period, item }: Props) {
       const body: CreateAdjustmentRequest = {
         period: formPeriod,
         employee_id: Number(empId),
-        luong_cb_dieu_chinh: luongCb.trim() ? parseNum(luongCb) : null,
-        phu_cap_dieu_chinh: phuCap.trim() ? parseNum(phuCap) : null,
         ho_tro: hoTro.trim() ? parseNum(hoTro) : null,
         ghi_chu: ghiChu.trim() || undefined,
       }
@@ -116,9 +110,9 @@ export function AdjustmentDialog({ open, onOpenChange, period, item }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader className="space-y-2">
-          <DialogTitle>{isEdit ? "Sửa điều chỉnh lương" : "Thêm điều chỉnh lương"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Sửa hỗ trợ lương" : "Thêm hỗ trợ lương"}</DialogTitle>
           <DialogDescription>
-            Điều chỉnh thủ công theo kỳ lương đã chọn. Trường để trống ở lương/phụ cấp nghĩa là giữ nguyên kết quả tính tự động.
+            Khoản hỗ trợ cộng thêm theo kỳ. Lương cơ bản và phụ cấp cố định được quản lý trong hồ sơ nhân viên.
           </DialogDescription>
         </DialogHeader>
 
@@ -142,24 +136,6 @@ export function AdjustmentDialog({ open, onOpenChange, period, item }: Props) {
               searchPlaceholder="Tìm theo mã hoặc tên nhân viên..."
               emptyText="Không tìm thấy nhân viên"
               required
-            />
-          </Field>
-
-          <Field label="Lương cơ bản điều chỉnh" hint="Nhập khi cần override lương cơ bản trong kỳ. Bỏ trống = giữ theo dữ liệu nhân viên/công thức.">
-            <Input
-              inputMode="decimal"
-              value={luongCb}
-              onChange={(e) => setLuongCb(e.target.value)}
-              placeholder="Ví dụ: 12000000"
-            />
-          </Field>
-
-          <Field label="Phụ cấp điều chỉnh" hint="Nhập khi cần override phụ cấp cố định trong kỳ. Bỏ trống = giữ nguyên.">
-            <Input
-              inputMode="decimal"
-              value={phuCap}
-              onChange={(e) => setPhuCap(e.target.value)}
-              placeholder="Ví dụ: 2000000"
             />
           </Field>
 

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import type { ReactNode } from "react"
 import { getPayrollResultDetail } from "@/api/salary/payroll-result"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -32,6 +33,21 @@ function money(value?: number | null) {
 
 function productUnit(name: string) {
   return name === "Bón lá lỏng" ? "lít" : "kg"
+}
+
+function roleLabel(code?: string) {
+  switch (code) {
+    case "SALE_SELF":
+      return "Sale cá nhân"
+    case "MGR_PROV":
+      return "ASM quản lý"
+    case "MGR_REGION":
+      return "RM vùng"
+    case "TECH_PROV":
+      return "Kỹ thuật tỉnh"
+    default:
+      return code || "-"
+  }
 }
 
 function completionTone(value?: number | null) {
@@ -144,10 +160,19 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
   const hasActualData = (performance?.actual_row_count ?? 0) > 0
   const hasTransactions = (performance?.source_transaction_count ?? 0) > 0
   const hasTargetData = (performance?.target_row_count ?? 0) > 0
+  const salesSalaryFromScopes = data?.scopes.reduce((sum, scope) => sum + (scope.sales_salary_amount ?? 0), 0) ?? 0
 
   const totalDeductions = payroll
     ? payroll.social_insurance + payroll.personal_income_tax + payroll.tam_ung + payroll.khau_tru_khac
     : 0
+  const incomeFormulaTotal = payroll
+    ? payroll.total_base_salary
+      + payroll.total_allowance
+      + payroll.sales_salary_amount
+      + payroll.total_bonus
+      + payroll.support_amount
+    : 0
+  const isPayrollStale = payroll ? Math.abs(incomeFormulaTotal - payroll.gross_total) > 1 : false
 
   const productRows: Array<[string, number, number]> = performance
     ? [
@@ -196,6 +221,16 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
         </div>
       ) : (
         <>
+          {isPayrollStale ? (
+            <Alert className="border-amber-200 bg-amber-50 text-amber-950">
+              <AlertTitle>Dữ liệu bảng lương chưa đồng bộ với công thức hiện tại</AlertTitle>
+              <AlertDescription>
+                Tổng theo các dòng thu nhập hiện tại là {money(incomeFormulaTotal)}, trong khi bảng lương đã chốt đang là {money(payroll.gross_total)}.
+                Cần chạy lại bảng lương kỳ {payroll.period} để cập nhật tổng thu nhập, bảo hiểm, thuế và thực nhận.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
           <div className="grid gap-4 xl:grid-cols-[1fr_1.35fr]">
             <section className="rounded-md border bg-background p-5">
               <div className="flex items-start justify-between gap-4">
@@ -215,9 +250,9 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
               <Separator className="my-5" />
               <div className="grid gap-3 sm:grid-cols-3">
                 <div>
-                  <div className="text-xs text-muted-foreground">Lương + phụ cấp</div>
+                  <div className="text-xs text-muted-foreground">Lương hồ sơ + doanh số</div>
                   <div className="mt-1 font-semibold tabular-nums">
-                    {money(payroll.total_base_salary + payroll.total_allowance)}
+                    {money(payroll.total_base_salary + payroll.total_allowance + payroll.sales_salary_amount)}
                   </div>
                 </div>
                 <div>
@@ -238,8 +273,9 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
               <div className="grid gap-5 lg:grid-cols-[1fr_auto_1fr]">
                 <div>
                   <div className="mb-2 text-xs font-medium uppercase text-muted-foreground">Thu nhập</div>
-                  <AmountRow label="Lương cơ bản chốt kỳ" value={money(payroll.total_base_salary)} sign="+" />
-                  <AmountRow label="Phụ cấp chốt kỳ" value={money(payroll.total_allowance)} sign="+" />
+                  <AmountRow label="Lương cơ bản" value={money(payroll.total_base_salary)} sign="+" />
+                  <AmountRow label="Phụ cấp" value={money(payroll.total_allowance)} sign="+" />
+                  <AmountRow label="Lương doanh số" value={money(payroll.sales_salary_amount)} sign="+" />
                   <AmountRow label="Thưởng 20%" value={money(payroll.total_bonus)} sign="+" />
                   <AmountRow label="Hỗ trợ + phát sinh" value={money(payroll.support_amount)} sign="+" />
                   <AmountRow label="Tổng thu nhập" value={money(payroll.gross_total)} tone="text-blue-700" />
@@ -287,6 +323,82 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
               tone="text-slate-700"
             />
           </div>
+
+          <Section
+            title="Giải thích lương doanh số tháng"
+            right={<Badge variant="outline">{money(salesSalaryFromScopes)}</Badge>}
+          >
+            <div className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-md border bg-white px-4 py-3 shadow-sm">
+                  <div className="text-xs font-medium uppercase text-muted-foreground">Lương doanh số tháng</div>
+                  <div className="mt-2 text-2xl font-semibold text-emerald-700 tabular-nums">
+                    {money(salesSalaryFromScopes)}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">Tổng các dòng phân bổ bên dưới</div>
+                </div>
+                <div className="rounded-md border bg-white px-4 py-3 shadow-sm">
+                  <div className="text-xs font-medium uppercase text-muted-foreground">Nguồn tính</div>
+                  <div className="mt-2 text-lg font-semibold">Phần lương năm</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Lấy từ quỹ nguồn/doanh số sau khi tách phần lương và phần thưởng.
+                  </div>
+                </div>
+                <div className="rounded-md border bg-white px-4 py-3 shadow-sm">
+                  <div className="text-xs font-medium uppercase text-muted-foreground">Công thức</div>
+                  <div className="mt-2 text-lg font-semibold">Lương năm / 12</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Lương năm = phần lương năm x tỷ lệ hưởng theo vai trò.
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-3">
+                {data.scopes.map((scope, index) => {
+                  const roleRate = scope.salary_portion > 0 ? scope.role_salary_amount / scope.salary_portion : 0
+                  const location = [scope.region_code, scope.province_code].filter(Boolean).join(" / ") || "-"
+                  return (
+                    <div
+                      key={`${scope.role_code}-${scope.region_code}-${scope.province_code}-${index}`}
+                      className="rounded-md border bg-white p-4 shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="font-semibold">{roleLabel(scope.role_code)}</div>
+                          <div className="mt-1 text-sm text-muted-foreground">Phạm vi {location}</div>
+                        </div>
+                        <Badge variant="outline">Tỷ lệ hưởng {pct(roleRate)}</Badge>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-4">
+                        <div className="rounded-md bg-muted/30 px-3 py-2">
+                          <div className="text-xs text-muted-foreground">Phần lương năm</div>
+                          <div className="mt-1 font-semibold tabular-nums">{money(scope.salary_portion)}</div>
+                        </div>
+                        <div className="rounded-md bg-muted/30 px-3 py-2">
+                          <div className="text-xs text-muted-foreground">Tỷ lệ vai trò</div>
+                          <div className="mt-1 font-semibold tabular-nums">{pct(roleRate)}</div>
+                        </div>
+                        <div className="rounded-md bg-muted/30 px-3 py-2">
+                          <div className="text-xs text-muted-foreground">Lương doanh số năm</div>
+                          <div className="mt-1 font-semibold tabular-nums">{money(scope.role_salary_amount)}</div>
+                        </div>
+                        <div className="rounded-md bg-emerald-50 px-3 py-2">
+                          <div className="text-xs text-emerald-700">Lương doanh số tháng</div>
+                          <div className="mt-1 font-semibold text-emerald-800 tabular-nums">{money(scope.sales_salary_amount)}</div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                        {fmt(scope.salary_portion)} x {pct(roleRate)} = {fmt(scope.role_salary_amount)}; {fmt(scope.role_salary_amount)} / 12 ={" "}
+                        <span className="font-semibold text-foreground">{money(scope.sales_salary_amount)}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </Section>
 
           <div className="grid gap-4 xl:grid-cols-[1.35fr_0.85fr]">
             <Section
@@ -476,8 +588,7 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
                     <th className="px-3 py-2 text-right">Quỹ nguồn</th>
                     <th className="px-3 py-2 text-right">Phần 80%</th>
                     <th className="px-3 py-2 text-right">Phần 20%</th>
-                    <th className="px-3 py-2 text-right">Lương</th>
-                    <th className="px-3 py-2 text-right">Phụ cấp</th>
+                    <th className="px-3 py-2 text-right">Lương DS tháng</th>
                     <th className="px-3 py-2 text-right">Thưởng</th>
                     <th className="px-3 py-2 text-right">Gross</th>
                   </tr>
@@ -496,8 +607,7 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
                         <td className="px-3 py-2 text-right tabular-nums">{money(budget?.total_budget)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{money(budget?.budget_80)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{money(budget?.budget_20)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{money(scope.final_base_salary)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{money(scope.final_allowance)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{money(scope.sales_salary_amount)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{money(scope.role_bonus_amount)}</td>
                         <td className="px-3 py-2 text-right font-semibold tabular-nums">{money(scope.final_gross)}</td>
                       </tr>

@@ -115,6 +115,7 @@ export function buildPayrollResultColumns(period: string): ColumnDef<PayrollResu
           lines={[
             ["Lương", original.total_base_salary],
             ["Phụ cấp", original.total_allowance],
+            ["Doanh số", original.sales_salary_amount],
             ["Thưởng", original.total_bonus],
             ["Hỗ trợ", original.support_amount],
           ]}

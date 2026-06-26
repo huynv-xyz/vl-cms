@@ -27,15 +27,12 @@ export type PayrollScopeItem = {
   salary_portion: number
   bonus_portion: number
   role_salary_amount: number
+  sales_salary_amount: number
   role_bonus_amount: number
-  base_salary: number
-  allowance_amount: number
   completion_rate: number
   debt_rate: number
   is_bonus_eligible: number
   support_amount: number
-  final_base_salary: number
-  final_allowance: number
   final_gross: number
 }
 

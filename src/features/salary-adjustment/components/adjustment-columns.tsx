@@ -10,7 +10,7 @@ const fmt = (v?: number | null) => (v == null ? null : v.toLocaleString("vi-VN")
 function MoneyCell({ value, accent }: { value?: number | null; accent?: "green" | "blue" }) {
   const formatted = fmt(value)
   if (!formatted) {
-    return <div className="text-right text-sm text-muted-foreground">Không đổi</div>
+    return <div className="text-right text-sm text-muted-foreground">-</div>
   }
   return (
     <div
@@ -48,20 +48,6 @@ export const adjustmentColumns: ColumnDef<SalaryAdjustmentItem>[] = [
       </Badge>
     ),
     size: 110,
-  },
-  {
-    id: "luong_cb",
-    header: () => <div className="text-right">Lương cơ bản</div>,
-    accessorFn: (r) => r.luong_cb_dieu_chinh,
-    cell: ({ getValue }) => <MoneyCell value={getValue() as number | null} />,
-    size: 160,
-  },
-  {
-    id: "phu_cap",
-    header: () => <div className="text-right">Phụ cấp</div>,
-    accessorFn: (r) => r.phu_cap_dieu_chinh,
-    cell: ({ getValue }) => <MoneyCell value={getValue() as number | null} accent="green" />,
-    size: 140,
   },
   {
     id: "ho_tro",

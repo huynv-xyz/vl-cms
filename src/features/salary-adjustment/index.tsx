@@ -27,34 +27,32 @@ function AdjustmentContent({ period }: { period: string }) {
     return items.reduce(
       (acc, item) => {
         acc.total += 1
-        if (item.luong_cb_dieu_chinh != null) acc.salaryOverrides += 1
-        if (item.phu_cap_dieu_chinh != null) acc.allowanceOverrides += 1
+        if ((item.ho_tro ?? 0) > 0) acc.supportRows += 1
         acc.supportTotal += item.ho_tro ?? 0
         return acc
       },
-      { total: 0, salaryOverrides: 0, allowanceOverrides: 0, supportTotal: 0 },
+      { total: 0, supportRows: 0, supportTotal: 0 },
     )
   }, [items])
   const fmt = (value: number) => value.toLocaleString("vi-VN")
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 md:grid-cols-4">
-        <SummaryCard label="Số điều chỉnh" value={String(summary.total)} icon={<SlidersHorizontal className="h-4 w-4" />} />
-        <SummaryCard label="Override lương cơ bản" value={String(summary.salaryOverrides)} />
-        <SummaryCard label="Override phụ cấp" value={String(summary.allowanceOverrides)} />
+      <div className="grid gap-3 md:grid-cols-3">
+        <SummaryCard label="Số dòng hỗ trợ" value={String(summary.total)} icon={<SlidersHorizontal className="h-4 w-4" />} />
+        <SummaryCard label="Có số tiền" value={String(summary.supportRows)} />
         <SummaryCard label="Tổng hỗ trợ thêm" value={fmt(summary.supportTotal)} icon={<CircleDollarSign className="h-4 w-4" />} />
       </div>
 
       <div className="flex flex-col gap-3 rounded-lg border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="text-sm font-semibold">Danh sách điều chỉnh kỳ {period}</div>
+          <div className="text-sm font-semibold">Danh sách hỗ trợ kỳ {period}</div>
           <div className="text-xs text-muted-foreground">
-            {isLoading ? "Đang tải dữ liệu..." : `${data?.total ?? 0} dòng điều chỉnh lương`}
+            {isLoading ? "Đang tải dữ liệu..." : `${data?.total ?? 0} dòng hỗ trợ lương`}
           </div>
         </div>
         <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" /> Thêm điều chỉnh
+          <Plus className="mr-2 h-4 w-4" /> Thêm hỗ trợ
         </Button>
       </div>
 

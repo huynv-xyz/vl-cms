@@ -9,6 +9,7 @@ export type PayrollResultItem = {
   region_code?: string
   total_base_salary: number
   total_allowance: number
+  sales_salary_amount: number
   total_bonus: number
   support_amount: number
   gross_total: number
@@ -47,20 +48,15 @@ export type PayrollScopeDetail = {
   salary_portion: number
   bonus_portion: number
   role_salary_amount: number
+  sales_salary_amount: number
   role_bonus_amount: number
-  base_salary: number
-  allowance_amount: number
   gross_amount: number
-  final_base_salary: number
-  final_allowance: number
   support_amount: number
   final_gross: number
 }
 
 export type PayrollAdjustmentDetail = {
   region_code?: string
-  luong_cb_dieu_chinh?: number | null
-  phu_cap_dieu_chinh?: number | null
   ho_tro?: number | null
   ghi_chu?: string
 }
