@@ -1,217 +1,192 @@
 import { type ColumnDef } from "@tanstack/react-table"
+import { Link } from "@tanstack/react-router"
+import { Badge } from "@/components/ui/badge"
 import type { PayrollResultItem } from "../data/schema"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 
-const fmt = (v?: number) =>
-  v == null ? "-" : v.toLocaleString("vi-VN")
+const money = (value?: number | null) =>
+  value == null ? "-" : value.toLocaleString("vi-VN", { maximumFractionDigits: 0 })
 
-const cell = (v?: number) => (
-  <div className="text-right tabular-nums whitespace-nowrap text-sm">{fmt(v)}</div>
-)
+const smallMoney = (value?: number | null) =>
+  value == null ? "-" : value.toLocaleString("vi-VN", { maximumFractionDigits: 0 })
 
-const headerRight = (t: string) => (
-  <div className="text-right font-semibold whitespace-nowrap">{t}</div>
-)
-
-const GROUP_BORDER = "border-l border-border"
-
-export const payrollResultColumns: ColumnDef<PayrollResultItem>[] = [
-  buildIndexColumn<PayrollResultItem>(),
-
-  {
-    id: "emp",
-    header: "Nhân viên",
-    accessorFn: (r) => r.emp_name ?? r.emp_code ?? r.employee_id,
-    cell: ({ row: { original: r } }) => (
-      <div className="whitespace-nowrap text-sm">
-        <div className="font-medium">{r.emp_name}</div>
-        <div className="text-xs text-muted-foreground">{r.emp_code}</div>
+function AmountStack({
+  title,
+  primary,
+  lines,
+  tone,
+}: {
+  title: string
+  primary: number
+  lines: Array<[string, number | undefined | null]>
+  tone?: string
+}) {
+  return (
+    <div className="min-w-[230px] rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-sm font-semibold uppercase text-slate-500">{title}</span>
+        <span className={`text-base font-bold tabular-nums ${tone ?? ""}`}>{money(primary)}</span>
       </div>
-    ),
-    size: 180,
-  },
-
-  {
-    id: "role_code",
-    header: "Vai trò",
-    accessorFn: (r) => r.role_code,
-    cell: ({ getValue }) => (
-      <div className="text-xs font-mono whitespace-nowrap">{String(getValue() ?? "-")}</div>
-    ),
-    size: 100,
-  },
-
-  {
-    id: "region_code",
-    header: "Vùng",
-    accessorFn: (r) => r.region_code,
-    cell: ({ getValue }) => (
-      <div className="text-center text-sm">{String(getValue() ?? "-")}</div>
-    ),
-    size: 70,
-  },
-
-  // ── Thu nhập ──
-  {
-    id: "income_group",
-    header: () => <div className="text-center font-semibold">Thu nhập tháng</div>,
-    meta: { thClassName: GROUP_BORDER },
-    columns: [
-      {
-        id: "total_base_salary",
-        header: () => headerRight("Lương CB"),
-        accessorFn: (r) => r.total_base_salary,
-        cell: ({ getValue }) => cell(getValue() as number),
-        size: 120,
-        meta: { thClassName: GROUP_BORDER, tdClassName: GROUP_BORDER },
-      },
-      {
-        id: "total_allowance",
-        header: () => headerRight("Phụ cấp"),
-        accessorFn: (r) => r.total_allowance,
-        cell: ({ getValue }) => cell(getValue() as number),
-        size: 120,
-      },
-      {
-        id: "total_bonus",
-        header: () => headerRight("Thưởng 20%"),
-        accessorFn: (r) => r.total_bonus,
-        cell: ({ getValue }) => cell(getValue() as number),
-        size: 120,
-      },
-      {
-        id: "support_amount",
-        header: () => headerRight("Hỗ trợ"),
-        accessorFn: (r) => r.support_amount,
-        cell: ({ getValue }) => cell(getValue() as number),
-        size: 110,
-      },
-      {
-        id: "gross_total",
-        header: () => headerRight("Tổng TN"),
-        accessorFn: (r) => r.gross_total,
-        cell: ({ getValue }) => (
-          <div className="text-right tabular-nums font-semibold text-sm text-blue-700 whitespace-nowrap">
-            {fmt(getValue() as number)}
+      <div className="mt-3 space-y-1.5 text-sm text-slate-600">
+        {lines.map(([label, value]) => (
+          <div key={label} className="flex justify-between gap-4">
+            <span>{label}</span>
+            <span className="font-medium tabular-nums text-slate-900">{smallMoney(value)}</span>
           </div>
-        ),
-        size: 130,
-        meta: { tdClassName: "border-r border-border" },
-      },
-    ],
-  },
+        ))}
+      </div>
+    </div>
+  )
+}
 
-  // ── Bảo hiểm ──
-  {
-    id: "bh_group",
-    header: () => <div className="text-center font-semibold">Bảo hiểm (NV đóng)</div>,
-    meta: { thClassName: GROUP_BORDER },
-    columns: [
-      {
-        id: "bhxh_nv",
-        header: () => headerRight("BHXH 8%"),
-        accessorFn: (r) => r.bhxh_nv,
-        cell: ({ getValue }) => cell(getValue() as number),
-        size: 110,
-        meta: { thClassName: GROUP_BORDER, tdClassName: GROUP_BORDER },
-      },
-      {
-        id: "bhyt_nv",
-        header: () => headerRight("BHYT 1.5%"),
-        accessorFn: (r) => r.bhyt_nv,
-        cell: ({ getValue }) => cell(getValue() as number),
-        size: 110,
-      },
-      {
-        id: "bhtn_nv",
-        header: () => headerRight("BHTN 1%"),
-        accessorFn: (r) => r.bhtn_nv,
-        cell: ({ getValue }) => cell(getValue() as number),
-        size: 100,
-      },
-      {
-        id: "kpcd_nv",
-        header: () => headerRight("KPCD 0.5%"),
-        accessorFn: (r) => r.kpcd_nv,
-        cell: ({ getValue }) => cell(getValue() as number),
-        size: 105,
-      },
-      {
-        id: "total_bh",
-        header: () => headerRight("Tổng BH"),
-        accessorFn: (r) => r.social_insurance,
-        cell: ({ getValue }) => (
-          <div className="text-right tabular-nums font-semibold text-sm text-orange-700 whitespace-nowrap">
-            {fmt(getValue() as number)}
+function InfoCard({
+  title,
+  lines,
+}: {
+  title: string
+  lines: Array<[string, string | number | undefined | null]>
+}) {
+  return (
+    <div className="min-w-[230px] rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <div className="text-sm font-semibold uppercase text-slate-500">{title}</div>
+      <div className="mt-3 space-y-1.5 text-sm text-slate-600">
+        {lines.map(([label, value]) => (
+          <div key={label} className="flex justify-between gap-4">
+            <span>{label}</span>
+            <span className="font-medium tabular-nums text-slate-900">{value ?? "-"}</span>
           </div>
-        ),
-        size: 115,
-        meta: { tdClassName: "border-r border-border" },
-      },
-    ],
-  },
+        ))}
+      </div>
+    </div>
+  )
+}
 
-  // ── Thuế TNCN ──
-  {
-    id: "tax_group",
-    header: () => <div className="text-center font-semibold">Thuế TNCN</div>,
-    meta: { thClassName: GROUP_BORDER },
-    columns: [
-      {
-        id: "tax_exempt_amount",
-        header: () => headerRight("Miễn thuế"),
-        accessorFn: (r) => r.tax_exempt_amount,
-        cell: ({ getValue }) => cell(getValue() as number),
-        size: 110,
-        meta: { thClassName: GROUP_BORDER, tdClassName: GROUP_BORDER },
-      },
-      {
-        id: "taxable_income",
-        header: () => headerRight("TN chịu thuế"),
-        accessorFn: (r) => r.taxable_income,
-        cell: ({ getValue }) => cell(getValue() as number),
-        size: 130,
-      },
-      {
-        id: "personal_income_tax",
-        header: () => headerRight("Thuế TNCN"),
-        accessorFn: (r) => r.personal_income_tax,
-        cell: ({ getValue }) => (
-          <div className="text-right tabular-nums font-semibold text-sm text-red-600 whitespace-nowrap">
-            {fmt(getValue() as number)}
-          </div>
-        ),
-        size: 120,
-        meta: { tdClassName: "border-r border-border" },
-      },
-    ],
-  },
+function StatusBadge({ item }: { item: PayrollResultItem }) {
+  const deduction = (item.social_insurance ?? 0) + (item.personal_income_tax ?? 0) + (item.tam_ung ?? 0) + (item.khau_tru_khac ?? 0)
+  if ((item.gross_total ?? 0) <= 0) {
+    return <Badge variant="outline" className="border-slate-300 text-slate-600">Chưa có lương</Badge>
+  }
+  if (deduction > item.gross_total) {
+    return <Badge className="bg-rose-600">Khấu trừ cao</Badge>
+  }
+  if ((item.net_total ?? 0) > 0) {
+    return <Badge className="bg-emerald-600">Đã tính</Badge>
+  }
+  return <Badge className="bg-amber-600">Cần kiểm tra</Badge>
+}
 
-  // ── Thực nhận ──
-  {
-    id: "deduct_group",
-    header: () => <div className="text-center font-semibold">Khấu trừ & Thực nhận</div>,
-    meta: { thClassName: GROUP_BORDER },
-    columns: [
-      {
-        id: "tam_ung",
-        header: () => headerRight("Tạm ứng"),
-        accessorFn: (r) => r.tam_ung,
-        cell: ({ getValue }) => cell(getValue() as number),
-        size: 110,
-        meta: { thClassName: GROUP_BORDER, tdClassName: GROUP_BORDER },
-      },
-      {
-        id: "net_total",
-        header: () => headerRight("Thực nhận"),
-        accessorFn: (r) => r.net_total,
-        cell: ({ getValue }) => (
-          <div className="text-right tabular-nums font-bold text-sm text-green-700 whitespace-nowrap">
-            {fmt(getValue() as number)}
+export function buildPayrollResultColumns(period: string): ColumnDef<PayrollResultItem>[] {
+  return [
+    buildIndexColumn<PayrollResultItem>(),
+    {
+      id: "employee",
+      header: "Nhân viên",
+      accessorFn: (row) => `${row.emp_code ?? ""} ${row.emp_name ?? ""}`,
+      cell: ({ row: { original } }) => (
+        <div className="min-w-[290px] rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <Link
+            to="/salary/payroll-result/$employeeId"
+            params={{ employeeId: String(original.employee_id) }}
+            search={{ period }}
+            className="text-base font-bold text-primary underline-offset-4 hover:underline"
+          >
+            {original.emp_name || original.emp_code || original.employee_id}
+          </Link>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span>{original.emp_code}</span>
+            <span>·</span>
+            <span>{original.role_code || "Chưa có vai trò"}</span>
+            <span>·</span>
+            <span>{original.region_code || "Chưa có vùng"}</span>
           </div>
-        ),
-        size: 130,
+        </div>
+      ),
+      size: 260,
+    },
+    {
+      id: "gross",
+      header: "",
+      accessorFn: (row) => row.gross_total,
+      cell: ({ row: { original } }) => (
+        <AmountStack
+          title="Thu nhập"
+          primary={original.gross_total}
+          tone="text-blue-700"
+          lines={[
+            ["Lương", original.total_base_salary],
+            ["Phụ cấp", original.total_allowance],
+            ["Thưởng", original.total_bonus],
+            ["Hỗ trợ", original.support_amount],
+          ]}
+        />
+      ),
+      size: 180,
+    },
+    {
+      id: "deductions",
+      header: "",
+      accessorFn: (row) => (row.social_insurance ?? 0) + (row.personal_income_tax ?? 0) + (row.tam_ung ?? 0) + (row.khau_tru_khac ?? 0),
+      cell: ({ row: { original } }) => {
+        const total = (original.social_insurance ?? 0) + (original.personal_income_tax ?? 0) + (original.tam_ung ?? 0) + (original.khau_tru_khac ?? 0)
+        return (
+          <AmountStack
+            title="Khấu trừ"
+            primary={total}
+            tone="text-orange-700"
+            lines={[
+              ["Bảo hiểm", original.social_insurance],
+              ["Thuế", original.personal_income_tax],
+              ["Tạm ứng", original.tam_ung],
+              ["Khác", original.khau_tru_khac],
+            ]}
+          />
+        )
       },
-    ],
-  },
-]
+      size: 180,
+    },
+    {
+      id: "insurance_tax",
+      header: "",
+      accessorFn: (row) => row.luong_dong_bh,
+      cell: ({ row: { original } }) => (
+        <InfoCard
+          title="Căn cứ tính"
+          lines={[
+            ["Lương đóng BH", money(original.luong_dong_bh)],
+            ["Loại LĐ", original.labor_type || "CT"],
+            ["NPT", original.dependent_count ?? 0],
+            ["TN chịu thuế", money(original.taxable_income)],
+          ]}
+        />
+      ),
+      size: 170,
+    },
+    {
+      id: "net",
+      header: () => <div className="text-right">Thực nhận</div>,
+      accessorFn: (row) => row.net_total,
+      cell: ({ row: { original } }) => (
+        <div className="min-w-[210px] rounded-md border border-slate-200 bg-white px-4 py-3 text-right shadow-sm">
+          <div className="text-sm font-semibold uppercase text-emerald-700">Thực nhận</div>
+          <div className="mt-2 text-lg font-bold text-emerald-700 tabular-nums">{money(original.net_total)}</div>
+          <div className="mt-3 flex justify-between gap-4 text-sm text-emerald-800/80">
+            <span>Gross</span>
+            <span className="font-medium tabular-nums">{smallMoney(original.gross_total)}</span>
+          </div>
+        </div>
+      ),
+      size: 170,
+    },
+    {
+      id: "status",
+      header: "Trạng thái",
+      accessorFn: (row) => row.net_total,
+      cell: ({ row: { original } }) => (
+        <div className="min-w-[110px]">
+          <StatusBadge item={original} />
+        </div>
+      ),
+      size: 130,
+    },
+  ]
+}

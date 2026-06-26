@@ -16,6 +16,15 @@ export type CreateEmployeeRequest = {
     identity_no?: string
     identity_issue_date?: string | null
     identity_issue_place?: string
+    tax_code?: string
+    labor_type?: string
+    dependent_count?: number
+    insurance_base?: number
+    basic_salary?: number
+    allowance_salary?: number
+    is_union_member?: number
+    joined_at?: string | null
+    left_at?: string | null
     status?: number
 }
 
@@ -28,6 +37,15 @@ export type UpdateEmployeeRequest = {
     identity_no?: string
     identity_issue_date?: string | null
     identity_issue_place?: string
+    tax_code?: string
+    labor_type?: string
+    dependent_count?: number
+    insurance_base?: number
+    basic_salary?: number
+    allowance_salary?: number
+    is_union_member?: number
+    joined_at?: string | null
+    left_at?: string | null
     status?: number
 }
 

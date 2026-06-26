@@ -1,5 +1,8 @@
 import { PageSection } from '@/components/page-section'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { usePaginatedList } from '@/hooks/use-paginated-list'
+import { listEmployees } from '@/api/employee'
 import { listSalesTargets } from '@/api/sales-target'
 import { SalesTargetTable } from './components/sales-target-table'
 import { SalesTargetDialogs } from './components/sales-target-dialogs'
@@ -18,8 +21,6 @@ export default function SalesTargetPage() {
     const {
         keyword,
         setKeyword,
-        multiFilters,
-        setMultiFilters,
         requestFilters,
     } = useUrlListFilters(search, navigate, ['period', 'employeeId'])
 
@@ -34,6 +35,14 @@ export default function SalesTargetPage() {
             employee_id: requestFilters.employeeId,
         },
     )
+    const { data: employeesData } = useQuery({
+        queryKey: ['sales-target-employees-map'],
+        queryFn: () => listEmployees({ page: 1, size: 1000 }),
+    })
+    const employeeMap = useMemo(
+        () => new Map((employeesData?.items ?? []).map((employee) => [employee.id, employee])),
+        [employeesData],
+    )
 
     return (
         <SalesTargetsProvider>
@@ -47,22 +56,15 @@ export default function SalesTargetPage() {
                 {(data) => (
                     <div className="space-y-4">
                         <SalesTargetTable
-                            data={data.items}
+                            data={data.items.map((item) => ({
+                                ...item,
+                                employee: item.employee ?? employeeMap.get(item.employee_id),
+                            }))}
                             pagination={pagination}
                             onPaginationChange={setPagination}
                             pageCount={data.total_page}
                             keyword={keyword}
                             onKeywordChange={setKeyword}
-                            filters={{
-                                //periods: multiFilters.period,
-                                //employeeIds: multiFilters.employeeId,
-                            }}
-                            onFiltersChange={(next) =>
-                                setMultiFilters({
-                                    //period: next.periods,
-                                    //employeeId: next.employeeIds,
-                                })
-                            }
                         />
                         <SalesTargetDialogs />
                     </div>

@@ -14,6 +14,7 @@ export function SalesTargetRowActions({
 
     return (
         <CrudRowActions
+            row={row.original}
             onEdit={() => openEdit(row.original)}
         />
     )

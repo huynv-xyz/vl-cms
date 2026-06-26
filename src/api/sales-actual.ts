@@ -1,4 +1,4 @@
-import { apiGet, type PagedResult } from "@/api/client"
+import { apiGet, apiPost, type PagedResult } from "@/api/client"
 import { createCrudApi } from "@/api/crud"
 import type {
     SalesActual,
@@ -26,6 +26,19 @@ const salesActualCrudApi = createCrudApi<
 
 export function listSalesActuals(params: SalesActualListParams) {
     return apiGet<PagedResult<SalesActualItem>>("/salary/sales-actuals", params)
+}
+
+export function syncSalesActualsFromTransactions(period: string) {
+    return apiPost<{
+        period: string
+        source_rows: number
+        missing_employees: number
+        deleted: number
+        inserted: number
+    }>(
+        `/salary/sales-actuals/sync/${period}`,
+        undefined,
+    )
 }
 
 export const getSalesActual = salesActualCrudApi.detail

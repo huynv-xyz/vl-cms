@@ -3,8 +3,27 @@ import type { SalaryAdjustmentItem } from "../data/schema"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { AdjustmentRowActions } from "./adjustment-row-actions"
 import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
-const fmt = (v?: number | null) => (v == null ? "-" : v.toLocaleString("vi-VN"))
+const fmt = (v?: number | null) => (v == null ? null : v.toLocaleString("vi-VN"))
+
+function MoneyCell({ value, accent }: { value?: number | null; accent?: "green" | "blue" }) {
+  const formatted = fmt(value)
+  if (!formatted) {
+    return <div className="text-right text-sm text-muted-foreground">Không đổi</div>
+  }
+  return (
+    <div
+      className={cn(
+        "text-right text-sm font-semibold tabular-nums",
+        accent === "green" && "text-emerald-700",
+        accent === "blue" && "text-blue-700",
+      )}
+    >
+      {formatted}
+    </div>
+  )
+}
 
 export const adjustmentColumns: ColumnDef<SalaryAdjustmentItem>[] = [
   buildIndexColumn<SalaryAdjustmentItem>(),
@@ -12,55 +31,58 @@ export const adjustmentColumns: ColumnDef<SalaryAdjustmentItem>[] = [
     id: "emp",
     header: "Nhân viên",
     cell: ({ row: { original: r } }) => (
-      <div>
-        <div className="font-medium text-sm">{r.emp_name}</div>
-        <div className="text-xs text-muted-foreground">{r.emp_code}</div>
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold">{r.emp_name}</div>
+        <div className="mt-0.5 text-xs text-muted-foreground">{r.emp_code}</div>
       </div>
     ),
-    size: 180,
+    size: 240,
   },
   {
-    id: "region_code",
-    header: "Vùng",
-    accessorFn: (r) => r.region_code ?? "—",
-    cell: ({ getValue }) => <div className="text-center text-sm">{String(getValue())}</div>,
-    size: 80,
+    id: "period",
+    header: "Kỳ lương",
+    accessorFn: (r) => r.period,
+    cell: ({ getValue }) => (
+      <Badge variant="outline" className="font-medium">
+        {String(getValue())}
+      </Badge>
+    ),
+    size: 110,
   },
   {
     id: "luong_cb",
-    header: () => <div className="text-right">Lương CB điều chỉnh</div>,
+    header: () => <div className="text-right">Lương cơ bản</div>,
     accessorFn: (r) => r.luong_cb_dieu_chinh,
-    cell: ({ getValue }) => (
-      <div className="text-right tabular-nums text-sm">{fmt(getValue() as number | null)}</div>
-    ),
+    cell: ({ getValue }) => <MoneyCell value={getValue() as number | null} />,
     size: 160,
   },
   {
     id: "phu_cap",
-    header: () => <div className="text-right">Phụ cấp điều chỉnh</div>,
+    header: () => <div className="text-right">Phụ cấp</div>,
     accessorFn: (r) => r.phu_cap_dieu_chinh,
-    cell: ({ getValue }) => (
-      <div className="text-right tabular-nums text-sm">{fmt(getValue() as number | null)}</div>
-    ),
-    size: 160,
+    cell: ({ getValue }) => <MoneyCell value={getValue() as number | null} accent="green" />,
+    size: 140,
   },
   {
     id: "ho_tro",
     header: () => <div className="text-right">Hỗ trợ thêm</div>,
     accessorFn: (r) => r.ho_tro,
-    cell: ({ getValue }) => (
-      <div className="text-right tabular-nums text-sm text-blue-700">{fmt(getValue() as number | null)}</div>
-    ),
+    cell: ({ getValue }) => <MoneyCell value={getValue() as number | null} accent="blue" />,
     size: 130,
   },
   {
     id: "ghi_chu",
     header: "Ghi chú",
     accessorFn: (r) => r.ghi_chu,
-    cell: ({ getValue }) => (
-      <div className="text-sm text-muted-foreground max-w-[200px] truncate">{String(getValue() ?? "")}</div>
-    ),
-    size: 200,
+    cell: ({ getValue }) => {
+      const note = String(getValue() ?? "")
+      return (
+        <div className="max-w-[280px] truncate text-sm text-muted-foreground">
+          {note || "Không có ghi chú"}
+        </div>
+      )
+    },
+    size: 280,
   },
   {
     id: "status",

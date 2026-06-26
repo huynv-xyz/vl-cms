@@ -118,6 +118,11 @@ export const sidebarData: SidebarData = {
             title: 'Lương sale',
             items: [
                 {
+                    title: 'Import Excel lương',
+                    url: '/salary/import',
+                    icon: FileText,
+                },
+                {
                     title: 'Chạy bảng lương',
                     url: '/salary/payroll-run',
                     icon: Play,
@@ -126,6 +131,31 @@ export const sidebarData: SidebarData = {
                     title: 'Bảng lương',
                     url: '/salary/payroll-result',
                     icon: TableProperties,
+                },
+                {
+                    title: 'Thu nhập phát sinh',
+                    url: '/salary/monthly-incomes',
+                    icon: ReceiptText,
+                },
+                {
+                    title: 'Cấu hình',
+                    url: '/salary/payroll-config',
+                    icon: ShieldCheck,
+                },
+                {
+                    title: 'Thiết lập lương',
+                    url: '/salary/setup',
+                    icon: SlidersHorizontal,
+                },
+                {
+                    title: 'Quy tắc lương',
+                    url: '/salary/rules',
+                    icon: GitMerge,
+                },
+                {
+                    title: 'Đối soát lương',
+                    url: '/salary/audit',
+                    icon: History,
                 },
                 {
                     title: 'Điều chỉnh lương',
@@ -143,7 +173,7 @@ export const sidebarData: SidebarData = {
                     icon: Trophy,
                 },
                 {
-                    title: 'Chỉ tiêu tháng',
+                    title: 'Chỉ tiêu',
                     url: '/salary/sales-targets',
                     icon: Target,
                 },

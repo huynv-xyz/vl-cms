@@ -40,9 +40,11 @@ import { Route as AuthenticatedVipPointRulesIndexRouteImport } from './routes/_a
 import { Route as AuthenticatedVipCustomerIndexRouteImport } from './routes/_authenticated/vip/customer/index'
 import { Route as AuthenticatedVipCustomerTargetIndexRouteImport } from './routes/_authenticated/vip/customer-target/index'
 import { Route as AuthenticatedVipCustomerPlanIndexRouteImport } from './routes/_authenticated/vip/customer-plan/index'
+import { Route as AuthenticatedToolsProductMergeIndexRouteImport } from './routes/_authenticated/tools/product-merge/index'
 import { Route as AuthenticatedSalesReturnsIndexRouteImport } from './routes/_authenticated/sales/returns/index'
 import { Route as AuthenticatedSalesReceiptsIndexRouteImport } from './routes/_authenticated/sales/receipts/index'
 import { Route as AuthenticatedSalesOrdersIndexRouteImport } from './routes/_authenticated/sales/orders/index'
+import { Route as AuthenticatedSalesInventorySummaryIndexRouteImport } from './routes/_authenticated/sales/inventory-summary/index'
 import { Route as AuthenticatedSalesGoodsDescriptionsIndexRouteImport } from './routes/_authenticated/sales/goods-descriptions/index'
 import { Route as AuthenticatedSalesExportsIndexRouteImport } from './routes/_authenticated/sales/exports/index'
 import { Route as AuthenticatedSalesDeliveriesIndexRouteImport } from './routes/_authenticated/sales/deliveries/index'
@@ -52,11 +54,17 @@ import { Route as AuthenticatedSalesArOpeningsIndexRouteImport } from './routes/
 import { Route as AuthenticatedSalesArLedgersIndexRouteImport } from './routes/_authenticated/sales/ar-ledgers/index'
 import { Route as AuthenticatedSalesArAdjustmentsIndexRouteImport } from './routes/_authenticated/sales/ar-adjustments/index'
 import { Route as AuthenticatedSalaryYearBonusIndexRouteImport } from './routes/_authenticated/salary/year-bonus/index'
+import { Route as AuthenticatedSalarySetupIndexRouteImport } from './routes/_authenticated/salary/setup/index'
 import { Route as AuthenticatedSalarySalesTargetsIndexRouteImport } from './routes/_authenticated/salary/sales-targets/index'
 import { Route as AuthenticatedSalarySalesActualsIndexRouteImport } from './routes/_authenticated/salary/sales-actuals/index'
+import { Route as AuthenticatedSalaryRulesIndexRouteImport } from './routes/_authenticated/salary/rules/index'
 import { Route as AuthenticatedSalaryRegionPoolIndexRouteImport } from './routes/_authenticated/salary/region-pool/index'
 import { Route as AuthenticatedSalaryPayrollRunIndexRouteImport } from './routes/_authenticated/salary/payroll-run/index'
 import { Route as AuthenticatedSalaryPayrollResultIndexRouteImport } from './routes/_authenticated/salary/payroll-result/index'
+import { Route as AuthenticatedSalaryPayrollConfigIndexRouteImport } from './routes/_authenticated/salary/payroll-config/index'
+import { Route as AuthenticatedSalaryMonthlyIncomesIndexRouteImport } from './routes/_authenticated/salary/monthly-incomes/index'
+import { Route as AuthenticatedSalaryImportIndexRouteImport } from './routes/_authenticated/salary/import/index'
+import { Route as AuthenticatedSalaryAuditIndexRouteImport } from './routes/_authenticated/salary/audit/index'
 import { Route as AuthenticatedSalaryAdjustmentsIndexRouteImport } from './routes/_authenticated/salary/adjustments/index'
 import { Route as AuthenticatedPurchasingSuppliersIndexRouteImport } from './routes/_authenticated/purchasing/suppliers/index'
 import { Route as AuthenticatedPurchasingShipmentsIndexRouteImport } from './routes/_authenticated/purchasing/shipments/index'
@@ -66,10 +74,10 @@ import { Route as AuthenticatedPurchasingApSummaryIndexRouteImport } from './rou
 import { Route as AuthenticatedProductionOrdersIndexRouteImport } from './routes/_authenticated/production/orders/index'
 import { Route as AuthenticatedProductionBomsIndexRouteImport } from './routes/_authenticated/production/boms/index'
 import { Route as AuthenticatedInventorySummaryIndexRouteImport } from './routes/_authenticated/inventory/summary/index'
+import { Route as AuthenticatedInventoryOutboundsIndexRouteImport } from './routes/_authenticated/inventory/outbounds/index'
 import { Route as AuthenticatedInventoryLotsIndexRouteImport } from './routes/_authenticated/inventory/lots/index'
 import { Route as AuthenticatedInventoryLedgersIndexRouteImport } from './routes/_authenticated/inventory/ledgers/index'
 import { Route as AuthenticatedInventoryInboundsIndexRouteImport } from './routes/_authenticated/inventory/inbounds/index'
-import { Route as AuthenticatedInventoryAlertsIndexRouteImport } from './routes/_authenticated/inventory/alerts/index'
 import { Route as AuthenticatedAccessUsersIndexRouteImport } from './routes/_authenticated/access/users/index'
 import { Route as AuthenticatedAccessUserRolesIndexRouteImport } from './routes/_authenticated/access/user-roles/index'
 import { Route as AuthenticatedAccessRolesIndexRouteImport } from './routes/_authenticated/access/roles/index'
@@ -78,6 +86,7 @@ import { Route as AuthenticatedVipCustomerIdRouteImport } from './routes/_authen
 import { Route as AuthenticatedSalesOrdersIdIndexRouteImport } from './routes/_authenticated/sales/orders/$id/index'
 import { Route as AuthenticatedSalesExportsIdIndexRouteImport } from './routes/_authenticated/sales/exports/$id/index'
 import { Route as AuthenticatedSalesDeliveriesIdIndexRouteImport } from './routes/_authenticated/sales/deliveries/$id/index'
+import { Route as AuthenticatedSalaryPayrollResultEmployeeIdIndexRouteImport } from './routes/_authenticated/salary/payroll-result/$employeeId/index'
 import { Route as AuthenticatedPurchasingContractsIdIndexRouteImport } from './routes/_authenticated/purchasing/contracts/$id/index'
 import { Route as AuthenticatedProductionOrdersIdIndexRouteImport } from './routes/_authenticated/production/orders/$id/index'
 
@@ -257,6 +266,12 @@ const AuthenticatedVipCustomerPlanIndexRoute =
     path: '/vip/customer-plan/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedToolsProductMergeIndexRoute =
+  AuthenticatedToolsProductMergeIndexRouteImport.update({
+    id: '/tools/product-merge/',
+    path: '/tools/product-merge/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSalesReturnsIndexRoute =
   AuthenticatedSalesReturnsIndexRouteImport.update({
     id: '/sales/returns/',
@@ -273,6 +288,12 @@ const AuthenticatedSalesOrdersIndexRoute =
   AuthenticatedSalesOrdersIndexRouteImport.update({
     id: '/sales/orders/',
     path: '/sales/orders/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalesInventorySummaryIndexRoute =
+  AuthenticatedSalesInventorySummaryIndexRouteImport.update({
+    id: '/sales/inventory-summary/',
+    path: '/sales/inventory-summary/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSalesGoodsDescriptionsIndexRoute =
@@ -329,6 +350,12 @@ const AuthenticatedSalaryYearBonusIndexRoute =
     path: '/salary/year-bonus/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSalarySetupIndexRoute =
+  AuthenticatedSalarySetupIndexRouteImport.update({
+    id: '/salary/setup/',
+    path: '/salary/setup/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSalarySalesTargetsIndexRoute =
   AuthenticatedSalarySalesTargetsIndexRouteImport.update({
     id: '/salary/sales-targets/',
@@ -339,6 +366,12 @@ const AuthenticatedSalarySalesActualsIndexRoute =
   AuthenticatedSalarySalesActualsIndexRouteImport.update({
     id: '/salary/sales-actuals/',
     path: '/salary/sales-actuals/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalaryRulesIndexRoute =
+  AuthenticatedSalaryRulesIndexRouteImport.update({
+    id: '/salary/rules/',
+    path: '/salary/rules/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSalaryRegionPoolIndexRoute =
@@ -357,6 +390,30 @@ const AuthenticatedSalaryPayrollResultIndexRoute =
   AuthenticatedSalaryPayrollResultIndexRouteImport.update({
     id: '/salary/payroll-result/',
     path: '/salary/payroll-result/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalaryPayrollConfigIndexRoute =
+  AuthenticatedSalaryPayrollConfigIndexRouteImport.update({
+    id: '/salary/payroll-config/',
+    path: '/salary/payroll-config/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalaryMonthlyIncomesIndexRoute =
+  AuthenticatedSalaryMonthlyIncomesIndexRouteImport.update({
+    id: '/salary/monthly-incomes/',
+    path: '/salary/monthly-incomes/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalaryImportIndexRoute =
+  AuthenticatedSalaryImportIndexRouteImport.update({
+    id: '/salary/import/',
+    path: '/salary/import/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalaryAuditIndexRoute =
+  AuthenticatedSalaryAuditIndexRouteImport.update({
+    id: '/salary/audit/',
+    path: '/salary/audit/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSalaryAdjustmentsIndexRoute =
@@ -413,6 +470,12 @@ const AuthenticatedInventorySummaryIndexRoute =
     path: '/inventory/summary/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedInventoryOutboundsIndexRoute =
+  AuthenticatedInventoryOutboundsIndexRouteImport.update({
+    id: '/inventory/outbounds/',
+    path: '/inventory/outbounds/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInventoryLotsIndexRoute =
   AuthenticatedInventoryLotsIndexRouteImport.update({
     id: '/inventory/lots/',
@@ -429,12 +492,6 @@ const AuthenticatedInventoryInboundsIndexRoute =
   AuthenticatedInventoryInboundsIndexRouteImport.update({
     id: '/inventory/inbounds/',
     path: '/inventory/inbounds/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedInventoryAlertsIndexRoute =
-  AuthenticatedInventoryAlertsIndexRouteImport.update({
-    id: '/inventory/alerts/',
-    path: '/inventory/alerts/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAccessUsersIndexRoute =
@@ -485,6 +542,12 @@ const AuthenticatedSalesDeliveriesIdIndexRoute =
     path: '/sales/deliveries/$id/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSalaryPayrollResultEmployeeIdIndexRoute =
+  AuthenticatedSalaryPayrollResultEmployeeIdIndexRouteImport.update({
+    id: '/salary/payroll-result/$employeeId/',
+    path: '/salary/payroll-result/$employeeId/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPurchasingContractsIdIndexRoute =
   AuthenticatedPurchasingContractsIdIndexRouteImport.update({
     id: '/purchasing/contracts/$id/',
@@ -526,10 +589,10 @@ export interface FileRoutesByFullPath {
   '/access/roles/': typeof AuthenticatedAccessRolesIndexRoute
   '/access/user-roles/': typeof AuthenticatedAccessUserRolesIndexRoute
   '/access/users/': typeof AuthenticatedAccessUsersIndexRoute
-  '/inventory/alerts/': typeof AuthenticatedInventoryAlertsIndexRoute
   '/inventory/inbounds/': typeof AuthenticatedInventoryInboundsIndexRoute
   '/inventory/ledgers/': typeof AuthenticatedInventoryLedgersIndexRoute
   '/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
+  '/inventory/outbounds/': typeof AuthenticatedInventoryOutboundsIndexRoute
   '/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
   '/production/boms/': typeof AuthenticatedProductionBomsIndexRoute
   '/production/orders/': typeof AuthenticatedProductionOrdersIndexRoute
@@ -539,11 +602,17 @@ export interface FileRoutesByFullPath {
   '/purchasing/shipments/': typeof AuthenticatedPurchasingShipmentsIndexRoute
   '/purchasing/suppliers/': typeof AuthenticatedPurchasingSuppliersIndexRoute
   '/salary/adjustments/': typeof AuthenticatedSalaryAdjustmentsIndexRoute
+  '/salary/audit/': typeof AuthenticatedSalaryAuditIndexRoute
+  '/salary/import/': typeof AuthenticatedSalaryImportIndexRoute
+  '/salary/monthly-incomes/': typeof AuthenticatedSalaryMonthlyIncomesIndexRoute
+  '/salary/payroll-config/': typeof AuthenticatedSalaryPayrollConfigIndexRoute
   '/salary/payroll-result/': typeof AuthenticatedSalaryPayrollResultIndexRoute
   '/salary/payroll-run/': typeof AuthenticatedSalaryPayrollRunIndexRoute
   '/salary/region-pool/': typeof AuthenticatedSalaryRegionPoolIndexRoute
+  '/salary/rules/': typeof AuthenticatedSalaryRulesIndexRoute
   '/salary/sales-actuals/': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/salary/sales-targets/': typeof AuthenticatedSalarySalesTargetsIndexRoute
+  '/salary/setup/': typeof AuthenticatedSalarySetupIndexRoute
   '/salary/year-bonus/': typeof AuthenticatedSalaryYearBonusIndexRoute
   '/sales/ar-adjustments/': typeof AuthenticatedSalesArAdjustmentsIndexRoute
   '/sales/ar-ledgers/': typeof AuthenticatedSalesArLedgersIndexRoute
@@ -553,9 +622,11 @@ export interface FileRoutesByFullPath {
   '/sales/deliveries/': typeof AuthenticatedSalesDeliveriesIndexRoute
   '/sales/exports/': typeof AuthenticatedSalesExportsIndexRoute
   '/sales/goods-descriptions/': typeof AuthenticatedSalesGoodsDescriptionsIndexRoute
+  '/sales/inventory-summary/': typeof AuthenticatedSalesInventorySummaryIndexRoute
   '/sales/orders/': typeof AuthenticatedSalesOrdersIndexRoute
   '/sales/receipts/': typeof AuthenticatedSalesReceiptsIndexRoute
   '/sales/returns/': typeof AuthenticatedSalesReturnsIndexRoute
+  '/tools/product-merge/': typeof AuthenticatedToolsProductMergeIndexRoute
   '/vip/customer-plan/': typeof AuthenticatedVipCustomerPlanIndexRoute
   '/vip/customer-target/': typeof AuthenticatedVipCustomerTargetIndexRoute
   '/vip/customer/': typeof AuthenticatedVipCustomerIndexRoute
@@ -566,6 +637,7 @@ export interface FileRoutesByFullPath {
   '/vip/tiers/': typeof AuthenticatedVipTiersIndexRoute
   '/production/orders/$id/': typeof AuthenticatedProductionOrdersIdIndexRoute
   '/purchasing/contracts/$id/': typeof AuthenticatedPurchasingContractsIdIndexRoute
+  '/salary/payroll-result/$employeeId/': typeof AuthenticatedSalaryPayrollResultEmployeeIdIndexRoute
   '/sales/deliveries/$id/': typeof AuthenticatedSalesDeliveriesIdIndexRoute
   '/sales/exports/$id/': typeof AuthenticatedSalesExportsIdIndexRoute
   '/sales/orders/$id/': typeof AuthenticatedSalesOrdersIdIndexRoute
@@ -598,10 +670,10 @@ export interface FileRoutesByTo {
   '/access/roles': typeof AuthenticatedAccessRolesIndexRoute
   '/access/user-roles': typeof AuthenticatedAccessUserRolesIndexRoute
   '/access/users': typeof AuthenticatedAccessUsersIndexRoute
-  '/inventory/alerts': typeof AuthenticatedInventoryAlertsIndexRoute
   '/inventory/inbounds': typeof AuthenticatedInventoryInboundsIndexRoute
   '/inventory/ledgers': typeof AuthenticatedInventoryLedgersIndexRoute
   '/inventory/lots': typeof AuthenticatedInventoryLotsIndexRoute
+  '/inventory/outbounds': typeof AuthenticatedInventoryOutboundsIndexRoute
   '/inventory/summary': typeof AuthenticatedInventorySummaryIndexRoute
   '/production/boms': typeof AuthenticatedProductionBomsIndexRoute
   '/production/orders': typeof AuthenticatedProductionOrdersIndexRoute
@@ -611,11 +683,17 @@ export interface FileRoutesByTo {
   '/purchasing/shipments': typeof AuthenticatedPurchasingShipmentsIndexRoute
   '/purchasing/suppliers': typeof AuthenticatedPurchasingSuppliersIndexRoute
   '/salary/adjustments': typeof AuthenticatedSalaryAdjustmentsIndexRoute
+  '/salary/audit': typeof AuthenticatedSalaryAuditIndexRoute
+  '/salary/import': typeof AuthenticatedSalaryImportIndexRoute
+  '/salary/monthly-incomes': typeof AuthenticatedSalaryMonthlyIncomesIndexRoute
+  '/salary/payroll-config': typeof AuthenticatedSalaryPayrollConfigIndexRoute
   '/salary/payroll-result': typeof AuthenticatedSalaryPayrollResultIndexRoute
   '/salary/payroll-run': typeof AuthenticatedSalaryPayrollRunIndexRoute
   '/salary/region-pool': typeof AuthenticatedSalaryRegionPoolIndexRoute
+  '/salary/rules': typeof AuthenticatedSalaryRulesIndexRoute
   '/salary/sales-actuals': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/salary/sales-targets': typeof AuthenticatedSalarySalesTargetsIndexRoute
+  '/salary/setup': typeof AuthenticatedSalarySetupIndexRoute
   '/salary/year-bonus': typeof AuthenticatedSalaryYearBonusIndexRoute
   '/sales/ar-adjustments': typeof AuthenticatedSalesArAdjustmentsIndexRoute
   '/sales/ar-ledgers': typeof AuthenticatedSalesArLedgersIndexRoute
@@ -625,9 +703,11 @@ export interface FileRoutesByTo {
   '/sales/deliveries': typeof AuthenticatedSalesDeliveriesIndexRoute
   '/sales/exports': typeof AuthenticatedSalesExportsIndexRoute
   '/sales/goods-descriptions': typeof AuthenticatedSalesGoodsDescriptionsIndexRoute
+  '/sales/inventory-summary': typeof AuthenticatedSalesInventorySummaryIndexRoute
   '/sales/orders': typeof AuthenticatedSalesOrdersIndexRoute
   '/sales/receipts': typeof AuthenticatedSalesReceiptsIndexRoute
   '/sales/returns': typeof AuthenticatedSalesReturnsIndexRoute
+  '/tools/product-merge': typeof AuthenticatedToolsProductMergeIndexRoute
   '/vip/customer-plan': typeof AuthenticatedVipCustomerPlanIndexRoute
   '/vip/customer-target': typeof AuthenticatedVipCustomerTargetIndexRoute
   '/vip/customer': typeof AuthenticatedVipCustomerIndexRoute
@@ -638,6 +718,7 @@ export interface FileRoutesByTo {
   '/vip/tiers': typeof AuthenticatedVipTiersIndexRoute
   '/production/orders/$id': typeof AuthenticatedProductionOrdersIdIndexRoute
   '/purchasing/contracts/$id': typeof AuthenticatedPurchasingContractsIdIndexRoute
+  '/salary/payroll-result/$employeeId': typeof AuthenticatedSalaryPayrollResultEmployeeIdIndexRoute
   '/sales/deliveries/$id': typeof AuthenticatedSalesDeliveriesIdIndexRoute
   '/sales/exports/$id': typeof AuthenticatedSalesExportsIdIndexRoute
   '/sales/orders/$id': typeof AuthenticatedSalesOrdersIdIndexRoute
@@ -672,10 +753,10 @@ export interface FileRoutesById {
   '/_authenticated/access/roles/': typeof AuthenticatedAccessRolesIndexRoute
   '/_authenticated/access/user-roles/': typeof AuthenticatedAccessUserRolesIndexRoute
   '/_authenticated/access/users/': typeof AuthenticatedAccessUsersIndexRoute
-  '/_authenticated/inventory/alerts/': typeof AuthenticatedInventoryAlertsIndexRoute
   '/_authenticated/inventory/inbounds/': typeof AuthenticatedInventoryInboundsIndexRoute
   '/_authenticated/inventory/ledgers/': typeof AuthenticatedInventoryLedgersIndexRoute
   '/_authenticated/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
+  '/_authenticated/inventory/outbounds/': typeof AuthenticatedInventoryOutboundsIndexRoute
   '/_authenticated/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
   '/_authenticated/production/boms/': typeof AuthenticatedProductionBomsIndexRoute
   '/_authenticated/production/orders/': typeof AuthenticatedProductionOrdersIndexRoute
@@ -685,11 +766,17 @@ export interface FileRoutesById {
   '/_authenticated/purchasing/shipments/': typeof AuthenticatedPurchasingShipmentsIndexRoute
   '/_authenticated/purchasing/suppliers/': typeof AuthenticatedPurchasingSuppliersIndexRoute
   '/_authenticated/salary/adjustments/': typeof AuthenticatedSalaryAdjustmentsIndexRoute
+  '/_authenticated/salary/audit/': typeof AuthenticatedSalaryAuditIndexRoute
+  '/_authenticated/salary/import/': typeof AuthenticatedSalaryImportIndexRoute
+  '/_authenticated/salary/monthly-incomes/': typeof AuthenticatedSalaryMonthlyIncomesIndexRoute
+  '/_authenticated/salary/payroll-config/': typeof AuthenticatedSalaryPayrollConfigIndexRoute
   '/_authenticated/salary/payroll-result/': typeof AuthenticatedSalaryPayrollResultIndexRoute
   '/_authenticated/salary/payroll-run/': typeof AuthenticatedSalaryPayrollRunIndexRoute
   '/_authenticated/salary/region-pool/': typeof AuthenticatedSalaryRegionPoolIndexRoute
+  '/_authenticated/salary/rules/': typeof AuthenticatedSalaryRulesIndexRoute
   '/_authenticated/salary/sales-actuals/': typeof AuthenticatedSalarySalesActualsIndexRoute
   '/_authenticated/salary/sales-targets/': typeof AuthenticatedSalarySalesTargetsIndexRoute
+  '/_authenticated/salary/setup/': typeof AuthenticatedSalarySetupIndexRoute
   '/_authenticated/salary/year-bonus/': typeof AuthenticatedSalaryYearBonusIndexRoute
   '/_authenticated/sales/ar-adjustments/': typeof AuthenticatedSalesArAdjustmentsIndexRoute
   '/_authenticated/sales/ar-ledgers/': typeof AuthenticatedSalesArLedgersIndexRoute
@@ -699,9 +786,11 @@ export interface FileRoutesById {
   '/_authenticated/sales/deliveries/': typeof AuthenticatedSalesDeliveriesIndexRoute
   '/_authenticated/sales/exports/': typeof AuthenticatedSalesExportsIndexRoute
   '/_authenticated/sales/goods-descriptions/': typeof AuthenticatedSalesGoodsDescriptionsIndexRoute
+  '/_authenticated/sales/inventory-summary/': typeof AuthenticatedSalesInventorySummaryIndexRoute
   '/_authenticated/sales/orders/': typeof AuthenticatedSalesOrdersIndexRoute
   '/_authenticated/sales/receipts/': typeof AuthenticatedSalesReceiptsIndexRoute
   '/_authenticated/sales/returns/': typeof AuthenticatedSalesReturnsIndexRoute
+  '/_authenticated/tools/product-merge/': typeof AuthenticatedToolsProductMergeIndexRoute
   '/_authenticated/vip/customer-plan/': typeof AuthenticatedVipCustomerPlanIndexRoute
   '/_authenticated/vip/customer-target/': typeof AuthenticatedVipCustomerTargetIndexRoute
   '/_authenticated/vip/customer/': typeof AuthenticatedVipCustomerIndexRoute
@@ -712,6 +801,7 @@ export interface FileRoutesById {
   '/_authenticated/vip/tiers/': typeof AuthenticatedVipTiersIndexRoute
   '/_authenticated/production/orders/$id/': typeof AuthenticatedProductionOrdersIdIndexRoute
   '/_authenticated/purchasing/contracts/$id/': typeof AuthenticatedPurchasingContractsIdIndexRoute
+  '/_authenticated/salary/payroll-result/$employeeId/': typeof AuthenticatedSalaryPayrollResultEmployeeIdIndexRoute
   '/_authenticated/sales/deliveries/$id/': typeof AuthenticatedSalesDeliveriesIdIndexRoute
   '/_authenticated/sales/exports/$id/': typeof AuthenticatedSalesExportsIdIndexRoute
   '/_authenticated/sales/orders/$id/': typeof AuthenticatedSalesOrdersIdIndexRoute
@@ -746,10 +836,10 @@ export interface FileRouteTypes {
     | '/access/roles/'
     | '/access/user-roles/'
     | '/access/users/'
-    | '/inventory/alerts/'
     | '/inventory/inbounds/'
     | '/inventory/ledgers/'
     | '/inventory/lots/'
+    | '/inventory/outbounds/'
     | '/inventory/summary/'
     | '/production/boms/'
     | '/production/orders/'
@@ -759,11 +849,17 @@ export interface FileRouteTypes {
     | '/purchasing/shipments/'
     | '/purchasing/suppliers/'
     | '/salary/adjustments/'
+    | '/salary/audit/'
+    | '/salary/import/'
+    | '/salary/monthly-incomes/'
+    | '/salary/payroll-config/'
     | '/salary/payroll-result/'
     | '/salary/payroll-run/'
     | '/salary/region-pool/'
+    | '/salary/rules/'
     | '/salary/sales-actuals/'
     | '/salary/sales-targets/'
+    | '/salary/setup/'
     | '/salary/year-bonus/'
     | '/sales/ar-adjustments/'
     | '/sales/ar-ledgers/'
@@ -773,9 +869,11 @@ export interface FileRouteTypes {
     | '/sales/deliveries/'
     | '/sales/exports/'
     | '/sales/goods-descriptions/'
+    | '/sales/inventory-summary/'
     | '/sales/orders/'
     | '/sales/receipts/'
     | '/sales/returns/'
+    | '/tools/product-merge/'
     | '/vip/customer-plan/'
     | '/vip/customer-target/'
     | '/vip/customer/'
@@ -786,6 +884,7 @@ export interface FileRouteTypes {
     | '/vip/tiers/'
     | '/production/orders/$id/'
     | '/purchasing/contracts/$id/'
+    | '/salary/payroll-result/$employeeId/'
     | '/sales/deliveries/$id/'
     | '/sales/exports/$id/'
     | '/sales/orders/$id/'
@@ -818,10 +917,10 @@ export interface FileRouteTypes {
     | '/access/roles'
     | '/access/user-roles'
     | '/access/users'
-    | '/inventory/alerts'
     | '/inventory/inbounds'
     | '/inventory/ledgers'
     | '/inventory/lots'
+    | '/inventory/outbounds'
     | '/inventory/summary'
     | '/production/boms'
     | '/production/orders'
@@ -831,11 +930,17 @@ export interface FileRouteTypes {
     | '/purchasing/shipments'
     | '/purchasing/suppliers'
     | '/salary/adjustments'
+    | '/salary/audit'
+    | '/salary/import'
+    | '/salary/monthly-incomes'
+    | '/salary/payroll-config'
     | '/salary/payroll-result'
     | '/salary/payroll-run'
     | '/salary/region-pool'
+    | '/salary/rules'
     | '/salary/sales-actuals'
     | '/salary/sales-targets'
+    | '/salary/setup'
     | '/salary/year-bonus'
     | '/sales/ar-adjustments'
     | '/sales/ar-ledgers'
@@ -845,9 +950,11 @@ export interface FileRouteTypes {
     | '/sales/deliveries'
     | '/sales/exports'
     | '/sales/goods-descriptions'
+    | '/sales/inventory-summary'
     | '/sales/orders'
     | '/sales/receipts'
     | '/sales/returns'
+    | '/tools/product-merge'
     | '/vip/customer-plan'
     | '/vip/customer-target'
     | '/vip/customer'
@@ -858,6 +965,7 @@ export interface FileRouteTypes {
     | '/vip/tiers'
     | '/production/orders/$id'
     | '/purchasing/contracts/$id'
+    | '/salary/payroll-result/$employeeId'
     | '/sales/deliveries/$id'
     | '/sales/exports/$id'
     | '/sales/orders/$id'
@@ -891,10 +999,10 @@ export interface FileRouteTypes {
     | '/_authenticated/access/roles/'
     | '/_authenticated/access/user-roles/'
     | '/_authenticated/access/users/'
-    | '/_authenticated/inventory/alerts/'
     | '/_authenticated/inventory/inbounds/'
     | '/_authenticated/inventory/ledgers/'
     | '/_authenticated/inventory/lots/'
+    | '/_authenticated/inventory/outbounds/'
     | '/_authenticated/inventory/summary/'
     | '/_authenticated/production/boms/'
     | '/_authenticated/production/orders/'
@@ -904,11 +1012,17 @@ export interface FileRouteTypes {
     | '/_authenticated/purchasing/shipments/'
     | '/_authenticated/purchasing/suppliers/'
     | '/_authenticated/salary/adjustments/'
+    | '/_authenticated/salary/audit/'
+    | '/_authenticated/salary/import/'
+    | '/_authenticated/salary/monthly-incomes/'
+    | '/_authenticated/salary/payroll-config/'
     | '/_authenticated/salary/payroll-result/'
     | '/_authenticated/salary/payroll-run/'
     | '/_authenticated/salary/region-pool/'
+    | '/_authenticated/salary/rules/'
     | '/_authenticated/salary/sales-actuals/'
     | '/_authenticated/salary/sales-targets/'
+    | '/_authenticated/salary/setup/'
     | '/_authenticated/salary/year-bonus/'
     | '/_authenticated/sales/ar-adjustments/'
     | '/_authenticated/sales/ar-ledgers/'
@@ -918,9 +1032,11 @@ export interface FileRouteTypes {
     | '/_authenticated/sales/deliveries/'
     | '/_authenticated/sales/exports/'
     | '/_authenticated/sales/goods-descriptions/'
+    | '/_authenticated/sales/inventory-summary/'
     | '/_authenticated/sales/orders/'
     | '/_authenticated/sales/receipts/'
     | '/_authenticated/sales/returns/'
+    | '/_authenticated/tools/product-merge/'
     | '/_authenticated/vip/customer-plan/'
     | '/_authenticated/vip/customer-target/'
     | '/_authenticated/vip/customer/'
@@ -931,6 +1047,7 @@ export interface FileRouteTypes {
     | '/_authenticated/vip/tiers/'
     | '/_authenticated/production/orders/$id/'
     | '/_authenticated/purchasing/contracts/$id/'
+    | '/_authenticated/salary/payroll-result/$employeeId/'
     | '/_authenticated/sales/deliveries/$id/'
     | '/_authenticated/sales/exports/$id/'
     | '/_authenticated/sales/orders/$id/'
@@ -1165,6 +1282,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVipCustomerPlanIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tools/product-merge/': {
+      id: '/_authenticated/tools/product-merge/'
+      path: '/tools/product-merge'
+      fullPath: '/tools/product-merge/'
+      preLoaderRoute: typeof AuthenticatedToolsProductMergeIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/sales/returns/': {
       id: '/_authenticated/sales/returns/'
       path: '/sales/returns'
@@ -1184,6 +1308,13 @@ declare module '@tanstack/react-router' {
       path: '/sales/orders'
       fullPath: '/sales/orders/'
       preLoaderRoute: typeof AuthenticatedSalesOrdersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sales/inventory-summary/': {
+      id: '/_authenticated/sales/inventory-summary/'
+      path: '/sales/inventory-summary'
+      fullPath: '/sales/inventory-summary/'
+      preLoaderRoute: typeof AuthenticatedSalesInventorySummaryIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/sales/goods-descriptions/': {
@@ -1249,6 +1380,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSalaryYearBonusIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/salary/setup/': {
+      id: '/_authenticated/salary/setup/'
+      path: '/salary/setup'
+      fullPath: '/salary/setup/'
+      preLoaderRoute: typeof AuthenticatedSalarySetupIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/salary/sales-targets/': {
       id: '/_authenticated/salary/sales-targets/'
       path: '/salary/sales-targets'
@@ -1261,6 +1399,13 @@ declare module '@tanstack/react-router' {
       path: '/salary/sales-actuals'
       fullPath: '/salary/sales-actuals/'
       preLoaderRoute: typeof AuthenticatedSalarySalesActualsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/salary/rules/': {
+      id: '/_authenticated/salary/rules/'
+      path: '/salary/rules'
+      fullPath: '/salary/rules/'
+      preLoaderRoute: typeof AuthenticatedSalaryRulesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/salary/region-pool/': {
@@ -1282,6 +1427,34 @@ declare module '@tanstack/react-router' {
       path: '/salary/payroll-result'
       fullPath: '/salary/payroll-result/'
       preLoaderRoute: typeof AuthenticatedSalaryPayrollResultIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/salary/payroll-config/': {
+      id: '/_authenticated/salary/payroll-config/'
+      path: '/salary/payroll-config'
+      fullPath: '/salary/payroll-config/'
+      preLoaderRoute: typeof AuthenticatedSalaryPayrollConfigIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/salary/monthly-incomes/': {
+      id: '/_authenticated/salary/monthly-incomes/'
+      path: '/salary/monthly-incomes'
+      fullPath: '/salary/monthly-incomes/'
+      preLoaderRoute: typeof AuthenticatedSalaryMonthlyIncomesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/salary/import/': {
+      id: '/_authenticated/salary/import/'
+      path: '/salary/import'
+      fullPath: '/salary/import/'
+      preLoaderRoute: typeof AuthenticatedSalaryImportIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/salary/audit/': {
+      id: '/_authenticated/salary/audit/'
+      path: '/salary/audit'
+      fullPath: '/salary/audit/'
+      preLoaderRoute: typeof AuthenticatedSalaryAuditIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/salary/adjustments/': {
@@ -1347,6 +1520,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInventorySummaryIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/inventory/outbounds/': {
+      id: '/_authenticated/inventory/outbounds/'
+      path: '/inventory/outbounds'
+      fullPath: '/inventory/outbounds/'
+      preLoaderRoute: typeof AuthenticatedInventoryOutboundsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/inventory/lots/': {
       id: '/_authenticated/inventory/lots/'
       path: '/inventory/lots'
@@ -1366,13 +1546,6 @@ declare module '@tanstack/react-router' {
       path: '/inventory/inbounds'
       fullPath: '/inventory/inbounds/'
       preLoaderRoute: typeof AuthenticatedInventoryInboundsIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/inventory/alerts/': {
-      id: '/_authenticated/inventory/alerts/'
-      path: '/inventory/alerts'
-      fullPath: '/inventory/alerts/'
-      preLoaderRoute: typeof AuthenticatedInventoryAlertsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/access/users/': {
@@ -1431,6 +1604,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSalesDeliveriesIdIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/salary/payroll-result/$employeeId/': {
+      id: '/_authenticated/salary/payroll-result/$employeeId/'
+      path: '/salary/payroll-result/$employeeId'
+      fullPath: '/salary/payroll-result/$employeeId/'
+      preLoaderRoute: typeof AuthenticatedSalaryPayrollResultEmployeeIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/purchasing/contracts/$id/': {
       id: '/_authenticated/purchasing/contracts/$id/'
       path: '/purchasing/contracts/$id'
@@ -1470,10 +1650,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccessRolesIndexRoute: typeof AuthenticatedAccessRolesIndexRoute
   AuthenticatedAccessUserRolesIndexRoute: typeof AuthenticatedAccessUserRolesIndexRoute
   AuthenticatedAccessUsersIndexRoute: typeof AuthenticatedAccessUsersIndexRoute
-  AuthenticatedInventoryAlertsIndexRoute: typeof AuthenticatedInventoryAlertsIndexRoute
   AuthenticatedInventoryInboundsIndexRoute: typeof AuthenticatedInventoryInboundsIndexRoute
   AuthenticatedInventoryLedgersIndexRoute: typeof AuthenticatedInventoryLedgersIndexRoute
   AuthenticatedInventoryLotsIndexRoute: typeof AuthenticatedInventoryLotsIndexRoute
+  AuthenticatedInventoryOutboundsIndexRoute: typeof AuthenticatedInventoryOutboundsIndexRoute
   AuthenticatedInventorySummaryIndexRoute: typeof AuthenticatedInventorySummaryIndexRoute
   AuthenticatedProductionBomsIndexRoute: typeof AuthenticatedProductionBomsIndexRoute
   AuthenticatedProductionOrdersIndexRoute: typeof AuthenticatedProductionOrdersIndexRoute
@@ -1483,11 +1663,17 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPurchasingShipmentsIndexRoute: typeof AuthenticatedPurchasingShipmentsIndexRoute
   AuthenticatedPurchasingSuppliersIndexRoute: typeof AuthenticatedPurchasingSuppliersIndexRoute
   AuthenticatedSalaryAdjustmentsIndexRoute: typeof AuthenticatedSalaryAdjustmentsIndexRoute
+  AuthenticatedSalaryAuditIndexRoute: typeof AuthenticatedSalaryAuditIndexRoute
+  AuthenticatedSalaryImportIndexRoute: typeof AuthenticatedSalaryImportIndexRoute
+  AuthenticatedSalaryMonthlyIncomesIndexRoute: typeof AuthenticatedSalaryMonthlyIncomesIndexRoute
+  AuthenticatedSalaryPayrollConfigIndexRoute: typeof AuthenticatedSalaryPayrollConfigIndexRoute
   AuthenticatedSalaryPayrollResultIndexRoute: typeof AuthenticatedSalaryPayrollResultIndexRoute
   AuthenticatedSalaryPayrollRunIndexRoute: typeof AuthenticatedSalaryPayrollRunIndexRoute
   AuthenticatedSalaryRegionPoolIndexRoute: typeof AuthenticatedSalaryRegionPoolIndexRoute
+  AuthenticatedSalaryRulesIndexRoute: typeof AuthenticatedSalaryRulesIndexRoute
   AuthenticatedSalarySalesActualsIndexRoute: typeof AuthenticatedSalarySalesActualsIndexRoute
   AuthenticatedSalarySalesTargetsIndexRoute: typeof AuthenticatedSalarySalesTargetsIndexRoute
+  AuthenticatedSalarySetupIndexRoute: typeof AuthenticatedSalarySetupIndexRoute
   AuthenticatedSalaryYearBonusIndexRoute: typeof AuthenticatedSalaryYearBonusIndexRoute
   AuthenticatedSalesArAdjustmentsIndexRoute: typeof AuthenticatedSalesArAdjustmentsIndexRoute
   AuthenticatedSalesArLedgersIndexRoute: typeof AuthenticatedSalesArLedgersIndexRoute
@@ -1497,9 +1683,11 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSalesDeliveriesIndexRoute: typeof AuthenticatedSalesDeliveriesIndexRoute
   AuthenticatedSalesExportsIndexRoute: typeof AuthenticatedSalesExportsIndexRoute
   AuthenticatedSalesGoodsDescriptionsIndexRoute: typeof AuthenticatedSalesGoodsDescriptionsIndexRoute
+  AuthenticatedSalesInventorySummaryIndexRoute: typeof AuthenticatedSalesInventorySummaryIndexRoute
   AuthenticatedSalesOrdersIndexRoute: typeof AuthenticatedSalesOrdersIndexRoute
   AuthenticatedSalesReceiptsIndexRoute: typeof AuthenticatedSalesReceiptsIndexRoute
   AuthenticatedSalesReturnsIndexRoute: typeof AuthenticatedSalesReturnsIndexRoute
+  AuthenticatedToolsProductMergeIndexRoute: typeof AuthenticatedToolsProductMergeIndexRoute
   AuthenticatedVipCustomerPlanIndexRoute: typeof AuthenticatedVipCustomerPlanIndexRoute
   AuthenticatedVipCustomerTargetIndexRoute: typeof AuthenticatedVipCustomerTargetIndexRoute
   AuthenticatedVipCustomerIndexRoute: typeof AuthenticatedVipCustomerIndexRoute
@@ -1510,6 +1698,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedVipTiersIndexRoute: typeof AuthenticatedVipTiersIndexRoute
   AuthenticatedProductionOrdersIdIndexRoute: typeof AuthenticatedProductionOrdersIdIndexRoute
   AuthenticatedPurchasingContractsIdIndexRoute: typeof AuthenticatedPurchasingContractsIdIndexRoute
+  AuthenticatedSalaryPayrollResultEmployeeIdIndexRoute: typeof AuthenticatedSalaryPayrollResultEmployeeIdIndexRoute
   AuthenticatedSalesDeliveriesIdIndexRoute: typeof AuthenticatedSalesDeliveriesIdIndexRoute
   AuthenticatedSalesExportsIdIndexRoute: typeof AuthenticatedSalesExportsIdIndexRoute
   AuthenticatedSalesOrdersIdIndexRoute: typeof AuthenticatedSalesOrdersIdIndexRoute
@@ -1540,13 +1729,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccessUserRolesIndexRoute:
     AuthenticatedAccessUserRolesIndexRoute,
   AuthenticatedAccessUsersIndexRoute: AuthenticatedAccessUsersIndexRoute,
-  AuthenticatedInventoryAlertsIndexRoute:
-    AuthenticatedInventoryAlertsIndexRoute,
   AuthenticatedInventoryInboundsIndexRoute:
     AuthenticatedInventoryInboundsIndexRoute,
   AuthenticatedInventoryLedgersIndexRoute:
     AuthenticatedInventoryLedgersIndexRoute,
   AuthenticatedInventoryLotsIndexRoute: AuthenticatedInventoryLotsIndexRoute,
+  AuthenticatedInventoryOutboundsIndexRoute:
+    AuthenticatedInventoryOutboundsIndexRoute,
   AuthenticatedInventorySummaryIndexRoute:
     AuthenticatedInventorySummaryIndexRoute,
   AuthenticatedProductionBomsIndexRoute: AuthenticatedProductionBomsIndexRoute,
@@ -1564,16 +1753,24 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedPurchasingSuppliersIndexRoute,
   AuthenticatedSalaryAdjustmentsIndexRoute:
     AuthenticatedSalaryAdjustmentsIndexRoute,
+  AuthenticatedSalaryAuditIndexRoute: AuthenticatedSalaryAuditIndexRoute,
+  AuthenticatedSalaryImportIndexRoute: AuthenticatedSalaryImportIndexRoute,
+  AuthenticatedSalaryMonthlyIncomesIndexRoute:
+    AuthenticatedSalaryMonthlyIncomesIndexRoute,
+  AuthenticatedSalaryPayrollConfigIndexRoute:
+    AuthenticatedSalaryPayrollConfigIndexRoute,
   AuthenticatedSalaryPayrollResultIndexRoute:
     AuthenticatedSalaryPayrollResultIndexRoute,
   AuthenticatedSalaryPayrollRunIndexRoute:
     AuthenticatedSalaryPayrollRunIndexRoute,
   AuthenticatedSalaryRegionPoolIndexRoute:
     AuthenticatedSalaryRegionPoolIndexRoute,
+  AuthenticatedSalaryRulesIndexRoute: AuthenticatedSalaryRulesIndexRoute,
   AuthenticatedSalarySalesActualsIndexRoute:
     AuthenticatedSalarySalesActualsIndexRoute,
   AuthenticatedSalarySalesTargetsIndexRoute:
     AuthenticatedSalarySalesTargetsIndexRoute,
+  AuthenticatedSalarySetupIndexRoute: AuthenticatedSalarySetupIndexRoute,
   AuthenticatedSalaryYearBonusIndexRoute:
     AuthenticatedSalaryYearBonusIndexRoute,
   AuthenticatedSalesArAdjustmentsIndexRoute:
@@ -1589,9 +1786,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSalesExportsIndexRoute: AuthenticatedSalesExportsIndexRoute,
   AuthenticatedSalesGoodsDescriptionsIndexRoute:
     AuthenticatedSalesGoodsDescriptionsIndexRoute,
+  AuthenticatedSalesInventorySummaryIndexRoute:
+    AuthenticatedSalesInventorySummaryIndexRoute,
   AuthenticatedSalesOrdersIndexRoute: AuthenticatedSalesOrdersIndexRoute,
   AuthenticatedSalesReceiptsIndexRoute: AuthenticatedSalesReceiptsIndexRoute,
   AuthenticatedSalesReturnsIndexRoute: AuthenticatedSalesReturnsIndexRoute,
+  AuthenticatedToolsProductMergeIndexRoute:
+    AuthenticatedToolsProductMergeIndexRoute,
   AuthenticatedVipCustomerPlanIndexRoute:
     AuthenticatedVipCustomerPlanIndexRoute,
   AuthenticatedVipCustomerTargetIndexRoute:
@@ -1608,6 +1809,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedProductionOrdersIdIndexRoute,
   AuthenticatedPurchasingContractsIdIndexRoute:
     AuthenticatedPurchasingContractsIdIndexRoute,
+  AuthenticatedSalaryPayrollResultEmployeeIdIndexRoute:
+    AuthenticatedSalaryPayrollResultEmployeeIdIndexRoute,
   AuthenticatedSalesDeliveriesIdIndexRoute:
     AuthenticatedSalesDeliveriesIdIndexRoute,
   AuthenticatedSalesExportsIdIndexRoute: AuthenticatedSalesExportsIdIndexRoute,

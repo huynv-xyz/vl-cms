@@ -8,11 +8,15 @@ export type Employee = {
     identity_no: string
     identity_issue_date: string
     identity_issue_place: string
+    tax_code: string
+    labor_type: string
     dependent_count: number
     insurance_base: number
     basic_salary: number
     allowance_salary: number
     is_union_member: number
+    joined_at?: string
+    left_at?: string
     status: number
     created_at?: string
     updated_at?: string

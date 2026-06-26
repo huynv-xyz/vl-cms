@@ -1,8 +1,8 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { getRegionPool, type RegionPoolItem } from "@/api/salary/region-pool"
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { SalaryPeriodStepper, currentSalaryPeriod } from "@/components/salary/period-stepper"
 import { Search } from "lucide-react"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -12,14 +12,9 @@ import { Badge } from "@/components/ui/badge"
 const fmt = (v: number) => v.toLocaleString("vi-VN")
 const pct = (v: number) => `${(v * 100).toFixed(0)}%`
 
-function currentPeriod() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-}
-
 export default function RegionPoolPage() {
-  const [period, setPeriod] = useState(currentPeriod())
-  const [activePeriod, setActivePeriod] = useState(currentPeriod())
+  const [period, setPeriod] = useState(currentSalaryPeriod())
+  const [activePeriod, setActivePeriod] = useState(currentSalaryPeriod())
 
   const { data, isLoading } = useQuery({
     queryKey: ["region-pool", activePeriod],
@@ -39,9 +34,9 @@ export default function RegionPoolPage() {
         </p>
       </div>
 
-      <div className="flex gap-2">
-        <Input className="w-36" placeholder="YYYY-MM" value={period} onChange={e => setPeriod(e.target.value)} />
-        <Button variant="outline" onClick={() => setActivePeriod(period)}>
+      <div className="flex flex-wrap items-center gap-3">
+        <SalaryPeriodStepper value={period} onChange={setPeriod} onCommit={setActivePeriod} />
+        <Button className="h-14 px-5" variant="outline" onClick={() => setActivePeriod(period)}>
           <Search className="h-4 w-4 mr-2" /> Xem
         </Button>
         {data && (

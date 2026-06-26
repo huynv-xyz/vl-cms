@@ -1,6 +1,6 @@
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { CrudTable } from "@/components/crud/crud-table"
-import { payrollResultColumns } from "./payroll-result-columns"
+import { buildPayrollResultColumns } from "./payroll-result-columns"
 import type { PayrollResultItem } from "../data/schema"
 
 type Props = {
@@ -10,15 +10,16 @@ type Props = {
   pageCount: number
   keyword: string
   onKeywordChange: (k: string) => void
+  period: string
 }
 
 export function PayrollResultTable({
-  data, pagination, onPaginationChange, pageCount, keyword, onKeywordChange,
+  data, pagination, onPaginationChange, pageCount, keyword, onKeywordChange, period,
 }: Props) {
   return (
     <CrudTable<PayrollResultItem>
       data={data}
-      columns={payrollResultColumns}
+      columns={buildPayrollResultColumns(period)}
       entityName="nhân viên"
       searchPlaceholder="Tìm theo tên hoặc mã nhân viên..."
       pagination={pagination}

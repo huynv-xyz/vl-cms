@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { runPayroll, type PipelineResult } from "@/api/salary/payroll-run"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { SalaryPeriodStepper, currentSalaryPeriod } from "@/components/salary/period-stepper"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, XCircle, Loader2, PlayCircle, AlertTriangle } from "lucide-react"
@@ -16,13 +16,8 @@ const STEPS = [
   { key: "step5_done", label: "Bước 5 – Tính BH, thuế TNCN, thực nhận", countKey: "step5_count" },
 ] as const
 
-function currentPeriod() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-}
-
 export default function PayrollRunPage() {
-  const [period, setPeriod] = useState(currentPeriod())
+  const [period, setPeriod] = useState(currentSalaryPeriod())
   const [result, setResult] = useState<PipelineResult | null>(null)
 
   const { mutate, isPending } = useMutation({
@@ -53,15 +48,10 @@ export default function PayrollRunPage() {
         <CardHeader>
           <CardTitle className="text-base">Kỳ tính lương</CardTitle>
         </CardHeader>
-        <CardContent className="flex gap-3">
-          <Input
-            className="w-40"
-            placeholder="YYYY-MM"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            pattern="\d{4}-\d{2}"
-          />
+        <CardContent className="flex flex-wrap gap-3">
+          <SalaryPeriodStepper value={period} onChange={setPeriod} />
           <Button
+            className="h-14 px-5"
             onClick={() => mutate()}
             disabled={isPending || !period.match(/^\d{4}-\d{2}$/)}
           >

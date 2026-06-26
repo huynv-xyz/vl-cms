@@ -10,14 +10,7 @@ type Props = {
     pageCount: number
     keyword: string
     onKeywordChange: (value: string) => void
-    filters: {
-        periods?: string[]
-        employeeIds?: string[]
-    }
-    onFiltersChange: (filters: {
-        periods?: string[]
-        employeeIds?: string[]
-    }) => void
+    isLoading?: boolean
 }
 
 export function SalesActualTable({
@@ -27,6 +20,7 @@ export function SalesActualTable({
     pageCount,
     keyword,
     onKeywordChange,
+    isLoading,
 }: Props) {
     return (
         <CrudTable<SalesActualItem>
@@ -38,7 +32,9 @@ export function SalesActualTable({
             onPaginationChange={onPaginationChange}
             pageCount={pageCount}
             keyword={keyword}
+            searchInputClassName="lg:w-[360px]"
             onKeywordChange={onKeywordChange}
+            showToolbar={!isLoading}
         />
     )
 }

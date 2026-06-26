@@ -40,6 +40,61 @@ export const employeeSchema: RJSFSchema = {
             type: "string",
             title: "Nơi cấp",
         },
+        tax_code: {
+            type: "string",
+            title: "Mã số thuế",
+        },
+        labor_type: {
+            type: "string",
+            title: "Loại lao động",
+            oneOf: [
+                { const: "CT", title: "Chính thức" },
+                { const: "CTV", title: "Cộng tác viên" },
+                { const: "TV", title: "Thời vụ" },
+            ],
+            default: "CT",
+        },
+        dependent_count: {
+            type: "integer",
+            title: "Số người phụ thuộc",
+            default: 0,
+            minimum: 0,
+        },
+        basic_salary: {
+            type: "number",
+            title: "Lương cơ bản",
+            default: 0,
+            minimum: 0,
+        },
+        allowance_salary: {
+            type: "number",
+            title: "Phụ cấp",
+            default: 0,
+            minimum: 0,
+        },
+        insurance_base: {
+            type: "number",
+            title: "Lương đóng BH",
+            default: 0,
+            minimum: 0,
+        },
+        is_union_member: {
+            type: "integer",
+            title: "Đoàn viên công đoàn",
+            oneOf: [
+                { const: 1, title: "Có" },
+                { const: 0, title: "Không" },
+            ],
+            default: 0,
+        },
+        joined_at: {
+            type: "string",
+            title: "Ngày vào làm",
+        },
+        left_at: {
+            type: "string",
+            title: "Ngày nghỉ",
+        },
         status: {
             type: "integer",
             title: "Trạng thái",
@@ -73,5 +128,17 @@ export const employeeUiSchema: UiSchema = {
     },
     status: {
         "ui:widget": "select",
+    },
+    labor_type: {
+        "ui:widget": "select",
+    },
+    is_union_member: {
+        "ui:widget": "select",
+    },
+    joined_at: {
+        "ui:widget": "date",
+    },
+    left_at: {
+        "ui:widget": "date",
     },
 }

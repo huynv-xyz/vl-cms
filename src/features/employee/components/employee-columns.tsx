@@ -6,6 +6,7 @@ import { buildActionsColumn } from "@/components/crud/build-actions-column"
 import type { Employee } from "../data/schema"
 import { EmployeeRowActions } from "./employee-row-actions"
 
+const fmt = (v?: number | null) => v == null ? "-" : v.toLocaleString("vi-VN")
 
 export const employeeColumns: ColumnDef<Employee>[] = [
     buildIndexColumn(),
@@ -30,20 +31,35 @@ export const employeeColumns: ColumnDef<Employee>[] = [
         title: "CMND/CCCD",
     }),
 
-    buildTextColumn({
-        accessorKey: "identity_issue_date",
-        title: "Ngày cấp",
-    }),
+    {
+        accessorKey: "labor_type",
+        header: "Loại LĐ",
+        cell: ({ row }) => row.original.labor_type || "CT",
+    },
 
-    buildTextColumn({
-        accessorKey: "identity_issue_place",
-        title: "Nơi cấp",
-    }),
+    {
+        accessorKey: "dependent_count",
+        header: () => <div className="text-right">NPT</div>,
+        cell: ({ row }) => <div className="text-right tabular-nums">{row.original.dependent_count ?? 0}</div>,
+    },
 
-    buildTextColumn({
-        accessorKey: "permanent_address",
-        title: "Địa chỉ",
-    }),
+    {
+        accessorKey: "basic_salary",
+        header: () => <div className="text-right">Lương cơ bản</div>,
+        cell: ({ row }) => <div className="text-right tabular-nums">{fmt(row.original.basic_salary)}</div>,
+    },
+
+    {
+        accessorKey: "allowance_salary",
+        header: () => <div className="text-right">Phụ cấp</div>,
+        cell: ({ row }) => <div className="text-right tabular-nums">{fmt(row.original.allowance_salary)}</div>,
+    },
+
+    {
+        accessorKey: "insurance_base",
+        header: () => <div className="text-right">Lương đóng BH</div>,
+        cell: ({ row }) => <div className="text-right tabular-nums">{fmt(row.original.insurance_base)}</div>,
+    },
 
     buildBadgeColumn({
         accessorKey: "status",

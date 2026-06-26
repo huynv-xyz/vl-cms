@@ -10,12 +10,6 @@ type SalesTargetTableProps = {
     pageCount: number
     keyword: string
     onKeywordChange: (value: string) => void
-    filters: {
-        statuses?: string[]
-    }
-    onFiltersChange: (filters: {
-        statuses?: string[]
-    }) => void
 }
 
 export function SalesTargetTable({
@@ -25,8 +19,6 @@ export function SalesTargetTable({
     pageCount,
     keyword,
     onKeywordChange,
-    filters,
-    onFiltersChange,
 }: SalesTargetTableProps) {
     return (
         <CrudTable<SalesTarget>
@@ -39,22 +31,6 @@ export function SalesTargetTable({
             pageCount={pageCount}
             keyword={keyword}
             onKeywordChange={onKeywordChange}
-            filters={[
-                {
-                    columnId: "status",
-                    title: "Trạng thái",
-                    options: [
-                        { label: "Hoạt động", value: "1" },
-                        { label: "Ngưng", value: "0" },
-                    ],
-                    values: filters.statuses ?? [],
-                    onChange: (values) =>
-                        onFiltersChange({
-                            ...filters,
-                            statuses: values,
-                        }),
-                },
-            ]}
         />
     )
 }
