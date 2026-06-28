@@ -1,10 +1,18 @@
 import { CrudFormDialog } from "@/components/crud/crud-form-dialog"
 import { createProduct, type CreateProductRequest } from "@/api/product"
+import { getProductGroup } from "@/api/product-group"
 import { productSchema, productUiSchema } from "./product-form-schema"
 import { toProductNatureValue } from "./product-nature"
 import type { ProductFormValues } from "./types"
+import { useEffect, useRef } from "react"
 
 export function CreateProductDialog({ open, onOpenChange }: any) {
+    const lastGroupIdRef = useRef<number | undefined>(undefined)
+
+    useEffect(() => {
+        if (open) lastGroupIdRef.current = undefined
+    }, [open])
+
     return (
         <CrudFormDialog<ProductFormValues, CreateProductRequest, unknown>
             title="Tạo sản phẩm"
@@ -42,6 +50,15 @@ export function CreateProductDialog({ open, onOpenChange }: any) {
             objectFieldClassName="grid grid-cols-1 gap-x-5 gap-y-1 md:grid-cols-2 xl:grid-cols-3"
             queryKeyToInvalidate={["product"]}
             mutationFn={createProduct}
+            onFormChange={async (v) => {
+                if (v.group_id === lastGroupIdRef.current) return v
+                lastGroupIdRef.current = v.group_id
+                if (!v.group_id) return v
+
+                const group = await getProductGroup(v.group_id)
+                const standardUnit = normalizeProductUnit((group as any)?.standard_unit)
+                return standardUnit ? { ...v, unit: standardUnit } : v
+            }}
             mapFormToRequest={(v) => ({
                 code: v.code,
                 name: v.name,
@@ -70,4 +87,13 @@ export function CreateProductDialog({ open, onOpenChange }: any) {
             })}
         />
     )
+}
+
+function normalizeProductUnit(value?: string) {
+    const normalized = value?.trim().toUpperCase()
+    if (!normalized) return ""
+    if (normalized === "KG") return "Kg"
+    if (normalized === "LIT") return "Lít"
+    if (normalized === "TON") return "Tấn"
+    return value?.trim() ?? ""
 }

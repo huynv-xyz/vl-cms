@@ -5,5 +5,6 @@ export type ReturnFormItem = {
     product?: any
     selected: boolean
     quantity: number
+    warehouse_id?: number
     note?: string
 }

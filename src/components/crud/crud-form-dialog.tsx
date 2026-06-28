@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import Form from "@rjsf/shadcn"
 import type { ObjectFieldTemplateProps, RJSFSchema, UiSchema } from "@rjsf/utils"
@@ -170,20 +170,28 @@ function GridObjectFieldTemplate({
     title,
     description,
     className,
+    uiSchema,
 }: ObjectFieldTemplateProps & { className: string }) {
+    const separatorAfter = uiSchema?.["ui:options"]?.separatorAfter as string | undefined
+
     return (
         <div className={className}>
             {title ? <div className="col-span-full text-sm font-semibold">{title}</div> : null}
             {description ? <div className="col-span-full">{description}</div> : null}
-            {properties.map((property) =>
+            {properties.map((property) => (
                 property.hidden ? (
                     <div key={property.name} className="hidden">
                         {property.content}
                     </div>
                 ) : (
-                    property.content
+                    <Fragment key={property.name}>
+                        {property.content}
+                        {separatorAfter === property.name ? (
+                            <div className="col-span-full my-3 border-t" />
+                        ) : null}
+                    </Fragment>
                 )
-            )}
+            ))}
         </div>
     )
 }

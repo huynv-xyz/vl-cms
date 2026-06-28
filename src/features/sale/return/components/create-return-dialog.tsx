@@ -1,31 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Save } from "lucide-react"
 import { toast } from "sonner"
 
+import { createReturn } from "@/api/sale/return"
+import { getExport } from "@/api/sale/export"
+import { Button } from "@/components/ui/button"
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Save } from "lucide-react"
 
-import { createReturn } from "@/api/sale/return"
-import { getExport } from "@/api/sale/export"
-
-import { ReturnItemsEditor } from "./return-items-editor"
+import { ManualReturnItemsEditor } from "./manual-return-items-editor"
 import { ReturnHeaderFields } from "./return-header-fields"
+import { ReturnItemsEditor } from "./return-items-editor"
 
 export function CreateReturnDialog({ open, onOpenChange, order }: any) {
-
     const queryClient = useQueryClient()
     const initializedRef = useRef(false)
 
     const [formData, setFormData] = useState<any>({
         customer_id: order?.customer_id,
+        return_type: "FROM_EXPORT",
         export_id: undefined,
         return_date: todayYmd(),
         export_date: undefined,
@@ -34,22 +33,22 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
     })
 
     const exportId = formData.export_id
+    const isManualReturn = formData.return_type === "MANUAL"
 
-    // ===== load export
     const { data: exportDetail, isLoading } = useQuery({
         queryKey: ["export-detail", exportId],
         queryFn: () => getExport(exportId),
-        enabled: open && !!exportId,
+        enabled: open && !!exportId && !isManualReturn,
     })
 
-    // ===== map items
     const mappedItems = useMemo(() => {
         if (!exportDetail?.items) return []
 
-        return exportDetail.items.map((i: any) => ({
-            order_item_id: i.order_item_id,
-            product_id: i.product_id,
-            product: i.product,
+        return exportDetail.items.map((item: any) => ({
+            order_item_id: item.order_item_id,
+            product_id: item.product_id,
+            product: item.product,
+            warehouse_id: item.warehouse_id,
             selected: false,
             quantity: 0,
         }))
@@ -57,12 +56,12 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
 
     const [items, setItems] = useState<any[]>([])
 
-    // reset
     useEffect(() => {
         if (!open) {
             initializedRef.current = false
             setFormData({
                 customer_id: order?.customer_id,
+                return_type: "FROM_EXPORT",
                 export_id: undefined,
                 return_date: todayYmd(),
                 export_date: undefined,
@@ -73,19 +72,17 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
         }
     }, [open, order?.customer_id])
 
-    // init items
     useEffect(() => {
-        if (!open || !exportId || isLoading) return
+        if (!open || !exportId || isManualReturn || isLoading) return
 
         if (!initializedRef.current) {
             setItems(mappedItems)
             initializedRef.current = true
         }
-
-    }, [open, exportId, isLoading, mappedItems])
+    }, [open, exportId, isManualReturn, isLoading, mappedItems])
 
     useEffect(() => {
-        if (!open || !exportDetail) return
+        if (!open || !exportDetail || isManualReturn) return
 
         const exportDateValue = exportDetail.export_date || exportDetail.created_at
         const exportDate = dateOnly(exportDateValue)
@@ -99,14 +96,19 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
             export_date: exportDateValue,
             return_date: nextReturnDate,
         }))
-    }, [open, exportDetail])
+    }, [open, exportDetail, isManualReturn, formData.return_date])
 
-    // submit
     const { mutate, isPending } = useMutation({
         mutationFn: async () => {
-            if (!exportId) throw new Error("Vui lòng chọn phiếu xuất")
+            if (!isManualReturn && !exportId) {
+                throw new Error("Vui lòng chọn phiếu xuất")
+            }
 
-            const selected = items.filter(x => x.selected)
+            if (isManualReturn && !formData.customer_id) {
+                throw new Error("Vui lòng chọn khách hàng")
+            }
+
+            const selected = isManualReturn ? items : items.filter((item) => item.selected)
 
             if (!selected.length) {
                 throw new Error("Phải chọn ít nhất 1 sản phẩm")
@@ -118,22 +120,36 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
                 }
             }
 
+            if (selected.some((item) => !item.warehouse_id)) {
+                throw new Error("Vui lòng chọn kho nhập lại cho tất cả dòng trả")
+            }
+
+            if (isManualReturn && selected.some((item) => !item.product_id || item.unit_price == null || item.unit_price < 0)) {
+                throw new Error("Vui lòng chọn sản phẩm và đơn giá hợp lệ")
+            }
+
             return createReturn({
-                export_id: exportId,
-                order_id: order?.id ?? exportDetail?.order_id,
+                return_type: formData.return_type,
+                customer_id: formData.customer_id,
+                export_id: isManualReturn ? undefined : exportId,
+                order_id: isManualReturn ? undefined : order?.id ?? exportDetail?.order_id,
                 return_date: formData.return_date,
                 status: formData.status,
                 reason: formData.reason,
-                items: selected.map(i => ({
-                    order_item_id: i.order_item_id,
-                    product_id: i.product_id,
-                    quantity: i.quantity,
+                items: selected.map((item) => ({
+                    order_item_id: item.order_item_id,
+                    product_id: item.product_id,
+                    warehouse_id: item.warehouse_id,
+                    quantity: item.quantity,
+                    unit_price: item.unit_price,
+                    note: item.note ?? "",
                 })) as any,
             })
         },
 
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["returns"] })
+            await queryClient.refetchQueries({ queryKey: ["returns"], type: "active" })
             if (order?.id) {
                 await queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] })
             }
@@ -141,44 +157,34 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
             onOpenChange(false)
         },
 
-        onError: (e: any) => {
-            toast.error(e.message || "Lỗi")
+        onError: (error: any) => {
+            toast.error(error.message || "Lỗi")
         },
     })
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex max-h-[92vh] flex-col p-0 sm:max-w-5xl">
-                <DialogHeader className="border-b px-8 py-6">
+            <DialogContent className="flex max-h-[92vh] w-[96vw] max-w-[96vw] flex-col p-0 sm:max-w-[1400px]">
+                <DialogHeader className="border-b px-8 py-5">
                     <DialogTitle>Tạo phiếu trả</DialogTitle>
-                    <DialogDescription>
-                        Chọn phiếu xuất và các sản phẩm khách trả lại.
-                    </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto px-8 py-6">
-
+                <div className="flex-1 overflow-y-auto px-8 py-4">
                     <form
                         id="return-create-form"
-                        className="space-y-6"
+                        className="space-y-4"
                         onSubmit={(event) => {
                             event.preventDefault()
                             mutate()
                         }}
                     >
                         <div className="rounded-lg border bg-muted/20 p-4">
-                            <div className="mb-4">
-                                <div className="text-base font-semibold">Thông tin trả hàng</div>
-                                <div className="text-sm text-muted-foreground">
-                                    Chọn phiếu xuất và nhập lý do khách trả hàng.
-                                </div>
-                            </div>
                             <ReturnHeaderFields
                                 value={formData}
                                 order={order}
                                 lockedCustomer={!!order?.id}
                                 onChange={(next) => {
-                                    const changed = next.export_id !== exportId
+                                    const changed = next.export_id !== exportId || next.return_type !== formData.return_type
                                     setFormData(next)
                                     if (changed) {
                                         initializedRef.current = false
@@ -196,7 +202,12 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
                             )}
                         </div>
 
-                        {!exportId ? (
+                        {isManualReturn ? (
+                            <ManualReturnItemsEditor
+                                items={items}
+                                onChange={setItems}
+                            />
+                        ) : !exportId ? (
                             <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
                                 Chọn phiếu xuất để hiển thị hàng có thể trả.
                             </div>
@@ -211,9 +222,7 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
                                 onChange={setItems}
                             />
                         )}
-
                     </form>
-
                 </div>
 
                 <DialogFooter className="border-t px-8 py-4">
@@ -231,8 +240,7 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
 }
 
 function todayYmd() {
-    const now = new Date()
-    return dateToYmd(now)
+    return dateToYmd(new Date())
 }
 
 function dateToYmd(date: Date) {

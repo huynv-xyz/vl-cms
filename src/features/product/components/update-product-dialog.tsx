@@ -1,11 +1,19 @@
 import { CrudFormDialog } from "@/components/crud/crud-form-dialog"
 import { updateProduct, type UpdateProductRequest } from "@/api/product"
+import { getProductGroup } from "@/api/product-group"
 import type { Product } from "../data/schema"
 import { productSchema, productUiSchema } from "./product-form-schema"
 import { formatProductNature, toProductNatureValue } from "./product-nature"
 import type { ProductFormValues } from "./types"
+import { useEffect, useRef } from "react"
 
 export function UpdateProductDialog({ product, open, onOpenChange }: any) {
+    const lastGroupIdRef = useRef<number | undefined>(product?.group_id)
+
+    useEffect(() => {
+        if (open) lastGroupIdRef.current = product?.group_id
+    }, [open, product?.group_id])
+
     return (
         <CrudFormDialog<ProductFormValues, UpdateProductRequest, unknown>
             title="Cập nhật sản phẩm"
@@ -47,6 +55,15 @@ export function UpdateProductDialog({ product, open, onOpenChange }: any) {
             objectFieldClassName="grid grid-cols-1 gap-x-5 gap-y-1 md:grid-cols-2 xl:grid-cols-3"
             queryKeyToInvalidate={["product"]}
             mutationFn={updateProduct}
+            onFormChange={async (v) => {
+                if (v.group_id === lastGroupIdRef.current) return v
+                lastGroupIdRef.current = v.group_id
+                if (!v.group_id) return v
+
+                const group = await getProductGroup(v.group_id)
+                const standardUnit = normalizeProductUnit((group as any)?.standard_unit)
+                return standardUnit ? { ...v, unit: standardUnit } : v
+            }}
             mapFormToRequest={(v) => ({
                 id: product.id,
                 code: v.code,
@@ -76,4 +93,13 @@ export function UpdateProductDialog({ product, open, onOpenChange }: any) {
             })}
         />
     )
+}
+
+function normalizeProductUnit(value?: string) {
+    const normalized = value?.trim().toUpperCase()
+    if (!normalized) return ""
+    if (normalized === "KG") return "Kg"
+    if (normalized === "LIT") return "Lít"
+    if (normalized === "TON") return "Tấn"
+    return value?.trim() ?? ""
 }

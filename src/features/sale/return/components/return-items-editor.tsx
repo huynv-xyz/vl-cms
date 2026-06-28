@@ -9,6 +9,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { AsyncSelect } from "@/components/rjsf/async-select"
+import { getWarehouse, listWarehouses } from "@/api/warehouse"
+import { warehouseOption } from "@/lib/option-mapper"
 import {
     Table,
     TableBody,
@@ -25,6 +28,7 @@ import type { ReturnFormItem } from "./types"
 type RowData = ExportItem & {
     order_item_id: number
     selected: boolean
+    warehouse_id?: number
     quantity_return: number
     remain_quantity: number // 🔥 thêm
 }
@@ -99,6 +103,7 @@ export function ReturnItemsEditor({
             map.get(orderItemId) ?? {
                 order_item_id: orderItemId,
                 product_id: exportItems.find(x => x.order_item_id === orderItemId)?.product_id ?? 0,
+                warehouse_id: exportItems.find(x => x.order_item_id === orderItemId)?.warehouse_id,
                 quantity: 0,
                 selected: false,
                 note: "",
@@ -137,6 +142,9 @@ export function ReturnItemsEditor({
                     ...e,
                     order_item_id: e.order_item_id!,
                     remain_quantity: remain,
+                    warehouse_id:
+                        items.find(i => i.order_item_id === e.order_item_id)?.warehouse_id
+                        ?? e.warehouse_id,
                     selected:
                         items.find(i => i.order_item_id === e.order_item_id)?.selected ?? false,
                     quantity_return:
@@ -181,6 +189,30 @@ export function ReturnItemsEditor({
         {
             header: "ĐVT",
             cell: ({ row }) => row.original.product?.unit ?? "-",
+        },
+
+        {
+            header: "Kho nháº­p",
+            cell: ({ row }) => (
+                <div className="min-w-[220px]">
+                    <AsyncSelect
+                        value={row.original.warehouse_id}
+                        placeholder="Chá»n kho"
+                        disabled={!row.original.selected}
+                        dataSource={{
+                            getList: listWarehouses,
+                            getById: getWarehouse,
+                            params: { page: 1, size: 20, status: "ACTIVE" },
+                        }}
+                        mapOption={warehouseOption}
+                        onChange={(warehouseId: any) =>
+                            updateRow(row.original.order_item_id, {
+                                warehouse_id: warehouseId || undefined,
+                            })
+                        }
+                    />
+                </div>
+            ),
         },
 
         {
