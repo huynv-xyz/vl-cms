@@ -1,8 +1,10 @@
 import { useState } from "react"
 import { ColumnDef } from "@tanstack/react-table"
+import { Printer } from "lucide-react"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
 import { buildActionsColumn } from "@/components/crud/build-actions-column"
+import { Button } from "@/components/ui/button"
 import type { Return } from "../data/schema"
 import { ReturnRowActions } from "./return-row-actions"
 
@@ -16,12 +18,14 @@ import {
 
 import { useUpdateStatus } from "@/hooks/use-update-status"
 import { updateReturnStatus } from "@/api/sale/return"
-import { ReturnDetailDialog } from "../components/return-detail-dialog" // 🔥 thêm
+import { ReturnDetailDialog } from "../components/return-detail-dialog"
 import { RETURN_STATUSES, returnStatusLabel } from "./return-status"
 
 export function useReturnColumns() {
-
-    const [selectedId, setSelectedId] = useState<number | null>(null)
+    const [selectedReturn, setSelectedReturn] = useState<{
+        id: number
+        printOnOpen?: boolean
+    } | null>(null)
 
     const mutation = useUpdateStatus<Return>({
         queryKey: ["returns"],
@@ -30,8 +34,32 @@ export function useReturnColumns() {
     })
 
     const columns: ColumnDef<Return>[] = [
-
         buildIndexColumn(),
+
+        {
+            id: "print",
+            header: "",
+            size: 44,
+            cell: ({ row }) => (
+                <div className="flex h-8 w-8 items-center justify-center">
+                    {row.original.status === "DONE" && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-primary"
+                            title="In phiếu nhập kho"
+                            onClick={(event) => {
+                                event.stopPropagation()
+                                setSelectedReturn({ id: row.original.id, printOnOpen: true })
+                            }}
+                        >
+                            <Printer className="h-4 w-4" />
+                        </Button>
+                    )}
+                </div>
+            ),
+        },
 
         buildTextColumn({
             accessorKey: "return_no",
@@ -39,8 +67,8 @@ export function useReturnColumns() {
             render: (row) => (
                 <button
                     type="button"
-                    className="text-left font-medium text-primary hover:underline"
-                    onClick={() => setSelectedId(row.id)}
+                    className="min-w-0 text-left font-medium text-primary hover:underline"
+                    onClick={() => setSelectedReturn({ id: row.id })}
                 >
                     {row.return_no}
                     <div className="text-xs font-normal text-muted-foreground">
@@ -55,7 +83,7 @@ export function useReturnColumns() {
             header: "Đơn hàng",
             cell: ({ row }) =>
                 row.original.order?.order_no ??
-                `#${row.original.order_id}`,
+                (row.original.order_id ? `#${row.original.order_id}` : "-"),
         },
 
         {
@@ -82,7 +110,7 @@ export function useReturnColumns() {
             header: "Phiếu xuất",
             cell: ({ row }) =>
                 row.original.export?.export_no ??
-                `#${row.original.export_id}`,
+                (row.original.export_id ? `#${row.original.export_id}` : "-"),
         },
 
         buildTextColumn({
@@ -93,14 +121,13 @@ export function useReturnColumns() {
         {
             accessorKey: "created_at",
             header: "Ngày trả",
-            cell: ({ row }) => formatReturnDate(row.original.created_at),
+            cell: ({ row }) => formatReturnDate(row.original.return_date || row.original.created_at),
         },
 
         {
             accessorKey: "status",
             header: "Trạng thái",
             cell: ({ row }) => {
-
                 const status = row.original.status
                 const isLocked = status === "DONE"
 
@@ -147,13 +174,12 @@ export function useReturnColumns() {
 
     return {
         columns,
-
-        // 🔥 DIALOG
         dialog: (
             <ReturnDetailDialog
-                open={!!selectedId}
-                id={selectedId ?? undefined}
-                onClose={() => setSelectedId(null)}
+                open={!!selectedReturn}
+                id={selectedReturn?.id}
+                printOnOpen={selectedReturn?.printOnOpen}
+                onClose={() => setSelectedReturn(null)}
             />
         ),
     }
@@ -164,12 +190,12 @@ function formatReturnDate(value?: string | number[]) {
     if (Array.isArray(value)) {
         const [year, month, day] = value
         if (!year || !month || !day) return "-"
-        return `${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}-${year}`
+        return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`
     }
 
     const [datePart] = value.split("T")
     const normalized = datePart.includes(" ") ? datePart.split(" ")[0] : datePart
     const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/)
     if (!match) return value
-    return `${match[3]}-${match[2]}-${match[1]}`
+    return `${match[3]}/${match[2]}/${match[1]}`
 }

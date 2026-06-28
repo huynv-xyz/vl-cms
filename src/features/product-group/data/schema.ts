@@ -2,6 +2,8 @@ export type ProductGroup = {
     id: number
     code: string
     name: string
+    parent_vthh_code?: string
+    parent_vthh_name?: string
     description?: string
     standard_unit?: "TON" | "KG" | "LIT" | string
     default_price_method?: "LATEST" | "FIFO" | "MONTHLY_AVERAGE"

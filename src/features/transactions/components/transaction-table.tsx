@@ -236,6 +236,13 @@ function DynamicMultiSelectFilter({
     const selected = value ?? []
     const [open, setOpen] = useState(false)
     const [options, setOptions] = useState<Option[]>([])
+    const [draftSelected, setDraftSelected] = useState<string[]>(selected)
+
+    useEffect(() => {
+        if (open) {
+            setDraftSelected(selected)
+        }
+    }, [open, value])
 
     useEffect(() => {
         if (!open) return
@@ -254,12 +261,15 @@ function DynamicMultiSelectFilter({
         }
     }, [open, field])
 
-    const allOptions = mergeSelectedOptions(selected, options)
+    const allOptions = mergeSelectedOptions(draftSelected, options)
     const toggle = (v: string) => {
-        const next = selected.includes(v)
-            ? selected.filter((item) => item !== v)
-            : [...selected, v]
-        onChange(next.length ? next : undefined)
+        setDraftSelected((current) => current.includes(v)
+            ? current.filter((item) => item !== v)
+            : [...current, v])
+    }
+    const apply = () => {
+        onChange(draftSelected.length ? draftSelected : undefined)
+        setOpen(false)
     }
 
     return (
@@ -269,26 +279,40 @@ function DynamicMultiSelectFilter({
                     <FilterLabel icon={Icon} label={selected.length ? `${label} (${selected.length})` : label} />
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="max-h-[420px] w-[320px] overflow-y-auto">
-                {allOptions.length ? allOptions.map((option) => (
-                    <DropdownMenuCheckboxItem
-                        key={option.value}
-                        checked={selected.includes(option.value)}
-                        onCheckedChange={() => toggle(option.value)}
+            <DropdownMenuContent align="start" className="w-[320px] p-0">
+                <div className="max-h-[360px] overflow-y-auto p-1">
+                    {allOptions.length ? allOptions.map((option) => (
+                        <DropdownMenuCheckboxItem
+                            key={option.value}
+                            checked={draftSelected.includes(option.value)}
+                            onCheckedChange={() => toggle(option.value)}
+                            onSelect={(event) => event.preventDefault()}
+                        >
+                            {option.label}
+                        </DropdownMenuCheckboxItem>
+                    )) : (
+                        <DropdownMenuItem disabled>Khong co du lieu</DropdownMenuItem>
+                    )}
+                </div>
+                <DropdownMenuSeparator />
+                <div className="flex items-center justify-between gap-2 p-2">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                            setDraftSelected([])
+                            onChange(undefined)
+                            setOpen(false)
+                        }}
+                        disabled={!draftSelected.length && !selected.length}
                     >
-                        {option.label}
-                    </DropdownMenuCheckboxItem>
-                )) : (
-                    <DropdownMenuItem disabled>Khong co du lieu</DropdownMenuItem>
-                )}
-                {selected.length > 0 ? (
-                    <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onChange(undefined)}>
-                            Xoa bo loc
-                        </DropdownMenuItem>
-                    </>
-                ) : null}
+                        Xoa bo loc
+                    </Button>
+                    <Button type="button" size="sm" onClick={apply}>
+                        Ap dung
+                    </Button>
+                </div>
             </DropdownMenuContent>
         </DropdownMenu>
     )

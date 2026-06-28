@@ -47,7 +47,7 @@ export const productSchema: RJSFSchema = {
         },
         group_id: {
             type: "integer",
-            title: "Nhóm tính giá",
+            title: "Nhóm VTHH (con)",
         },
         pricing_group_id: {
             type: "integer",
@@ -149,15 +149,20 @@ export const productSchema: RJSFSchema = {
 } as any
 
 export const productUiSchema: UiSchema = {
+    "ui:options": {
+        separatorAfter: "inventory_account_code",
+    },
     "ui:order": [
         "code",
         "name",
         "quote_name",
-        "quote_code",
-        "misa_material_code",
-        "unit",
         "nature",
         "group_id",
+        "unit",
+        "default_warehouse_id",
+        "inventory_account_code",
+        "quote_code",
+        "misa_material_code",
         "pricing_group_id",
         "base_unit_code",
         "sale_unit_code",
@@ -168,8 +173,6 @@ export const productUiSchema: UiSchema = {
         "rounding_mode",
         "rounding_unit",
         "vat_rate",
-        "default_warehouse_id",
-        "inventory_account_code",
         "price_method_override",
         "manual_price_vnd",
         "description",
@@ -185,7 +188,7 @@ export const productUiSchema: UiSchema = {
     group_id: {
         "ui:widget": "asyncSelect",
         "ui:options": {
-            placeholder: "Chọn nhóm tính giá",
+            placeholder: "Chọn Nhóm VTHH (con)",
             searchPlaceholder: "Tìm mã hoặc tên nhóm...",
             dataSource: {
                 getList: listProductGroups,
@@ -196,6 +199,13 @@ export const productUiSchema: UiSchema = {
                 value: g.id,
                 label: `${g.code || `#${g.id}`} - ${g.name || ""}`,
             }),
+        },
+    },
+    unit: {
+        "ui:widget": "textSelect",
+        "ui:placeholder": "Nhập hoặc chọn đơn vị tính",
+        "ui:options": {
+            options: ["Cái", "Kg", "Lít", "m2", "Bộ", "Bao"],
         },
     },
     pricing_group_id: {
@@ -231,7 +241,7 @@ export const productUiSchema: UiSchema = {
             },
             mapOption: (w: any) => ({
                 value: w.id,
-                label: w.name,
+                label: w.name || w.code || `#${w.id}`,
             }),
         },
     },

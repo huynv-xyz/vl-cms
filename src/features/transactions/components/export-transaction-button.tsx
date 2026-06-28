@@ -98,7 +98,7 @@ export function ExportTransactionButton({ keyword, filters }: Props) {
                 return
             }
 
-            await exportTransactionsXlsx(rows)
+            await exportTransactionsXlsx(rows, filters)
             toast.success(`Đã xuất ${rows.length} dòng dữ liệu bán hàng`)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Xuất Excel thất bại")
@@ -134,16 +134,19 @@ async function fetchAllRows(base: TransactionListParams): Promise<Transaction[]>
     return all
 }
 
-async function exportTransactionsXlsx(rows: Transaction[]) {
+async function exportTransactionsXlsx(rows: Transaction[], filters: Props["filters"]) {
     const { Workbook } = await import("exceljs")
     const workbook = new Workbook()
     workbook.creator = "VLIFE"
     workbook.created = new Date()
 
     const sheet = workbook.addWorksheet("Dữ liệu bán hàng", {
-        views: [{ state: "frozen", ySplit: 1 }],
+        views: [{ state: "frozen", ySplit: 4 }],
     })
 
+    sheet.addRow(["SỔ CHI TIẾT BÁN HÀNG"])
+    sheet.addRow([formatExportPeriod(filters.document_date_from, filters.document_date_to)])
+    sheet.addRow([])
     sheet.addRow(COLUMNS.map((column) => column.label))
     rows.forEach((row) => {
         sheet.addRow(COLUMNS.map((column) => normalizeCellValue(column.value(row), column)))
@@ -152,9 +155,11 @@ async function exportTransactionsXlsx(rows: Transaction[]) {
     sheet.columns = COLUMNS.map((column) => ({
         width: column.width ?? 18,
     }))
+    sheet.mergeCells(1, 1, 1, COLUMNS.length)
+    sheet.mergeCells(2, 1, 2, COLUMNS.length)
     sheet.autoFilter = {
-        from: { row: 1, column: 1 },
-        to: { row: 1, column: COLUMNS.length },
+        from: { row: 4, column: 1 },
+        to: { row: 4, column: COLUMNS.length },
     }
 
     const border = {
@@ -164,7 +169,17 @@ async function exportTransactionsXlsx(rows: Transaction[]) {
         right: { style: "thin" as const, color: { argb: "FF000000" } },
     }
 
-    const header = sheet.getRow(1)
+    const titleRow = sheet.getRow(1)
+    titleRow.height = 28
+    titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: "FF000000" } }
+    titleRow.getCell(1).alignment = { vertical: "middle", horizontal: "center" }
+
+    const periodRow = sheet.getRow(2)
+    periodRow.height = 22
+    periodRow.getCell(1).font = { italic: true, color: { argb: "FF4B5563" } }
+    periodRow.getCell(1).alignment = { vertical: "middle", horizontal: "center" }
+
+    const header = sheet.getRow(4)
     header.height = 24
     header.eachCell((cell) => {
         cell.font = { bold: true, color: { argb: "FF000000" } }
@@ -177,7 +192,7 @@ async function exportTransactionsXlsx(rows: Transaction[]) {
         cell.border = border
     })
 
-    for (let rowIndex = 2; rowIndex <= sheet.rowCount; rowIndex++) {
+    for (let rowIndex = 5; rowIndex <= sheet.rowCount; rowIndex++) {
         const row = sheet.getRow(rowIndex)
         row.eachCell((cell, colNumber) => {
             const column = COLUMNS[colNumber - 1]
@@ -228,6 +243,26 @@ function parseDate(value?: string) {
     const ymd = dateOnly.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
     if (ymd) {
         return new Date(Date.UTC(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3])))
+    }
+
+    return value
+}
+
+function formatExportPeriod(from?: string, to?: string) {
+    return `Từ ngày ${formatDisplayDate(from) || "..."} đến ngày ${formatDisplayDate(to) || "..."}`
+}
+
+function formatDisplayDate(value?: string) {
+    if (!value) return ""
+    const dateOnly = value.trim().split(/[T\s]/)[0]
+    const dmy = dateOnly.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+    if (dmy) {
+        return `${dmy[1].padStart(2, "0")}/${dmy[2].padStart(2, "0")}/${dmy[3]}`
+    }
+
+    const ymd = dateOnly.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+    if (ymd) {
+        return `${ymd[3].padStart(2, "0")}/${ymd[2].padStart(2, "0")}/${ymd[1]}`
     }
 
     return value

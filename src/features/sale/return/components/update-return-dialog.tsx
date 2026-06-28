@@ -19,6 +19,7 @@ import { getExport } from "@/api/sale/export"
 
 import { ReturnItemsEditor } from "./return-items-editor"
 import { ReturnHeaderFields } from "./return-header-fields"
+import { ManualReturnItemsEditor } from "./manual-return-items-editor"
 
 type Props = {
     returnData: any
@@ -43,11 +44,12 @@ export function UpdateReturnDialog({
     })
 
     const exportId = detail?.export_id
+    const isManualReturn = detail?.return_type === "MANUAL"
 
     const { data: exportDetail } = useQuery({
         queryKey: ["export-detail", exportId],
         queryFn: () => getExport(exportId as any),
-        enabled: open && !!exportId,
+        enabled: open && !!exportId && !isManualReturn,
     })
 
     const exportItems = exportDetail?.items ?? []
@@ -55,6 +57,7 @@ export function UpdateReturnDialog({
     // ===== FORM (CHỈ GIỮ FIELD CẦN)
     const [formData, setFormData] = useState<any>({
         customer_id: undefined,
+        return_type: "FROM_EXPORT",
         export_id: undefined,
         return_date: "",
         export_date: undefined,
@@ -72,9 +75,10 @@ export function UpdateReturnDialog({
         if (!open || !detail) return
 
         setFormData({
-            customer_id: detail.customer?.id ?? detail.order?.customer_id,
-            export_id: detail.export_id,
-            return_date: dateOnly(detail.created_at),
+            customer_id: detail.customer?.id ?? detail.customer_id ?? detail.order?.customer_id,
+            return_type: detail.return_type ?? "FROM_EXPORT",
+            export_id: detail.return_type === "MANUAL" ? -1 : detail.export_id,
+            return_date: dateOnly(detail.return_date || detail.created_at),
             reason: detail.reason ?? "",
             status: detail.status ?? "NEW",
         })
@@ -93,7 +97,22 @@ export function UpdateReturnDialog({
     // INIT ITEMS
     // ========================
     useEffect(() => {
-        if (!open || !detail || !exportDetail || initializedRef.current) return
+        if (!open || !detail || initializedRef.current) return
+
+        if ((detail.return_type ?? "FROM_EXPORT") === "MANUAL") {
+            setItems((detail.items ?? []).map((i: any) => ({
+                product_id: i.product_id,
+                product: i.product,
+                warehouse_id: i.warehouse_id,
+                quantity: i.quantity ?? 0,
+                unit_price: i.unit_price ?? 0,
+                note: i.note ?? "",
+            })))
+            initializedRef.current = true
+            return
+        }
+
+        if (!exportDetail) return
 
         const existingMap = new Map(
             (detail.items ?? []).map((i: any) => [i.order_item_id, i])
@@ -106,6 +125,7 @@ export function UpdateReturnDialog({
                 order_item_id: e.order_item_id,
                 product_id: e.product_id,
                 product: e.product,
+                warehouse_id: existing?.warehouse_id ?? e.warehouse_id,
                 selected: !!existing,
                 quantity: existing?.quantity ?? 0,
                 note: existing?.note ?? "",
@@ -133,7 +153,9 @@ export function UpdateReturnDialog({
         mutationFn: async () => {
             if (!formData.export_id) throw new Error("Vui lòng chọn phiếu xuất")
 
-            const selected = items.filter(x => x.selected)
+            if (isManualReturn && !formData.customer_id) throw new Error("Vui lÃ²ng chá»n khÃ¡ch hÃ ng")
+
+            const selected = isManualReturn ? items : items.filter(x => x.selected)
 
             if (!selected.length) {
                 throw new Error("Phải chọn ít nhất 1 sản phẩm")
@@ -145,17 +167,29 @@ export function UpdateReturnDialog({
                 }
             }
 
+            if (selected.some((item) => !item.warehouse_id)) {
+                throw new Error("Vui lÃ²ng chá»n kho nháº­p láº¡i cho táº¥t cáº£ dÃ²ng tráº£")
+            }
+
+            if (isManualReturn && selected.some((item) => !item.product_id || item.unit_price == null || item.unit_price < 0)) {
+                throw new Error("Vui lÃ²ng chá»n sáº£n pháº©m vÃ  Ä‘Æ¡n giÃ¡ há»£p lá»‡")
+            }
+
             return updateReturn({
                 id: returnData.id,
-                export_id: formData.export_id,
-                order_id: exportDetail?.order_id,
+                return_type: formData.return_type,
+                customer_id: formData.customer_id,
+                export_id: isManualReturn ? undefined : formData.export_id,
+                order_id: isManualReturn ? undefined : exportDetail?.order_id,
                 return_date: formData.return_date,
                 status: formData.status,
                 reason: formData.reason,
                 items: selected.map(i => ({
                     order_item_id: i.order_item_id,
                     product_id: i.product_id,
+                    warehouse_id: i.warehouse_id,
                     quantity: i.quantity,
+                    unit_price: i.unit_price,
                     note: i.note ?? "",
                 } as any)),
             } as any)
@@ -177,11 +211,11 @@ export function UpdateReturnDialog({
     // ========================
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex max-h-[92vh] flex-col p-0 sm:max-w-5xl">
+            <DialogContent className="flex max-h-[92vh] w-[96vw] max-w-[96vw] flex-col p-0 sm:max-w-[1400px]">
 
                 <DialogHeader className="border-b px-8 py-6">
                     <DialogTitle>Cập nhật phiếu trả</DialogTitle>
-                    <DialogDescription>
+                    <DialogDescription className="hidden">
                         Điều chỉnh lý do và số lượng hàng trả.
                     </DialogDescription>
                 </DialogHeader>
@@ -203,7 +237,7 @@ export function UpdateReturnDialog({
                             <div className="rounded-lg border bg-muted/20 p-4">
                                 <div className="mb-4">
                                     <div className="text-base font-semibold">Thông tin trả hàng</div>
-                                    <div className="text-sm text-muted-foreground">
+                                    <div className="hidden text-sm text-muted-foreground">
                                         Cập nhật lý do và trạng thái phiếu trả.
                                     </div>
                                 </div>
@@ -224,11 +258,18 @@ export function UpdateReturnDialog({
                                 )}
                             </div>
 
-                            <ReturnItemsEditor
-                                exportItems={exportItems}
-                                items={items}
-                                onChange={setItems}
-                            />
+                            {isManualReturn ? (
+                                <ManualReturnItemsEditor
+                                    items={items}
+                                    onChange={setItems}
+                                />
+                            ) : (
+                                <ReturnItemsEditor
+                                    exportItems={exportItems}
+                                    items={items}
+                                    onChange={setItems}
+                                />
+                            )}
 
                         </form>
 

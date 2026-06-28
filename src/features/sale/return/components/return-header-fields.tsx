@@ -1,7 +1,7 @@
 import { getCustomer, listCustomers } from "@/api/customer"
 import { getExport, listExports } from "@/api/sale/export"
-import { AsyncSelect } from "@/components/rjsf/async-select"
 import { DatePicker } from "@/components/date-picker"
+import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Label } from "@/components/ui/label"
 import {
     Select,
@@ -38,10 +38,35 @@ export function ReturnHeaderFields({
     showStatus = false,
 }: Props) {
     const update = (patch: any) => onChange({ ...value, ...patch })
+    const returnType = value.return_type || "FROM_EXPORT"
+    const isManualReturn = returnType === "MANUAL"
 
     return (
         <div className="grid gap-x-5 gap-y-4 md:grid-cols-2">
-            <Field label="Khách hàng">
+            <Field label="Loại trả hàng" required>
+                <Select
+                    value={returnType}
+                    disabled={lockedExport}
+                    onValueChange={(nextType) =>
+                        update({
+                            return_type: nextType,
+                            export_id: nextType === "MANUAL" ? undefined : value.export_id,
+                            order_id: nextType === "MANUAL" ? undefined : value.order_id,
+                            export_date: nextType === "MANUAL" ? undefined : value.export_date,
+                        })
+                    }
+                >
+                    <SelectTrigger>
+                        <SelectValue placeholder="Chọn loại trả hàng" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="FROM_EXPORT">Theo phiếu xuất</SelectItem>
+                        <SelectItem value="MANUAL">Không có phiếu xuất</SelectItem>
+                    </SelectContent>
+                </Select>
+            </Field>
+
+            <Field label="Khách hàng" required={isManualReturn}>
                 <AsyncSelect
                     placeholder="Chọn khách hàng"
                     searchPlaceholder="Tìm khách hàng..."
@@ -56,6 +81,7 @@ export function ReturnHeaderFields({
                         })
                     }
                     disabled={lockedExport || lockedCustomer}
+                    required={isManualReturn}
                     dataSource={{
                         getList: listCustomers,
                         getById: getCustomer,
@@ -67,13 +93,13 @@ export function ReturnHeaderFields({
                 />
             </Field>
 
-            <Field label="Phiếu xuất" required>
+            <Field label="Phiếu xuất" required={!isManualReturn}>
                 <AsyncSelect
                     placeholder="Chọn phiếu xuất"
                     value={value.export_id}
                     onChange={(exportId: any) => update({ export_id: exportId })}
-                    required
-                    disabled={lockedExport}
+                    required={!isManualReturn}
+                    disabled={lockedExport || isManualReturn}
                     dataSource={{
                         getList: listExports,
                         getById: getExport,
