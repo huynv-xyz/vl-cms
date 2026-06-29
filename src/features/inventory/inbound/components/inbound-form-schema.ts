@@ -47,7 +47,7 @@ export const inboundSchema: RJSFSchema = {
         },
         unit_cost: {
             type: "number",
-            title: "Đơn giá",
+            title: "Giá vốn gồm PLH",
             minimum: 0,
             default: 0,
         },

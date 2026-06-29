@@ -389,6 +389,10 @@ export function InventoryLotTable({
                                             onChange={(value) => setFilter("lot_warning", value)}
                                         />
                                     </Th>
+                                    <Th rowSpan={2} className="text-right">Đơn giá mua</Th>
+                                    <Th rowSpan={2} className="text-right">PLH/ĐV</Th>
+                                    <Th rowSpan={2} className="text-right">Tổng PLH</Th>
+                                    <Th rowSpan={2} className="text-right">Giá vốn gồm PLH</Th>
                                     <Th colSpan={2} className="text-center">Tồn đầu kỳ</Th>
                                     <Th colSpan={2} className="text-center">Nhập kho</Th>
                                     <Th colSpan={2} className="text-center">Xuất kho</Th>
@@ -467,6 +471,10 @@ function InventoryLotRow({ index, item }: { index: number; item: InventoryLot })
     const lotNo = reportString(item, "lot_no") || item.lot_no || "-"
     const inboundDate = reportString(item, "inbound_date") || item.inbound_date
     const expiryDate = reportString(item, "expiry_date") || item.expiry_date
+    const purchaseUnitCost = reportNumber(item, "purchase_unit_cost") || item.purchase_unit_cost || item.unit_cost || 0
+    const handlingFeeUnit = reportNumber(item, "handling_fee_unit") || item.handling_fee_unit || 0
+    const handlingFeeTotal = reportNumber(item, "handling_fee_total") || item.handling_fee_total || 0
+    const unitCost = reportNumber(item, "unit_cost") || item.unit_cost || 0
 
     return (
         <tr className="hover:bg-muted/30 border-b">
@@ -488,6 +496,10 @@ function InventoryLotRow({ index, item }: { index: number; item: InventoryLot })
             <Td>{formatDate(inboundDate)}</Td>
             <Td>{formatDate(expiryDate)}</Td>
             <Td><LotWarningText lot={item} /></Td>
+            <MoneyTd>{purchaseUnitCost}</MoneyTd>
+            <MoneyTd>{handlingFeeUnit}</MoneyTd>
+            <MoneyTd>{handlingFeeTotal}</MoneyTd>
+            <MoneyTd className="font-semibold">{unitCost}</MoneyTd>
             <NumberTd>{openingQuantity}</NumberTd>
             <MoneyTd>{openingValue}</MoneyTd>
             <NumberTd>{inboundQuantity}</NumberTd>

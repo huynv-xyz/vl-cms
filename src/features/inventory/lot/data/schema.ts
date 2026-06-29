@@ -28,6 +28,9 @@ export type InventoryLot = {
     quantity_remaining: number
 
     unit_cost: number
+    purchase_unit_cost?: number
+    handling_fee_total?: number
+    handling_fee_unit?: number
     expiry_date?: string | null
     expiry_status?: InventoryLotExpiryStatus
     days_to_expiry?: number | null
@@ -54,4 +57,7 @@ export type InventoryLotFormValues = {
 
     quantity_in?: number
     unit_cost?: number
+    purchase_unit_cost?: number
+    handling_fee_total?: number
+    handling_fee_unit?: number
 }

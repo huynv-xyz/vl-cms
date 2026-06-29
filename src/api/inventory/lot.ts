@@ -64,6 +64,9 @@ export type CreateInventoryLotRequest = {
 
     quantity_in: number
     unit_cost: number
+    purchase_unit_cost?: number
+    handling_fee_total?: number
+    handling_fee_unit?: number
 }
 
 export type UpdateInventoryLotRequest =

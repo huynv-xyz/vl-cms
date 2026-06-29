@@ -75,10 +75,40 @@ export const inventoryLotColumns: ColumnDef<InventoryLot>[] = [
 
     {
         accessorKey: "unit_cost",
-        header: "Giá vốn",
+        header: "Giá vốn gồm PLH",
         cell: ({ row }) => (
             <span>
                 {formatCurrency(row.original.unit_cost ?? 0)}
+            </span>
+        ),
+    },
+
+    {
+        accessorKey: "purchase_unit_cost",
+        header: "Đơn giá mua",
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">
+                {formatCurrency(row.original.purchase_unit_cost ?? row.original.unit_cost ?? 0)}
+            </span>
+        ),
+    },
+
+    {
+        accessorKey: "handling_fee_unit",
+        header: "PLH/ĐV",
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">
+                {formatCurrency(row.original.handling_fee_unit ?? 0)}
+            </span>
+        ),
+    },
+
+    {
+        accessorKey: "handling_fee_total",
+        header: "Tổng PLH",
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">
+                {formatCurrency(row.original.handling_fee_total ?? 0)}
             </span>
         ),
     },

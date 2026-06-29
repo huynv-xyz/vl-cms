@@ -118,13 +118,6 @@ const EXPORT_COLUMN_GROUPS: ExportColumnGroup[] = [
     },
     { label: "ĐVT", columns: [{ label: "ĐVT", value: (row) => row.unit, width: 10 }] },
     {
-        label: "Kho",
-        columns: [
-            { label: "Mã kho", value: (row) => row.warehouse_code, width: 20 },
-            { label: "Tên kho", value: (row) => row.warehouse_name, width: 28 },
-        ],
-    },
-    {
         label: "Tồn đầu kỳ",
         columns: [
             { label: "Số lượng", value: (row) => row.opening_quantity, width: 14, type: "number", numberFormat: "quantity" },
@@ -142,6 +135,7 @@ const EXPORT_COLUMN_GROUPS: ExportColumnGroup[] = [
         label: "Xuất kho",
         columns: [
             { label: "Số lượng", value: (row) => row.outbound_quantity, width: 14, type: "number", numberFormat: "quantity" },
+            { label: "Giá xuất BQ", value: (row) => row.avg_issue_unit_cost, width: 16, type: "number", numberFormat: "money" },
             { label: "Giá trị", value: (row) => row.outbound_value, width: 16, type: "number", numberFormat: "money" },
         ],
     },
@@ -497,27 +491,9 @@ export function SummaryTable({
                                             onChange={(value) => setFilter("unit", value)}
                                         />
                                     </Th>
-                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[150px]">
-                                        <ColumnTextFilter
-                                            label="Mã kho"
-                                            value={filters.warehouse_code_text}
-                                            op={filters.warehouse_code_text_op}
-                                            onApply={(value, op) => setTextFilter("warehouse_code_text", "warehouse_code_text_op", value, op)}
-                                            onClear={() => clearTextFilter("warehouse_code_text", "warehouse_code_text_op")}
-                                        />
-                                    </Th>
-                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[220px]">
-                                        <ColumnTextFilter
-                                            label="Tên kho"
-                                            value={filters.warehouse_name_text}
-                                            op={filters.warehouse_name_text_op}
-                                            onApply={(value, op) => setTextFilter("warehouse_name_text", "warehouse_name_text_op", value, op)}
-                                            onClear={() => clearTextFilter("warehouse_name_text", "warehouse_name_text_op")}
-                                        />
-                                    </Th>
                                     <Th colSpan={showValues ? 2 : 1} className="text-center">Tồn đầu kỳ</Th>
                                     <Th colSpan={showValues ? 2 : 1} className="text-center">Nhập kho</Th>
-                                    <Th colSpan={showValues ? 2 : 1} className="text-center">Xuất kho</Th>
+                                    <Th colSpan={showValues ? 3 : 1} className="text-center">Xuất kho</Th>
                                     <Th colSpan={showValues ? 2 : 1} className="text-center">Tồn cuối kỳ</Th>
                                     <Th rowSpan={showValues ? 2 : 1}>
                                         <ColumnTextFilter
@@ -546,6 +522,7 @@ export function SummaryTable({
                                     <Th className="text-right">Số lượng</Th>
                                     <Th className="text-right">Giá trị</Th>
                                     <Th className="text-right">Số lượng</Th>
+                                    <Th className="text-right">Giá xuất BQ</Th>
                                     <Th className="text-right">Giá trị</Th>
                                     <Th className="text-right">Số lượng</Th>
                                     <Th className="text-right">Giá trị</Th>
@@ -555,7 +532,7 @@ export function SummaryTable({
                             <tbody>
                                 {data.map((item, index) => (
                                     <SummaryRow
-                                        key={`${item.product_id}-${item.warehouse_id}-${index}`}
+                                        key={`${item.product_id}-${index}`}
                                         index={pagination.pageIndex * pagination.pageSize + index + 1}
                                         item={item}
                                         showValues={showValues}
@@ -564,7 +541,7 @@ export function SummaryTable({
                             </tbody>
                             <tfoot className="bg-muted/40 border-t font-semibold">
                                 <tr>
-                                    <Td colSpan={6}>Tổng cộng theo bộ lọc</Td>
+                                    <Td colSpan={4}>Tổng cộng theo bộ lọc</Td>
                                     <NumberTd>{summaryTotals.opening_quantity}</NumberTd>
                                     {showValues ? (
                                     <MoneyTd>{summaryTotals.opening_value}</MoneyTd>
@@ -574,6 +551,9 @@ export function SummaryTable({
                                     <MoneyTd>{summaryTotals.inbound_value}</MoneyTd>
                                     ) : null}
                                     <NumberTd>{summaryTotals.outbound_quantity}</NumberTd>
+                                    {showValues ? (
+                                    <MoneyTd>-</MoneyTd>
+                                    ) : null}
                                     {showValues ? (
                                     <MoneyTd>{summaryTotals.outbound_value}</MoneyTd>
                                     ) : null}
@@ -625,17 +605,6 @@ function SummaryRow({ index, item, showValues }: { index: number; item: Inventor
                 </LongText>
             </Td>
             <Td className="text-muted-foreground">{item.unit || "-"}</Td>
-            <Td className="text-muted-foreground font-mono text-xs">
-                {item.warehouse_code || "-"}
-            </Td>
-            <Td className="min-w-[220px] max-w-[360px]">
-                <LongText
-                    className="max-w-[360px]"
-                    contentClassName="max-w-[420px] whitespace-normal break-words leading-relaxed"
-                >
-                    {item.warehouse_name || "-"}
-                </LongText>
-            </Td>
             <NumberTd>{item.opening_quantity}</NumberTd>
             {showValues ? (
             <MoneyTd>{item.opening_value}</MoneyTd>
@@ -645,6 +614,9 @@ function SummaryRow({ index, item, showValues }: { index: number; item: Inventor
             <MoneyTd>{item.inbound_value}</MoneyTd>
             ) : null}
             <NumberTd>{item.outbound_quantity}</NumberTd>
+            {showValues ? (
+            <MoneyTd>{item.avg_issue_unit_cost ?? 0}</MoneyTd>
+            ) : null}
             {showValues ? (
             <MoneyTd>{item.outbound_value}</MoneyTd>
             ) : null}

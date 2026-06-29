@@ -188,7 +188,7 @@ export function LedgerImportButtons() {
             notes: [
                 "Hạn sử dụng và Ngày hạch toán bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy, ví dụ 24/10/2028 hoặc 24-10-2028.",
                 "Dòng có Mã hàng bắt đầu bằng PHI hoặc Mã hàng chưa có trong danh mục sản phẩm sẽ được bỏ qua.",
-                "Phí hàng về kho chưa được tính vào giá ở bước import này.",
+                "Nếu có Đơn giá bao gồm PLH thì hệ thống dùng trực tiếp làm giá vốn lô. Nếu không có, Phí hàng về kho sẽ được phân bổ theo số lượng nhập của lô.",
             ],
             inputRef: purchaseFileRef,
         })

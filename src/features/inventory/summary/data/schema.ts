@@ -1,7 +1,7 @@
 export type InventorySummary = {
     id: number
     product_id: number
-    warehouse_id: number
+    warehouse_id?: number | null
 
     product_code: string
     product_name: string
@@ -15,6 +15,7 @@ export type InventorySummary = {
     opening_value: number
     inbound_quantity: number
     inbound_value: number
+    avg_issue_unit_cost?: number
     outbound_quantity: number
     outbound_value: number
     closing_quantity: number

@@ -76,7 +76,7 @@ export const inventoryLotSchema: RJSFSchema = {
 
         unit_cost: {
             type: "number",
-            title: "Giá vốn",
+            title: "Giá vốn gồm PLH",
             minimum: 0,
             default: 0,
         },
