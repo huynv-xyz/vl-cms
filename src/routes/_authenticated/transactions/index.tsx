@@ -4,7 +4,7 @@ import TransactionPage from "@/features/transactions"
 export const Route = createFileRoute("/_authenticated/transactions/")({
     validateSearch: (search: Record<string, unknown>) => ({
         page: Number(search.page ?? 1),
-        size: Number(search.size ?? 20),
+        size: Number(search.size ?? 50),
 
         keyword:
             typeof search.keyword === "string" ? search.keyword : "",

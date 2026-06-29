@@ -5,7 +5,7 @@ import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { productOption, warehouseOption } from "@/lib/option-mapper"
+import { warehouseOption } from "@/lib/option-mapper"
 
 type Props = {
     items: any[]
@@ -35,6 +35,13 @@ export function ManualReturnItemsEditor({ items, onChange }: Props) {
         ])
     }
 
+    const handleProductChange = (index: number, productId: any, option: any) => {
+        updateRow(index, {
+            product_id: productId || undefined,
+            product: option?.raw,
+        })
+    }
+
     return (
         <div className="rounded-lg border">
             <div className="flex items-center justify-between border-b px-4 py-3">
@@ -46,11 +53,12 @@ export function ManualReturnItemsEditor({ items, onChange }: Props) {
             </div>
 
             <div className="overflow-x-auto">
-                <table className="w-full min-w-[1280px] text-sm">
+                <table className="w-full min-w-[1500px] text-sm">
                     <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                         <tr>
                             <th className="w-12 px-3 py-2 text-center">#</th>
-                            <th className="w-[420px] px-3 py-2 text-left">Sản phẩm</th>
+                            <th className="w-[260px] px-3 py-2 text-left">Mã sản phẩm</th>
+                            <th className="w-[420px] px-3 py-2 text-left">Tên sản phẩm</th>
                             <th className="w-[320px] px-3 py-2 text-left">Kho nhập</th>
                             <th className="w-[150px] px-3 py-2 text-right">Số lượng</th>
                             <th className="w-[170px] px-3 py-2 text-right">Đơn giá</th>
@@ -65,21 +73,36 @@ export function ManualReturnItemsEditor({ items, onChange }: Props) {
                                 <td className="px-3 py-2">
                                     <AsyncSelect
                                         value={item.product_id}
-                                        placeholder="Chọn sản phẩm"
-                                        searchPlaceholder="Tìm mã hoặc tên sản phẩm..."
+                                        placeholder="Chọn mã"
+                                        searchPlaceholder="Tìm mã sản phẩm..."
                                         dataSource={{
-                                            getList: listProducts,
+                                            getList: listProductsByCode,
                                             getById: getProduct,
                                             params: { page: 1, size: 50 },
                                         }}
-                                        mapOption={productOption}
+                                        mapOption={productCodeOption}
                                         onChange={(productId: any, option: any) =>
-                                            updateRow(index, {
-                                                product_id: productId || undefined,
-                                                product: option?.raw,
-                                            })
+                                            handleProductChange(index, productId, option)
                                         }
-                                        popoverContentClassName="w-[640px] max-w-[calc(100vw-2rem)]"
+                                        popoverContentClassName="w-[560px] max-w-[calc(100vw-2rem)]"
+                                        optionWrapLabel
+                                    />
+                                </td>
+                                <td className="px-3 py-2">
+                                    <AsyncSelect
+                                        value={item.product_id}
+                                        placeholder="Chọn tên sản phẩm"
+                                        searchPlaceholder="Tìm tên sản phẩm..."
+                                        dataSource={{
+                                            getList: listProductsByName,
+                                            getById: getProduct,
+                                            params: { page: 1, size: 50 },
+                                        }}
+                                        mapOption={productNameOption}
+                                        onChange={(productId: any, option: any) =>
+                                            handleProductChange(index, productId, option)
+                                        }
+                                        popoverContentClassName="w-[720px] max-w-[calc(100vw-2rem)]"
                                         optionWrapLabel
                                     />
                                 </td>
@@ -152,4 +175,38 @@ export function ManualReturnItemsEditor({ items, onChange }: Props) {
             )}
         </div>
     )
+}
+
+function listProductsByCode(params: any) {
+    const { keyword, ...rest } = params ?? {}
+    return listProducts({
+        ...rest,
+        keyword: undefined,
+        code: keyword || undefined,
+    })
+}
+
+function listProductsByName(params: any) {
+    const { keyword, ...rest } = params ?? {}
+    return listProducts({
+        ...rest,
+        keyword: undefined,
+        name: keyword || undefined,
+    })
+}
+
+function productCodeOption(product: any) {
+    return {
+        value: product.id,
+        label: product.code || `#${product.id}`,
+        raw: product,
+    }
+}
+
+function productNameOption(product: any) {
+    return {
+        value: product.id,
+        label: product.name || `#${product.id}`,
+        raw: product,
+    }
 }

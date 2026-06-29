@@ -1,6 +1,7 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import {
     type ColumnDef,
+    type ColumnSizingState,
     type SortingState,
     type VisibilityState,
     type PaginationState,
@@ -48,6 +49,8 @@ export type BaseDataTableProps<TData> = {
     footer?: React.ReactNode
     showToolbar?: boolean
     onRowClick?: (row: TData) => void
+    enableColumnResize?: boolean
+    enableStickyHorizontalScroll?: boolean
 }
 
 export function BaseDataTable<TData>({
@@ -70,13 +73,24 @@ export function BaseDataTable<TData>({
     footer,
     showToolbar = true,
     onRowClick,
+    enableColumnResize = false,
+    enableStickyHorizontalScroll = false,
 }: BaseDataTableProps<TData>) {
 
     const [rowSelection, setRowSelection] = useState({})
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+    const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
     const [expanded, setExpanded] = useState<ExpandedState>({})
     const [initialized, setInitialized] = useState(false)
+    const tableScrollRef = useRef<HTMLDivElement | null>(null)
+    const stickyScrollRef = useRef<HTMLDivElement | null>(null)
+    const isSyncingScrollRef = useRef(false)
+    const [stickyScroll, setStickyScroll] = useState({
+        visible: false,
+        contentWidth: 0,
+        viewportWidth: 0,
+    })
 
     useEffect(() => {
         if (defaultExpandAll && !initialized) {
@@ -84,6 +98,74 @@ export function BaseDataTable<TData>({
             setInitialized(true)
         }
     }, [defaultExpandAll, initialized])
+
+    useEffect(() => {
+        if (!enableStickyHorizontalScroll) return
+
+        const updateStickyScroll = () => {
+            const tableScroll = tableScrollRef.current
+            if (!tableScroll) return
+
+            const next = {
+                visible: tableScroll.scrollWidth > tableScroll.clientWidth + 1,
+                contentWidth: tableScroll.scrollWidth,
+                viewportWidth: tableScroll.clientWidth,
+            }
+            setStickyScroll((current) => (
+                current.visible === next.visible &&
+                current.contentWidth === next.contentWidth &&
+                current.viewportWidth === next.viewportWidth
+                    ? current
+                    : next
+            ))
+
+            if (stickyScrollRef.current) {
+                stickyScrollRef.current.scrollLeft = tableScroll.scrollLeft
+            }
+        }
+
+        updateStickyScroll()
+
+        const tableScroll = tableScrollRef.current
+        const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateStickyScroll) : null
+        if (tableScroll && resizeObserver) {
+            resizeObserver.observe(tableScroll)
+            const tableElement = tableScroll.querySelector("table")
+            if (tableElement) resizeObserver.observe(tableElement)
+        }
+        window.addEventListener("resize", updateStickyScroll)
+
+        return () => {
+            resizeObserver?.disconnect()
+            window.removeEventListener("resize", updateStickyScroll)
+        }
+    }, [enableStickyHorizontalScroll, data, columns, columnSizing, columnVisibility])
+
+    const syncStickyScroll = () => {
+        if (!enableStickyHorizontalScroll || isSyncingScrollRef.current) return
+        const tableScroll = tableScrollRef.current
+        const sticky = stickyScrollRef.current
+        if (!tableScroll || !sticky) return
+
+        isSyncingScrollRef.current = true
+        sticky.scrollLeft = tableScroll.scrollLeft
+        requestAnimationFrame(() => {
+            isSyncingScrollRef.current = false
+        })
+    }
+
+    const syncTableScroll = () => {
+        if (!enableStickyHorizontalScroll || isSyncingScrollRef.current) return
+        const tableScroll = tableScrollRef.current
+        const sticky = stickyScrollRef.current
+        if (!tableScroll || !sticky) return
+
+        isSyncingScrollRef.current = true
+        tableScroll.scrollLeft = sticky.scrollLeft
+        requestAnimationFrame(() => {
+            isSyncingScrollRef.current = false
+        })
+    }
 
     // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
@@ -110,6 +192,7 @@ export function BaseDataTable<TData>({
         state: {
             sorting,
             columnVisibility,
+            columnSizing,
             rowSelection,
             pagination,
             expanded,
@@ -121,7 +204,10 @@ export function BaseDataTable<TData>({
         onRowSelectionChange: setRowSelection,
         onSortingChange: setSorting,
         onColumnVisibilityChange: setColumnVisibility,
+        onColumnSizingChange: setColumnSizing,
         onPaginationChange,
+        enableColumnResizing: enableColumnResize,
+        columnResizeMode: "onChange",
 
         getCoreRowModel: getCoreRowModel(),
         getExpandedRowModel: getExpandedRowModel(),
@@ -148,24 +234,52 @@ export function BaseDataTable<TData>({
                 />
             )}
 
-            <div className='w-full overflow-x-auto rounded-md border'>
-                <Table className='w-max min-w-full table-auto'>
+            <div
+                ref={tableScrollRef}
+                onScroll={syncStickyScroll}
+                className='w-full overflow-x-auto rounded-md border'
+            >
+                <Table className='w-max min-w-full table-fixed'>
                     <TableHeader>
                         {table.getHeaderGroups().map((hg) => (
                             <TableRow key={hg.id}>
-                                {hg.headers.map((header) => (
-                                    <TableHead
-                                        key={header.id}
-                                        className={header.column.columnDef.meta?.className}
-                                    >
-                                        {header.isPlaceholder
-                                            ? null
-                                            : flexRender(
-                                                header.column.columnDef.header,
-                                                header.getContext()
+                                {hg.headers.map((header) => {
+                                    const size = header.getSize()
+                                    const minSize = header.column.columnDef.minSize ?? 72
+                                    return (
+                                        <TableHead
+                                            key={header.id}
+                                            className={cn(
+                                                "relative select-none",
+                                                header.column.columnDef.meta?.className,
+                                                header.column.columnDef.meta?.thClassName,
                                             )}
-                                    </TableHead>
-                                ))}
+                                            style={{
+                                                width: size,
+                                                minWidth: minSize,
+                                            }}
+                                        >
+                                            {header.isPlaceholder
+                                                ? null
+                                                : flexRender(
+                                                    header.column.columnDef.header,
+                                                    header.getContext()
+                                                )}
+                                            {enableColumnResize && header.column.getCanResize() ? (
+                                                <div
+                                                    onMouseDown={header.getResizeHandler()}
+                                                    onTouchStart={header.getResizeHandler()}
+                                                    className={cn(
+                                                        "absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none select-none",
+                                                        "bg-transparent hover:bg-primary/40",
+                                                        header.column.getIsResizing() && "bg-primary/60",
+                                                    )}
+                                                    data-no-row-click="true"
+                                                />
+                                            ) : null}
+                                        </TableHead>
+                                    )
+                                })}
                             </TableRow>
                         ))}
                     </TableHeader>
@@ -195,17 +309,25 @@ export function BaseDataTable<TData>({
                                                 onRowClick(row.original)
                                             }}
                                         >
-                                            {row.getVisibleCells().map((cell) => (
-                                                <TableCell
-                                                    key={cell.id}
-                                                    className={cell.column.columnDef.meta?.tdClassName}
-                                                >
-                                                    {flexRender(
-                                                        cell.column.columnDef.cell,
-                                                        cell.getContext()
-                                                    )}
-                                                </TableCell>
-                                            ))}
+                                            {row.getVisibleCells().map((cell) => {
+                                                const size = cell.column.getSize()
+                                                const minSize = cell.column.columnDef.minSize ?? 72
+                                                return (
+                                                    <TableCell
+                                                        key={cell.id}
+                                                        className={cell.column.columnDef.meta?.tdClassName}
+                                                        style={{
+                                                            width: size,
+                                                            minWidth: minSize,
+                                                        }}
+                                                    >
+                                                        {flexRender(
+                                                            cell.column.columnDef.cell,
+                                                            cell.getContext()
+                                                        )}
+                                                    </TableCell>
+                                                )
+                                            })}
                                         </TableRow>
 
                                         {enableExpand &&
@@ -228,6 +350,10 @@ export function BaseDataTable<TData>({
                                                 <TableCell
                                                     key={col.id}
                                                     className={col.columnDef.meta?.tdClassName}
+                                                    style={{
+                                                        width: col.getSize(),
+                                                        minWidth: col.columnDef.minSize ?? 72,
+                                                    }}
                                                 >
                                                     {footerFn ? footerFn(data) : null}
                                                 </TableCell>
@@ -246,6 +372,18 @@ export function BaseDataTable<TData>({
                     </TableBody>
                 </Table>
             </div>
+
+            {enableStickyHorizontalScroll && stickyScroll.visible ? (
+                <div
+                    ref={stickyScrollRef}
+                    onScroll={syncTableScroll}
+                    className="sticky bottom-0 z-30 -mt-2 w-full overflow-x-auto border-x border-t bg-background/95 py-1 shadow-[0_-6px_18px_rgba(15,23,42,0.08)] backdrop-blur supports-[backdrop-filter]:bg-background/80"
+                    style={{ maxWidth: stickyScroll.viewportWidth || undefined }}
+                    data-no-row-click="true"
+                >
+                    <div style={{ width: stickyScroll.contentWidth, height: 1 }} />
+                </div>
+            ) : null}
 
             <DataTablePagination table={table} className='mt-auto' />
 

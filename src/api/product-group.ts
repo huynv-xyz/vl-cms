@@ -24,7 +24,12 @@ const productGroupApi = createCrudApi<
     ProductGroupListParams
 >("/product-groups")
 
-export const listProductGroups = productGroupApi.list
+export const listAllProductGroups = productGroupApi.list
+export const listProductGroups = (params: ProductGroupListParams) =>
+    productGroupApi.list({
+        ...params,
+        active: params.active ?? true,
+    })
 export const getProductGroup = productGroupApi.detail
 export const createProductGroup = productGroupApi.create
 export const updateProductGroup = productGroupApi.update
