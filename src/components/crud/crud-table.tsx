@@ -39,6 +39,8 @@ type CrudTableProps<T> = {
     footer?: React.ReactNode
     showToolbar?: boolean
     onRowClick?: (row: T) => void
+    enableColumnResize?: boolean
+    enableStickyHorizontalScroll?: boolean
 }
 
 export function CrudTable<T>({
@@ -60,6 +62,8 @@ export function CrudTable<T>({
     footer,
     showToolbar,
     onRowClick,
+    enableColumnResize,
+    enableStickyHorizontalScroll,
 }: CrudTableProps<T>) {
     return (
         <BaseDataTable<T>
@@ -81,6 +85,8 @@ export function CrudTable<T>({
             footer={footer}
             showToolbar={showToolbar}
             onRowClick={onRowClick}
+            enableColumnResize={enableColumnResize}
+            enableStickyHorizontalScroll={enableStickyHorizontalScroll}
         />
     )
 }

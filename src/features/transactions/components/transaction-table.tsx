@@ -156,6 +156,8 @@ export function TransactionTable({
                 onPaginationChange={onPaginationChange}
                 pageCount={pageCount}
                 showToolbar={false}
+                enableColumnResize
+                enableStickyHorizontalScroll
             />
         </div>
     )

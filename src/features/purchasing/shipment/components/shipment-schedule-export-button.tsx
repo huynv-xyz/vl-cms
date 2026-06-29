@@ -90,8 +90,8 @@ function exportShipmentScheduleExcel(items: ShipmentItem[]) {
         )
         if (groupCompare !== 0) return groupCompare
 
-        const dateCompare = String(a.shipment?.eta ?? "").localeCompare(
-            String(b.shipment?.eta ?? ""),
+        const dateCompare = dateSortKey(a.shipment?.eta).localeCompare(
+            dateSortKey(b.shipment?.eta),
         )
         if (dateCompare !== 0) return dateCompare
 
@@ -187,18 +187,42 @@ function getProductGroupName(item: ShipmentItem) {
 function formatDate(value?: string) {
     if (!value) return ""
 
-    const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/)
-    if (match) {
-        return `${match[3]}/${match[2]}/${match[1]}`
+    const text = String(value).trim()
+
+    const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (isoMatch) {
+        return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`
     }
 
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) return value
+    const viMatch = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/)
+    if (viMatch) {
+        return [
+            viMatch[1].padStart(2, "0"),
+            viMatch[2].padStart(2, "0"),
+            viMatch[3],
+        ].join("/")
+    }
 
-    const day = String(date.getDate()).padStart(2, "0")
-    const month = String(date.getMonth() + 1).padStart(2, "0")
-    const year = date.getFullYear()
-    return `${day}/${month}/${year}`
+    return text
+}
+
+function dateSortKey(value?: string) {
+    if (!value) return ""
+
+    const text = String(value).trim()
+    const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`
+
+    const viMatch = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/)
+    if (viMatch) {
+        return [
+            viMatch[3],
+            viMatch[2].padStart(2, "0"),
+            viMatch[1].padStart(2, "0"),
+        ].join("-")
+    }
+
+    return text
 }
 
 function formatNumberForExcel(value: number) {

@@ -7,8 +7,8 @@ import { toast } from "sonner"
 import {
     createProductGroup,
     deleteProductGroup,
+    listAllProductGroups,
     listParentVthhOptions,
-    listProductGroups,
     updateProductGroup,
     type ParentVthhOption,
 } from "@/api/product-group"
@@ -57,7 +57,7 @@ export default function ProductGroupPage() {
 
     const { data, isLoading, error } = usePaginatedList(
         ["product-groups", search.page, search.size, keyword],
-        listProductGroups,
+        listAllProductGroups,
         { page: search.page, size: search.size, keyword }
     )
 

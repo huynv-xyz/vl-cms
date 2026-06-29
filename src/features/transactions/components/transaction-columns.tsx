@@ -44,10 +44,12 @@ function textColumn(
     title: string,
     width = 160,
     header?: ColumnDef<Transaction>["header"],
+    minWidth = 90,
 ): ColumnDef<Transaction> {
     return {
         accessorKey: accessorKey as string,
         enableSorting: false,
+        minSize: Math.min(width, minWidth),
         header: header ?? (({ column }) => <DataTableColumnHeader column={column} title={title} />),
         cell: ({ row }) => {
             const value = row.getValue(accessorKey as string)
@@ -70,10 +72,12 @@ function numberColumn(
     title: string,
     width = 120,
     footer?: React.ReactNode,
+    minWidth = 100,
 ): ColumnDef<Transaction> {
     return {
         accessorKey: accessorKey as string,
         enableSorting: false,
+        minSize: Math.min(width, minWidth),
         header: ({ column }) => (
             <div className="text-right">
                 <DataTableColumnHeader column={column} title={title} />
@@ -115,6 +119,7 @@ function actualQuantityColumn(totalActualQty = 0): ColumnDef<Transaction> {
             )
         },
         size: 180,
+        minSize: 150,
         meta: {
             thClassName: "w-[180px] whitespace-nowrap text-right",
             tdClassName: "w-[180px] whitespace-nowrap",
@@ -132,10 +137,12 @@ function moneyColumn(
     title: string,
     width = 150,
     footer?: React.ReactNode,
+    minWidth = 110,
 ): ColumnDef<Transaction> {
     return {
         accessorKey: accessorKey as string,
         enableSorting: false,
+        minSize: Math.min(width, minWidth),
         header: ({ column }) => (
             <div className="text-right">
                 <DataTableColumnHeader column={column} title={title} />
@@ -166,6 +173,7 @@ function dateColumn(
     return {
         accessorKey: accessorKey as string,
         enableSorting: false,
+        minSize: 110,
         header: ({ column }) => <DataTableColumnHeader column={column} title={title} />,
         cell: ({ row }) => (
             <span className="block whitespace-nowrap text-sm tabular-nums">
@@ -211,6 +219,7 @@ export function buildTransactionColumns(
         {
             ...buildIndexColumn<Transaction>(),
             size: 56,
+            minSize: 48,
             meta: {
                 thClassName: "w-14 whitespace-nowrap",
                 tdClassName: "w-14 ps-3 whitespace-nowrap",
