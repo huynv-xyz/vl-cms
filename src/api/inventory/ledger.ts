@@ -1,5 +1,5 @@
 import { createCrudApi } from "@/api/crud"
-import { apiGet, apiPost } from "@/api/client"
+import { apiGet } from "@/api/client"
 import type {
     InventoryLedger,
     InventoryLedgerReportRow,
@@ -65,48 +65,3 @@ export function listInventoryLedgerReport(params: InventoryLedgerReportParams) {
     }>("/inventory/ledger/report", params)
 }
 
-export type SalesInventorySyncRequest = {
-    from_date?: string
-    to_date?: string
-    user_id?: number
-}
-
-export type SalesInventorySyncError = {
-    sales_transaction_id?: number | null
-    document_no?: string | null
-    voucher_type_code?: string | null
-    product_code?: string | null
-    warehouse_code?: string | null
-    reason?: string | null
-}
-
-export type SalesInventorySyncVoucher = {
-    voucher_id?: number | null
-    voucher_no?: string | null
-    voucher_type_code?: string | null
-    item_count: number
-}
-
-export type SalesInventorySyncResult = {
-    mode: "PREVIEW" | "RUN" | string
-    from_date?: string
-    to_date?: string
-    total_transactions: number
-    total_operations: number
-    ready_operations: number
-    ready_export_operations: number
-    ready_return_operations: number
-    skipped_operations: number
-    failed_operations: number
-    created_vouchers: number
-    errors: SalesInventorySyncError[]
-    vouchers: SalesInventorySyncVoucher[]
-}
-
-export function previewSalesInventorySync(body: SalesInventorySyncRequest) {
-    return apiPost<SalesInventorySyncResult>("/inventory/sales-sync/preview", body)
-}
-
-export function runSalesInventorySync(body: SalesInventorySyncRequest) {
-    return apiPost<SalesInventorySyncResult>("/inventory/sales-sync/run", body)
-}

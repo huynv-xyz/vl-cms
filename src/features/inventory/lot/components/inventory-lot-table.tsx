@@ -840,6 +840,7 @@ function LotMetric({
                     <Icon className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
+                    <div className="text-xs font-semibold uppercase tracking-wide opacity-80">{label}</div>
                     <div className="mt-1 text-sm tabular-nums">Số lượng: <span className="font-bold">{formatNumber(quantity || 0)}</span></div>
                     <div className="text-sm tabular-nums">Giá trị: <span className="font-bold">{formatCurrency(value || 0)}</span></div>
                 </div>

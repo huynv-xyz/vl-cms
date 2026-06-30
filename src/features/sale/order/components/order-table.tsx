@@ -4,7 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
     AlertCircle,
+    AlertTriangle,
     Boxes,
+    CheckCircle2,
     CopyPlus,
     Download,
     FileText,
@@ -36,6 +38,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 import { getCustomer, listCustomers } from "@/api/customer"
 import { getEmployee, listEmployees } from "@/api/employee"
@@ -377,6 +380,7 @@ function OrderCard({
     const isLocked = status === "DONE"
     const meta = getOrderStatusMeta(status)
     const StatusIcon = meta.icon
+    const stockCheck = getOrderStockCheck(items)
 
     const customer = (order as any).customer
     const employee = (order as any).employee
@@ -480,14 +484,29 @@ function OrderCard({
                 </div>
 
                 <div className="flex items-center justify-end gap-1.5">
-                    <button
-                        type="button"
-                        className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold shadow-xs hover:bg-muted/60"
-                        onClick={() => setDocumentOpen(true)}
-                    >
-                        <FileText className="h-3.5 w-3.5" />
-                        Đơn đặt hàng
-                    </button>
+                    {status === "NEW" && (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span
+                                    className={cn(
+                                        "inline-flex h-8 w-8 items-center justify-center rounded-md border",
+                                        stockCheck.shortage
+                                            ? "border-rose-200 bg-rose-50 text-rose-600"
+                                            : "border-emerald-200 bg-emerald-50 text-emerald-600"
+                                    )}
+                                >
+                                    {stockCheck.shortage ? (
+                                        <AlertTriangle className="h-4 w-4" />
+                                    ) : (
+                                        <CheckCircle2 className="h-4 w-4" />
+                                    )}
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {stockCheck.shortage ? "Vượt tồn" : "Đạt tồn"}
+                            </TooltipContent>
+                        </Tooltip>
+                    )}
 
                     <Select
                         value={status}
@@ -522,6 +541,15 @@ function OrderCard({
                             })}
                         </SelectContent>
                     </Select>
+
+                    <button
+                        type="button"
+                        className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold shadow-xs hover:bg-muted/60"
+                        onClick={() => setDocumentOpen(true)}
+                    >
+                        <FileText className="h-3.5 w-3.5" />
+                        Đơn
+                    </button>
 
                     <OrderRowMenu
                         order={order}
@@ -901,6 +929,44 @@ function getDeliveryStatusLabel(order: Order) {
     }
 
     return "Chưa giao hàng"
+}
+
+function getOrderStockCheck(items: any[]) {
+    const byProduct = new Map<
+        string,
+        { name: string; code: string; required: number; stock: number }
+    >()
+
+    for (const item of items || []) {
+        const productId = item.product_id ?? item.product?.id
+        if (!productId) continue
+
+        const key = String(productId)
+        const current =
+            byProduct.get(key) ?? {
+                name: item.product?.name ?? item.product_name ?? "Sản phẩm",
+                code: item.product?.code ?? "",
+                required: 0,
+                stock: Number(item.stock_quantity || 0),
+            }
+
+        current.required += Number(item.quantity || 0)
+        current.stock = Number(item.stock_quantity ?? current.stock ?? 0)
+        byProduct.set(key, current)
+    }
+
+    const shortages = Array.from(byProduct.values()).filter(
+        (x) => x.required > x.stock
+    )
+
+    return {
+        shortage: shortages.length > 0,
+        shortageCount: shortages.length,
+        lines: shortages.map((x) => {
+            const product = x.code ? `${x.code} - ${x.name}` : x.name
+            return `${product}: cần ${formatNumber(x.required)}, tồn ${formatNumber(x.stock)}`
+        }),
+    }
 }
 
 function formatEmployee(employee?: Order["employee"]) {

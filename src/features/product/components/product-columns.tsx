@@ -15,6 +15,7 @@ export const productColumns: ColumnDef<Product>[] = [
 
     buildTextColumn<Product>({
         title: "Sản phẩm",
+        width: 380,
         render: (product) => <ProductCell product={product} />,
     }),
 
@@ -89,7 +90,7 @@ function ProductCell({ product }: { product: Product }) {
     return (
         <button
             type="button"
-            className="flex min-w-[320px] max-w-full items-start gap-3 rounded-md text-left hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex w-full min-w-0 items-start gap-3 rounded-md text-left hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => openDetail(product)}
         >
             <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-muted/40">

@@ -92,9 +92,9 @@ export function OrderExports({ exports, order }: any) {
             return { prev }
         },
 
-        onError: (_, __, context) => {
+        onError: (error: any, __, context) => {
             queryClient.setQueryData(["order-detail", order.id], context?.prev)
-            toast.error("Cập nhật thất bại")
+            toast.error(error?.message || "Cập nhật thất bại")
         },
 
         onSuccess: () => toast.success("Cập nhật trạng thái thành công"),
@@ -161,6 +161,12 @@ export function OrderExports({ exports, order }: any) {
                         const missingWarehouseRows = (exportDoc.items ?? []).filter(
                             (item: any) => exportDoc.status === "NEW" && !item?.warehouse_id
                         ).length
+                        const stockShortageRows = (exportDoc.items ?? []).filter(
+                            (item: any) =>
+                                exportDoc.status === "NEW" &&
+                                item?.warehouse_id &&
+                                Number(item?.available_quantity || 0) < Number(item?.quantity || 0)
+                        ).length
 
                         return (
                             <div
@@ -223,6 +229,7 @@ export function OrderExports({ exports, order }: any) {
                                                 isPending ||
                                                 isRowLocked ||
                                                 missingWarehouseRows > 0 ||
+                                                stockShortageRows > 0 ||
                                                 !canUpdateStatus
                                             }
                                         >
@@ -231,6 +238,8 @@ export function OrderExports({ exports, order }: any) {
                                                 title={
                                                     missingWarehouseRows > 0
                                                         ? "Chưa có kho xuất — không thể chuyển trạng thái"
+                                                        : stockShortageRows > 0
+                                                            ? "Có dòng không đủ tồn trong kho xuất — không thể chuyển trạng thái"
                                                         : !canUpdateStatus
                                                             ? "Bạn không có quyền đổi trạng thái phiếu xuất"
                                                             : undefined
@@ -274,6 +283,12 @@ export function OrderExports({ exports, order }: any) {
                                         Một số dòng chưa có kho xuất — không thể chuyển trạng thái cho tới khi chọn đủ kho.
                                     </div>
                                 )}
+                                {stockShortageRows > 0 && (
+                                    <div className="flex items-center gap-1.5 border-b bg-rose-50 px-4 py-2 text-xs font-medium text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
+                                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                        Có {formatNumber(stockShortageRows)} dòng không đủ tồn trong kho xuất. Kiểm tra cột Tồn kho trước khi hoàn thành phiếu.
+                                    </div>
+                                )}
 
                                 <ItemsTable
                                     items={exportDoc.items ?? []}
@@ -314,6 +329,7 @@ function ItemsTable({
         onSuccess: () => {
             toast.success("Đã cập nhật kho xuất")
             queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] })
+            queryClient.invalidateQueries({ queryKey: ["exports"] })
         },
         onError: () => toast.error("Cập nhật kho xuất thất bại"),
     })
@@ -344,6 +360,7 @@ function ItemsTable({
                         <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">ĐVT</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Chiết khấu</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Số lượng</TableHead>
+                        <TableHead className="text-right text-xs font-semibold uppercase">Tồn kho</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Đơn giá</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Thành tiền</TableHead>
                         <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Kho xuất</TableHead>
@@ -356,6 +373,8 @@ function ItemsTable({
                     {items.map((item, idx) => {
                         const missingWarehouse = isNew && !item?.warehouse_id
                         const quantity = Number(item.quantity || 0)
+                        const availableQuantity = Number(item.available_quantity || 0)
+                        const stockShortage = isNew && item?.warehouse_id && availableQuantity < quantity
                         const orderItem = resolveOrderItem(item, orderItemById, orderItemByProductId)
                         const unitPrice = resolveUnitPrice(orderItem)
                         const discount = resolveProratedDiscount(orderItem, quantity)
@@ -367,6 +386,8 @@ function ItemsTable({
                                 className={
                                     missingWarehouse
                                         ? "bg-rose-50/70 dark:bg-rose-950/20"
+                                        : stockShortage
+                                          ? "bg-amber-50/70 dark:bg-amber-950/20"
                                         : undefined
                                 }
                             >
@@ -389,6 +410,15 @@ function ItemsTable({
                                 </TableCell>
                                 <TableCell className="text-right font-medium tabular-nums">
                                     {formatNumber(quantity)}
+                                </TableCell>
+                                <TableCell
+                                    className={
+                                        stockShortage
+                                            ? "text-right font-semibold tabular-nums text-rose-600"
+                                            : "text-right font-medium tabular-nums text-muted-foreground"
+                                    }
+                                >
+                                    {item.warehouse_id ? formatNumber(availableQuantity) : "—"}
                                 </TableCell>
                                 <TableCell className="text-right text-sm tabular-nums">
                                     {formatCurrency(unitPrice)}

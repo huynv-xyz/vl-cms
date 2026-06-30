@@ -103,7 +103,7 @@ export function OrderInfo({ order, metrics }: Props) {
                         onClick={() => setDocumentOpen(true)}
                     >
                         <FileText className="h-3.5 w-3.5" />
-                        Đơn đặt hàng
+                        Đơn
                     </Button>
                     <Button
                         type="button"

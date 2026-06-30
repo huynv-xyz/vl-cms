@@ -17,6 +17,7 @@ import { updateExportStatus } from "@/api/sale/export"
 import { ExportRowActions } from "./export-row-actions"
 import { EXPORT_STATUSES, exportStatusLabel } from "./export-status"
 import { FileText, User } from "lucide-react"
+import { toast } from "sonner"
 
 export function useExportColumns() {
     const queryClient = useQueryClient()
@@ -32,6 +33,9 @@ export function useExportColumns() {
     const { mutate: changeStatus, isPending } = useMutation({
         mutationFn: ({ id, status }: { id: number; status: string; orderId?: number }) =>
             updateExportStatus(id, status),
+        onError: (error: any) => {
+            toast.error(error?.message || "Cập nhật trạng thái phiếu xuất thất bại")
+        },
         onSettled: (_data, _error, variables) => {
             queryClient.invalidateQueries({ queryKey: ["exports"] })
             queryClient.invalidateQueries({ queryKey: ["deliveries"] })
@@ -49,17 +53,18 @@ export function useExportColumns() {
         buildTextColumn({
             accessorKey: "export_no",
             title: "Số PX",
+            width: 190,
             render: (row) => (
                 <Link
                     to="/sales/exports/$id"
                     params={{ id: String(row.id) }}
-                    className="group inline-flex flex-col gap-0.5"
+                    className="group inline-flex max-w-[180px] flex-col gap-0.5"
                 >
-                    <span className="inline-flex items-center gap-1.5 font-mono text-sm font-bold text-primary transition-colors group-hover:underline">
+                    <span className="inline-flex min-w-0 items-center gap-1.5 font-mono text-sm font-bold text-primary transition-colors group-hover:underline">
                         <FileText className="h-3.5 w-3.5 opacity-70 transition-opacity group-hover:opacity-100" />
-                        {row.export_no ?? `#${row.id}`}
+                        <span className="truncate">{row.export_no ?? `#${row.id}`}</span>
                     </span>
-                    <span className="text-xs font-normal text-muted-foreground">
+                    <span className="truncate text-xs font-normal text-muted-foreground">
                         {row.delivery?.delivery_no
                             ? `Giao ${row.delivery.delivery_no}`
                             : "Chưa có phiếu giao"}
@@ -71,16 +76,18 @@ export function useExportColumns() {
         buildTextColumn({
             accessorKey: "export_date",
             title: "Ngày xuất",
+            width: 120,
         }),
 
         buildTextColumn({
             accessorFn: (row) => row.order?.customer?.name,
             title: "Khách hàng",
+            width: 360,
             render: (row) => {
                 const customer = row.order?.customer
                 if (!customer) return <span className="text-muted-foreground">—</span>
                 return (
-                    <div className="inline-flex min-w-[180px] items-start gap-1.5 text-sm">
+                    <div className="inline-flex w-full min-w-0 max-w-[340px] items-start gap-1.5 text-sm">
                         <User className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                         <div className="min-w-0">
                             <div className="truncate font-medium">{customer.name}</div>
@@ -98,9 +105,10 @@ export function useExportColumns() {
         buildTextColumn({
             accessorKey: "order_id",
             title: "Đơn hàng",
+            width: 180,
             render: (row) => (
-                <div>
-                    <div className="font-medium">
+                <div className="max-w-[170px]">
+                    <div className="truncate font-medium">
                         {row.order?.order_no ?? `#${row.order_id}`}
                     </div>
                 </div>
@@ -110,19 +118,29 @@ export function useExportColumns() {
         buildTextColumn({
             accessorKey: "delivery_id",
             title: "Phiếu giao",
+            width: 170,
             render: (row) =>
-                row.delivery?.delivery_no ?? `#${row.delivery_id}`,
+                <span className="block max-w-[160px] truncate">
+                    {row.delivery?.delivery_no ?? `#${row.delivery_id}`}
+                </span>,
         }),
 
         buildTextColumn({
             accessorKey: "warehouse_id",
             title: "Kho",
-            render: (row) => row.warehouse?.name,
+            width: 260,
+            render: (row) => (
+                <span className="block max-w-[250px] truncate">
+                    {row.warehouse?.name ?? "—"}
+                </span>
+            ),
         }),
 
         {
             accessorKey: "status",
             header: "Trạng thái",
+            size: 160,
+            minSize: 160,
             cell: ({ row }) => {
                 const status = row.original.status || "NEW"
                 const allowedNext =

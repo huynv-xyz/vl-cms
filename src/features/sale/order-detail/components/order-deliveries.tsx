@@ -84,9 +84,9 @@ export function OrderDeliveries({ order, deliveries }: any) {
 
             return { prev }
         },
-        onError: (_, __, context) => {
+        onError: (error: any, __, context) => {
             queryClient.setQueryData(["order-detail", order.id], context?.prev)
-            toast.error("Cập nhật thất bại")
+            toast.error(error?.message || "Cập nhật thất bại")
         },
         onSuccess: () => toast.success("Cập nhật trạng thái thành công"),
         onSettled: () => {
