@@ -30,6 +30,14 @@ type ExportColumn = {
     type?: "date" | "number" | "text"
 }
 
+function saleRevenue(row: Transaction) {
+    return Number(row.sale_qty || 0) > 0 ? Number(row.revenue || 0) : 0
+}
+
+function returnRevenue(row: Transaction) {
+    return Number(row.return_qty || 0) > 0 ? Number(row.revenue || 0) : 0
+}
+
 const COLUMNS: ExportColumn[] = [
     { label: "Ngày chứng từ", value: (row) => parseDate(row.document_date), width: 14, type: "date" },
     { label: "Số chứng từ", value: (row) => row.document_no, width: 18 },
@@ -41,7 +49,9 @@ const COLUMNS: ExportColumn[] = [
     { label: "Đơn vị chính (ĐVC)", value: (row) => row.unit, width: 18 },
     { label: "Tổng SL bán theo ĐVC", value: (row) => row.sale_qty, width: 18, type: "number" },
     { label: "Đơn giá theo ĐVC", value: (row) => row.unit_price, width: 18, type: "number" },
-    { label: "Doanh số bán", value: (row) => row.revenue, width: 18, type: "number" },
+    { label: "Doanh số bán", value: (row) => saleRevenue(row), width: 18, type: "number" },
+    { label: "Doanh số trả lại", value: (row) => returnRevenue(row), width: 18, type: "number" },
+    { label: "Doanh số bán thực tế", value: (row) => saleRevenue(row) - returnRevenue(row), width: 22, type: "number" },
     { label: "SL trả lại theo ĐVC", value: (row) => row.return_qty, width: 18, type: "number" },
     { label: "SL bán thực tế theo ĐVC", value: (row) => Number(row.sale_qty || 0) - Number(row.return_qty || 0), width: 22, type: "number" },
     { label: "Mã nhân viên bán hàng", value: (row) => row.sale_user_code, width: 20 },

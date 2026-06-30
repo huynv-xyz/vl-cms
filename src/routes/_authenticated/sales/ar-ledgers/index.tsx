@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/sales/ar-ledgers/")({
 
         return {
             page: Number.isNaN(page) ? 1 : page,
-            size: Number.isNaN(size) ? 20 : size,
+            size: Number.isNaN(size) ? 50 : size,
 
             // ✅ keyword
             keyword:

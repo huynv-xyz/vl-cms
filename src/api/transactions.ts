@@ -42,6 +42,8 @@ export type ImportTransactionsResponse = {
 
 export type TransactionSummary = {
     revenue: number
+    return_revenue: number
+    actual_revenue: number
     sale_qty: number
     return_qty: number
     actual_qty: number

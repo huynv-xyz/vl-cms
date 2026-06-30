@@ -1,9 +1,11 @@
 import * as React from 'react'
 import type { PaginationState, OnChangeFn } from '@tanstack/react-table'
+import { useQuery } from '@tanstack/react-query'
 import { CrudTable } from '@/components/crud/crud-table'
 import type { CustomerVip } from '../data/schema'
 import { customerVipColumns } from './customer-vip-columns'
 import { listCustomerVips, type CustomerVipListParams } from '@/api/customer-vip'
+import { listVipTiers } from '@/api/vip-tier'
 import { DatePicker } from '@/components/date-picker'
 import { SearchOnBlurInput } from '@/components/search-on-blur-input'
 import { Button } from '@/components/ui/button'
@@ -20,7 +22,6 @@ import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
     DropdownMenuContent,
-    DropdownMenuItem,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -39,16 +40,9 @@ import {
     type LucideIcon,
 } from 'lucide-react'
 
-const TIER_OPTIONS = [
-    { label: 'Thành viên 2', value: 'THANH_VIEN_2' },
-    { label: 'Thành viên 1', value: 'THANH_VIEN_1' },
-    { label: 'Bạc', value: 'BAC' },
-    { label: 'Vàng', value: 'VANG' },
-    { label: 'Bạch Kim', value: 'BACH_KIM' },
-    { label: 'Kim Cương', value: 'KIM_CUONG' },
-    { label: 'B_600', value: 'B_600' },
-    { label: 'B_700', value: 'B_700' },
-]
+const NO_TIER_VALUE = '__NO_TIER__'
+let keepVipTierFilterOpen = false
+const NO_TIER_OPTION = { label: 'Chưa đủ điểm xét VIP', value: NO_TIER_VALUE }
 
 const REGION_OPTIONS = [
     { label: 'Miền Bắc', value: 'MB' },
@@ -70,6 +64,9 @@ const FILTER_CONTROL_CLASS = 'h-10 min-h-10 rounded-md border-slate-300 bg-white
 
 // ── getItems helper (khớp AsyncSelect) ────────────────────────────────
 const getItems = (res: any): CustomerVip[] =>
+    res?.items ?? res?.data?.items ?? []
+
+const getPagedItems = <T,>(res: any): T[] =>
     res?.items ?? res?.data?.items ?? []
 
 type Filters = {
@@ -106,9 +103,42 @@ export function CustomerVipTable({
     onDateRangeChange,
 }: CustomerVipTableProps) {
     const [isExporting, setIsExporting] = React.useState(false)
+    const [tierFilterOpen, setTierFilterOpen] = React.useState(keepVipTierFilterOpen)
+    const tierOptionsQuery = useQuery({
+        queryKey: ['vip-tier-options'],
+        queryFn: () => listVipTiers({ page: 1, size: 200 }),
+        staleTime: 5 * 60 * 1000,
+    })
+    const tierOptions = React.useMemo(() => {
+        const items = getPagedItems<{
+            id: number
+            name: string
+            sort_order?: number
+            status?: number
+        }>(tierOptionsQuery.data)
+        return [
+            NO_TIER_OPTION,
+            ...items
+                .filter((tier) => Number(tier.status ?? 1) === 1)
+                .sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0))
+                .map((tier) => ({
+                    label: tier.name,
+                    value: String(tier.id),
+                })),
+        ]
+    }, [tierOptionsQuery.data])
     const summary = buildSummary(data)
     const setFilter = (key: keyof Filters, value: string[] | undefined) =>
         onFiltersChange({ ...filters, [key]: value })
+    const setTierFilter = (value: string[] | undefined) => {
+        keepVipTierFilterOpen = true
+        setTierFilterOpen(true)
+        setFilter('tier_codes', value)
+    }
+    const setTierFilterOpenState = (open: boolean) => {
+        keepVipTierFilterOpen = open
+        setTierFilterOpen(open)
+    }
     const exportFilters = buildExportFilters(keyword, filters)
 
     const handleExport = async () => {
@@ -199,11 +229,13 @@ export function CustomerVipTable({
                         selected={filters.regions ?? []}
                         onChange={(v) => setFilter('regions', v)}
                     />
-                    <FilterDropdown
+                    <PersistentFilterPopover
                         label="Hạng VIP"
-                        options={TIER_OPTIONS}
+                        options={tierOptions}
                         selected={filters.tier_codes ?? []}
-                        onChange={(v) => setFilter('tier_codes', v)}
+                        onChange={setTierFilter}
+                        open={tierFilterOpen}
+                        onOpenChange={setTierFilterOpenState}
                     />
                     <FilterDropdown
                         label="Loại KH"
@@ -389,6 +421,84 @@ function AsyncMultiFilterDropdown({
     )
 }
 
+/* ── PersistentFilterPopover (static options, stays open while selecting) */
+
+function PersistentFilterPopover({
+    label,
+    options,
+    selected,
+    onChange,
+    open,
+    onOpenChange,
+}: {
+    label: string
+    options: { label: string; value: string }[]
+    selected: string[]
+    onChange: (values: string[] | undefined) => void
+    open: boolean
+    onOpenChange: (open: boolean) => void
+}) {
+    const toggle = (value: string) => {
+        const nextSelected = selected.includes(value)
+            ? selected.filter((v) => v !== value)
+            : [...selected, value]
+        onChange(nextSelected.length ? nextSelected : undefined)
+    }
+
+    return (
+        <Popover open={open} onOpenChange={onOpenChange}>
+            <PopoverTrigger asChild>
+                <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(FILTER_CONTROL_CLASS, 'min-w-[130px] flex-1 justify-between px-3')}
+                >
+                    <span className="truncate">
+                        {selected.length ? `${label} (${selected.length})` : label}
+                    </span>
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-[220px] p-1">
+                <div className="max-h-72 overflow-y-auto">
+                    {options.map((opt) => (
+                        <button
+                            key={opt.value}
+                            type="button"
+                            className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground relative flex w-full items-center gap-2 rounded-sm py-1.5 ps-8 pe-2 text-left text-sm outline-none select-none"
+                            onClick={(event) => {
+                                event.preventDefault()
+                                toggle(opt.value)
+                            }}
+                        >
+                            {selected.includes(opt.value) ? (
+                                <span className="absolute start-2 flex size-3.5 items-center justify-center">
+                                    <Check className="size-4" />
+                                </span>
+                            ) : null}
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
+                {selected.length ? (
+                    <>
+                        <div className="bg-border -mx-1 my-1 h-px" />
+                        <button
+                            type="button"
+                            className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 w-full items-center rounded-sm px-2 text-left text-sm"
+                            onClick={(event) => {
+                                event.preventDefault()
+                                onChange(undefined)
+                            }}
+                        >
+                            Bỏ chọn tất cả
+                        </button>
+                    </>
+                ) : null}
+            </PopoverContent>
+        </Popover>
+    )
+}
+
 /* ── FilterDropdown (static options) ────────────────────────────────── */
 
 function FilterDropdown({
@@ -403,10 +513,14 @@ function FilterDropdown({
     onChange: (values: string[] | undefined) => void
 }) {
     const toggle = (value: string) => {
-        const next = selected.includes(value)
+        const nextSelected = selected.includes(value)
             ? selected.filter((v) => v !== value)
             : [...selected, value]
-        onChange(next.length ? next : undefined)
+        onChange(nextSelected.length ? nextSelected : undefined)
+    }
+
+    const clear = () => {
+        onChange(undefined)
     }
 
     return (
@@ -432,14 +546,22 @@ function FilterDropdown({
                         {opt.label}
                     </DropdownMenuCheckboxItem>
                 ))}
-                {selected.length > 0 && (
-                    <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onChange(undefined)}>
-                            Xóa bộ lọc
-                        </DropdownMenuItem>
-                    </>
-                )}
+                {selected.length ? <DropdownMenuSeparator /> : null}
+                {selected.length ? (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-foreground h-8 w-full justify-start px-2 font-normal"
+                        onClick={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            clear()
+                        }}
+                    >
+                        Bỏ chọn tất cả
+                    </Button>
+                ) : null}
             </DropdownMenuContent>
         </DropdownMenu>
     )

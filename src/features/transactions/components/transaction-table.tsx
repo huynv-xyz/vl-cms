@@ -33,6 +33,8 @@ type TransactionFilters = {
 type TransactionTableProps = {
     data: Transaction[]
     totalRevenue: number
+    totalReturnRevenue: number
+    totalActualRevenue: number
     totalSaleQty: number
     totalReturnQty: number
     totalActualQty: number
@@ -60,6 +62,8 @@ const HDN_STATUS_OPTIONS = [
 export function TransactionTable({
     data,
     totalRevenue,
+    totalReturnRevenue,
+    totalActualRevenue,
     totalSaleQty,
     totalReturnQty,
     totalActualQty,
@@ -77,6 +81,8 @@ export function TransactionTable({
     ) => onFiltersChange({ ...filters, [key]: value })
     const columns = buildTransactionColumns(filters, onFiltersChange, {
         revenue: totalRevenue,
+        returnRevenue: totalReturnRevenue,
+        actualRevenue: totalActualRevenue,
         saleQty: totalSaleQty,
         returnQty: totalReturnQty,
         actualQty: totalActualQty,
@@ -158,6 +164,7 @@ export function TransactionTable({
                 showToolbar={false}
                 enableColumnResize
                 enableStickyHorizontalScroll
+                headerVariant="report"
             />
         </div>
     )

@@ -15,6 +15,9 @@ export function CreateEmployeeDialog({ open, onOpenChange }: Props) {
             open={open}
             onOpenChange={onOpenChange}
             hideTrigger
+            dialogClassName="!w-[calc(100vw-32px)] !max-w-5xl"
+            formClassName="space-y-0"
+            objectFieldClassName="grid grid-cols-1 gap-x-5 gap-y-1 md:grid-cols-2 xl:grid-cols-3"
             schema={employeeSchema}
             uiSchema={employeeUiSchema}
             defaultValues={{

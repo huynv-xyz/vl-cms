@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+﻿import { useEffect, useMemo, useRef, useState } from "react"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import {
     ArrowDownLeft,
@@ -63,6 +63,21 @@ const ACTIVITY_FILTERS = [
     { value: "none", label: "Không phát sinh" },
 ] as const
 
+const AR_LEDGER_COLUMNS = [
+    { key: "customer", width: 135, minWidth: 100 },
+    { key: "date", width: 105, minWidth: 90 },
+    { key: "doc_no", width: 140, minWidth: 110 },
+    { key: "product_code", width: 170, minWidth: 120 },
+    { key: "description", width: 390, minWidth: 200 },
+    { key: "unit", width: 70, minWidth: 55 },
+    { key: "quantity", width: 95, minWidth: 80 },
+    { key: "unit_price", width: 110, minWidth: 90 },
+    { key: "debit", width: 125, minWidth: 100 },
+    { key: "credit", width: 125, minWidth: 100 },
+    { key: "balance_debit", width: 130, minWidth: 105 },
+    { key: "balance_credit", width: 130, minWidth: 105 },
+] as const
+
 export function ArLedgerTable({
     data,
     pagination,
@@ -75,6 +90,18 @@ export function ArLedgerTable({
 }: Props) {
     const [exporting, setExporting] = useState(false)
     const [advancedOpen, setAdvancedOpen] = useState(false)
+    const [columnWidths, setColumnWidths] = useState<number[]>(() => AR_LEDGER_COLUMNS.map((column) => column.width))
+    const tableWidth = columnWidths.reduce((total, width) => total + width, 0)
+    const tableScrollRef = useRef<HTMLDivElement>(null)
+    const stickyScrollRef = useRef<HTMLDivElement>(null)
+    const headerTableRef = useRef<HTMLTableElement>(null)
+    const isSyncingScrollRef = useRef(false)
+    const [stickyScroll, setStickyScroll] = useState({
+        visible: false,
+        contentWidth: 0,
+        viewportWidth: 0,
+    })
+    const [stickyHeaderTop, setStickyHeaderTop] = useState(64)
     const groups = useMemo(() => buildGroups(data), [data])
     const period = periodLabel(filters.from_date, filters.to_date)
     const today = todayYmd()
@@ -103,6 +130,148 @@ export function ArLedgerTable({
             ...prev,
             pageIndex: Math.min(Math.max(pageIndex, 0), Math.max(pageCount - 1, 0)),
         }))
+    }
+
+    const startColumnResize = (columnIndex: number, event: React.MouseEvent<HTMLDivElement>) => {
+        event.preventDefault()
+        event.stopPropagation()
+
+        const startX = event.clientX
+        const startWidth = columnWidths[columnIndex] ?? AR_LEDGER_COLUMNS[columnIndex].width
+        const minWidth = AR_LEDGER_COLUMNS[columnIndex].minWidth
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            const nextWidth = Math.max(minWidth, startWidth + moveEvent.clientX - startX)
+            setColumnWidths((current) => current.map((width, index) => index === columnIndex ? nextWidth : width))
+        }
+        const onMouseUp = () => {
+            document.removeEventListener("mousemove", onMouseMove)
+            document.removeEventListener("mouseup", onMouseUp)
+        }
+
+        document.addEventListener("mousemove", onMouseMove)
+        document.addEventListener("mouseup", onMouseUp)
+    }
+
+    const renderHeaderRows = () => (
+        <>
+            <tr className="text-xs uppercase text-slate-500">
+                <Th rowSpan={2} resizeIndex={0} onResizeStart={startColumnResize} className="h-16 align-middle">Khách hàng</Th>
+                <Th rowSpan={2} resizeIndex={1} onResizeStart={startColumnResize} className="h-16 align-middle">Ngày</Th>
+                <Th rowSpan={2} resizeIndex={2} onResizeStart={startColumnResize} className="h-16 align-middle">Chứng từ</Th>
+                <Th rowSpan={2} resizeIndex={3} onResizeStart={startColumnResize} className="h-16 align-middle">Mã sản phẩm</Th>
+                <Th rowSpan={2} resizeIndex={4} onResizeStart={startColumnResize} className="h-16 align-middle">Diễn giải</Th>
+                <Th rowSpan={2} resizeIndex={5} onResizeStart={startColumnResize} className="h-16 align-middle">ĐVT</Th>
+                <Th rowSpan={2} resizeIndex={6} onResizeStart={startColumnResize} className="h-16 align-middle">SL</Th>
+                <Th rowSpan={2} resizeIndex={7} onResizeStart={startColumnResize} className="h-16 align-middle">Đơn giá</Th>
+                <Th colSpan={2} className="h-8 text-center">Phát sinh</Th>
+                <Th colSpan={2} className="h-8 text-center">Số dư</Th>
+            </tr>
+            <tr className="text-xs uppercase text-slate-500">
+                <Th resizeIndex={8} onResizeStart={startColumnResize} className="h-8">Nợ</Th>
+                <Th resizeIndex={9} onResizeStart={startColumnResize} className="h-8">Có</Th>
+                <Th resizeIndex={10} onResizeStart={startColumnResize} className="h-8">Nợ</Th>
+                <Th resizeIndex={11} onResizeStart={startColumnResize} className="h-8">Có</Th>
+            </tr>
+        </>
+    )
+
+    useEffect(() => {
+        const updateStickyHeaderTop = () => {
+            const appHeader = document.querySelector<HTMLElement>(".header-fixed")
+            if (!appHeader) {
+                setStickyHeaderTop(0)
+                return
+            }
+
+            const rect = appHeader.getBoundingClientRect()
+            const nextTop = Math.max(0, Math.min(rect.bottom, rect.height))
+            setStickyHeaderTop((current) => current === nextTop ? current : nextTop)
+        }
+
+        updateStickyHeaderTop()
+        document.addEventListener("scroll", updateStickyHeaderTop, { passive: true })
+        window.addEventListener("resize", updateStickyHeaderTop)
+
+        return () => {
+            document.removeEventListener("scroll", updateStickyHeaderTop)
+            window.removeEventListener("resize", updateStickyHeaderTop)
+        }
+    }, [])
+
+    useEffect(() => {
+        const updateStickyScroll = () => {
+            const tableScroll = tableScrollRef.current
+            if (!tableScroll) return
+
+            const next = {
+                visible: tableScroll.scrollWidth > tableScroll.clientWidth + 1,
+                contentWidth: tableScroll.scrollWidth,
+                viewportWidth: tableScroll.clientWidth,
+            }
+            setStickyScroll((current) => (
+                current.visible === next.visible &&
+                current.contentWidth === next.contentWidth &&
+                current.viewportWidth === next.viewportWidth
+                    ? current
+                    : next
+            ))
+
+            if (stickyScrollRef.current) {
+                stickyScrollRef.current.scrollLeft = tableScroll.scrollLeft
+            }
+            if (headerTableRef.current) {
+                headerTableRef.current.style.transform = `translateX(-${tableScroll.scrollLeft}px)`
+            }
+        }
+
+        updateStickyScroll()
+
+        const tableScroll = tableScrollRef.current
+        const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateStickyScroll) : null
+        if (tableScroll && resizeObserver) {
+            resizeObserver.observe(tableScroll)
+            const tableElement = tableScroll.querySelector("table")
+            if (tableElement) resizeObserver.observe(tableElement)
+        }
+        window.addEventListener("resize", updateStickyScroll)
+
+        return () => {
+            resizeObserver?.disconnect()
+            window.removeEventListener("resize", updateStickyScroll)
+        }
+    }, [tableWidth, groups.length])
+
+    const syncStickyScroll = () => {
+        if (isSyncingScrollRef.current) return
+        const tableScroll = tableScrollRef.current
+        const sticky = stickyScrollRef.current
+        if (!tableScroll || !sticky) return
+
+        isSyncingScrollRef.current = true
+        sticky.scrollLeft = tableScroll.scrollLeft
+        if (headerTableRef.current) {
+            headerTableRef.current.style.transform = `translateX(-${tableScroll.scrollLeft}px)`
+        }
+        requestAnimationFrame(() => {
+            isSyncingScrollRef.current = false
+        })
+    }
+
+    const syncTableScroll = () => {
+        if (isSyncingScrollRef.current) return
+        const tableScroll = tableScrollRef.current
+        const sticky = stickyScrollRef.current
+        if (!tableScroll || !sticky) return
+
+        isSyncingScrollRef.current = true
+        tableScroll.scrollLeft = sticky.scrollLeft
+        if (headerTableRef.current) {
+            headerTableRef.current.style.transform = `translateX(-${sticky.scrollLeft}px)`
+        }
+        requestAnimationFrame(() => {
+            isSyncingScrollRef.current = false
+        })
     }
 
     const handleExport = async () => {
@@ -495,7 +664,7 @@ export function ArLedgerTable({
             {/* TABLE */}
             <section
                 id="ar-ledger-print"
-                className="overflow-hidden rounded-xl border bg-white shadow-sm"
+                className="rounded-xl border bg-white shadow-sm"
             >
                 <div className="ar-no-print flex flex-wrap items-center justify-between gap-2 border-b bg-white px-3 py-2">
                     <div className="flex items-center gap-2 text-xs">
@@ -511,32 +680,37 @@ export function ArLedgerTable({
                     </Badge>
                 </div>
 
-                <div className="max-h-[70vh] overflow-auto">
-                    <table className="w-full min-w-[1280px] border-collapse text-sm">
-                        <thead className="sticky top-0 z-10 bg-slate-50 shadow-[inset_0_-1px_0_0_var(--color-slate-200)]">
-                            <tr className="text-xs uppercase text-slate-500">
-                                <Th rowSpan={2} className="w-[135px] align-middle">Khách hàng</Th>
-                                <Th rowSpan={2} className="w-[105px] align-middle">Ngày</Th>
-                                <Th rowSpan={2} className="w-[140px] align-middle">Chứng từ</Th>
-                                <Th rowSpan={2} className="w-[150px] align-middle">Mã sản phẩm</Th>
-                                <Th rowSpan={2} className="min-w-[260px] align-middle">Diễn giải</Th>
-                                <Th rowSpan={2} className="w-[70px] text-center align-middle">ĐVT</Th>
-                                <Th rowSpan={2} className="w-[95px] text-right align-middle">SL</Th>
-                                <Th rowSpan={2} className="w-[110px] text-right align-middle">Đơn giá</Th>
-                                <Th colSpan={2} className="border-l text-center">Phát sinh</Th>
-                                <Th colSpan={2} className="border-l text-center">Số dư</Th>
-                            </tr>
-                            <tr className="text-xs uppercase text-slate-500">
-                                <Th className="w-[125px] border-l text-right">Nợ</Th>
-                                <Th className="w-[125px] text-right">Có</Th>
-                                <Th className="w-[130px] border-l text-right">Nợ</Th>
-                                <Th className="w-[130px] text-right">Có</Th>
-                            </tr>
+                <div
+                    className="sticky z-40 overflow-hidden border-b bg-slate-50 shadow-sm"
+                    style={{ top: stickyHeaderTop }}
+                >
+                    <table
+                        ref={headerTableRef}
+                        className="table-fixed border-collapse text-sm"
+                        style={{ width: tableWidth, minWidth: tableWidth }}
+                    >
+                        <colgroup>
+                            {AR_LEDGER_COLUMNS.map((column, index) => (
+                                <col key={column.key} style={{ width: columnWidths[index] }} />
+                            ))}
+                        </colgroup>
+                        <thead className="bg-slate-50">
+                            {renderHeaderRows()}
                         </thead>
+                    </table>
+                </div>
+
+                <div ref={tableScrollRef} onScroll={syncStickyScroll} className="w-full overflow-x-auto bg-white pt-2">
+                    <table className="table-fixed border-collapse text-sm" style={{ width: tableWidth, minWidth: tableWidth }}>
+                        <colgroup>
+                            {AR_LEDGER_COLUMNS.map((column, index) => (
+                                <col key={column.key} style={{ width: columnWidths[index] }} />
+                            ))}
+                        </colgroup>
                         <tbody>
                             {groups.length === 0 ? (
                                 <tr>
-                                    <td colSpan={12} className="px-4 py-14 text-center text-sm text-slate-500">
+                                    <td colSpan={12} className="border border-slate-200 px-4 py-14 text-center text-sm text-slate-500">
                                         Không có dữ liệu công nợ phù hợp với bộ lọc.
                                     </td>
                                 </tr>
@@ -546,6 +720,16 @@ export function ArLedgerTable({
                         </tbody>
                     </table>
                 </div>
+                {stickyScroll.visible ? (
+                    <div
+                        ref={stickyScrollRef}
+                        onScroll={syncTableScroll}
+                        className="sticky bottom-0 z-30 w-full overflow-x-auto border-t bg-background/95 py-1 shadow-[0_-6px_18px_rgba(15,23,42,0.08)] backdrop-blur supports-[backdrop-filter]:bg-background/80"
+                        style={{ maxWidth: stickyScroll.viewportWidth || undefined }}
+                    >
+                        <div style={{ width: stickyScroll.contentWidth, height: 1 }} />
+                    </div>
+                ) : null}
             </section>
 
             {/* PAGINATION */}
@@ -643,57 +827,43 @@ function MetricCard({
 }) {
     const tones = {
         rose: {
-            iconBg: "bg-rose-50 text-rose-600 ring-rose-100",
-            accent: "from-rose-50/60",
+            card: "border-rose-200 bg-rose-50 text-rose-800",
+            icon: "bg-white/75 text-rose-700",
+            value: "text-rose-700",
         },
         emerald: {
-            iconBg: "bg-emerald-50 text-emerald-600 ring-emerald-100",
-            accent: "from-emerald-50/60",
+            card: "border-emerald-200 bg-emerald-50 text-emerald-800",
+            icon: "bg-white/75 text-emerald-700",
+            value: "text-emerald-700",
         },
         amber: {
-            iconBg: "bg-amber-50 text-amber-600 ring-amber-100",
-            accent: "from-amber-50/60",
+            card: "border-amber-200 bg-amber-50 text-amber-800",
+            icon: "bg-white/75 text-amber-700",
+            value: "text-amber-700",
         },
         slate: {
-            iconBg: "bg-slate-100 text-slate-600 ring-slate-200",
-            accent: "from-slate-50/60",
+            card: "border-slate-200 bg-slate-50 text-slate-800",
+            icon: "bg-white/75 text-slate-600",
+            value: "text-slate-950",
         },
-    }
+    }[tone]
 
     return (
-        <div
-            className={cn(
-                "group relative overflow-hidden rounded-xl border bg-white p-3 shadow-sm transition-all",
-                "hover:-translate-y-0.5 hover:shadow-md",
-            )}
-        >
-            <div
-                className={cn(
-                    "pointer-events-none absolute inset-0 bg-gradient-to-br to-transparent opacity-60",
-                    tones[tone].accent,
-                )}
-            />
-            <div className="relative flex items-start justify-between gap-2">
+        <div className={cn("rounded-lg border p-2.5 shadow-sm", tones.card)}>
+            <div className="flex items-center gap-2">
+                <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-md", tones.icon)}>
+                    <Icon className="h-4 w-4" />
+                </div>
                 <div className="min-w-0 flex-1">
-                    <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <div className="text-center text-[11px] font-semibold uppercase leading-tight tracking-wide">
                         {label}
                     </div>
-                    <div className="mt-1 text-xl font-bold tabular-nums leading-tight text-slate-950">
+                    <div className={cn("mt-1 text-right text-lg font-semibold tabular-nums", tones.value)}>
                         {value}
                     </div>
-                    {sub ? (
-                        <div className="mt-1 text-xs font-medium text-slate-500">{sub}</div>
-                    ) : null}
-                </div>
-                <div
-                    className={cn(
-                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1",
-                        tones[tone].iconBg,
-                    )}
-                >
-                    <Icon className="h-5 w-5" />
                 </div>
             </div>
+            {sub ? <div className="mt-0.5 text-xs text-slate-400">{sub}</div> : null}
         </div>
     )
 }
@@ -701,11 +871,11 @@ function MetricCard({
 function CustomerGroup({ group }: { group: Group }) {
     return (
         <>
-            <tr className="border-y bg-slate-100/80">
-                <td colSpan={12} className="px-3 py-2">
+            <tr className="border-y bg-slate-100">
+                <td colSpan={12} className="border border-slate-200 px-3 py-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex min-w-0 flex-wrap items-center gap-2">
-                            <span className="font-semibold text-slate-950">{group.name}</span>
+                            <span className="max-w-full truncate font-semibold text-slate-950">{group.name}</span>
                             <Badge variant="outline" className="rounded-sm bg-white font-mono text-[11px]">
                                 {group.code}
                             </Badge>
@@ -735,12 +905,18 @@ function CustomerGroup({ group }: { group: Group }) {
 
                 return (
                     <tr key={item.id} className="border-b transition-colors hover:bg-slate-50">
-                        <Td className="font-mono text-xs text-slate-700">{group.code}</Td>
-                        <Td className="whitespace-nowrap text-slate-600">{fmtDate(item.posting_date)}</Td>
-                        <Td className="font-mono text-xs font-semibold text-sky-700">{item.doc_no || `#${item.id}`}</Td>
-                        <Td className="font-mono text-xs text-slate-700">{productCode(item)}</Td>
+                        <Td className="text-center font-mono text-xs text-slate-700">
+                            <span className="block truncate">{group.code}</span>
+                        </Td>
+                        <Td className="whitespace-nowrap text-center text-slate-600">{fmtDate(item.posting_date)}</Td>
+                        <Td className="text-center font-mono text-xs font-semibold text-sky-700">
+                            <span className="block truncate">{item.doc_no || `#${item.id}`}</span>
+                        </Td>
+                        <Td className="text-center font-mono text-xs text-slate-700">
+                            <span className="block truncate">{productCode(item)}</span>
+                        </Td>
                         <Td>
-                            <div className="text-slate-950">{lineDescription(item)}</div>
+                            <span className="block truncate whitespace-nowrap text-slate-950">{lineDescription(item)}</span>
                         </Td>
                         <Td className="text-center text-xs text-slate-600">{unit}</Td>
                         <Td className="text-right tabular-nums">{fmtQtyBlank(num(item.quantity))}</Td>
@@ -792,25 +968,35 @@ function Th({
     children,
     colSpan,
     rowSpan,
+    resizeIndex,
+    onResizeStart,
 }: {
     className?: string
     children: React.ReactNode
     colSpan?: number
     rowSpan?: number
+    resizeIndex?: number
+    onResizeStart?: (columnIndex: number, event: React.MouseEvent<HTMLDivElement>) => void
 }) {
     return (
         <th
             colSpan={colSpan}
             rowSpan={rowSpan}
-            className={cn("px-2 py-2 text-left font-semibold", className)}
+            className={cn("relative border border-slate-200 px-2 py-1 text-center font-semibold align-middle", className)}
         >
-            {children}
+            <span className="block truncate whitespace-nowrap">{children}</span>
+            {resizeIndex !== undefined && onResizeStart ? (
+                <div
+                    className="absolute right-0 top-0 z-20 h-full w-1.5 cursor-col-resize touch-none select-none hover:bg-primary/30"
+                    onMouseDown={(event) => onResizeStart(resizeIndex, event)}
+                />
+            ) : null}
         </th>
     )
 }
 
 function Td({ className, children }: { className?: string; children?: React.ReactNode }) {
-    return <td className={cn("px-2 py-2 align-top", className)}>{children}</td>
+    return <td className={cn("max-w-0 overflow-hidden border border-slate-200 px-2 py-2 align-top leading-snug", className)}>{children}</td>
 }
 
 type Group = {
@@ -960,8 +1146,13 @@ function fmtDate(value?: string): string {
     if (!value) return "-"
     const date = value.split("T")[0]
     const parts = date.split("-")
-    if (parts.length === 3 && parts[0].length === 4) {
-        return `${parts[2]}/${parts[1]}/${parts[0]}`
+    if (parts.length === 3) {
+        if (parts[0].length === 4) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`
+        }
+        if (parts[2].length === 4) {
+            return `${parts[0]}/${parts[1]}/${parts[2]}`
+        }
     }
     return date
 }
@@ -1221,3 +1412,4 @@ const PRINT_CSS = `
   @page { size: A4 landscape; margin: 10mm; }
 }
 `
+

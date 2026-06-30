@@ -5,6 +5,7 @@ import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { formatCurrency } from "@/lib/utils"
 import { warehouseOption } from "@/lib/option-mapper"
 
 type Props = {
@@ -53,16 +54,17 @@ export function ManualReturnItemsEditor({ items, onChange }: Props) {
             </div>
 
             <div className="overflow-x-auto">
-                <table className="w-full min-w-[1500px] text-sm">
+                <table className="w-full min-w-[1720px] text-sm">
                     <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                         <tr>
                             <th className="w-12 px-3 py-2 text-center">#</th>
                             <th className="w-[260px] px-3 py-2 text-left">Mã sản phẩm</th>
                             <th className="w-[420px] px-3 py-2 text-left">Tên sản phẩm</th>
                             <th className="w-[320px] px-3 py-2 text-left">Kho nhập</th>
-                            <th className="w-[150px] px-3 py-2 text-right">Số lượng</th>
-                            <th className="w-[170px] px-3 py-2 text-right">Đơn giá</th>
-                            <th className="w-[260px] px-3 py-2 text-left">Ghi chú</th>
+                            <th className="w-[190px] px-3 py-2 text-right">Số lượng</th>
+                            <th className="w-[210px] px-3 py-2 text-right">Đơn giá</th>
+                            <th className="w-[220px] px-3 py-2 text-right">Thành tiền</th>
+                            <th className="w-[340px] px-3 py-2 text-left">Ghi chú</th>
                             <th className="w-14 px-3 py-2" />
                         </tr>
                     </thead>
@@ -144,6 +146,9 @@ export function ManualReturnItemsEditor({ items, onChange }: Props) {
                                             updateRow(index, { unit_price: Number(event.target.value || 0) })
                                         }
                                     />
+                                </td>
+                                <td className="px-3 py-2 text-right font-medium">
+                                    {formatCurrency(Number(item.quantity || 0) * Number(item.unit_price || 0))}
                                 </td>
                                 <td className="px-3 py-2">
                                     <Input
