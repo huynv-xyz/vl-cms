@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Package, Pencil, Plus, Trash2 } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Package, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
@@ -49,6 +49,7 @@ export function OrderItems({ order, items }: any) {
         const discount = Number(i.discount || 0)
         return sum + Number(i.line_total ?? Math.max(quantity * unitPrice - discount, 0))
     }, 0)
+    const stockByProduct = buildStockCheckMap(items)
 
     return (
         <div className="overflow-hidden rounded-xl border bg-background shadow-sm">
@@ -92,6 +93,8 @@ export function OrderItems({ order, items }: any) {
                                 <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Ghi chú</TableHead>
                                 <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">Khuyến mãi</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">SL đặt</TableHead>
+                                <TableHead className="text-right text-xs font-semibold uppercase">Tồn kho</TableHead>
+                                <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">Cảnh báo</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">Đã xuất</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">Đã trả</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">Còn lại</TableHead>
@@ -112,6 +115,9 @@ export function OrderItems({ order, items }: any) {
                                 const discount = Number(i.discount || 0)
                                 const isPromotion = i.line_type === "PROMOTION"
                                 const isRowLocked = !isEditable
+                                const stockCheck = stockByProduct.get(String(i.product_id ?? i.product?.id))
+                                const stockQuantity = Number(i.stock_quantity || 0)
+                                const overStock = !!stockCheck?.overStock
 
                                 return (
                                     <TableRow key={i.id ?? `${i.product_id}-${idx}`} className="hover:bg-muted/30">
@@ -169,6 +175,27 @@ export function OrderItems({ order, items }: any) {
 
                                         <TableCell className="text-right font-medium tabular-nums">
                                             {formatQty(quantity)}
+                                        </TableCell>
+
+                                        <TableCell className="text-right font-medium tabular-nums">
+                                            {formatQty(stockQuantity)}
+                                        </TableCell>
+
+                                        <TableCell className="text-center">
+                                            <span
+                                                className={
+                                                    overStock
+                                                        ? "inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700"
+                                                        : "inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
+                                                }
+                                            >
+                                                {overStock ? (
+                                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                                ) : (
+                                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                                )}
+                                                {overStock ? "Vượt tồn" : "Đạt"}
+                                            </span>
                                         </TableCell>
 
                                         <TableCell className="text-right font-medium tabular-nums text-blue-600 dark:text-blue-400">
@@ -240,7 +267,7 @@ export function OrderItems({ order, items }: any) {
                         <TableFooter className="bg-muted/40">
                             <TableRow className="hover:bg-transparent">
                                 <TableCell
-                                    colSpan={12}
+                                    colSpan={14}
                                     className="text-right text-sm font-semibold uppercase tracking-wide text-muted-foreground"
                                 >
                                     Tổng cộng
@@ -276,6 +303,33 @@ export function OrderItems({ order, items }: any) {
             )}
         </div>
     )
+}
+
+function buildStockCheckMap(items: any[]) {
+    const map = new Map<string, { required: number; stock: number; overStock: boolean }>()
+
+    for (const item of items || []) {
+        const productId = item.product_id ?? item.product?.id
+        if (!productId) continue
+
+        const key = String(productId)
+        const current = map.get(key) ?? {
+            required: 0,
+            stock: Number(item.stock_quantity || 0),
+            overStock: false,
+        }
+
+        current.required += Number(item.quantity || 0)
+        current.stock = Number(item.stock_quantity ?? current.stock ?? 0)
+        current.overStock = current.required > current.stock
+        map.set(key, current)
+    }
+
+    for (const value of map.values()) {
+        value.overStock = value.required > value.stock
+    }
+
+    return map
 }
 
 function EmptyState({ title, desc }: { title: string; desc: string }) {

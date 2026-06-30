@@ -161,8 +161,8 @@ function DeliveryStatusSelect({ delivery }: { delivery: Delivery }) {
 
     const mutation = useMutation({
         mutationFn: (value: string) => updateDeliveryStatus(delivery.id, value),
-        onError: () => {
-            toast.error("Cập nhật trạng thái thất bại")
+        onError: (error: any) => {
+            toast.error(error?.message || "Cập nhật trạng thái thất bại")
         },
         onSuccess: () => {
             toast.success("Cập nhật trạng thái thành công")

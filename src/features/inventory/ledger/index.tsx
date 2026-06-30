@@ -14,7 +14,6 @@ import { Route } from "@/routes/_authenticated/inventory/ledgers"
 import { InventoryLedgerTable } from "./components/ledger-table"
 import { ExportInventoryLedgerButton } from "./components/export-inventory-ledger-button"
 import { LedgerImportButtons } from "./components/ledger-import-buttons"
-import { LedgerSalesSyncButton } from "./components/ledger-sales-sync-button"
 import { LedgerTestResetButton } from "./components/ledger-test-reset-button"
 import { LedgerVoucherDialog } from "./components/ledger-voucher-dialog"
 import type { InventoryLedgerTotals } from "./data/schema"
@@ -177,7 +176,6 @@ export function InventoryLedgerReportPage({
                             show_values: showValues,
                         }}
                     />
-                    {mode === "all" ? <LedgerSalesSyncButton /> : null}
                     {mode === "all" ? <LedgerTestResetButton /> : null}
                     {mode !== "out" ? (
                         <Button size="sm" variant="outline" onClick={() => setVoucherDialog("in")}>

@@ -8,56 +8,66 @@ import { buildDateTimeColumn } from "@/components/crud/build-date-time-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
 import { DataTableColumnHeader } from "@/components/table/column-header"
 
-// ── Status ──────────────────────────────────────────────────
 function getStatusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
     switch (status) {
-        case "DONE":       return "default"
+        case "DONE": return "default"
         case "PROCESSING": return "secondary"
-        case "FAILED":     return "destructive"
-        default:           return "outline"
+        case "FAILED": return "destructive"
+        default: return "outline"
     }
 }
 
 function getStatusLabel(status: string): string {
     switch (status) {
-        case "PENDING":    return "Chờ xử lý"
+        case "PENDING": return "Chờ xử lý"
         case "PROCESSING": return "Đang xử lý"
-        case "DONE":       return "Hoàn thành"
-        case "FAILED":     return "Thất bại"
-        default:           return status
+        case "DONE": return "Hoàn thành"
+        case "FAILED": return "Thất bại"
+        default: return status
     }
 }
 
-// ── Trigger source ───────────────────────────────────────────
 function getTriggerLabel(source?: string): string {
     switch (source) {
-        case "MANUAL":   return "Thủ công"
+        case "MANUAL": return "Thủ công"
         case "SCHEDULE": return "Lịch tự động"
-        case "API":      return "API"
-        default:         return source || "—"
+        case "API": return "API"
+        default:
+            return source || "-"
     }
 }
 
-// ── Job type ─────────────────────────────────────────────────
 function getJobTypeLabel(type?: string): string {
     switch (type) {
-        case "FULL_YEAR":    return "Toàn năm"
-        case "PARTIAL":      return "Một phần"
+        case "FULL_YEAR": return "Toàn năm"
+        case "PARTIAL": return "Một phần"
         case "SINGLE_MONTH": return "Theo tháng"
-        default:             return type || "—"
+        default:
+            return type || "-"
     }
 }
 
-// ── Duration ─────────────────────────────────────────────────
 function formatDuration(startedAt?: string, finishedAt?: string): string {
-    if (!startedAt || !finishedAt) return "—"
+    if (!startedAt || !finishedAt) return "-"
     const ms = new Date(finishedAt).getTime() - new Date(startedAt).getTime()
-    if (ms < 0) return "—"
+    if (ms < 0) return "-"
     if (ms < 1000) return `${ms}ms`
     const s = Math.floor(ms / 1000)
     if (s < 60) return `${s}s`
     const m = Math.floor(s / 60)
     return `${m}m ${s % 60}s`
+}
+
+function TruncatedCell({ value, width }: { value: string; width: number }) {
+    return (
+        <span
+            className="block truncate text-sm"
+            style={{ maxWidth: `${width}px` }}
+            title={value}
+        >
+            {value}
+        </span>
+    )
 }
 
 export const vipRecalcJobColumns: ColumnDef<VipRecalcJob>[] = [
@@ -85,10 +95,16 @@ export const vipRecalcJobColumns: ColumnDef<VipRecalcJob>[] = [
         header: ({ column }) => (
             <DataTableColumnHeader column={column} title="Nguồn" />
         ),
-        cell: ({ row }) => (
-            <span className="text-sm">{getTriggerLabel(row.original.trigger_source)}</span>
-        ),
-        size: 130,
+        cell: ({ row }) => {
+            const label = getTriggerLabel(row.original.trigger_source)
+            return <TruncatedCell value={label} width={260} />
+        },
+        size: 280,
+        minSize: 280,
+        meta: {
+            thClassName: "w-[280px] whitespace-nowrap",
+            tdClassName: "w-[280px] overflow-hidden",
+        },
     },
 
     {
@@ -97,10 +113,16 @@ export const vipRecalcJobColumns: ColumnDef<VipRecalcJob>[] = [
         header: ({ column }) => (
             <DataTableColumnHeader column={column} title="Loại" />
         ),
-        cell: ({ row }) => (
-            <span className="text-sm">{getJobTypeLabel(row.original.job_type)}</span>
-        ),
-        size: 120,
+        cell: ({ row }) => {
+            const label = getJobTypeLabel(row.original.job_type)
+            return <TruncatedCell value={label} width={250} />
+        },
+        size: 270,
+        minSize: 270,
+        meta: {
+            thClassName: "w-[270px] whitespace-nowrap",
+            tdClassName: "w-[270px] overflow-hidden",
+        },
     },
 
     buildDateTimeColumn<VipRecalcJob>({
