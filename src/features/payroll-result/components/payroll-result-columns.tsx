@@ -1,193 +1,237 @@
 import { type ColumnDef } from "@tanstack/react-table"
 import { Link } from "@tanstack/react-router"
-import { Badge } from "@/components/ui/badge"
 import type { PayrollResultItem } from "../data/schema"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
+import { formatNumber } from "@/lib/utils"
 
-const money = (value?: number | null) =>
-  value == null ? "-" : value.toLocaleString("vi-VN", { maximumFractionDigits: 0 })
-
-const smallMoney = (value?: number | null) =>
-  value == null ? "-" : value.toLocaleString("vi-VN", { maximumFractionDigits: 0 })
-
-function AmountStack({
-  title,
-  primary,
-  lines,
-  tone,
-}: {
-  title: string
-  primary: number
-  lines: Array<[string, number | undefined | null]>
-  tone?: string
-}) {
-  return (
-    <div className="min-w-[230px] rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
-      <div className="flex items-center justify-between gap-4">
-        <span className="text-sm font-semibold uppercase text-slate-500">{title}</span>
-        <span className={`text-base font-bold tabular-nums ${tone ?? ""}`}>{money(primary)}</span>
-      </div>
-      <div className="mt-3 space-y-1.5 text-sm text-slate-600">
-        {lines.map(([label, value]) => (
-          <div key={label} className="flex justify-between gap-4">
-            <span>{label}</span>
-            <span className="font-medium tabular-nums text-slate-900">{smallMoney(value)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
+const text = (value?: string | number | null) => {
+  if (value === null || value === undefined || value === "") return "-"
+  return String(value)
 }
 
-function InfoCard({
-  title,
-  lines,
-}: {
-  title: string
-  lines: Array<[string, string | number | undefined | null]>
-}) {
-  return (
-    <div className="min-w-[230px] rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
-      <div className="text-sm font-semibold uppercase text-slate-500">{title}</div>
-      <div className="mt-3 space-y-1.5 text-sm text-slate-600">
-        {lines.map(([label, value]) => (
-          <div key={label} className="flex justify-between gap-4">
-            <span>{label}</span>
-            <span className="font-medium tabular-nums text-slate-900">{value ?? "-"}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
+const amount = (value?: number | null) => {
+  if (value === null || value === undefined) return "-"
+  return formatNumber(value)
 }
 
-function StatusBadge({ item }: { item: PayrollResultItem }) {
-  const deduction = (item.social_insurance ?? 0) + (item.personal_income_tax ?? 0) + (item.tam_ung ?? 0) + (item.khau_tru_khac ?? 0)
-  if ((item.gross_total ?? 0) <= 0) {
-    return <Badge variant="outline" className="border-slate-300 text-slate-600">Chưa có lương</Badge>
-  }
-  if (deduction > item.gross_total) {
-    return <Badge className="bg-rose-600">Khấu trừ cao</Badge>
-  }
-  if ((item.net_total ?? 0) > 0) {
-    return <Badge className="bg-emerald-600">Đã tính</Badge>
-  }
-  return <Badge className="bg-amber-600">Cần kiểm tra</Badge>
+const amountCell = (value?: number | null, className = "") => (
+  <div className={`text-right tabular-nums ${className}`}>{amount(value)}</div>
+)
+
+const textCell = (value?: string | number | null) => (
+  <div className="whitespace-nowrap">{text(value)}</div>
+)
+
+function sumInsurance(item: PayrollResultItem) {
+  return (item.bhxh_nv ?? 0) + (item.bhyt_nv ?? 0) + (item.bhtn_nv ?? 0) + (item.kpcd_nv ?? 0)
 }
 
 export function buildPayrollResultColumns(period: string): ColumnDef<PayrollResultItem>[] {
   return [
-    buildIndexColumn<PayrollResultItem>(),
     {
-      id: "employee",
-      header: "Nhân viên",
-      accessorFn: (row) => `${row.emp_code ?? ""} ${row.emp_name ?? ""}`,
-      cell: ({ row: { original } }) => (
-        <div className="min-w-[290px] rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
-          <Link
-            to="/salary/payroll-result/$employeeId"
-            params={{ employeeId: String(original.employee_id) }}
-            search={{ period }}
-            className="text-base font-bold text-primary underline-offset-4 hover:underline"
-          >
-            {original.emp_name || original.emp_code || original.employee_id}
-          </Link>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>{original.emp_code}</span>
-            <span>·</span>
-            <span>{original.role_code || "Chưa có vai trò"}</span>
-            <span>·</span>
-            <span>{original.region_code || "Chưa có vùng"}</span>
-          </div>
-        </div>
-      ),
-      size: 260,
+      ...buildIndexColumn<PayrollResultItem>(),
+      header: "STT",
+      size: 60,
     },
     {
-      id: "gross",
-      header: "",
-      accessorFn: (row) => row.gross_total,
+      id: "emp_code",
+      header: "Mã nhân viên",
+      accessorFn: (row) => row.emp_code,
       cell: ({ row: { original } }) => (
-        <AmountStack
-          title="Thu nhập"
-          primary={original.gross_total}
-          tone="text-blue-700"
-          lines={[
-            ["Lương", original.total_base_salary],
-            ["Phụ cấp", original.total_allowance],
-            ["Doanh số", original.sales_salary_amount],
-            ["Thưởng", original.total_bonus],
-            ["Hỗ trợ", original.support_amount],
-          ]}
-        />
-      ),
-      size: 180,
-    },
-    {
-      id: "deductions",
-      header: "",
-      accessorFn: (row) => (row.social_insurance ?? 0) + (row.personal_income_tax ?? 0) + (row.tam_ung ?? 0) + (row.khau_tru_khac ?? 0),
-      cell: ({ row: { original } }) => {
-        const total = (original.social_insurance ?? 0) + (original.personal_income_tax ?? 0) + (original.tam_ung ?? 0) + (original.khau_tru_khac ?? 0)
-        return (
-          <AmountStack
-            title="Khấu trừ"
-            primary={total}
-            tone="text-orange-700"
-            lines={[
-              ["Bảo hiểm", original.social_insurance],
-              ["Thuế", original.personal_income_tax],
-              ["Tạm ứng", original.tam_ung],
-              ["Khác", original.khau_tru_khac],
-            ]}
-          />
-        )
-      },
-      size: 180,
-    },
-    {
-      id: "insurance_tax",
-      header: "",
-      accessorFn: (row) => row.luong_dong_bh,
-      cell: ({ row: { original } }) => (
-        <InfoCard
-          title="Căn cứ tính"
-          lines={[
-            ["Lương đóng BH", money(original.luong_dong_bh)],
-            ["Loại LĐ", original.labor_type || "CT"],
-            ["NPT", original.dependent_count ?? 0],
-            ["TN chịu thuế", money(original.taxable_income)],
-          ]}
-        />
-      ),
-      size: 170,
-    },
-    {
-      id: "net",
-      header: () => <div className="text-right">Thực nhận</div>,
-      accessorFn: (row) => row.net_total,
-      cell: ({ row: { original } }) => (
-        <div className="min-w-[210px] rounded-md border border-slate-200 bg-white px-4 py-3 text-right shadow-sm">
-          <div className="text-sm font-semibold uppercase text-emerald-700">Thực nhận</div>
-          <div className="mt-2 text-lg font-bold text-emerald-700 tabular-nums">{money(original.net_total)}</div>
-          <div className="mt-3 flex justify-between gap-4 text-sm text-emerald-800/80">
-            <span>Gross</span>
-            <span className="font-medium tabular-nums">{smallMoney(original.gross_total)}</span>
-          </div>
-        </div>
-      ),
-      size: 170,
-    },
-    {
-      id: "status",
-      header: "Trạng thái",
-      accessorFn: (row) => row.net_total,
-      cell: ({ row: { original } }) => (
-        <div className="min-w-[110px]">
-          <StatusBadge item={original} />
-        </div>
+        <Link
+          to="/salary/payroll-result/$employeeId"
+          params={{ employeeId: String(original.employee_id) }}
+          search={{ period }}
+          className="whitespace-nowrap font-semibold text-primary underline-offset-4 hover:underline"
+        >
+          {text(original.emp_code)}
+        </Link>
       ),
       size: 130,
+    },
+    {
+      id: "emp_name",
+      header: "Tên nhân viên",
+      accessorFn: (row) => row.emp_name,
+      cell: ({ row: { original } }) => (
+        <Link
+          to="/salary/payroll-result/$employeeId"
+          params={{ employeeId: String(original.employee_id) }}
+          search={{ period }}
+          className="block min-w-[180px] font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          {text(original.emp_name)}
+        </Link>
+      ),
+      size: 220,
+    },
+    {
+      id: "region_code",
+      header: "Khu vực",
+      accessorFn: (row) => row.region_code,
+      cell: ({ row }) => textCell(row.original.region_code),
+      size: 110,
+    },
+    {
+      id: "work",
+      header: "Công việc",
+      accessorFn: (row) => row.role_code,
+      cell: ({ row }) => textCell(row.original.role_code),
+      size: 130,
+    },
+    {
+      id: "position",
+      header: "Chức vụ",
+      accessorFn: () => "",
+      cell: () => textCell(null),
+      size: 120,
+    },
+    {
+      id: "total_base_salary",
+      header: "Lương cơ bản",
+      accessorFn: (row) => row.total_base_salary,
+      cell: ({ row }) => amountCell(row.original.total_base_salary),
+      size: 140,
+    },
+    {
+      id: "total_allowance",
+      header: "Phụ cấp",
+      accessorFn: (row) => row.total_allowance,
+      cell: ({ row }) => amountCell(row.original.total_allowance),
+      size: 120,
+    },
+    {
+      id: "sales_salary_amount",
+      header: "Lương B2B",
+      accessorFn: (row) => row.sales_salary_amount,
+      cell: ({ row }) => amountCell(row.original.sales_salary_amount),
+      size: 130,
+    },
+    {
+      id: "support_amount",
+      header: "Hỗ trợ",
+      accessorFn: (row) => row.support_amount,
+      cell: ({ row }) => amountCell(row.original.support_amount),
+      size: 120,
+    },
+    {
+      id: "total_bonus",
+      header: "Thu nhập khác",
+      accessorFn: (row) => row.total_bonus,
+      cell: ({ row }) => amountCell(row.original.total_bonus),
+      size: 140,
+    },
+    {
+      id: "gross_total",
+      header: "Tổng thu nhập",
+      accessorFn: (row) => row.gross_total,
+      cell: ({ row }) => amountCell(row.original.gross_total, "font-semibold"),
+      size: 150,
+    },
+    {
+      id: "tam_ung",
+      header: "Tạm ứng",
+      accessorFn: (row) => row.tam_ung,
+      cell: ({ row }) => amountCell(row.original.tam_ung),
+      size: 120,
+    },
+    {
+      id: "bh_nhan_vien",
+      header: "BHNV",
+      accessorFn: (row) => sumInsurance(row),
+      cell: ({ row }) => amountCell(sumInsurance(row.original)),
+      size: 120,
+    },
+    {
+      id: "taxable_income",
+      header: "Thu nhập tính thuế",
+      accessorFn: (row) => row.taxable_income,
+      cell: ({ row }) => amountCell(row.original.taxable_income),
+      size: 160,
+    },
+    {
+      id: "personal_income_tax",
+      header: "Thuế TNCN",
+      accessorFn: (row) => row.personal_income_tax,
+      cell: ({ row }) => amountCell(row.original.personal_income_tax),
+      size: 130,
+    },
+    {
+      id: "net_total",
+      header: "Thu nhập thực lĩnh",
+      accessorFn: (row) => row.net_total,
+      cell: ({ row }) => amountCell(row.original.net_total, "font-bold text-emerald-700"),
+      size: 170,
+    },
+    {
+      id: "luong_dong_bh",
+      header: "Lương đóng BH",
+      accessorFn: (row) => row.luong_dong_bh,
+      cell: ({ row }) => amountCell(row.original.luong_dong_bh),
+      size: 140,
+    },
+    {
+      id: "bhxh_nv",
+      header: "BHXH NV",
+      accessorFn: (row) => row.bhxh_nv,
+      cell: ({ row }) => amountCell(row.original.bhxh_nv),
+      size: 120,
+    },
+    {
+      id: "bhyt_nv",
+      header: "BHYT NV",
+      accessorFn: (row) => row.bhyt_nv,
+      cell: ({ row }) => amountCell(row.original.bhyt_nv),
+      size: 120,
+    },
+    {
+      id: "bhtn_nv",
+      header: "BHTN NV",
+      accessorFn: (row) => row.bhtn_nv,
+      cell: ({ row }) => amountCell(row.original.bhtn_nv),
+      size: 120,
+    },
+    {
+      id: "kpcd_nv",
+      header: "KPCĐ NV",
+      accessorFn: (row) => row.kpcd_nv,
+      cell: ({ row }) => amountCell(row.original.kpcd_nv),
+      size: 120,
+    },
+    {
+      id: "social_insurance",
+      header: "BH tổng",
+      accessorFn: (row) => row.social_insurance,
+      cell: ({ row }) => amountCell(row.original.social_insurance),
+      size: 120,
+    },
+    {
+      id: "tax_exempt_amount",
+      header: "Giảm trừ thuế",
+      accessorFn: (row) => row.tax_exempt_amount,
+      cell: ({ row }) => amountCell(row.original.tax_exempt_amount),
+      size: 140,
+    },
+    {
+      id: "khau_tru_khac",
+      header: "Khấu trừ khác",
+      accessorFn: (row) => row.khau_tru_khac,
+      cell: ({ row }) => amountCell(row.original.khau_tru_khac),
+      size: 140,
+    },
+    {
+      id: "labor_type",
+      header: "Loại LĐ",
+      accessorFn: (row) => row.labor_type,
+      cell: ({ row }) => textCell(row.original.labor_type),
+      size: 100,
+    },
+    {
+      id: "dependent_count",
+      header: "NPT",
+      accessorFn: (row) => row.dependent_count,
+      cell: ({ row }) => amountCell(row.original.dependent_count),
+      size: 80,
     },
   ]
 }

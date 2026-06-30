@@ -139,6 +139,8 @@ export default function TransactionPage() {
                 <div className="space-y-4">
                     <TransactionSummaryStrip
                         revenue={summary?.revenue ?? 0}
+                        returnRevenue={summary?.return_revenue ?? 0}
+                        actualRevenue={summary?.actual_revenue ?? 0}
                         saleQty={summary?.sale_qty ?? 0}
                         returnQty={summary?.return_qty ?? 0}
                         actualQty={summary?.actual_qty ?? 0}
@@ -147,6 +149,8 @@ export default function TransactionPage() {
                     <TransactionTable
                         data={data.items}
                         totalRevenue={summary?.revenue ?? 0}
+                        totalReturnRevenue={summary?.return_revenue ?? 0}
+                        totalActualRevenue={summary?.actual_revenue ?? 0}
                         totalSaleQty={summary?.sale_qty ?? 0}
                         totalReturnQty={summary?.return_qty ?? 0}
                         totalActualQty={summary?.actual_qty ?? 0}

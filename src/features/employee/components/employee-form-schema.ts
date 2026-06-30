@@ -114,17 +114,36 @@ export const employeeSchema: RJSFSchema = {
 } as any
 
 export const employeeUiSchema: UiSchema = {
+    name: {
+        "ui:classNames": "xl:col-span-2",
+    },
     birth_date: {
         "ui:widget": "date",
     },
     permanent_address: {
         "ui:widget": "textarea",
+        "ui:classNames": "md:col-span-2 xl:col-span-3",
         "ui:options": {
             rows: 3,
         },
     },
     identity_issue_date: {
         "ui:widget": "date",
+    },
+    identity_issue_place: {
+        "ui:classNames": "md:col-span-2 xl:col-span-1",
+    },
+    tax_code: {
+        "ui:classNames": "md:col-span-1",
+    },
+    basic_salary: {
+        "ui:classNames": "md:col-span-1",
+    },
+    allowance_salary: {
+        "ui:classNames": "md:col-span-1",
+    },
+    insurance_base: {
+        "ui:classNames": "md:col-span-1",
     },
     status: {
         "ui:widget": "select",

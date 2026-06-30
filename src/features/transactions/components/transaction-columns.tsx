@@ -165,6 +165,54 @@ function moneyColumn(
     }
 }
 
+function saleRevenue(row: Transaction) {
+    return Number(row.sale_qty || 0) > 0 ? Number(row.revenue || 0) : 0
+}
+
+function returnRevenue(row: Transaction) {
+    return Number(row.return_qty || 0) > 0 ? Number(row.revenue || 0) : 0
+}
+
+function computedMoneyColumn({
+    id,
+    title,
+    width = 170,
+    footer,
+    value,
+}: {
+    id: string
+    title: string
+    width?: number
+    footer?: React.ReactNode
+    value: (row: Transaction) => number
+}): ColumnDef<Transaction> {
+    return {
+        id,
+        accessorFn: value,
+        enableSorting: false,
+        minSize: 120,
+        header: ({ column }) => (
+            <div className="text-right">
+                <DataTableColumnHeader column={column} title={title} />
+            </div>
+        ),
+        cell: ({ row }) => {
+            const amount = Number(row.getValue(id) ?? 0)
+            return (
+                <span className="block text-right tabular-nums whitespace-nowrap">
+                    {amount ? formatCurrency(amount) : "-"}
+                </span>
+            )
+        },
+        size: width,
+        meta: {
+            thClassName: `w-[${width}px] whitespace-nowrap text-right`,
+            tdClassName: `w-[${width}px] whitespace-nowrap`,
+            footer: footer ? () => footer : undefined,
+        },
+    }
+}
+
 function dateColumn(
     accessorKey: TextColumnKey,
     title: string,
@@ -191,8 +239,10 @@ function dateColumn(
 export function buildTransactionColumns(
     filters: TransactionColumnFilters,
     onFiltersChange: (filters: TransactionColumnFilters) => void,
-    totals: { revenue: number; saleQty: number; returnQty: number; actualQty: number } = {
+    totals: { revenue: number; returnRevenue: number; actualRevenue: number; saleQty: number; returnQty: number; actualQty: number } = {
         revenue: 0,
+        returnRevenue: 0,
+        actualRevenue: 0,
         saleQty: 0,
         returnQty: 0,
         actualQty: 0,
@@ -242,14 +292,39 @@ export function buildTransactionColumns(
             </span>,
         ),
         moneyColumn("unit_price", "Đơn giá theo ĐVC", 150),
-        moneyColumn(
-            "revenue",
-            "Doanh số bán",
-            160,
-            <span className="block text-right tabular-nums whitespace-nowrap">
-                {formatCurrency(totals.revenue)}
-            </span>,
-        ),
+        computedMoneyColumn({
+            id: "sale_revenue",
+            title: "Doanh số bán",
+            width: 170,
+            value: saleRevenue,
+            footer: (
+                <span className="block text-right tabular-nums whitespace-nowrap">
+                    {formatCurrency(totals.revenue)}
+                </span>
+            ),
+        }),
+        computedMoneyColumn({
+            id: "return_revenue",
+            title: "Doanh số trả lại",
+            width: 180,
+            value: returnRevenue,
+            footer: (
+                <span className="block text-right tabular-nums whitespace-nowrap">
+                    {formatCurrency(totals.returnRevenue)}
+                </span>
+            ),
+        }),
+        computedMoneyColumn({
+            id: "actual_revenue",
+            title: "Doanh số bán thực tế",
+            width: 190,
+            value: (row) => saleRevenue(row) - returnRevenue(row),
+            footer: (
+                <span className="block text-right tabular-nums whitespace-nowrap">
+                    {formatCurrency(totals.actualRevenue)}
+                </span>
+            ),
+        }),
         numberColumn(
             "return_qty",
             "SL trả lại theo ĐVC",

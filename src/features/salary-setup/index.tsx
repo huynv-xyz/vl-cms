@@ -79,7 +79,11 @@ export default function SalarySetupPage() {
   const { data: regionsData } = useQuery({ queryKey: ["salary-setup-regions"], queryFn: () => listRegions({ page: 1, size: 500 }) })
   const { data: provincesData } = useQuery({ queryKey: ["salary-setup-provinces"], queryFn: () => listProvinces({ page: 1, size: 500 }) })
   const { data: scopesData, isLoading: scopesLoading } = useQuery({ queryKey: ["salary-setup-scopes"], queryFn: () => listEmployeeScopes() })
-  const { data: mappingsData, isLoading: mappingsLoading } = useQuery({ queryKey: ["salary-setup-mappings"], queryFn: listManagerMappings })
+  const activeMappingPeriod = compactPeriod(period)
+  const { data: mappingsData, isLoading: mappingsLoading } = useQuery({
+    queryKey: ["salary-setup-mappings", activeMappingPeriod],
+    queryFn: () => listManagerMappings({ period: activeMappingPeriod }),
+  })
   const { data: ratesData, isLoading: ratesLoading } = useQuery({ queryKey: ["salary-setup-rates"], queryFn: () => listRoleRates() })
 
   const roles = rolesData?.items ?? []
@@ -104,9 +108,9 @@ export default function SalarySetupPage() {
             Quản lý các dữ liệu đầu vào để chạy lương: phân công nhân sự, sơ đồ quản lý Sale - ASM - RM, vai trò lương và tỷ lệ hưởng.
           </p>
         </div>
-        <div className="w-44">
+        <div className="w-full sm:w-80">
           <Label className="mb-2 block text-xs font-semibold text-muted-foreground">Kỳ mapping</Label>
-          <SalaryPeriodStepper value={period} onChange={setPeriod} />
+          <SalaryPeriodStepper className="w-full" value={period} onChange={setPeriod} onCommit={setPeriod} />
         </div>
       </div>
 
@@ -506,12 +510,12 @@ function ScopeDialog({ open, onOpenChange, item, roles, regions, provinces }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[90vh] !w-[calc(100vw-32px)] !max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Sửa phân công nhân sự" : "Thêm phân công nhân sự"}</DialogTitle>
           <DialogDescription>Phân công này quyết định nhân viên tham gia tính lương theo vai trò/vùng/tỉnh nào.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field label="Nhân viên" required>
             <AsyncSelect value={employeeId ? Number(employeeId) : undefined} onChange={(value: number | undefined) => setEmployeeId(value ? String(value) : "")} dataSource={employeeDataSource()} mapOption={employeeOption} placeholder="Chọn nhân viên" searchPlaceholder="Tìm mã hoặc tên nhân viên..." required />
           </Field>
@@ -533,17 +537,17 @@ function ScopeDialog({ open, onOpenChange, item, roles, regions, provinces }: {
               <SelectContent><SelectItem value={EMPTY}>Không chọn tỉnh</SelectItem>{provinces.map((province) => <SelectItem key={province.id} value={String(province.id)}>{province.code} - {province.name}</SelectItem>)}</SelectContent>
             </Select>
           </Field>
-          <Field label="Loại chỉ tiêu">
-            <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Chỉ tiêu cá nhân">
               <Select value={personal} onValueChange={setPersonal}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="1">Có chỉ tiêu cá nhân</SelectItem><SelectItem value="0">Không có chỉ tiêu cá nhân</SelectItem></SelectContent>
               </Select>
-              <Select value={manager} onValueChange={setManager}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="1">Có chỉ tiêu quản lý</SelectItem><SelectItem value="0">Không có chỉ tiêu quản lý</SelectItem></SelectContent>
-              </Select>
-            </div>
+          </Field>
+          <Field label="Chỉ tiêu quản lý">
+            <Select value={manager} onValueChange={setManager}>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="1">Có chỉ tiêu quản lý</SelectItem><SelectItem value="0">Không có chỉ tiêu quản lý</SelectItem></SelectContent>
+            </Select>
           </Field>
           <Field label="Từ ngày" required><Input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></Field>
           <Field label="Tới ngày"><Input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></Field>

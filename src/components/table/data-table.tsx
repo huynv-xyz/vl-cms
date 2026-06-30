@@ -51,6 +51,7 @@ export type BaseDataTableProps<TData> = {
     onRowClick?: (row: TData) => void
     enableColumnResize?: boolean
     enableStickyHorizontalScroll?: boolean
+    headerVariant?: "default" | "report"
 }
 
 export function BaseDataTable<TData>({
@@ -75,6 +76,7 @@ export function BaseDataTable<TData>({
     onRowClick,
     enableColumnResize = false,
     enableStickyHorizontalScroll = false,
+    headerVariant = "default",
 }: BaseDataTableProps<TData>) {
 
     const [rowSelection, setRowSelection] = useState({})
@@ -84,6 +86,7 @@ export function BaseDataTable<TData>({
     const [expanded, setExpanded] = useState<ExpandedState>({})
     const [initialized, setInitialized] = useState(false)
     const tableScrollRef = useRef<HTMLDivElement | null>(null)
+    const headerTableRef = useRef<HTMLTableElement | null>(null)
     const stickyScrollRef = useRef<HTMLDivElement | null>(null)
     const isSyncingScrollRef = useRef(false)
     const [stickyScroll, setStickyScroll] = useState({
@@ -91,6 +94,7 @@ export function BaseDataTable<TData>({
         contentWidth: 0,
         viewportWidth: 0,
     })
+    const [stickyHeaderTop, setStickyHeaderTop] = useState(64)
 
     useEffect(() => {
         if (defaultExpandAll && !initialized) {
@@ -119,6 +123,7 @@ export function BaseDataTable<TData>({
                     : next
             ))
 
+            syncHeaderScroll(tableScroll.scrollLeft)
             if (stickyScrollRef.current) {
                 stickyScrollRef.current.scrollLeft = tableScroll.scrollLeft
             }
@@ -141,9 +146,43 @@ export function BaseDataTable<TData>({
         }
     }, [enableStickyHorizontalScroll, data, columns, columnSizing, columnVisibility])
 
+    useEffect(() => {
+        if (headerVariant !== "report") return
+
+        const updateStickyHeaderTop = () => {
+            const appHeader = document.querySelector<HTMLElement>(".header-fixed")
+            if (!appHeader) {
+                setStickyHeaderTop(0)
+                return
+            }
+
+            const rect = appHeader.getBoundingClientRect()
+            const nextTop = Math.max(0, Math.min(rect.bottom, rect.height))
+            setStickyHeaderTop((current) => current === nextTop ? current : nextTop)
+        }
+
+        updateStickyHeaderTop()
+        document.addEventListener("scroll", updateStickyHeaderTop, { passive: true })
+        window.addEventListener("resize", updateStickyHeaderTop)
+
+        return () => {
+            document.removeEventListener("scroll", updateStickyHeaderTop)
+            window.removeEventListener("resize", updateStickyHeaderTop)
+        }
+    }, [headerVariant])
+
+    const syncHeaderScroll = (scrollLeft: number) => {
+        if (headerVariant !== "report" || !headerTableRef.current) return
+        headerTableRef.current.style.transform = `translateX(-${scrollLeft}px)`
+    }
+
     const syncStickyScroll = () => {
-        if (!enableStickyHorizontalScroll || isSyncingScrollRef.current) return
         const tableScroll = tableScrollRef.current
+        if (tableScroll) {
+            syncHeaderScroll(tableScroll.scrollLeft)
+        }
+
+        if (!enableStickyHorizontalScroll || isSyncingScrollRef.current) return
         const sticky = stickyScrollRef.current
         if (!tableScroll || !sticky) return
 
@@ -162,6 +201,7 @@ export function BaseDataTable<TData>({
 
         isSyncingScrollRef.current = true
         tableScroll.scrollLeft = sticky.scrollLeft
+        syncHeaderScroll(sticky.scrollLeft)
         requestAnimationFrame(() => {
             isSyncingScrollRef.current = false
         })
@@ -216,6 +256,56 @@ export function BaseDataTable<TData>({
         pageCount,
     })
 
+    const isReportHeader = headerVariant === "report"
+    const tableWidth = Math.max(
+        table.getVisibleLeafColumns().reduce((total, column) => total + column.getSize(), 0),
+        table.getTotalSize(),
+    )
+
+    const renderHeaderRows = () => table.getHeaderGroups().map((hg) => (
+        <TableRow key={hg.id}>
+            {hg.headers.map((header) => {
+                const size = header.getSize()
+                const minSize = header.column.columnDef.minSize ?? 72
+                return (
+                    <TableHead
+                        key={header.id}
+                        className={cn(
+                            "relative select-none",
+                            header.column.columnDef.meta?.className,
+                            header.column.columnDef.meta?.thClassName,
+                            isReportHeader &&
+                            "h-12 border-r border-slate-200 bg-slate-100/95 !text-center text-xs font-semibold uppercase tracking-wide text-slate-600 last:border-r-0 [&_*]:!justify-center [&_*]:!text-center",
+                        )}
+                        style={{
+                            width: size,
+                            minWidth: minSize,
+                        }}
+                    >
+                        {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                            )}
+                        {enableColumnResize && header.column.getCanResize() ? (
+                            <div
+                                onMouseDown={header.getResizeHandler()}
+                                onTouchStart={header.getResizeHandler()}
+                                className={cn(
+                                    "absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none select-none",
+                                    "bg-transparent hover:bg-primary/40",
+                                    header.column.getIsResizing() && "bg-primary/60",
+                                )}
+                                data-no-row-click="true"
+                            />
+                        ) : null}
+                    </TableHead>
+                )
+            })}
+        </TableRow>
+    ))
+
     return (
         <div className={cn(
             'min-w-0 max-w-full',
@@ -234,55 +324,35 @@ export function BaseDataTable<TData>({
                 />
             )}
 
-            <div
-                ref={tableScrollRef}
-                onScroll={syncStickyScroll}
-                className='w-full overflow-x-auto rounded-md border'
-            >
-                <Table className='w-max min-w-full table-fixed'>
-                    <TableHeader>
-                        {table.getHeaderGroups().map((hg) => (
-                            <TableRow key={hg.id}>
-                                {hg.headers.map((header) => {
-                                    const size = header.getSize()
-                                    const minSize = header.column.columnDef.minSize ?? 72
-                                    return (
-                                        <TableHead
-                                            key={header.id}
-                                            className={cn(
-                                                "relative select-none",
-                                                header.column.columnDef.meta?.className,
-                                                header.column.columnDef.meta?.thClassName,
-                                            )}
-                                            style={{
-                                                width: size,
-                                                minWidth: minSize,
-                                            }}
-                                        >
-                                            {header.isPlaceholder
-                                                ? null
-                                                : flexRender(
-                                                    header.column.columnDef.header,
-                                                    header.getContext()
-                                                )}
-                                            {enableColumnResize && header.column.getCanResize() ? (
-                                                <div
-                                                    onMouseDown={header.getResizeHandler()}
-                                                    onTouchStart={header.getResizeHandler()}
-                                                    className={cn(
-                                                        "absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none select-none",
-                                                        "bg-transparent hover:bg-primary/40",
-                                                        header.column.getIsResizing() && "bg-primary/60",
-                                                    )}
-                                                    data-no-row-click="true"
-                                                />
-                                            ) : null}
-                                        </TableHead>
-                                    )
-                                })}
-                            </TableRow>
-                        ))}
-                    </TableHeader>
+            <div className="w-full rounded-md border">
+                {isReportHeader ? (
+                    <div
+                        className="sticky z-40 overflow-hidden border-b bg-slate-100/95 shadow-sm"
+                        style={{ top: stickyHeaderTop }}
+                    >
+                        <table
+                            ref={headerTableRef}
+                            className="w-max min-w-full table-fixed caption-bottom text-sm"
+                            style={{ width: tableWidth }}
+                        >
+                            <thead className="bg-slate-100/95">
+                                {renderHeaderRows()}
+                            </thead>
+                        </table>
+                    </div>
+                ) : null}
+
+                <div
+                    ref={tableScrollRef}
+                    onScroll={syncStickyScroll}
+                    className='w-full overflow-x-auto'
+                >
+                    <Table className='w-max min-w-full table-fixed' style={{ width: tableWidth }}>
+                        {!isReportHeader ? (
+                            <TableHeader>
+                                {renderHeaderRows()}
+                            </TableHeader>
+                        ) : null}
 
                     <TableBody>
                         {table.getRowModel().rows.length ? (
@@ -370,7 +440,8 @@ export function BaseDataTable<TData>({
                             </TableRow>
                         )}
                     </TableBody>
-                </Table>
+                    </Table>
+                </div>
             </div>
 
             {enableStickyHorizontalScroll && stickyScroll.visible ? (

@@ -192,12 +192,12 @@ export function ReturnItemsEditor({
         },
 
         {
-            header: "Kho nháº­p",
+            header: "Kho nhập",
             cell: ({ row }) => (
                 <div className="min-w-[220px]">
                     <AsyncSelect
                         value={row.original.warehouse_id}
-                        placeholder="Chá»n kho"
+                        placeholder="Chọn kho"
                         disabled={!row.original.selected}
                         dataSource={{
                             getList: listWarehouses,

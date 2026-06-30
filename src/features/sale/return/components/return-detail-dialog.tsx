@@ -174,6 +174,8 @@ function ReturnItemsTable({ items }: { items?: any[] }) {
                         <th className="px-3 py-2 text-left font-medium">ĐVT</th>
                         <th className="px-3 py-2 text-right font-medium">SL</th>
                         <th className="px-3 py-2 text-right font-medium">Đơn giá</th>
+                        <th className="px-3 py-2 text-right font-medium">Thành tiền</th>
+                        <th className="px-3 py-2 text-left font-medium">Kho nhập</th>
                         <th className="px-3 py-2 text-left font-medium">Ghi chú</th>
                     </tr>
                 </thead>
@@ -196,6 +198,14 @@ function ReturnItemsTable({ items }: { items?: any[] }) {
                                 <td className="px-3 py-2 text-right align-top font-medium">
                                     {item.unit_price == null ? "-" : formatNumber(Number(item.unit_price))}
                                 </td>
+                                <td className="px-3 py-2 text-right align-top font-medium">
+                                    {item.unit_price == null
+                                        ? "-"
+                                        : formatNumber(Number(item.quantity || 0) * Number(item.unit_price || 0))}
+                                </td>
+                                <td className="px-3 py-2 align-top">
+                                    {item.warehouse?.name || item.warehouse?.code || item.warehouse_id || "-"}
+                                </td>
                                 <td className="px-3 py-2 align-top">
                                     {item.note || "-"}
                                 </td>
@@ -203,7 +213,7 @@ function ReturnItemsTable({ items }: { items?: any[] }) {
                         ))
                     ) : (
                         <tr>
-                            <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                            <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
                                 Chưa có sản phẩm
                             </td>
                         </tr>

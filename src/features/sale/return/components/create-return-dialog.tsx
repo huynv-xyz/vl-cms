@@ -164,7 +164,7 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex max-h-[92vh] w-[96vw] max-w-[96vw] flex-col p-0 sm:max-w-[1400px]">
+            <DialogContent className="flex max-h-[92vh] w-[98vw] max-w-[98vw] flex-col p-0 sm:max-w-[1800px]">
                 <DialogHeader className="border-b px-8 py-5">
                     <DialogTitle>Tạo phiếu trả</DialogTitle>
                 </DialogHeader>

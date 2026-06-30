@@ -1,8 +1,19 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { BarChart3, Download, Loader2 } from "lucide-react"
+import {
+    Banknote,
+    BarChart3,
+    Download,
+    FileText,
+    Landmark,
+    Loader2,
+    Scale,
+    SlidersHorizontal,
+    TrendingUp,
+    type LucideIcon,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -36,6 +47,21 @@ const ACTIVITY_FILTERS = [
     { value: "debit", label: "Có phát sinh nợ" },
     { value: "credit", label: "Có phát sinh có" },
     { value: "none", label: "Không phát sinh" },
+] as const
+
+const AR_SUMMARY_COLUMNS = [
+    { key: "stt", width: 60, minWidth: 50 },
+    { key: "customer_code", width: 170, minWidth: 120 },
+    { key: "customer_name", width: 240, minWidth: 160 },
+    { key: "employee_code", width: 150, minWidth: 110 },
+    { key: "employee_name", width: 220, minWidth: 150 },
+    { key: "customer_address", width: 320, minWidth: 180 },
+    { key: "opening_debit", width: 120, minWidth: 100 },
+    { key: "opening_credit", width: 120, minWidth: 100 },
+    { key: "debit", width: 120, minWidth: 100 },
+    { key: "credit", width: 120, minWidth: 100 },
+    { key: "closing_debit", width: 120, minWidth: 100 },
+    { key: "closing_credit", width: 120, minWidth: 100 },
 ] as const
 
 export default function ArSummaryPage() {
@@ -148,6 +174,18 @@ function ArSummaryTable({
     onFiltersChange: (filters: Filters) => void
 }) {
     const [exporting, setExporting] = useState(false)
+    const [columnWidths, setColumnWidths] = useState<number[]>(() => AR_SUMMARY_COLUMNS.map((column) => column.width))
+    const tableWidth = columnWidths.reduce((total, width) => total + width, 0)
+    const tableScrollRef = useRef<HTMLDivElement>(null)
+    const stickyScrollRef = useRef<HTMLDivElement>(null)
+    const headerTableRef = useRef<HTMLTableElement>(null)
+    const isSyncingScrollRef = useRef(false)
+    const [stickyScroll, setStickyScroll] = useState({
+        visible: false,
+        contentWidth: 0,
+        viewportWidth: 0,
+    })
+    const [stickyHeaderTop, setStickyHeaderTop] = useState(64)
     const summaryTotals = {
         opening: Number(totals?.opening_balance || 0),
         debit: Number(totals?.debit_amount || 0),
@@ -180,6 +218,148 @@ function ArSummaryTable({
             ? withoutNone.filter((item) => item !== value)
             : [...withoutNone, value]
         setFilter("activity", next)
+    }
+    const startColumnResize = (columnIndex: number, event: React.MouseEvent<HTMLDivElement>) => {
+        event.preventDefault()
+        event.stopPropagation()
+
+        const startX = event.clientX
+        const startWidth = columnWidths[columnIndex] ?? AR_SUMMARY_COLUMNS[columnIndex].width
+        const minWidth = AR_SUMMARY_COLUMNS[columnIndex].minWidth
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            const nextWidth = Math.max(minWidth, startWidth + moveEvent.clientX - startX)
+            setColumnWidths((current) => current.map((width, index) => index === columnIndex ? nextWidth : width))
+        }
+        const onMouseUp = () => {
+            document.removeEventListener("mousemove", onMouseMove)
+            document.removeEventListener("mouseup", onMouseUp)
+        }
+
+        document.addEventListener("mousemove", onMouseMove)
+        document.addEventListener("mouseup", onMouseUp)
+    }
+
+    const renderHeaderRows = () => (
+        <>
+            <tr>
+                <ReportTh rowSpan={2} resizeIndex={0} onResizeStart={startColumnResize} className="h-16 text-center">STT</ReportTh>
+                <ReportTh rowSpan={2} resizeIndex={1} onResizeStart={startColumnResize} className="h-16 text-center">Mã khách hàng</ReportTh>
+                <ReportTh rowSpan={2} resizeIndex={2} onResizeStart={startColumnResize} className="h-16">Tên khách hàng</ReportTh>
+                <ReportTh rowSpan={2} resizeIndex={3} onResizeStart={startColumnResize} className="h-16 text-center">Mã nhân viên</ReportTh>
+                <ReportTh rowSpan={2} resizeIndex={4} onResizeStart={startColumnResize} className="h-16">Tên nhân viên</ReportTh>
+                <ReportTh rowSpan={2} resizeIndex={5} onResizeStart={startColumnResize} className="h-16">Địa chỉ</ReportTh>
+                <ReportTh colSpan={2} className="h-8 text-center">Số dư đầu kỳ</ReportTh>
+                <ReportTh colSpan={2} className="h-8 text-center">Phát sinh</ReportTh>
+                <ReportTh colSpan={2} className="h-8 text-center">Số dư cuối kỳ</ReportTh>
+            </tr>
+            <tr>
+                <ReportTh resizeIndex={6} onResizeStart={startColumnResize} className="h-8 text-center">Nợ</ReportTh>
+                <ReportTh resizeIndex={7} onResizeStart={startColumnResize} className="h-8 text-center">Có</ReportTh>
+                <ReportTh resizeIndex={8} onResizeStart={startColumnResize} className="h-8 text-center">Nợ</ReportTh>
+                <ReportTh resizeIndex={9} onResizeStart={startColumnResize} className="h-8 text-center">Có</ReportTh>
+                <ReportTh resizeIndex={10} onResizeStart={startColumnResize} className="h-8 text-center">Nợ</ReportTh>
+                <ReportTh resizeIndex={11} onResizeStart={startColumnResize} className="h-8 text-center">Có</ReportTh>
+            </tr>
+        </>
+    )
+
+    useEffect(() => {
+        const updateStickyHeaderTop = () => {
+            const appHeader = document.querySelector<HTMLElement>(".header-fixed")
+            if (!appHeader) {
+                setStickyHeaderTop(0)
+                return
+            }
+
+            const rect = appHeader.getBoundingClientRect()
+            const nextTop = Math.max(0, Math.min(rect.bottom, rect.height))
+            setStickyHeaderTop((current) => current === nextTop ? current : nextTop)
+        }
+
+        updateStickyHeaderTop()
+        document.addEventListener("scroll", updateStickyHeaderTop, { passive: true })
+        window.addEventListener("resize", updateStickyHeaderTop)
+
+        return () => {
+            document.removeEventListener("scroll", updateStickyHeaderTop)
+            window.removeEventListener("resize", updateStickyHeaderTop)
+        }
+    }, [])
+
+    useEffect(() => {
+        const updateStickyScroll = () => {
+            const tableScroll = tableScrollRef.current
+            if (!tableScroll) return
+
+            const next = {
+                visible: tableScroll.scrollWidth > tableScroll.clientWidth + 1,
+                contentWidth: tableScroll.scrollWidth,
+                viewportWidth: tableScroll.clientWidth,
+            }
+            setStickyScroll((current) => (
+                current.visible === next.visible &&
+                current.contentWidth === next.contentWidth &&
+                current.viewportWidth === next.viewportWidth
+                    ? current
+                    : next
+            ))
+
+            if (stickyScrollRef.current) {
+                stickyScrollRef.current.scrollLeft = tableScroll.scrollLeft
+            }
+            if (headerTableRef.current) {
+                headerTableRef.current.style.transform = `translateX(-${tableScroll.scrollLeft}px)`
+            }
+        }
+
+        updateStickyScroll()
+
+        const tableScroll = tableScrollRef.current
+        const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateStickyScroll) : null
+        if (tableScroll && resizeObserver) {
+            resizeObserver.observe(tableScroll)
+            const tableElement = tableScroll.querySelector("table")
+            if (tableElement) resizeObserver.observe(tableElement)
+        }
+        window.addEventListener("resize", updateStickyScroll)
+
+        return () => {
+            resizeObserver?.disconnect()
+            window.removeEventListener("resize", updateStickyScroll)
+        }
+    }, [tableWidth, data.length])
+
+    const syncStickyScroll = () => {
+        if (isSyncingScrollRef.current) return
+        const tableScroll = tableScrollRef.current
+        const sticky = stickyScrollRef.current
+        if (!tableScroll || !sticky) return
+
+        isSyncingScrollRef.current = true
+        sticky.scrollLeft = tableScroll.scrollLeft
+        if (headerTableRef.current) {
+            headerTableRef.current.style.transform = `translateX(-${tableScroll.scrollLeft}px)`
+        }
+        requestAnimationFrame(() => {
+            isSyncingScrollRef.current = false
+        })
+    }
+
+    const syncTableScroll = () => {
+        if (isSyncingScrollRef.current) return
+        const tableScroll = tableScrollRef.current
+        const sticky = stickyScrollRef.current
+        if (!tableScroll || !sticky) return
+
+        isSyncingScrollRef.current = true
+        tableScroll.scrollLeft = sticky.scrollLeft
+        if (headerTableRef.current) {
+            headerTableRef.current.style.transform = `translateX(-${sticky.scrollLeft}px)`
+        }
+        requestAnimationFrame(() => {
+            isSyncingScrollRef.current = false
+        })
     }
     const today = todayYmd()
     const exportFilters = {
@@ -320,43 +500,47 @@ function ArSummaryTable({
                 </div>
             </div>
 
-            <div className="grid gap-2 md:grid-cols-4">
-                <Summary label="Đầu kỳ" value={formatMoney(summaryTotals.opening)} />
-                <Summary label="Phát sinh nợ" value={formatMoney(summaryTotals.debit)} />
-                <Summary label="Phát sinh có" value={formatMoney(summaryTotals.credit)} />
-                <Summary label="Cuối kỳ" value={formatMoney(summaryTotals.closing)} strong />
-            </div>
-
-            <div className="grid gap-2 md:grid-cols-3">
-                <Summary label="Doanh thu bán hàng" value={formatMoney(summaryTotals.sales)} tone="debit" />
-                <Summary label="Điều chỉnh công nợ" value={formatMoney(summaryTotals.adjust)} tone="neutral" />
-                <Summary label="Thanh toán" value={formatMoney(summaryTotals.payment)} tone="credit" />
+            <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-7">
+                <Summary label="Đầu kỳ" value={formatMoney(summaryTotals.opening)} icon={Landmark} tone="opening" />
+                <Summary label="Phát sinh nợ" value={formatMoney(summaryTotals.debit)} icon={TrendingUp} tone="debit" />
+                <Summary label="Phát sinh có" value={formatMoney(summaryTotals.credit)} icon={TrendingUp} tone="credit" />
+                <Summary label="Cuối kỳ" value={formatMoney(summaryTotals.closing)} icon={Scale} tone="closing" strong />
+                <Summary label="Doanh thu bán hàng" value={formatMoney(summaryTotals.sales)} icon={FileText} tone="debit" />
+                <Summary label="Điều chỉnh công nợ" value={formatMoney(summaryTotals.adjust)} icon={SlidersHorizontal} tone="neutral" />
+                <Summary label="Thanh toán" value={formatMoney(summaryTotals.payment)} icon={Banknote} tone="credit" />
             </div>
 
             <div className="rounded-lg border bg-white shadow-sm">
-                <div className="max-h-[calc(100vh-96px)] overflow-auto">
-                    <table className="w-full min-w-[1740px] border-collapse text-sm">
-                        <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500">
-                            <tr>
-                                <ReportTh rowSpan={2} className="sticky top-0 z-30 w-[60px] bg-slate-50 text-center shadow-sm">STT</ReportTh>
-                                <ReportTh rowSpan={2} className="sticky top-0 z-30 w-[170px] bg-slate-50 shadow-sm">Mã khách hàng</ReportTh>
-                                <ReportTh rowSpan={2} className="sticky top-0 z-30 w-[240px] bg-slate-50 shadow-sm">Tên khách hàng</ReportTh>
-                                <ReportTh rowSpan={2} className="sticky top-0 z-30 w-[150px] bg-slate-50 shadow-sm">Mã nhân viên</ReportTh>
-                                <ReportTh rowSpan={2} className="sticky top-0 z-30 w-[220px] bg-slate-50 shadow-sm">Tên nhân viên</ReportTh>
-                                <ReportTh rowSpan={2} className="sticky top-0 z-30 min-w-[320px] bg-slate-50 shadow-sm">Địa chỉ</ReportTh>
-                                <ReportTh colSpan={2} className="sticky top-0 z-30 bg-slate-50 text-center shadow-sm">Số dư đầu kỳ</ReportTh>
-                                <ReportTh colSpan={2} className="sticky top-0 z-30 bg-slate-50 text-center shadow-sm">Phát sinh</ReportTh>
-                                <ReportTh colSpan={2} className="sticky top-0 z-30 bg-slate-50 text-center shadow-sm">Số dư cuối kỳ</ReportTh>
-                            </tr>
-                            <tr>
-                                <ReportTh className="sticky top-[33px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Nợ</ReportTh>
-                                <ReportTh className="sticky top-[33px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Có</ReportTh>
-                                <ReportTh className="sticky top-[33px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Nợ</ReportTh>
-                                <ReportTh className="sticky top-[33px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Có</ReportTh>
-                                <ReportTh className="sticky top-[33px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Nợ</ReportTh>
-                                <ReportTh className="sticky top-[33px] z-20 w-[120px] bg-slate-50 text-right shadow-sm">Có</ReportTh>
-                            </tr>
+                <div
+                    className="sticky z-40 overflow-hidden rounded-t-lg border-b bg-slate-50 shadow-sm"
+                    style={{ top: stickyHeaderTop }}
+                >
+                    <table
+                        ref={headerTableRef}
+                        className="table-fixed border-collapse text-sm"
+                        style={{ width: tableWidth, minWidth: tableWidth }}
+                    >
+                        <colgroup>
+                            {AR_SUMMARY_COLUMNS.map((column, index) => (
+                                <col key={column.key} style={{ width: columnWidths[index] }} />
+                            ))}
+                        </colgroup>
+                        <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                            {renderHeaderRows()}
                         </thead>
+                    </table>
+                </div>
+                <div
+                    ref={tableScrollRef}
+                    onScroll={syncStickyScroll}
+                    className="w-full overflow-x-auto"
+                >
+                    <table className="table-fixed border-collapse text-sm" style={{ width: tableWidth, minWidth: tableWidth }}>
+                        <colgroup>
+                            {AR_SUMMARY_COLUMNS.map((column, index) => (
+                                <col key={column.key} style={{ width: columnWidths[index] }} />
+                            ))}
+                        </colgroup>
                         <tbody>
                             {data.length === 0 ? (
                                 <tr>
@@ -374,7 +558,7 @@ function ArSummaryTable({
                                             <ReportTd className="text-center tabular-nums text-slate-700">
                                                 {pagination.pageIndex * pagination.pageSize + index + 1}
                                             </ReportTd>
-                                            <ReportTd className="font-mono text-xs font-semibold text-slate-800">
+                                            <ReportTd className="text-center font-mono text-xs font-semibold text-slate-800">
                                                 {row.customer_code || "-"}
                                             </ReportTd>
                                             <ReportTd>
@@ -391,15 +575,15 @@ function ArSummaryTable({
                                                         customer_id: row.customer_id,
                                                         ...returnSearch,
                                                     }}
-                                                    className="inline-flex min-w-0 flex-col rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                                    className="flex w-full min-w-0 overflow-hidden rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                                                 >
-                                                    <span className="font-medium text-slate-950">{row.customer_name || "-"}</span>
+                                                    <span className="block max-w-full truncate font-medium text-slate-950">{row.customer_name || "-"}</span>
                                                 </Link>
                                             </ReportTd>
-                                            <ReportTd className="font-mono text-xs text-slate-700">
+                                            <ReportTd className="text-center font-mono text-xs text-slate-700">
                                                 {row.employee_code || "-"}
                                             </ReportTd>
-                                            <ReportTd className="text-slate-800">
+                                            <ReportTd className="text-center text-slate-800">
                                                 {row.employee_name || "-"}
                                             </ReportTd>
                                             <ReportTd className="text-slate-700">
@@ -433,6 +617,16 @@ function ArSummaryTable({
                         ) : null}
                     </table>
                 </div>
+                {stickyScroll.visible ? (
+                    <div
+                        ref={stickyScrollRef}
+                        onScroll={syncTableScroll}
+                        className="sticky bottom-0 z-30 w-full overflow-x-auto border-t bg-background/95 py-1 shadow-[0_-6px_18px_rgba(15,23,42,0.08)] backdrop-blur supports-[backdrop-filter]:bg-background/80"
+                        style={{ maxWidth: stickyScroll.viewportWidth || undefined }}
+                    >
+                        <div style={{ width: stickyScroll.contentWidth, height: 1 }} />
+                    </div>
+                ) : null}
             </div>
 
             <div className="rounded-lg border bg-white px-3 py-2 shadow-sm">
@@ -477,19 +671,29 @@ function ReportTh({
     children,
     rowSpan,
     colSpan,
+    resizeIndex,
+    onResizeStart,
 }: {
     className?: string
     children: React.ReactNode
     rowSpan?: number
     colSpan?: number
+    resizeIndex?: number
+    onResizeStart?: (columnIndex: number, event: React.MouseEvent<HTMLDivElement>) => void
 }) {
     return (
         <th
             rowSpan={rowSpan}
             colSpan={colSpan}
-            className={cn("border border-slate-200 px-2 py-2 text-center font-semibold align-middle", className)}
+            className={cn("relative border border-slate-200 px-2 py-1 text-center font-semibold align-middle", className)}
         >
-            {children}
+            <span className="block truncate whitespace-nowrap">{children}</span>
+            {resizeIndex !== undefined && onResizeStart ? (
+                <div
+                    className="absolute right-0 top-0 z-40 h-full w-1.5 cursor-col-resize touch-none select-none hover:bg-primary/30"
+                    onMouseDown={(event) => onResizeStart(resizeIndex, event)}
+                />
+            ) : null}
         </th>
     )
 }
@@ -506,7 +710,7 @@ function ReportTd({
     return (
         <td
             colSpan={colSpan}
-            className={cn("border-b border-slate-100 px-2 py-2 align-middle leading-snug", className)}
+            className={cn("overflow-hidden text-ellipsis whitespace-nowrap border border-slate-200 px-2 py-2 align-middle leading-snug", className)}
         >
             {children}
         </td>
@@ -533,32 +737,66 @@ function ReportMoneyCell({
 }
 
 function Summary({
+    icon: Icon,
     label,
     value,
     strong,
     tone,
     hint,
 }: {
+    icon: LucideIcon
     label: string
     value: string
     strong?: boolean
-    tone?: "debit" | "credit" | "neutral"
+    tone?: "opening" | "debit" | "credit" | "closing" | "neutral"
     hint?: string
 }) {
+    const toneClass = {
+        opening: {
+            card: "border-sky-200 bg-sky-50 text-sky-800",
+            icon: "bg-white/75 text-sky-700",
+            value: "text-sky-950",
+        },
+        debit: {
+            card: "border-rose-200 bg-rose-50 text-rose-800",
+            icon: "bg-white/75 text-rose-700",
+            value: "text-rose-700",
+        },
+        credit: {
+            card: "border-emerald-200 bg-emerald-50 text-emerald-800",
+            icon: "bg-white/75 text-emerald-700",
+            value: "text-emerald-700",
+        },
+        closing: {
+            card: "border-blue-200 bg-blue-50 text-blue-800",
+            icon: "bg-white/75 text-blue-700",
+            value: "text-blue-950",
+        },
+        neutral: {
+            card: "border-amber-200 bg-amber-50 text-amber-800",
+            icon: "bg-white/75 text-amber-700",
+            value: "text-amber-700",
+        },
+    }[tone ?? "opening"]
+
     return (
-        <div className="rounded-lg border bg-white p-3 shadow-sm">
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
-            <div
-                className={cn(
-                    "mt-0.5 text-lg tabular-nums",
-                    strong ? "font-bold text-slate-950" : "font-semibold",
-                    tone === "debit" && "text-rose-700",
-                    tone === "credit" && "text-emerald-700",
-                    tone === "neutral" && "text-amber-700",
-                    !tone && !strong && "text-slate-800",
-                )}
-            >
-                {value}
+        <div className={cn("rounded-lg border p-2.5 shadow-sm", toneClass.card)}>
+            <div className="flex items-center gap-2">
+                <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-md", toneClass.icon)}>
+                    <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <div className="text-center text-[11px] font-semibold uppercase leading-tight tracking-wide">{label}</div>
+                    <div
+                        className={cn(
+                            "mt-1 text-right text-lg tabular-nums",
+                            strong ? "font-bold" : "font-semibold",
+                            toneClass.value,
+                        )}
+                    >
+                        {value}
+                    </div>
+                </div>
             </div>
             {hint ? <div className="mt-0.5 text-xs text-slate-400">{hint}</div> : null}
         </div>

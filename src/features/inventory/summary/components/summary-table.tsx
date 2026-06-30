@@ -517,15 +517,15 @@ export function SummaryTable({
                                 </tr>
                                 {showValues ? (
                                 <tr>
-                                    <Th className="text-right">Số lượng</Th>
-                                    <Th className="text-right">Giá trị</Th>
-                                    <Th className="text-right">Số lượng</Th>
-                                    <Th className="text-right">Giá trị</Th>
-                                    <Th className="text-right">Số lượng</Th>
-                                    <Th className="text-right">Giá xuất BQ</Th>
-                                    <Th className="text-right">Giá trị</Th>
-                                    <Th className="text-right">Số lượng</Th>
-                                    <Th className="text-right">Giá trị</Th>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá xuất BQ</Th>
+                                    <Th>Giá trị</Th>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
                                 </tr>
                                 ) : null}
                             </thead>
@@ -604,7 +604,7 @@ function SummaryRow({ index, item, showValues }: { index: number; item: Inventor
                     {item.product_name || "-"}
                 </LongText>
             </Td>
-            <Td className="text-muted-foreground">{item.unit || "-"}</Td>
+            <Td className="text-muted-foreground text-center">{item.unit || "-"}</Td>
             <NumberTd>{item.opening_quantity}</NumberTd>
             {showValues ? (
             <MoneyTd>{item.opening_value}</MoneyTd>
@@ -933,7 +933,7 @@ function ColumnTextFilter({
     }
 
     return (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-center gap-1">
             <span>{label}</span>
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
@@ -1000,7 +1000,7 @@ function ColumnWarehouseFilter({
     const active = Boolean(value)
 
     return (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-center gap-1">
             <span>{label}</span>
             <Popover>
                 <PopoverTrigger asChild>
@@ -1452,7 +1452,7 @@ function downloadBlob(buffer: ArrayBuffer, filename: string) {
 }
 
 function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
-    return <th className={cn("border-r px-3 py-2 text-left font-semibold last:border-r-0", className)} {...props} />
+    return <th className={cn("border-r px-3 py-2 text-center font-semibold last:border-r-0", className)} {...props} />
 }
 
 function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {

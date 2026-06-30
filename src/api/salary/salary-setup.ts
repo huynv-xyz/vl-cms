@@ -71,8 +71,8 @@ export function deleteEmployeeScope(id: number) {
   return apiDelete<unknown>(`/employee-scopes/${id}`)
 }
 
-export function listManagerMappings() {
-  return apiGet<PagedResult<ManagerMappingItem>>("/salary-sale/manager-mappings", { page: 1, size: 500 })
+export function listManagerMappings(params: { period?: number | string; page?: number; size?: number } = {}) {
+  return apiGet<PagedResult<ManagerMappingItem>>("/salary-sale/manager-mappings", { page: 1, size: 1000, ...params })
 }
 
 export function createManagerMapping(body: ManagerMappingRequest) {

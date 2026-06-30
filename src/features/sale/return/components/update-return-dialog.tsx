@@ -153,7 +153,7 @@ export function UpdateReturnDialog({
         mutationFn: async () => {
             if (!formData.export_id) throw new Error("Vui lòng chọn phiếu xuất")
 
-            if (isManualReturn && !formData.customer_id) throw new Error("Vui lÃ²ng chá»n khÃ¡ch hÃ ng")
+            if (isManualReturn && !formData.customer_id) throw new Error("Vui lòng chọn khách hàng")
 
             const selected = isManualReturn ? items : items.filter(x => x.selected)
 
@@ -168,11 +168,11 @@ export function UpdateReturnDialog({
             }
 
             if (selected.some((item) => !item.warehouse_id)) {
-                throw new Error("Vui lÃ²ng chá»n kho nháº­p láº¡i cho táº¥t cáº£ dÃ²ng tráº£")
+                throw new Error("Vui lòng chọn kho nhập lại cho tất cả dòng trả")
             }
 
             if (isManualReturn && selected.some((item) => !item.product_id || item.unit_price == null || item.unit_price < 0)) {
-                throw new Error("Vui lÃ²ng chá»n sáº£n pháº©m vÃ  Ä‘Æ¡n giÃ¡ há»£p lá»‡")
+                throw new Error("Vui lòng chọn sản phẩm và đơn giá hợp lệ")
             }
 
             return updateReturn({
@@ -211,7 +211,7 @@ export function UpdateReturnDialog({
     // ========================
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex max-h-[92vh] w-[96vw] max-w-[96vw] flex-col p-0 sm:max-w-[1400px]">
+            <DialogContent className="flex max-h-[92vh] w-[98vw] max-w-[98vw] flex-col p-0 sm:max-w-[1800px]">
 
                 <DialogHeader className="border-b px-8 py-6">
                     <DialogTitle>Cập nhật phiếu trả</DialogTitle>

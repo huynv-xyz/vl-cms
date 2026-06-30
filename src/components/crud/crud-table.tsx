@@ -41,6 +41,7 @@ type CrudTableProps<T> = {
     onRowClick?: (row: T) => void
     enableColumnResize?: boolean
     enableStickyHorizontalScroll?: boolean
+    headerVariant?: "default" | "report"
 }
 
 export function CrudTable<T>({
@@ -64,6 +65,7 @@ export function CrudTable<T>({
     onRowClick,
     enableColumnResize,
     enableStickyHorizontalScroll,
+    headerVariant,
 }: CrudTableProps<T>) {
     return (
         <BaseDataTable<T>
@@ -87,6 +89,7 @@ export function CrudTable<T>({
             onRowClick={onRowClick}
             enableColumnResize={enableColumnResize}
             enableStickyHorizontalScroll={enableStickyHorizontalScroll}
+            headerVariant={headerVariant}
         />
     )
 }

@@ -3,10 +3,24 @@ import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
 import { buildBadgeColumn } from "@/components/crud/build-badge-column"
 import { buildActionsColumn } from "@/components/crud/build-actions-column"
+import { formatNumber } from "@/lib/utils"
 import type { Employee } from "../data/schema"
 import { EmployeeRowActions } from "./employee-row-actions"
 
-const fmt = (v?: number | null) => v == null ? "-" : v.toLocaleString("vi-VN")
+function formatDate(value?: string | null) {
+    if (!value) return "-"
+
+    const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) return `${match[3]}/${match[2]}/${match[1]}`
+
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return "-"
+
+    const day = String(date.getDate()).padStart(2, "0")
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+
+    return `${day}/${month}/${date.getFullYear()}`
+}
 
 export const employeeColumns: ColumnDef<Employee>[] = [
     buildIndexColumn(),
@@ -23,6 +37,7 @@ export const employeeColumns: ColumnDef<Employee>[] = [
 
     buildTextColumn({
         accessorKey: "birth_date",
+        render: (row) => formatDate(row.birth_date),
         title: "Ngày sinh",
     }),
 
@@ -40,25 +55,25 @@ export const employeeColumns: ColumnDef<Employee>[] = [
     {
         accessorKey: "dependent_count",
         header: () => <div className="text-right">NPT</div>,
-        cell: ({ row }) => <div className="text-right tabular-nums">{row.original.dependent_count ?? 0}</div>,
+        cell: ({ row }) => <div className="text-right tabular-nums">{formatNumber(row.original.dependent_count ?? 0)}</div>,
     },
 
     {
         accessorKey: "basic_salary",
         header: () => <div className="text-right">Lương cơ bản</div>,
-        cell: ({ row }) => <div className="text-right tabular-nums">{fmt(row.original.basic_salary)}</div>,
+        cell: ({ row }) => <div className="text-right tabular-nums">{formatNumber(row.original.basic_salary)}</div>,
     },
 
     {
         accessorKey: "allowance_salary",
         header: () => <div className="text-right">Phụ cấp</div>,
-        cell: ({ row }) => <div className="text-right tabular-nums">{fmt(row.original.allowance_salary)}</div>,
+        cell: ({ row }) => <div className="text-right tabular-nums">{formatNumber(row.original.allowance_salary)}</div>,
     },
 
     {
         accessorKey: "insurance_base",
         header: () => <div className="text-right">Lương đóng BH</div>,
-        cell: ({ row }) => <div className="text-right tabular-nums">{fmt(row.original.insurance_base)}</div>,
+        cell: ({ row }) => <div className="text-right tabular-nums">{formatNumber(row.original.insurance_base)}</div>,
     },
 
     buildBadgeColumn({
