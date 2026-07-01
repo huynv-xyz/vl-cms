@@ -13,7 +13,7 @@ function InventoryInboundLedgerPage() {
 function validateLedgerSearch(search: Record<string, unknown>) {
     return {
         page: Number(search.page ?? 1),
-        size: Number(search.size ?? 20),
+        size: Number(search.size ?? 50),
         keyword: typeof search.keyword === "string" ? search.keyword : "",
         warehouse_id:
             search.warehouse_id !== undefined && !isNaN(Number(search.warehouse_id))

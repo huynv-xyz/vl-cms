@@ -4,7 +4,7 @@ import InventoryLedgerPage from "@/features/inventory/ledger"
 export const Route = createFileRoute("/_authenticated/inventory/ledgers/")({
     validateSearch: (search: Record<string, unknown>) => ({
         page: Number(search.page ?? 1),
-        size: Number(search.size ?? 20),
+        size: Number(search.size ?? 50),
 
         keyword:
             typeof search.keyword === "string"

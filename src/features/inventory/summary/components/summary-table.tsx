@@ -26,6 +26,7 @@ import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
 import { ProductMultiFilter } from "@/features/inventory/components/product-multi-filter"
+import { StickyReportTable } from "@/features/inventory/components/sticky-report-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -117,6 +118,13 @@ const EXPORT_COLUMN_GROUPS: ExportColumnGroup[] = [
         ],
     },
     { label: "ĐVT", columns: [{ label: "ĐVT", value: (row) => row.unit, width: 10 }] },
+    {
+        label: "Kho",
+        columns: [
+            { label: "Mã kho", value: (row) => row.warehouse_code, width: 24 },
+            { label: "Tên kho", value: (row) => row.warehouse_name, width: 28 },
+        ],
+    },
     {
         label: "Tồn đầu kỳ",
         columns: [
@@ -460,9 +468,12 @@ export function SummaryTable({
                             </Button>
                         </div>
                     ) : null}
-                    <div className="overflow-x-auto">
-                        <table className="w-max min-w-full table-auto whitespace-nowrap text-sm">
-                            <thead className="bg-muted/50 text-muted-foreground border-b text-xs">
+                    <StickyReportTable
+                        columnWidths={showValues
+                            ? [64, 150, 320, 90, 150, 220, 130, 140, 130, 140, 130, 130, 140, 130, 140, 180, 120, 150, 120]
+                            : [64, 150, 320, 90, 150, 220, 130, 130, 130, 130, 180, 120, 150, 120]}
+                        renderHeader={() => (
+                            <>
                                 <tr>
                                     <Th rowSpan={showValues ? 2 : 1} className="text-center">STT</Th>
                                     <Th rowSpan={showValues ? 2 : 1} className="min-w-[150px]">
@@ -491,6 +502,8 @@ export function SummaryTable({
                                             onChange={(value) => setFilter("unit", value)}
                                         />
                                     </Th>
+                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[150px]">Mã kho</Th>
+                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[220px]">Tên kho</Th>
                                     <Th colSpan={showValues ? 2 : 1} className="text-center">Tồn đầu kỳ</Th>
                                     <Th colSpan={showValues ? 2 : 1} className="text-center">Nhập kho</Th>
                                     <Th colSpan={showValues ? 3 : 1} className="text-center">Xuất kho</Th>
@@ -528,20 +541,24 @@ export function SummaryTable({
                                     <Th>Giá trị</Th>
                                 </tr>
                                 ) : null}
-                            </thead>
-                            <tbody>
+                            </>
+                        )}
+                        renderBody={() => (
+                            <>
                                 {data.map((item, index) => (
                                     <SummaryRow
-                                        key={`${item.product_id}-${index}`}
+                                        key={`${item.product_id}-${item.warehouse_id ?? "warehouse"}-${index}`}
                                         index={pagination.pageIndex * pagination.pageSize + index + 1}
                                         item={item}
                                         showValues={showValues}
                                     />
                                 ))}
-                            </tbody>
-                            <tfoot className="bg-muted/40 border-t font-semibold">
+                            </>
+                        )}
+                        renderFooter={() => (
+                            <>
                                 <tr>
-                                    <Td colSpan={4}>Tổng cộng theo bộ lọc</Td>
+                                    <Td colSpan={6}>Tổng cộng theo bộ lọc</Td>
                                     <NumberTd>{summaryTotals.opening_quantity}</NumberTd>
                                     {showValues ? (
                                     <MoneyTd>{summaryTotals.opening_value}</MoneyTd>
@@ -563,9 +580,9 @@ export function SummaryTable({
                                     ) : null}
                                     <Td colSpan={4} />
                                 </tr>
-                            </tfoot>
-                        </table>
-                    </div>
+                            </>
+                        )}
+                    />
 
                     {!data.length ? (
                         <div className="text-muted-foreground flex min-h-[180px] items-center justify-center text-sm">
@@ -593,7 +610,7 @@ function SummaryRow({ index, item, showValues }: { index: number; item: Inventor
     return (
         <tr className="hover:bg-muted/30 border-b">
             <Td className="text-muted-foreground text-center font-mono">{formatNumber(index)}</Td>
-            <Td className="text-muted-foreground font-mono text-xs">
+            <Td className="text-muted-foreground text-center font-mono text-xs">
                 {item.product_code || "-"}
             </Td>
             <Td className="min-w-[300px] max-w-[520px]">
@@ -605,6 +622,17 @@ function SummaryRow({ index, item, showValues }: { index: number; item: Inventor
                 </LongText>
             </Td>
             <Td className="text-muted-foreground text-center">{item.unit || "-"}</Td>
+            <Td className="text-muted-foreground text-center font-mono text-xs">
+                {item.warehouse_code || "-"}
+            </Td>
+            <Td className="max-w-[280px] text-center">
+                <LongText
+                    className="mx-auto max-w-[280px] text-center text-xs"
+                    contentClassName="max-w-[420px] whitespace-normal break-words leading-relaxed"
+                >
+                    {item.warehouse_name || "-"}
+                </LongText>
+            </Td>
             <NumberTd>{item.opening_quantity}</NumberTd>
             {showValues ? (
             <MoneyTd>{item.opening_value}</MoneyTd>
@@ -626,22 +654,22 @@ function SummaryRow({ index, item, showValues }: { index: number; item: Inventor
             {showValues ? (
             <MoneyTd>{item.closing_value}</MoneyTd>
             ) : null}
-            <Td className="max-w-[260px]">
+            <Td className="max-w-[260px] text-center">
                 <LongText
-                    className="max-w-[260px] text-xs"
+                    className="mx-auto max-w-[260px] text-center text-xs"
                     contentClassName="max-w-[420px] whitespace-normal break-words leading-relaxed"
                 >
                     {item.quote_name || "-"}
                 </LongText>
             </Td>
-            <Td className="text-xs">{item.nature || "-"}</Td>
-            <Td>
+            <Td className="text-center text-xs">{item.nature || "-"}</Td>
+            <Td className="text-center">
                 <Badge variant={status.variant} className={cn("inline-flex items-center gap-1.5 whitespace-nowrap", status.className)}>
                     <status.icon className="h-3.5 w-3.5 shrink-0" />
                     {status.label}
                 </Badge>
             </Td>
-            <Td className="text-muted-foreground">-</Td>
+            <Td className="text-center text-muted-foreground">-</Td>
         </tr>
     )
 }
@@ -1063,7 +1091,7 @@ function ColumnSelectFilter({
     const active = Boolean(value)
 
     return (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-center gap-1">
             <span>{label}</span>
             <Popover>
                 <PopoverTrigger asChild>
@@ -1136,24 +1164,30 @@ function SummaryMetric({
     showValue?: boolean
 }) {
     const toneClass = {
-        muted: "bg-slate-50 text-slate-700 border-slate-200",
-        in: "bg-emerald-50 text-emerald-700 border-emerald-200",
-        out: "bg-rose-50 text-rose-700 border-rose-200",
-        stock: "bg-blue-50 text-blue-700 border-blue-200",
+        muted: "bg-slate-100/80 text-slate-700 border-slate-300",
+        in: "bg-emerald-100/80 text-emerald-700 border-emerald-300",
+        out: "bg-rose-100/80 text-rose-700 border-rose-300",
+        stock: "bg-blue-100/80 text-blue-700 border-blue-300",
     }[tone]
 
     return (
-        <Card className={cn("gap-0 py-4 shadow-sm", toneClass)}>
-            <CardContent className="flex items-center gap-3 px-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/70">
-                    <Icon className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                    <div className="text-xs font-semibold uppercase">{label}</div>
-                    <div className="mt-1 text-sm tabular-nums">Số lượng: <span className="font-bold">{formatNumber(quantity || 0)}</span></div>
-                    {showValue ? (
-                    <div className="text-sm tabular-nums">Giá trị: <span className="font-bold">{formatCurrency(value || 0)}</span></div>
-                    ) : null}
+        <Card className={cn("gap-0 py-3 shadow-sm", toneClass)}>
+            <CardContent className="px-4">
+                <div className="mb-2 truncate text-center text-xs font-semibold uppercase">{label}</div>
+                <div className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/70">
+                        <Icon className="h-4 w-4" />
+                    </span>
+                    <div className="grid flex-1 grid-cols-[minmax(0,1fr)_minmax(96px,max-content)] gap-x-3 gap-y-1 text-sm">
+                        <span className="opacity-75">Số lượng</span>
+                        <span className="text-right font-bold tabular-nums">{formatNumber(quantity || 0)}</span>
+                        {showValue ? (
+                            <>
+                                <span className="opacity-75">Giá trị</span>
+                                <span className="text-right font-bold tabular-nums">{formatCurrency(value || 0)}</span>
+                            </>
+                        ) : null}
+                    </div>
                 </div>
             </CardContent>
         </Card>
@@ -1452,11 +1486,11 @@ function downloadBlob(buffer: ArrayBuffer, filename: string) {
 }
 
 function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
-    return <th className={cn("border-r px-3 py-2 text-center font-semibold last:border-r-0", className)} {...props} />
+    return <th className={cn("border-r bg-slate-100 px-3 py-2 text-center font-semibold last:border-r-0", className)} {...props} />
 }
 
 function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
-    return <td className={cn("border-r px-3 py-1.5 align-middle last:border-r-0", className)} {...props} />
+    return <td className={cn("overflow-hidden border-r px-3 py-1.5 align-middle last:border-r-0", className)} {...props} />
 }
 
 function NumberTd({ className, children }: { className?: string; children: React.ReactNode }) {

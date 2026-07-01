@@ -30,7 +30,6 @@ const COLUMNS: ExportColumn[] = [
     { label: "Ngày", value: (row) => parseDate(row.posting_date), width: 14, type: "date" },
     { label: "Chứng từ", value: (row) => row.doc_no, width: 22 },
     { label: "Diễn giải", value: (row) => row.description, width: 36 },
-    { label: "Tên nhà cung cấp", value: (row) => row.supplier_name, width: 28 },
     { label: "TK Nợ", value: (row) => row.tk_no, width: 12 },
     { label: "TK Có", value: (row) => row.tk_co, width: 12 },
     { label: "Mã hàng", value: (row) => row.product_code, width: 20 },
@@ -46,6 +45,7 @@ const COLUMNS: ExportColumn[] = [
     { label: "Tồn sau", value: (row) => row.balance_quantity, width: 16, type: "number", numberFormat: "quantity" },
     { label: "Thành tiền", value: (row) => row.amount, width: 18, type: "number", numberFormat: "money" },
     { label: "Loại chứng từ", value: (row) => getDocTypeMeta(row.doc_type).label, width: 34 },
+    { label: "Tên nhà cung cấp", value: (row) => row.supplier_name, width: 28 },
     { label: "Mã loại", value: (row) => row.doc_type, width: 20 },
 ]
 

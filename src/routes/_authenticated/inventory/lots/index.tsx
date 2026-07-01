@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_authenticated/inventory/lots/")({
 
         return {
             page: Number(search.page ?? 1),
-            size: Number(search.size ?? 20),
+            size: Number(search.size ?? 50),
 
             keyword:
                 typeof search.keyword === "string"

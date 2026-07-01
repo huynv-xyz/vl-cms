@@ -257,9 +257,24 @@ export function BaseDataTable<TData>({
     })
 
     const isReportHeader = headerVariant === "report"
+    const visibleLeafColumns = table.getVisibleLeafColumns()
     const tableWidth = Math.max(
-        table.getVisibleLeafColumns().reduce((total, column) => total + column.getSize(), 0),
+        visibleLeafColumns.reduce((total, column) => total + column.getSize(), 0),
         table.getTotalSize(),
+    )
+
+    const renderColGroup = () => (
+        <colgroup>
+            {visibleLeafColumns.map((column) => (
+                <col
+                    key={column.id}
+                    style={{
+                        width: column.getSize(),
+                        minWidth: column.columnDef.minSize ?? 72,
+                    }}
+                />
+            ))}
+        </colgroup>
     )
 
     const renderHeaderRows = () => table.getHeaderGroups().map((hg) => (
@@ -333,8 +348,9 @@ export function BaseDataTable<TData>({
                         <table
                             ref={headerTableRef}
                             className="w-max min-w-full table-fixed caption-bottom text-sm"
-                            style={{ width: tableWidth }}
+                            style={{ width: tableWidth, minWidth: tableWidth }}
                         >
+                            {renderColGroup()}
                             <thead className="bg-slate-100/95">
                                 {renderHeaderRows()}
                             </thead>
@@ -347,7 +363,8 @@ export function BaseDataTable<TData>({
                     onScroll={syncStickyScroll}
                     className='w-full overflow-x-auto'
                 >
-                    <Table className='w-max min-w-full table-fixed' style={{ width: tableWidth }}>
+                    <Table className='w-max min-w-full table-fixed' style={{ width: tableWidth, minWidth: tableWidth }}>
+                        {renderColGroup()}
                         {!isReportHeader ? (
                             <TableHeader>
                                 {renderHeaderRows()}

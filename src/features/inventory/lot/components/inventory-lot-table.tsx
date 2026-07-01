@@ -6,6 +6,7 @@ import { AlertTriangle, CalendarClock, Clock3, Funnel, HelpCircle, Package, Tren
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
 import { ProductMultiFilter } from "@/features/inventory/components/product-multi-filter"
+import { StickyReportTable } from "@/features/inventory/components/sticky-report-table"
 import { WarehouseTreeFilter } from "@/features/inventory/components/warehouse-tree-filter"
 import { LongText } from "@/components/long-text"
 import { AsyncSelect } from "@/components/rjsf/async-select"
@@ -323,9 +324,10 @@ export function InventoryLotTable({
                         </div>
                     ) : null}
 
-                    <div className="overflow-x-auto">
-                        <table className="w-max min-w-full table-auto whitespace-nowrap text-sm">
-                            <thead className="bg-muted/50 text-muted-foreground border-b text-xs">
+                    <StickyReportTable
+                        columnWidths={[64, 150, 320, 90, 150, 220, 160, 120, 120, 160, 130, 120, 130, 150, 130, 140, 130, 140, 130, 140, 130, 140, 180, 120, 120]}
+                        renderHeader={() => (
+                            <>
                                 <tr>
                                     <Th rowSpan={2} className="text-center">STT</Th>
                                     <Th rowSpan={2} className="min-w-[150px]">
@@ -389,10 +391,10 @@ export function InventoryLotTable({
                                             onChange={(value) => setFilter("lot_warning", value)}
                                         />
                                     </Th>
-                                    <Th rowSpan={2} className="text-right">Đơn giá mua</Th>
-                                    <Th rowSpan={2} className="text-right">PLH/ĐV</Th>
-                                    <Th rowSpan={2} className="text-right">Tổng PLH</Th>
-                                    <Th rowSpan={2} className="text-right">Giá vốn gồm PLH</Th>
+                                    <Th rowSpan={2}>Đơn giá mua</Th>
+                                    <Th rowSpan={2}>PLH/ĐV</Th>
+                                    <Th rowSpan={2}>Tổng PLH</Th>
+                                    <Th rowSpan={2}>Giá vốn gồm PLH</Th>
                                     <Th colSpan={2} className="text-center">Tồn đầu kỳ</Th>
                                     <Th colSpan={2} className="text-center">Nhập kho</Th>
                                     <Th colSpan={2} className="text-center">Xuất kho</Th>
@@ -410,17 +412,19 @@ export function InventoryLotTable({
                                     <Th rowSpan={2}>Dạng hàng</Th>
                                 </tr>
                                 <tr>
-                                    <Th className="text-right">Số lượng</Th>
-                                    <Th className="text-right">Giá trị</Th>
-                                    <Th className="text-right">Số lượng</Th>
-                                    <Th className="text-right">Giá trị</Th>
-                                    <Th className="text-right">Số lượng</Th>
-                                    <Th className="text-right">Giá trị</Th>
-                                    <Th className="text-right">Số lượng</Th>
-                                    <Th className="text-right">Giá trị</Th>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
                                 </tr>
-                            </thead>
-                            <tbody>
+                            </>
+                        )}
+                        renderBody={() => (
+                            <>
                                 {data.map((item, index) => (
                                     <InventoryLotRow
                                         key={`${item.id}-${index}`}
@@ -428,9 +432,9 @@ export function InventoryLotTable({
                                         item={item}
                                     />
                                 ))}
-                            </tbody>
-                        </table>
-                    </div>
+                            </>
+                        )}
+                    />
 
                     {!data.length ? (
                         <div className="text-muted-foreground flex min-h-[180px] items-center justify-center text-sm">
@@ -479,23 +483,23 @@ function InventoryLotRow({ index, item }: { index: number; item: InventoryLot })
     return (
         <tr className="hover:bg-muted/30 border-b">
             <Td className="text-muted-foreground text-center font-mono">{formatNumber(index)}</Td>
-            <Td className="text-muted-foreground font-mono text-xs">{productCode}</Td>
+            <Td className="text-muted-foreground text-center font-mono text-xs">{productCode}</Td>
             <Td className="min-w-[300px] max-w-[520px]">
                 <LongText className="max-w-[520px] font-semibold" contentClassName="max-w-[520px] whitespace-normal break-words leading-relaxed">
                     {productName}
                 </LongText>
             </Td>
-            <Td className="text-muted-foreground">{productUnit}</Td>
-            <Td className="text-muted-foreground font-mono text-xs">{warehouseCode}</Td>
-            <Td className="min-w-[220px] max-w-[360px]">
-                <LongText className="max-w-[360px]" contentClassName="max-w-[420px] whitespace-normal break-words leading-relaxed">
+            <Td className="text-muted-foreground text-center">{productUnit}</Td>
+            <Td className="text-muted-foreground text-center font-mono text-xs">{warehouseCode}</Td>
+            <Td className="min-w-[220px] max-w-[360px] text-center">
+                <LongText className="mx-auto max-w-[360px] text-center" contentClassName="max-w-[420px] whitespace-normal break-words leading-relaxed">
                     {warehouseName}
                 </LongText>
             </Td>
-            <Td className="font-mono text-xs">{lotNo}</Td>
+            <Td className="text-center font-mono text-xs">{lotNo}</Td>
             <Td>{formatDate(inboundDate)}</Td>
-            <Td>{formatDate(expiryDate)}</Td>
-            <Td><LotWarningText lot={item} /></Td>
+            <Td className="text-center">{formatDate(expiryDate)}</Td>
+            <Td className="text-center"><LotWarningText lot={item} /></Td>
             <MoneyTd>{purchaseUnitCost}</MoneyTd>
             <MoneyTd>{handlingFeeUnit}</MoneyTd>
             <MoneyTd>{handlingFeeTotal}</MoneyTd>
@@ -508,9 +512,9 @@ function InventoryLotRow({ index, item }: { index: number; item: InventoryLot })
             <MoneyTd>{outboundValue}</MoneyTd>
             <NumberTd className="font-bold text-emerald-700">{closingQuantity}</NumberTd>
             <MoneyTd className="font-semibold">{closingValue}</MoneyTd>
-            <Td>{quoteName}</Td>
-            <Td>{nature}</Td>
-            <Td>-</Td>
+            <Td className="text-center">{quoteName}</Td>
+            <Td className="text-center">{nature}</Td>
+            <Td className="text-center">-</Td>
         </tr>
     )
 }
@@ -519,7 +523,7 @@ function WarningHeader({ value, onChange }: { value?: string; onChange: (value: 
     const active = Boolean(value)
 
     return (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-center gap-1">
             <Tooltip>
                 <TooltipTrigger asChild>
                     <div className="inline-flex items-center gap-1">
@@ -637,7 +641,7 @@ function ColumnTextFilter({
     }
 
     return (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-center gap-1">
             <span>{label}</span>
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
@@ -704,7 +708,7 @@ function ColumnWarehouseFilter({
     const active = Boolean(value)
 
     return (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-center gap-1">
             <span>{label}</span>
             <Popover>
                 <PopoverTrigger asChild>
@@ -767,7 +771,7 @@ function ColumnSelectFilter({
     const active = Boolean(value)
 
     return (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-center gap-1">
             <span>{label}</span>
             <Popover>
                 <PopoverTrigger asChild>
@@ -827,22 +831,28 @@ function LotMetric({
     tone?: "muted" | "in" | "out" | "stock"
 }) {
     const toneClass = {
-        muted: "bg-slate-50 text-slate-700 border-slate-200",
-        in: "bg-emerald-50 text-emerald-700 border-emerald-200",
-        out: "bg-rose-50 text-rose-700 border-rose-200",
-        stock: "bg-blue-50 text-blue-700 border-blue-200",
+        muted: "bg-slate-100/80 text-slate-700 border-slate-300",
+        in: "bg-emerald-100/80 text-emerald-700 border-emerald-300",
+        out: "bg-rose-100/80 text-rose-700 border-rose-300",
+        stock: "bg-blue-100/80 text-blue-700 border-blue-300",
     }[tone]
 
     return (
-        <Card className={cn("gap-0 py-4 shadow-sm", toneClass)}>
-            <CardContent className="flex items-center gap-3 px-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/70">
-                    <Icon className="h-5 w-5" />
+        <Card className={cn("gap-0 py-3 shadow-sm", toneClass)}>
+            <CardContent className="px-4">
+                <div className="mb-2 truncate text-center text-xs font-semibold uppercase tracking-wide opacity-80">
+                    {label}
                 </div>
-                <div className="min-w-0">
-                    <div className="text-xs font-semibold uppercase tracking-wide opacity-80">{label}</div>
-                    <div className="mt-1 text-sm tabular-nums">Số lượng: <span className="font-bold">{formatNumber(quantity || 0)}</span></div>
-                    <div className="text-sm tabular-nums">Giá trị: <span className="font-bold">{formatCurrency(value || 0)}</span></div>
+                <div className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/70">
+                        <Icon className="h-4 w-4" />
+                    </span>
+                    <div className="grid flex-1 grid-cols-[minmax(0,1fr)_minmax(96px,max-content)] gap-x-3 gap-y-1 text-sm">
+                        <span className="opacity-75">Số lượng</span>
+                        <span className="text-right font-bold tabular-nums">{formatNumber(quantity || 0)}</span>
+                        <span className="opacity-75">Giá trị</span>
+                        <span className="text-right font-bold tabular-nums">{formatCurrency(value || 0)}</span>
+                    </div>
                 </div>
             </CardContent>
         </Card>
@@ -909,11 +919,11 @@ function reportString(item: InventoryLot, key: string) {
 }
 
 function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
-    return <th className={cn("border-r px-3 py-2 text-left font-semibold last:border-r-0", className)} {...props} />
+    return <th className={cn("border-r bg-slate-100 px-3 py-2 text-center font-semibold last:border-r-0", className)} {...props} />
 }
 
 function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
-    return <td className={cn("border-r px-3 py-1.5 align-middle last:border-r-0", className)} {...props} />
+    return <td className={cn("overflow-hidden border-r px-3 py-1.5 align-middle last:border-r-0", className)} {...props} />
 }
 
 function NumberTd({ className, children }: { className?: string; children: React.ReactNode }) {

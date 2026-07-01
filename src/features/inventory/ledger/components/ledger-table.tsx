@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { getVoucherPrintDetail, listVoucherTypes, VOUCHER_TYPE_LABEL, type InventoryVoucherPrintDetail } from "@/api/inventory/voucher"
 import { DatePicker } from "@/components/date-picker"
 import { ProductMultiFilter } from "@/features/inventory/components/product-multi-filter"
+import { StickyReportTable } from "@/features/inventory/components/sticky-report-table"
 import { WarehouseTreeFilter } from "@/features/inventory/components/warehouse-tree-filter"
 import { LongText } from "@/components/long-text"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
@@ -358,9 +359,12 @@ export function InventoryLedgerTable({
                         </Button>
                     </div>
                 ) : null}
-                <div className="overflow-x-auto">
-                    <table className="w-max min-w-full table-auto whitespace-nowrap text-sm">
-                        <thead className="bg-muted/50 text-muted-foreground border-b text-xs">
+                <StickyReportTable
+                    columnWidths={showValues
+                        ? [64, 110, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 120, 110, 110, 120, 140, 260, 260]
+                        : [64, 110, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 110, 110, 120, 260, 260]}
+                    renderHeader={() => (
+                        <>
                             <tr>
                                 <Th className="min-w-[56px] text-center">STT</Th>
                                 <Th className="min-w-[110px]">Ngày</Th>
@@ -380,15 +384,6 @@ export function InventoryLedgerTable({
                                         op={filters.description_text_op}
                                         onApply={(value, op) => setTextFilter("description_text", "description_text_op", value, op)}
                                         onClear={() => clearTextFilter("description_text", "description_text_op")}
-                                    />
-                                </Th>
-                                <Th className="min-w-[260px]">
-                                    <ColumnTextFilter
-                                        label="Tên nhà cung cấp"
-                                        value={filters.supplier_text}
-                                        op={filters.supplier_text_op}
-                                        onApply={(value, op) => setTextFilter("supplier_text", "supplier_text_op", value, op)}
-                                        onClear={() => clearTextFilter("supplier_text", "supplier_text_op")}
                                     />
                                 </Th>
                                 <Th className="min-w-[70px]">TK Nợ</Th>
@@ -430,16 +425,27 @@ export function InventoryLedgerTable({
                                 </Th>
                                 <Th className="min-w-[160px]">Mã kho</Th>
                                 <Th className="min-w-[220px]">Kho</Th>
-                                {showValues ? <Th className="min-w-[120px] text-right">{"\u0110\u01a1n gi\u00e1"}</Th> : null}
-                                <Th className="min-w-[120px] text-right">Tồn đầu</Th>
-                                <Th className="min-w-[110px] text-right">Nhập</Th>
-                                <Th className="min-w-[110px] text-right">Xuất</Th>
-                                <Th className="min-w-[120px] text-right">Tồn sau</Th>
-                                {showValues ? <Th className="min-w-[140px] text-right">{"Th\u00e0nh ti\u1ec1n"}</Th> : null}
+                                {showValues ? <Th className="min-w-[120px]">{"\u0110\u01a1n gi\u00e1"}</Th> : null}
+                                <Th className="min-w-[120px]">Tồn đầu</Th>
+                                <Th className="min-w-[110px]">Nhập</Th>
+                                <Th className="min-w-[110px]">Xuất</Th>
+                                <Th className="min-w-[120px]">Tồn sau</Th>
+                                {showValues ? <Th className="min-w-[140px]">{"Th\u00e0nh ti\u1ec1n"}</Th> : null}
                                 <Th className="min-w-[260px]">Loại</Th>
+                                <Th className="min-w-[260px]">
+                                    <ColumnTextFilter
+                                        label="Tên nhà cung cấp"
+                                        value={filters.supplier_text}
+                                        op={filters.supplier_text_op}
+                                        onApply={(value, op) => setTextFilter("supplier_text", "supplier_text_op", value, op)}
+                                        onClear={() => clearTextFilter("supplier_text", "supplier_text_op")}
+                                    />
+                                </Th>
                             </tr>
-                        </thead>
-                        <tbody>
+                        </>
+                    )}
+                    renderBody={() => (
+                        <>
                             {(data || []).map((item, index) => (
                                 <LedgerRow
                                     key={`${item.id}-${index}`}
@@ -447,11 +453,12 @@ export function InventoryLedgerTable({
                                     item={item}
                                     onOpenVoucher={setDetailVoucherId}
                                     showValues={showValues}
+                                    direction={direction}
                                 />
                             ))}
-                        </tbody>
-                    </table>
-                </div>
+                        </>
+                    )}
+                />
 
                 {!(data || []).length ? (
                     <div className="text-muted-foreground flex min-h-[180px] items-center justify-center text-sm">
@@ -509,7 +516,7 @@ function ColumnTextFilter({
     }
 
     return (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-center gap-1.5">
             <span>{label}</span>
             <Popover
                 open={open}
@@ -595,7 +602,7 @@ function ColumnSelectFilter({
     const active = Boolean(value)
 
     return (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-center gap-1.5">
             <span>{label}</span>
             <Popover>
                 <PopoverTrigger asChild>
@@ -666,16 +673,19 @@ function LedgerRow({
     item,
     onOpenVoucher,
     showValues,
+    direction,
 }: {
     index: number
     item: InventoryLedgerReportRow
     onOpenVoucher: (voucherId: number) => void
     showValues: boolean
+    direction?: "IN" | "OUT"
 }) {
     const meta = getDocTypeMeta(item.doc_type)
     const quantityIn = Number(item.quantity_in || 0)
     const quantityOut = Number(item.quantity_out || 0)
     const openingBalance = Number(item.balance_quantity || 0) - quantityIn + quantityOut
+    const centerVoucherFields = Boolean(direction)
 
     return (
         <tr className="hover:bg-muted/30 border-b">
@@ -686,8 +696,8 @@ function LedgerRow({
                     {formatDate(item.posting_date)}
                 </div>
             </Td>
-            <Td>
-                <div className="flex items-center gap-1.5">
+            <Td className={cn(centerVoucherFields && "text-center")}>
+                <div className={cn("flex items-center gap-1.5", centerVoucherFields && "justify-center")}>
                     {item.voucher_id ? (
                         <button
                             type="button"
@@ -705,32 +715,32 @@ function LedgerRow({
             <Td>
                 <LedgerLongText value={item.description} className="max-w-[360px]" />
             </Td>
-            <Td>
-                <LedgerLongText value={item.supplier_name} className="max-w-[340px]" />
-            </Td>
-            <Td className="text-muted-foreground font-mono text-xs">
+            <Td className="text-muted-foreground text-center font-mono text-xs">
                 {item.tk_no || "-"}
             </Td>
-            <Td className="text-muted-foreground font-mono text-xs">
+            <Td className="text-muted-foreground text-center font-mono text-xs">
                 {item.tk_co || "-"}
             </Td>
-            <Td className="text-muted-foreground font-mono text-xs">
-                {item.product_code || "-"}
+            <Td className={cn(centerVoucherFields && "text-center")}>
+                <LedgerLongText
+                    value={item.product_code}
+                    className={cn("max-w-[150px] font-mono", centerVoucherFields && "mx-auto text-center")}
+                />
             </Td>
             <Td>
                 <LedgerLongText value={item.product_name} className="max-w-[340px] font-semibold" />
             </Td>
-            <Td className="text-muted-foreground">
+            <Td className="text-muted-foreground text-center">
                 {item.unit || "-"}
             </Td>
-            <Td className="font-mono text-xs">
-                {item.lot_code || "-"}
+            <Td className="text-center">
+                <LedgerLongText value={item.lot_code} className="mx-auto max-w-[150px] text-center font-mono" />
             </Td>
-            <Td className="text-muted-foreground font-mono text-xs">
-                {item.warehouse_code || "-"}
+            <Td className="text-center">
+                <LedgerLongText value={item.warehouse_code} className="mx-auto max-w-[160px] text-center font-mono" />
             </Td>
-            <Td>
-                <LedgerLongText value={item.warehouse_name} className="max-w-[260px] font-medium" />
+            <Td className="text-center">
+                <LedgerLongText value={item.warehouse_name} className="mx-auto max-w-[260px] text-center font-medium" />
             </Td>
             {showValues ? (
                 <Td className="text-right tabular-nums">
@@ -754,10 +764,11 @@ function LedgerRow({
                     {formatNumber(Number(item.amount || 0))}
                 </Td>
             ) : null}
+            <Td className="text-center">
+                <LedgerLongText value={meta.label} className="mx-auto max-w-[250px] text-center" />
+            </Td>
             <Td>
-                <div className="text-muted-foreground whitespace-nowrap text-xs leading-4">
-                    {meta.label}
-                </div>
+                <LedgerLongText value={item.supplier_name} className="max-w-[340px]" />
             </Td>
         </tr>
     )
@@ -831,9 +842,9 @@ function VoucherDetailDialog({
                                             <Th className="w-20">ĐVT</Th>
                                             <Th className="w-32">Số lô</Th>
                                             <Th className="w-28">HSD</Th>
-                                            <Th className="w-28 text-right">Số lượng</Th>
-                                            {!isTransfer ? <Th className="w-28 text-right">Đơn giá</Th> : null}
-                                            {!isTransfer ? <Th className="w-32 text-right">Thành tiền</Th> : null}
+                                            <Th className="w-28">Số lượng</Th>
+                                            {!isTransfer ? <Th className="w-28">Đơn giá</Th> : null}
+                                            {!isTransfer ? <Th className="w-32">Thành tiền</Th> : null}
                                             <Th className="w-56">{isTransfer ? "Kho xuất" : "Kho"}</Th>
                                             <Th className="min-w-[220px]">Ghi chú</Th>
                                         </tr>
@@ -1071,11 +1082,11 @@ function Quantity({ value, tone }: { value: number; tone: "in" | "out" }) {
 }
 
 function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
-    return <th className={cn("px-3 py-2 text-left font-semibold", className)} {...props} />
+    return <th className={cn("border-r bg-slate-100 px-3 py-2 text-center font-semibold last:border-r-0", className)} {...props} />
 }
 
 function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
-    return <td className={cn("px-3 py-1.5 align-middle", className)} {...props} />
+    return <td className={cn("overflow-hidden border-r px-3 py-1.5 align-middle last:border-r-0", className)} {...props} />
 }
 
 function formatDate(value?: string) {

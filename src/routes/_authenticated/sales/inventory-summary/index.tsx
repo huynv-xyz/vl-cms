@@ -4,14 +4,14 @@ import SalesInventorySummaryPage from "@/features/sale/inventory-summary"
 export const Route = createFileRoute("/_authenticated/sales/inventory-summary/")({
     validateSearch: (search: Record<string, unknown>) => {
         const page = Number(search.page ?? 1)
-        const size = Number(search.size ?? 20)
+        const size = Number(search.size ?? 50)
         const today = todayYmd()
         const fromDate = normalizeFromDate(search.from_date, today)
         const toDate = normalizeToDate(search.to_date, fromDate)
 
         return {
             page: Number.isNaN(page) ? 1 : page,
-            size: Number.isNaN(size) ? 20 : size,
+            size: Number.isNaN(size) ? 50 : size,
             keyword: typeof search.keyword === "string" ? search.keyword : "",
             product_id:
                 search.product_id !== undefined && !isNaN(Number(search.product_id))

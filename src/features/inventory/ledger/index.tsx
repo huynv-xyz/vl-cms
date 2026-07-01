@@ -335,23 +335,29 @@ function Metric({
     const styles = SUMMARY_TONES[tone]
 
     return (
-        <Card className={cn("gap-0 py-4 shadow-sm transition-shadow hover:shadow-md", styles.ring)}>
-            <CardContent className="flex items-center gap-3 px-4">
-                <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-lg", styles.iconBg)}>
-                    <Icon className="h-5 w-5" />
+        <Card className={cn("gap-0 py-3 shadow-sm transition-shadow hover:shadow-md", styles.ring)}>
+            <CardContent className="px-4">
+                <div className="text-muted-foreground mb-2 truncate text-center text-[11px] font-semibold uppercase tracking-wider">
+                    {label}
                 </div>
-                <div className="min-w-0 flex-1">
-                    <div className="text-muted-foreground truncate text-[11px] font-semibold uppercase tracking-wider">
-                        {label}
+                <div className="flex items-center gap-3">
+                    <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-md", styles.iconBg)}>
+                        <Icon className="h-4 w-4" />
+                    </span>
+                    <div className="grid flex-1 grid-cols-[minmax(0,1fr)_minmax(96px,max-content)] gap-x-3 gap-y-1 text-sm">
+                        <span className="text-muted-foreground">Số lượng</span>
+                        <span className={cn("text-right font-bold tabular-nums", styles.value)}>
+                            {formatNumber(quantity || 0)}
+                        </span>
+                        {showValue ? (
+                            <>
+                                <span className="text-muted-foreground">Giá trị</span>
+                                <span className={cn("text-right font-bold tabular-nums", styles.value)}>
+                                    {formatNumber(value || 0)}
+                                </span>
+                            </>
+                        ) : null}
                     </div>
-                    <div className={cn("mt-1 text-sm tabular-nums", styles.value)}>
-                        Số lượng: <span className="font-bold">{formatNumber(quantity || 0)}</span>
-                    </div>
-                    {showValue ? (
-                        <div className={cn("text-sm tabular-nums", styles.value)}>
-                            Giá trị: <span className="font-bold">{formatNumber(value || 0)}</span>
-                        </div>
-                    ) : null}
                 </div>
             </CardContent>
         </Card>
@@ -360,23 +366,23 @@ function Metric({
 
 const SUMMARY_TONES = {
     info: {
-        ring: "border-blue-200/60 dark:border-blue-900/40",
-        iconBg: "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400",
+        ring: "border-blue-300 bg-blue-100/80 dark:border-blue-800 dark:bg-blue-950/30",
+        iconBg: "bg-white/80 text-blue-700 dark:bg-blue-900/70 dark:text-blue-300",
         value: "",
     },
     ok: {
-        ring: "border-emerald-200/60 dark:border-emerald-900/40",
-        iconBg: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400",
+        ring: "border-emerald-300 bg-emerald-100/80 dark:border-emerald-800 dark:bg-emerald-950/30",
+        iconBg: "bg-white/80 text-emerald-700 dark:bg-emerald-900/70 dark:text-emerald-300",
         value: "text-emerald-600 dark:text-emerald-400",
     },
     bad: {
-        ring: "border-rose-200/70 bg-rose-50/30 dark:border-rose-900/50 dark:bg-rose-950/10",
-        iconBg: "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400",
+        ring: "border-rose-300 bg-rose-100/80 dark:border-rose-800 dark:bg-rose-950/30",
+        iconBg: "bg-white/80 text-rose-700 dark:bg-rose-900/70 dark:text-rose-300",
         value: "text-rose-600 dark:text-rose-400",
     },
     muted: {
-        ring: "border-border/60",
-        iconBg: "bg-muted text-muted-foreground",
+        ring: "border-slate-300 bg-slate-100/80 dark:border-slate-700 dark:bg-slate-900/60",
+        iconBg: "bg-white/80 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
         value: "text-muted-foreground",
     },
 } as const
