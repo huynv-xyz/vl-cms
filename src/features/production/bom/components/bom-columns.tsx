@@ -31,13 +31,14 @@ export const productBomColumns: ColumnDef<ProductBom>[] = [
 
     buildTextColumn<ProductBom>({
         title: "Thành phẩm",
+        width: 420,
         render: (bom) => <ProductCell bom={bom} />,
     }),
 
     buildTextColumn<ProductBom>({
         accessorKey: "version",
         title: "Phiên bản",
-        width: 110,
+        width: 190,
     }),
 
     buildTextColumn<ProductBom>({
@@ -81,7 +82,7 @@ function ProductCell({ bom }: { bom: ProductBom }) {
     return (
         <button
             type="button"
-            className="flex min-w-[260px] max-w-full items-center gap-2 rounded-md text-left hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex w-full min-w-0 items-center gap-2 rounded-md text-left hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => openDetail(bom)}
         >
             <Layers3 className="h-4 w-4 shrink-0 text-muted-foreground" />

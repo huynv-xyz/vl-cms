@@ -16,12 +16,13 @@ export const productionColumns: ColumnDef<Production>[] = [
     buildTextColumn({
         accessorKey: "production_no",
         title: "Lệnh SX",
+        width: 190,
         render: (row) => (
-            <div className="min-w-[180px]">
+            <div className="w-full min-w-0">
                 <Link
                     to="/production/orders/$id"
                     params={{ id: String(row.id) }}
-                    className="font-semibold text-primary hover:underline"
+                    className="block truncate font-semibold text-primary hover:underline"
                 >
                     {row.production_no || `Lệnh #${row.id}`}
                 </Link>
@@ -34,27 +35,31 @@ export const productionColumns: ColumnDef<Production>[] = [
 
     buildTextColumn({
         title: "Thành phẩm",
+        width: 360,
         render: (row) => <FinishedProductsCell items={row.items ?? []} />,
     }),
 
     buildTextColumn({
         title: "Địa điểm kho / Kho nhập",
+        width: 220,
         render: (row) => <WarehouseCell production={row} />,
     }),
 
     buildTextColumn({
         title: "Sản lượng",
+        width: 210,
         render: (row) => <QuantityCell items={row.items ?? []} />,
     }),
 
     buildTextColumn({
         title: "Giá thành",
+        width: 190,
         render: (row) => (
-            <div className="min-w-[120px] text-right">
-                <div className="font-semibold">
+            <div className="w-full min-w-0 text-right">
+                <div className="truncate font-semibold">
                     {formatCurrency(totalItemValue(row.items ?? [], "total_cost"))}
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="truncate text-xs text-muted-foreground">
                     {formatCurrency(avgUnitCost(row.items ?? []))}/ĐV
                 </div>
             </div>
@@ -64,11 +69,13 @@ export const productionColumns: ColumnDef<Production>[] = [
     buildTextColumn({
         accessorKey: "status",
         title: "Bước xử lý",
+        width: 190,
         render: (row) => <ProductionStepCell production={row} />,
     }),
 
     buildTextColumn({
         title: "Cảnh báo",
+        width: 210,
         render: (row) => <WarningCell production={row} />,
     }),
 
@@ -88,13 +95,13 @@ function FinishedProductsCell({ items }: { items: ProductionItem[] }) {
     const rest = items.length - visible.length
 
     return (
-        <div className="min-w-[280px] space-y-1.5">
+        <div className="w-full min-w-0 space-y-1.5">
             {visible.map((item) => (
                 <div key={item.id} className="leading-tight">
-                    <div className="font-medium">
+                    <div className="truncate font-medium">
                         {item.product?.code || `#${item.product_id}`}
                     </div>
-                    <div className="max-w-[320px] truncate text-xs text-muted-foreground">
+                    <div className="truncate text-xs text-muted-foreground">
                         {item.product?.name || "-"}
                     </div>
                 </div>
@@ -124,14 +131,14 @@ function WarehouseCell({ production }: { production: Production }) {
     if (!warehouses.length && !physicalName) return <span className="text-muted-foreground">-</span>
 
     return (
-        <div className="min-w-[140px] space-y-1">
+        <div className="w-full min-w-0 space-y-1">
             {physicalName && (
-                <div className="text-sm font-semibold">
+                <div className="truncate text-sm font-semibold">
                     {physicalName}
                 </div>
             )}
             {warehouses.slice(0, 2).map((name) => (
-                <div key={name} className="text-xs text-muted-foreground">
+                <div key={name} className="truncate text-xs text-muted-foreground">
                     {name}
                 </div>
             ))}
@@ -151,7 +158,7 @@ function QuantityCell({ items }: { items: ProductionItem[] }) {
     const percent = plan > 0 ? Math.min(100, Math.round((done / plan) * 100)) : 0
 
     return (
-        <div className="min-w-[170px] space-y-1.5">
+        <div className="w-full min-w-0 space-y-1.5">
             <div className="flex items-center justify-between gap-3 text-sm">
                 <span className="text-muted-foreground">KH</span>
                 <span className="font-semibold">{formatQty(plan, unit)}</span>
@@ -174,11 +181,11 @@ function ProductionStepCell({ production }: { production: Production }) {
     const meta = getProductionStatusMeta(production.status)
 
     return (
-        <div className="min-w-[180px] space-y-1.5">
+        <div className="w-full min-w-0 space-y-1.5">
             <Badge variant={meta.variant}>
                 {meta.label}
             </Badge>
-            <div className="text-xs text-muted-foreground">
+            <div className="truncate text-xs text-muted-foreground">
                 {meta.next}
             </div>
         </div>
@@ -201,7 +208,7 @@ function WarningCell({ production }: { production: Production }) {
     }
 
     return (
-        <div className="min-w-[190px] space-y-1.5">
+        <div className="w-full min-w-0 space-y-1.5">
             {missingBom > 0 && (
                 <Badge variant="destructive">
                     {missingBom} thành phẩm thiếu BOM
@@ -218,7 +225,7 @@ function WarningCell({ production }: { production: Production }) {
                         {openWarnings.length} cảnh báo chưa xử lý
                     </Badge>
                     {groupedWarnings.slice(0, 2).map((warning) => (
-                        <div key={warning.code} className="text-xs text-muted-foreground">
+                        <div key={warning.code} className="truncate text-xs text-muted-foreground">
                             {warning.label}: {warning.count}
                         </div>
                     ))}

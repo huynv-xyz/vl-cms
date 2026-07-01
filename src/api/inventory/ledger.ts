@@ -1,5 +1,5 @@
 import { createCrudApi } from "@/api/crud"
-import { apiGet } from "@/api/client"
+import { apiGet, apiPost } from "@/api/client"
 import type {
     InventoryLedger,
     InventoryLedgerReportRow,
@@ -63,5 +63,70 @@ export function listInventoryLedgerReport(params: InventoryLedgerReportParams) {
         total_page: number
         size: number
     }>("/inventory/ledger/report", params)
+}
+
+export type SalesInventorySyncRequest = {
+    from_date?: string
+    to_date?: string
+    user_id?: number
+}
+
+export type SalesInventorySyncError = {
+    sales_transaction_id?: number | null
+    document_no?: string | null
+    voucher_type_code?: string | null
+    product_code?: string | null
+    warehouse_code?: string | null
+    reason?: string | null
+}
+
+export type SalesInventorySyncVoucher = {
+    voucher_id?: number | null
+    voucher_no?: string | null
+    voucher_type_code?: string | null
+    item_count: number
+}
+
+export type SalesInventorySyncDetail = {
+    sales_transaction_id?: number | null
+    date?: string | null
+    document_no?: string | null
+    voucher_type_code?: string | null
+    product_code?: string | null
+    product_name?: string | null
+    warehouse_code?: string | null
+    warehouse_name?: string | null
+    customer_name?: string | null
+    unit?: string | null
+    quantity?: number | string | null
+    status?: "READY" | "SKIPPED" | "SUCCESS" | "ERROR" | string | null
+    voucher_id?: number | null
+    voucher_no?: string | null
+    reason?: string | null
+}
+
+export type SalesInventorySyncResult = {
+    mode: "PREVIEW" | "RUN" | string
+    from_date?: string
+    to_date?: string
+    total_transactions: number
+    total_operations: number
+    ready_operations: number
+    ready_export_operations: number
+    ready_return_operations: number
+    skipped_operations: number
+    failed_operations: number
+    created_vouchers: number
+    errors: SalesInventorySyncError[]
+    vouchers: SalesInventorySyncVoucher[]
+    details: SalesInventorySyncDetail[]
+}
+
+export function previewSalesInventorySync(body: SalesInventorySyncRequest) {
+    return apiPost<SalesInventorySyncResult>("/inventory/sales-sync/preview", body)
+}
+
+export function runSalesInventorySync(body: SalesInventorySyncRequest) {
+    return apiPost<SalesInventorySyncResult>("/inventory/sales-sync/run", body)
 }
 

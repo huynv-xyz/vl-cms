@@ -857,12 +857,13 @@ function MaterialsTable({ production }: { production: Production }) {
                         {isOpen ? (
                             itemMaterials.length ? (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[1180px] text-sm">
+                                    <table className="w-full min-w-[1280px] text-sm">
                                         <thead className="bg-muted/40 text-muted-foreground">
                                             <tr>
                                                 <Th className="w-12">STT</Th>
                                                 <Th>Tên</Th>
                                                 <Th className="w-20">ĐVT</Th>
+                                                <Th className="w-44">Kho</Th>
                                                 <Th className="w-20">Loại</Th>
                                                 <Th className="w-28 text-right">SL cần</Th>
                                                 <Th className="w-28 text-right">Đã FIFO</Th>
@@ -886,6 +887,12 @@ function MaterialsTable({ production }: { production: Production }) {
                                                             </div>
                                                         </Td>
                                                         <Td className="text-muted-foreground">{material.product?.unit || "-"}</Td>
+                                                        <Td>
+                                                            <div className="font-medium leading-tight">{material.warehouse?.name || "-"}</div>
+                                                            <div className="mt-0.5 text-xs text-muted-foreground">
+                                                                {material.warehouse?.code || (material.warehouse_id ? `#${material.warehouse_id}` : "-")}
+                                                            </div>
+                                                        </Td>
                                                         <Td className="text-muted-foreground">{material.material_type || "-"}</Td>
                                                         <Td className="text-right font-medium tabular-nums">{formatNumber(material.quantity_required)}</Td>
                                                         <Td className="text-right tabular-nums">{formatNumber(material.allocated_quantity)}</Td>
