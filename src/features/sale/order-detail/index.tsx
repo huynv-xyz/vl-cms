@@ -29,10 +29,12 @@ import {
 import { PageSection } from "@/components/page-section"
 import { Button } from "@/components/ui/button"
 import { exportOrderXlsx } from "../order/components/order-table"
+import { useNavigate } from "@tanstack/react-router"
 
-type Props = { id: number }
+type Props = { id: number; returnTo?: string }
 
-export default function OrderDetailPage({ id }: Props) {
+export default function OrderDetailPage({ id, returnTo }: Props) {
+    const navigate = useNavigate()
 
     const query: any = useQuery({
         queryKey: ["order-detail", id],
@@ -50,6 +52,7 @@ export default function OrderDetailPage({ id }: Props) {
             title="Chi tiết đơn hàng"
             description="Theo dõi tiến độ giao hàng, xuất kho, trả hàng và công nợ cho đơn."
             showBack
+            onBack={() => navigateToOrderList(navigate, returnTo)}
             actions={
                 data ? (
                     <Button
@@ -303,4 +306,36 @@ function TabTrigger({
 
 function formatNumber(value: number) {
     return new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(value || 0)
+}
+
+function navigateToOrderList(navigate: any, returnTo?: string) {
+    if (!returnTo || !returnTo.startsWith("/sales/orders")) {
+        navigate({ to: "/sales/orders" })
+        return
+    }
+
+    const url = new URL(returnTo, window.location.origin)
+    navigate({
+        to: "/sales/orders",
+        search: {
+            page: Number(url.searchParams.get("page") || 1),
+            size: Number(url.searchParams.get("size") || 20),
+            keyword: url.searchParams.get("keyword") || "",
+            status: url.searchParams.get("status") || undefined,
+            customer_id: numberParam(url.searchParams.get("customer_id")),
+            employee_id: numberParam(url.searchParams.get("employee_id")),
+            from_date: url.searchParams.get("from_date") || undefined,
+            to_date: url.searchParams.get("to_date") || undefined,
+            order_date_sort:
+                url.searchParams.get("order_date_sort") === "asc"
+                    ? "asc"
+                    : "desc",
+        },
+    })
+}
+
+function numberParam(value: string | null) {
+    if (!value) return undefined
+    const n = Number(value)
+    return Number.isFinite(n) ? n : undefined
 }

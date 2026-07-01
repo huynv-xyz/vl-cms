@@ -50,6 +50,7 @@ export function useOrderColumns() {
                         <Link
                             to="/sales/orders/$id"
                             params={{ id: String(order.id) }}
+                            search={{ return_to: undefined }}
                             className="text-primary inline-flex items-center gap-1.5 rounded-md font-mono text-sm font-bold hover:underline"
                         >
                             <Package className="h-3.5 w-3.5 opacity-60" />

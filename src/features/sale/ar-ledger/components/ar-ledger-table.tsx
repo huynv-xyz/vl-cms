@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner"
 
 import { getCustomer, listCustomers } from "@/api/customer"
-import { listArLedgers, type ArLedgerListParams } from "@/api/sale/ar-ledger"
+import { listArLedgers, type ArLedgerListParams, type ArLedgerTotals } from "@/api/sale/ar-ledger"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
@@ -45,6 +45,7 @@ type Filters = {
 
 type Props = {
     data: ArLedger[]
+    totals?: ArLedgerTotals
     pagination: PaginationState
     onPaginationChange: OnChangeFn<PaginationState>
     pageCount: number
@@ -80,6 +81,7 @@ const AR_LEDGER_COLUMNS = [
 
 export function ArLedgerTable({
     data,
+    totals: reportTotals,
     pagination,
     onPaginationChange,
     pageCount,
@@ -106,7 +108,7 @@ export function ArLedgerTable({
     const period = periodLabel(filters.from_date, filters.to_date)
     const today = todayYmd()
 
-    const totals = useMemo(() => {
+    const pageTotals = useMemo(() => {
         const transactionRows = data.filter((row) => !isOpeningRow(row))
         const debit = transactionRows.reduce((sum, row) => sum + num(row.debit_amount), 0)
         const credit = transactionRows.reduce((sum, row) => sum + num(row.credit_amount), 0)
@@ -120,6 +122,13 @@ export function ArLedgerTable({
             customers: new Set(data.map((row) => row.customer_id ?? row.customer_name)).size,
         }
     }, [data])
+    const totals = {
+        debit: num(reportTotals?.debit_amount ?? pageTotals.debit),
+        credit: num(reportTotals?.credit_amount ?? pageTotals.credit),
+        balance: num(reportTotals?.closing_balance ?? pageTotals.balance),
+        rows: num(reportTotals?.row_count ?? pageTotals.rows),
+        customers: num(reportTotals?.customer_count ?? pageTotals.customers),
+    }
 
     const setFilter = (key: keyof Filters, value: unknown) => {
         onFiltersChange({ ...filters, [key]: value })
@@ -715,7 +724,13 @@ export function ArLedgerTable({
                                     </td>
                                 </tr>
                             ) : (
-                                groups.map((group) => <CustomerGroup key={group.key} group={group} />)
+                                groups.map((group) => (
+                                    <CustomerGroup
+                                        key={group.key}
+                                        group={group}
+                                        reportTotals={groups.length === 1 ? reportTotals : undefined}
+                                    />
+                                ))
                             )}
                         </tbody>
                     </table>
@@ -868,7 +883,12 @@ function MetricCard({
     )
 }
 
-function CustomerGroup({ group }: { group: Group }) {
+function CustomerGroup({ group, reportTotals }: { group: Group; reportTotals?: ArLedgerTotals }) {
+    const totalQty = reportTotals ? num(reportTotals.quantity_total) : group.qtyTotal
+    const totalDebit = reportTotals ? num(reportTotals.debit_amount) : group.debitTotal
+    const totalCredit = reportTotals ? num(reportTotals.credit_amount) : group.creditTotal
+    const totalClosing = reportTotals ? num(reportTotals.closing_balance) : group.closing
+
     return (
         <>
             <tr className="border-y bg-slate-100">
@@ -944,19 +964,19 @@ function CustomerGroup({ group }: { group: Group }) {
                 <Td />
                 <Td className="text-slate-950">Cộng</Td>
                 <Td />
-                <Td className="text-right tabular-nums">{fmtQtyBlank(group.qtyTotal)}</Td>
+                <Td className="text-right tabular-nums">{fmtQtyBlank(totalQty)}</Td>
                 <Td />
                 <Td className="border-l text-right tabular-nums text-rose-700">
-                    {fmtMoneyBlank(group.debitTotal)}
+                    {fmtMoneyBlank(totalDebit)}
                 </Td>
                 <Td className="text-right tabular-nums text-emerald-700">
-                    {fmtMoneyBlank(group.creditTotal)}
+                    {fmtMoneyBlank(totalCredit)}
                 </Td>
                 <Td className="border-l text-right tabular-nums text-slate-950">
-                    {group.closing > 0 ? fmtCurrency(group.closing) : ""}
+                    {totalClosing > 0 ? fmtCurrency(totalClosing) : ""}
                 </Td>
                 <Td className="text-right tabular-nums text-slate-950">
-                    {group.closing < 0 ? fmtCurrency(Math.abs(group.closing)) : ""}
+                    {totalClosing < 0 ? fmtCurrency(Math.abs(totalClosing)) : ""}
                 </Td>
             </tr>
         </>
@@ -1026,7 +1046,7 @@ function buildGroups(rows: ArLedger[]): Group[] {
 }
 
 function isOpeningRow(item: ArLedger): boolean {
-    return item.source_type === "OPENING" || item.line_type === "OPENING"
+    return num(item.id) < 0 && item.source_type === "OPENING" && item.line_type === "OPENING"
 }
 
 function makeGroup(key: string, allItems: ArLedger[]): Group {
@@ -1036,9 +1056,17 @@ function makeGroup(key: string, allItems: ArLedger[]): Group {
         .sort(compareLedgerDateAsc)
 
     let runningValue = resolveOpeningBalance(openingRow, items)
+    if (!openingRow && items.length && items[0].running_balance !== undefined) {
+        runningValue = num(items[0].running_balance) - net(items[0])
+    }
     const openingBalance = runningValue
 
     const running = items.map((item) => {
+        if (item.running_balance !== undefined) {
+            runningValue = num(item.running_balance)
+            return runningValue
+        }
+
         runningValue += net(item)
         return runningValue
     })

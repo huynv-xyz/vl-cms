@@ -95,6 +95,12 @@ export function OrderTable({
 
     const currentPage = pagination.pageIndex + 1
     const summary = buildSummary(data)
+    const returnTo = buildOrdersReturnTo({
+        page: currentPage,
+        size: pagination.pageSize,
+        keyword,
+        filters,
+    })
 
     const handleExportAllPages = async () => {
         if (isExporting) return
@@ -289,6 +295,7 @@ export function OrderTable({
                                     key={order.id}
                                     order={order}
                                     canUpdateOrder={canUpdateOrder}
+                                    returnTo={returnTo}
                                 />
                             ))}
                         </>
@@ -329,9 +336,11 @@ function OrderListHeader() {
 function OrderCard({
     order,
     canUpdateOrder,
+    returnTo,
 }: {
     order: Order
     canUpdateOrder: boolean
+    returnTo: string
 }) {
     const { openEdit } = useOrders()
     const queryClient = useQueryClient()
@@ -395,6 +404,7 @@ function OrderCard({
                     <Link
                         to="/sales/orders/$id"
                         params={{ id: String(order.id) }}
+                        search={{ return_to: returnTo }}
                         className="text-primary inline-flex min-w-0 items-center gap-1.5 font-mono text-xs font-bold hover:underline"
                     >
                         <Package className="h-3.5 w-3.5 opacity-70" />
@@ -972,6 +982,36 @@ function getOrderStockCheck(items: any[]) {
 function formatEmployee(employee?: Order["employee"]) {
     if (!employee) return ""
     return employee.code ? `${employee.name} (${employee.code})` : employee.name || ""
+}
+
+function buildOrdersReturnTo({
+    page,
+    size,
+    keyword,
+    filters,
+}: {
+    page: number
+    size: number
+    keyword?: string
+    filters?: any
+}) {
+    const params = new URLSearchParams()
+    params.set("page", String(page || 1))
+    params.set("size", String(size || 20))
+    appendParam(params, "keyword", keyword)
+    appendParam(params, "status", Array.isArray(filters?.status) ? filters.status.join(",") : filters?.status)
+    appendParam(params, "customer_id", filters?.customer_id)
+    appendParam(params, "employee_id", filters?.employee_id)
+    appendParam(params, "from_date", filters?.from_date)
+    appendParam(params, "to_date", filters?.to_date)
+    appendParam(params, "order_date_sort", filters?.order_date_sort || "desc")
+
+    return `/sales/orders?${params.toString()}`
+}
+
+function appendParam(params: URLSearchParams, key: string, value: unknown) {
+    if (value === undefined || value === null || value === "") return
+    params.set(key, String(value))
 }
 
 function formatDate(value?: string | number | Date) {

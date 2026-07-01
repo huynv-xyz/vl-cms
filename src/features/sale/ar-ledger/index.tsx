@@ -1,13 +1,14 @@
 import { PageSection } from '@/components/page-section'
 import { Button } from '@/components/ui/button'
 import { usePaginatedList } from '@/hooks/use-paginated-list'
-import { listArLedgers } from '@/api/sale/ar-ledger'
+import { getArLedgerTotals, listArLedgers } from '@/api/sale/ar-ledger'
 import { ArLedgerTable } from './components/ar-ledger-table'
 import { Route } from '@/routes/_authenticated/sales/ar-ledgers'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 
 export default function ArLedgerPage() {
 
@@ -33,6 +34,17 @@ export default function ArLedgerPage() {
     const showReturnToSummary = search.return_from === "ar-summary"
     const today = todayYmd()
 
+    const listFilters = {
+        keyword,
+        source_type: multiFilters.source_type?.join(",") || undefined,
+        activity: multiFilters.activity?.join(",") || undefined,
+        from_date: singleFilters.from_date,
+        to_date: singleFilters.to_date,
+        customer_id: singleFilters.customer_id
+            ? Number(singleFilters.customer_id)
+            : undefined,
+    }
+
     const { data, isLoading, error } = usePaginatedList(
         [
             'ar-ledgers',
@@ -47,16 +59,14 @@ export default function ArLedgerPage() {
         {
             page: search.page,
             size: search.size,
-            keyword,
-            source_type: multiFilters.source_type?.join(",") || undefined,
-            activity: multiFilters.activity?.join(",") || undefined,
-            from_date: singleFilters.from_date,
-            to_date: singleFilters.to_date,
-            customer_id: singleFilters.customer_id
-                ? Number(singleFilters.customer_id)
-                : undefined,
+            ...listFilters,
         },
     )
+
+    const totalsQuery = useQuery({
+        queryKey: ['ar-ledgers-totals', listFilters],
+        queryFn: () => getArLedgerTotals(listFilters),
+    })
 
     return (
         <PageSection
@@ -91,6 +101,7 @@ export default function ArLedgerPage() {
             {(data) => (
                 <ArLedgerTable
                     data={data.items}
+                    totals={totalsQuery.data}
                     pagination={pagination}
                     onPaginationChange={setPagination}
                     pageCount={data.total_page}

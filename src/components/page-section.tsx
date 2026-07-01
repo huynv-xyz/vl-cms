@@ -18,6 +18,7 @@ type PageSectionProps<T> = {
 
     showBack?: boolean
     backTo?: string
+    onBack?: () => void
 
     header?: React.ReactNode
 
@@ -36,6 +37,7 @@ export function PageSection<T>({
 
     showBack,
     backTo,
+    onBack,
 
     header,
     className,
@@ -86,7 +88,9 @@ export function PageSection<T>({
                                     size="icon"
                                     className="mt-1 shrink-0"
                                     onClick={() =>
-                                        backTo
+                                        onBack
+                                            ? onBack()
+                                            : backTo
                                             ? navigate({ to: backTo })
                                             : navigate({ to: ".." })
                                     }

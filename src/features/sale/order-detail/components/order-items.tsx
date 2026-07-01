@@ -27,6 +27,7 @@ export function OrderItems({ order, items }: any) {
     const [editRow, setEditRow] = useState<any>(null)
 
     const isEditable = order?.status === "CONFIRMED"
+    const showStockWarning = order?.status !== "DONE"
 
     const { mutate: removeItem, isPending } = useMutation({
         mutationFn: deleteOrderItem,
@@ -93,8 +94,12 @@ export function OrderItems({ order, items }: any) {
                                 <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Ghi chú</TableHead>
                                 <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">Khuyến mãi</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">SL đặt</TableHead>
-                                <TableHead className="text-right text-xs font-semibold uppercase">Tồn kho</TableHead>
-                                <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">Cảnh báo</TableHead>
+                                {showStockWarning && (
+                                    <TableHead className="text-right text-xs font-semibold uppercase">Tồn kho</TableHead>
+                                )}
+                                {showStockWarning && (
+                                    <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">Cảnh báo</TableHead>
+                                )}
                                 <TableHead className="text-right text-xs font-semibold uppercase">Đã xuất</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">Đã trả</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">Còn lại</TableHead>
@@ -177,26 +182,30 @@ export function OrderItems({ order, items }: any) {
                                             {formatQty(quantity)}
                                         </TableCell>
 
-                                        <TableCell className="text-right font-medium tabular-nums">
-                                            {formatQty(stockQuantity)}
-                                        </TableCell>
+                                        {showStockWarning && (
+                                            <TableCell className="text-right font-medium tabular-nums">
+                                                {formatQty(stockQuantity)}
+                                            </TableCell>
+                                        )}
 
-                                        <TableCell className="text-center">
-                                            <span
-                                                className={
-                                                    overStock
-                                                        ? "inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700"
-                                                        : "inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
-                                                }
-                                            >
-                                                {overStock ? (
-                                                    <AlertTriangle className="h-3.5 w-3.5" />
-                                                ) : (
-                                                    <CheckCircle2 className="h-3.5 w-3.5" />
-                                                )}
-                                                {overStock ? "Vượt tồn" : "Đạt"}
-                                            </span>
-                                        </TableCell>
+                                        {showStockWarning && (
+                                            <TableCell className="text-center">
+                                                <span
+                                                    className={
+                                                        overStock
+                                                            ? "inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700"
+                                                            : "inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
+                                                    }
+                                                >
+                                                    {overStock ? (
+                                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                                    ) : (
+                                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                                    )}
+                                                    {overStock ? "Vượt tồn" : "Đạt"}
+                                                </span>
+                                            </TableCell>
+                                        )}
 
                                         <TableCell className="text-right font-medium tabular-nums text-blue-600 dark:text-blue-400">
                                             {formatQty(exported)}
@@ -267,7 +276,7 @@ export function OrderItems({ order, items }: any) {
                         <TableFooter className="bg-muted/40">
                             <TableRow className="hover:bg-transparent">
                                 <TableCell
-                                    colSpan={14}
+                                    colSpan={showStockWarning ? 14 : 12}
                                     className="text-right text-sm font-semibold uppercase tracking-wide text-muted-foreground"
                                 >
                                     Tổng cộng
