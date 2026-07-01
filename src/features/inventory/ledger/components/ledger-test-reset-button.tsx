@@ -1,4 +1,4 @@
-import { useState } from "react"
+﻿import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { AlertTriangle, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -65,7 +65,10 @@ export function LedgerTestResetButton() {
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-                <Button size="sm" variant="destructive">
+                <Button
+                    size="sm"
+                    variant="destructive"
+                >
                     <Trash2 className="mr-2 h-4 w-4" />
                     {"X\u00f3a t\u1ea5t c\u1ea3 data"}
                 </Button>
