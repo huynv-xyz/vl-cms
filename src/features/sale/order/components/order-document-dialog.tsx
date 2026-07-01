@@ -9,6 +9,7 @@ import {
 import type { Borders, Cell, Worksheet } from "exceljs"
 import { Button } from "@/components/ui/button"
 import { listArLedgerSummary } from "@/api/sale/ar-ledger"
+import { getOrder } from "@/api/sale/order"
 import type { Order } from "../data/schema"
 import { Download } from "lucide-react"
 
@@ -19,38 +20,51 @@ type Props = {
 }
 
 export function OrderDocumentDialog({ open, order, onClose }: Props) {
-    const customerId = order?.customer_id
-    const orderDate = dateToYmd(order?.order_date)
+    const orderDetailQuery = useQuery({
+        queryKey: ["order-detail", order?.id],
+        queryFn: () => getOrder(order!.id),
+        enabled: open && !!order?.id,
+    })
+    const documentOrder = orderDetailQuery.data ?? order
+    const customerId = documentOrder?.customer_id
+    const waitForDoneOrderDetail = open && isDoneOrder(order) && !orderDetailQuery.data
+    const debtAsOfDate = waitForDoneOrderDetail ? undefined : getDebtAsOfDate(documentOrder)
     const arSummaryQuery = useQuery({
-        queryKey: ["order-document-ar-summary", customerId, orderDate],
+        queryKey: ["order-document-ar-summary", customerId, debtAsOfDate],
         queryFn: () =>
             listArLedgerSummary({
                 page: 1,
                 size: 1,
                 customer_id: customerId,
-                to_date: orderDate,
+                to_date: debtAsOfDate,
             }),
-        enabled: open && !!customerId,
+        enabled: open && !!customerId && !!debtAsOfDate,
     })
     const arSummary: any = arSummaryQuery.data
     const debtTotal = Number(arSummary?.items?.[0]?.closing_balance || 0)
+    const debtAsOfLabel = debtAsOfDate ? formatDate(debtAsOfDate) : "đang xác định"
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="flex max-h-[92vh] w-[min(96vw,980px)] !max-w-none flex-col gap-0 overflow-hidden p-0">
                 <DialogHeader className="flex-row items-center justify-between gap-3 space-y-0 border-b bg-muted/20 px-5 py-3.5 pr-14">
-                    <DialogTitle className="text-base font-semibold">
-                        Đơn đặt hàng
-                        {order?.order_no && (
-                            <span className="ml-2 font-mono text-primary">{order.order_no}</span>
-                        )}
-                    </DialogTitle>
-                    {order ? (
+                    <div className="min-w-0">
+                        <DialogTitle className="text-base font-semibold">
+                            Đơn đặt hàng
+                            {documentOrder?.order_no && (
+                                <span className="ml-2 font-mono text-primary">{documentOrder.order_no}</span>
+                            )}
+                        </DialogTitle>
+                        <div className="mt-1 text-xs font-medium text-muted-foreground">
+                            Công nợ cũ còn nợ tính đến ngày {debtAsOfLabel}
+                        </div>
+                    </div>
+                    {documentOrder ? (
                         <Button
                             type="button"
                             size="sm"
                             className="gap-2"
-                            onClick={() => void exportOrderDocumentXlsx(order, debtTotal)}
+                            onClick={() => void exportOrderDocumentXlsx(documentOrder, debtTotal)}
                         >
                             <Download className="h-4 w-4" />
                             Xuất Excel
@@ -59,8 +73,8 @@ export function OrderDocumentDialog({ open, order, onClose }: Props) {
                 </DialogHeader>
 
                 <div className="min-h-0 flex-1 overflow-y-auto bg-slate-100 p-5">
-                    {order ? (
-                        <OrderDocument order={order} debtTotal={debtTotal} />
+                    {documentOrder ? (
+                        <OrderDocument order={documentOrder} debtTotal={debtTotal} />
                     ) : (
                         <div className="py-10 text-center text-sm text-muted-foreground">
                             Không tìm thấy đơn đặt hàng.
@@ -463,6 +477,40 @@ function dateToYmd(value?: string) {
     if (parts.length !== 3) return date
     if (parts[0].length === 4) return `${parts[0]}-${parts[1]}-${parts[2]}`
     return `${parts[2]}-${parts[1]}-${parts[0]}`
+}
+
+function getDebtAsOfDate(order?: Order | null) {
+    if (!order) return undefined
+    if (isDoneOrder(order)) {
+        const completedDate = dateToYmd(
+            (order as any).completed_at
+                ?? (order as any).completed_date
+                ?? (order as any).done_at
+                ?? (order as any).done_date
+        )
+        if (completedDate) return completedDate
+
+        const lastDoneExportDate = ((order as any).exports ?? [])
+            .filter((item: any) => String(item?.status || "").toUpperCase() === "DONE")
+            .map((item: any) => dateToYmd(item?.export_date))
+            .filter(Boolean)
+            .sort()
+            .at(-1)
+        if (lastDoneExportDate) return lastDoneExportDate
+    }
+    return todayYmd()
+}
+
+function isDoneOrder(order?: Order | null) {
+    return String(order?.status || "").toUpperCase() === "DONE"
+}
+
+function todayYmd() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, "0")
+    const day = String(now.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
 }
 
 function formatQty(value: unknown) {

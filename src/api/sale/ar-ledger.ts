@@ -48,10 +48,14 @@ export type ArLedgerSummary = {
 }
 
 export type ArLedgerTotals = {
+    opening_balance: number
     debit_amount: number
     credit_amount: number
+    quantity_total: number
     net_amount: number
+    closing_balance: number
     row_count: number
+    customer_count: number
 }
 
 export type ArLedgerSummaryTotals = {

@@ -85,6 +85,7 @@ export function CreateOrderDialog({ open, onOpenChange, initialData }: any) {
                 navigate({
                     to: "/sales/orders/$id",
                     params: { id: String(createdOrder.id) },
+                    search: { return_to: undefined },
                 })
             }
         },

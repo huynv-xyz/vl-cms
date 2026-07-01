@@ -155,6 +155,7 @@ export const arLedgerColumns: ColumnDef<ArLedger>[] = [
                         <Link
                             to="/sales/orders/$id"
                             params={{ id: String(item.order_id) }}
+                            search={{ return_to: undefined }}
                             className="mt-1 block text-xs font-medium text-primary hover:underline"
                         >
                             Đơn hàng #{item.order_id}
