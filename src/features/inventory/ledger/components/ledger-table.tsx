@@ -794,8 +794,9 @@ function VoucherDetailDialog({
     const isTransfer = voucherTypeCode === "TRANSFER_EXPORT"
     const isInbound = String(voucher?.type?.direction || "").toUpperCase() === "I"
     const detailType = isTransfer ? "chuyển kho" : isInbound ? "nhập" : "xuất"
-    const sourceWarehouse = voucher?.from_warehouse || voucher?.warehouse
-    const targetWarehouse = voucher?.to_warehouse
+    const sourceWarehouse = voucher?.from_physical_warehouse || voucher?.from_warehouse || voucher?.physical_warehouse || voucher?.warehouse
+    const targetWarehouse = voucher?.to_physical_warehouse || voucher?.to_warehouse
+    const headerWarehouseText = formatHeaderWarehouse(voucher?.physical_warehouse || voucher?.warehouse, items)
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -827,7 +828,7 @@ function VoucherDetailDialog({
                                         <InfoItem label="Kho nhập" value={formatWarehouse(targetWarehouse)} />
                                     </>
                                 ) : (
-                                    <InfoItem label="Kho" value={formatWarehouse(voucher.warehouse)} />
+                                    <InfoItem label="Địa điểm kho" value={headerWarehouseText} />
                                 )}
                                 <InfoItem label="Loại phiếu" value={voucher.type?.name || VOUCHER_TYPE_LABEL[voucher.voucher_type_code || ""] || "-"} />
                                 <InfoItem label="Diễn giải" value={voucher.description || "-"} className="md:col-span-full" />
@@ -1003,7 +1004,7 @@ function printInventoryVoucher(voucher: InventoryVoucherPrintDetail) {
                     <div class="date">${escapeHtml(formatViPrintDate(voucher.posting_date || voucher.document_date))}</div>
                 </div>
                 <div class="info">
-                    <div>- Kho ${isInbound ? "nhập" : "xuất"}: <strong>${escapeHtml(formatWarehouse(voucher.warehouse))}</strong></div>
+                    <div>- Địa điểm kho ${isInbound ? "nhập" : "xuất"}: <strong>${escapeHtml(formatHeaderWarehouse(voucher.physical_warehouse || voucher.warehouse, items))}</strong></div>
                     <div>- Lý do: ${escapeHtml(voucher.description || VOUCHER_TYPE_LABEL[voucher.voucher_type_code || ""] || "")}</div>
                 </div>
                 <table>
@@ -1130,6 +1131,23 @@ function formatViPrintDate(dateStr?: string): string {
 function formatWarehouse(warehouse?: { code?: string; name?: string } | null) {
     if (!warehouse) return "-"
     return warehouse.name || warehouse.code || "-"
+}
+
+function formatHeaderWarehouse(
+    warehouse?: { code?: string; name?: string } | null,
+    items?: Array<{ warehouse?: { code?: string; name?: string } | null }>,
+) {
+    const headerValue = formatWarehouse(warehouse)
+    if (headerValue !== "-") return headerValue
+
+    const itemWarehouses = Array.from(new Set(
+        (items || [])
+            .map((item) => formatWarehouse(item.warehouse))
+            .filter((value) => value && value !== "-"),
+    ))
+    if (itemWarehouses.length === 0) return "-"
+    if (itemWarehouses.length === 1) return itemWarehouses[0]
+    return `Nhiều kho: ${itemWarehouses.slice(0, 3).join(", ")}${itemWarehouses.length > 3 ? "..." : ""}`
 }
 
 function formatQty(value?: number | string | null) {

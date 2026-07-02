@@ -12,19 +12,21 @@ export const contractColumns: ColumnDef<Contract>[] = [
     {
         id: "contract",
         header: "Hợp đồng",
+        size: 190,
+        minSize: 170,
         cell: ({ row }) => {
             const item = row.original
 
             return (
-                <div className="min-w-[220px] space-y-1">
+                <div className="w-full min-w-0 space-y-1">
                     <Link
                         to="/purchasing/contracts/$id"
                         params={{ id: String(item.id) }}
-                        className="font-semibold text-primary hover:underline"
+                        className="block truncate font-semibold text-primary hover:underline"
                     >
                         {item.code || `#${item.id}`}
                     </Link>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="truncate text-xs text-muted-foreground">
                         Ngày ký {item.signed_date}
                     </div>
                 </div>
@@ -34,13 +36,15 @@ export const contractColumns: ColumnDef<Contract>[] = [
     {
         id: "supplier",
         header: "Nhà cung cấp",
+        size: 250,
+        minSize: 210,
         cell: ({ row }) => {
             const supplier = row.original.supplier
 
             return (
-                <div className="min-w-[240px] space-y-1">
-                    <div className="font-medium">{supplier?.name ?? "-"}</div>
-                    <div className="text-xs text-muted-foreground">
+                <div className="w-full min-w-0 space-y-1">
+                    <div className="line-clamp-2 font-medium leading-snug">{supplier?.name ?? "-"}</div>
+                    <div className="truncate text-xs text-muted-foreground">
                         {supplier?.code ? `${supplier.code} · ` : ""}
                         {supplier?.nation?.name ?? "Chưa có quốc gia"}
                     </div>
@@ -51,22 +55,24 @@ export const contractColumns: ColumnDef<Contract>[] = [
     {
         id: "products",
         header: "Sản phẩm",
+        size: 360,
+        minSize: 300,
         cell: ({ row }) => {
             const items = ((row.original as any).items ?? []) as any[]
             const preview = items.slice(0, 2)
 
             if (!preview.length) {
                 return (
-                    <div className="min-w-[240px] text-sm text-muted-foreground">
+                    <div className="w-full min-w-0 text-sm text-muted-foreground">
                         Chưa có sản phẩm
                     </div>
                 )
             }
 
             return (
-                <div className="min-w-[280px] max-w-[360px] space-y-1">
+                <div className="w-full min-w-0 space-y-1">
                     {preview.map((item) => (
-                        <div key={item.id ?? item.product_id} className="truncate text-sm">
+                        <div key={item.id ?? item.product_id} className="min-w-0 truncate text-sm">
                             <span className="font-medium">{item.product?.code ?? "-"}</span>
                             <span className="text-muted-foreground">
                                 {" - "}
@@ -75,11 +81,11 @@ export const contractColumns: ColumnDef<Contract>[] = [
                         </div>
                     ))}
                     {items.length > preview.length ? (
-                        <div className="text-xs text-muted-foreground">
+                        <div className="truncate text-xs text-muted-foreground">
                             +{items.length - preview.length} sản phẩm khác, xem trong chi tiết HĐ
                         </div>
                     ) : (
-                        <div className="text-xs text-muted-foreground">
+                        <div className="truncate text-xs text-muted-foreground">
                             Xem đủ trong chi tiết HĐ
                         </div>
                     )}
@@ -90,16 +96,18 @@ export const contractColumns: ColumnDef<Contract>[] = [
     {
         id: "terms",
         header: "Điều kiện",
+        size: 190,
+        minSize: 170,
         cell: ({ row }) => {
             const item = row.original
 
             return (
-                <div className="min-w-[190px] space-y-1 text-sm">
-                    <div>
+                <div className="w-full min-w-0 space-y-1 text-sm">
+                    <div className="truncate">
                         <span className="text-muted-foreground">TT: </span>
                         <span className="font-medium">{formatPaymentMethod(item.payment_method)}</span>
                     </div>
-                    <div className="text-muted-foreground">
+                    <div className="truncate text-muted-foreground">
                         Term {item.term || "-"} · Cọc {formatNumber(item.deposit_rate ?? 0)}%
                     </div>
                 </div>
@@ -109,16 +117,20 @@ export const contractColumns: ColumnDef<Contract>[] = [
     {
         id: "quantity",
         header: "Số lượng",
+        size: 130,
+        minSize: 120,
         cell: ({ row }) => (
-            <div className="text-sm">
+            <div className="w-full min-w-0 text-sm">
                 <div className="font-semibold">{formatNumber(row.original.total_quantity ?? 0)}</div>
-                <div className="text-xs text-muted-foreground">SL hợp đồng</div>
+                <div className="truncate text-xs text-muted-foreground">SL hợp đồng</div>
             </div>
         ),
     },
     {
         id: "amount",
         header: "Giá trị",
+        size: 170,
+        minSize: 150,
         cell: ({ row }) => {
             const item = row.original
             const totalAmount = item.total_amount ?? 0
@@ -129,12 +141,12 @@ export const contractColumns: ColumnDef<Contract>[] = [
                     : totalAmount * exchangeRate
 
             return (
-                <div className="min-w-[150px] space-y-1 text-right">
-                    <div className="font-semibold">{formatCurrency(totalAmount)}</div>
-                    <div className="text-xs text-muted-foreground">
+                <div className="w-full min-w-0 space-y-1 text-right">
+                    <div className="truncate font-semibold">{formatCurrency(totalAmount)}</div>
+                    <div className="truncate text-xs text-muted-foreground">
                         {item.currency?.code ?? "-"} · TG {formatNumber(exchangeRate)}
                     </div>
-                    <div className="text-xs font-medium text-muted-foreground">
+                    <div className="truncate text-xs font-medium text-muted-foreground">
                         VNĐ {formatCurrency(totalAmountVnd)}
                     </div>
                 </div>
@@ -147,6 +159,8 @@ export const contractColumns: ColumnDef<Contract>[] = [
     {
         id: "status",
         header: "Trạng thái",
+        size: 120,
+        minSize: 110,
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
     },
     buildActionsColumn({
