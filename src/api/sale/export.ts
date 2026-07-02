@@ -41,3 +41,13 @@ export function updateExportItemWarehouse(
         warehouse_id: warehouseId,
     })
 }
+
+export function updateExportItemLot(
+    exportId: number,
+    itemId: number,
+    lotCode?: string
+) {
+    return apiPut(`/sales/exports/${exportId}/items/${itemId}/lot`, {
+        lot_code: lotCode,
+    })
+}

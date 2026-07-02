@@ -2,7 +2,9 @@ import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
+    AlertTriangle,
     CalendarDays,
+    CheckCircle2,
     Eye,
     MapPin,
     Pencil,
@@ -12,8 +14,8 @@ import {
     Warehouse,
 } from "lucide-react"
 
-import { deleteDelivery, updateDeliveryStatus } from "@/api/sale/delivery"
 import { getMyPermissions } from "@/api/auth/permission"
+import { deleteDelivery, updateDeliveryStatus } from "@/api/sale/delivery"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -42,7 +44,6 @@ import {
 
 export function OrderDeliveries({ order, deliveries }: any) {
     const queryClient = useQueryClient()
-
     const [createOpen, setCreateOpen] = useState(false)
     const [editRow, setEditRow] = useState<any>(null)
     const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -63,7 +64,7 @@ export function OrderDeliveries({ order, deliveries }: any) {
             await queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] })
             toast.success("Đã xoá phiếu giao hàng")
         },
-        onError: (e: any) => toast.error(e.message || "Lỗi"),
+        onError: (error: any) => toast.error(error.message || "Lỗi"),
     })
 
     const { mutate: changeStatus, isPending: isUpdating } = useMutation({
@@ -76,8 +77,8 @@ export function OrderDeliveries({ order, deliveries }: any) {
                 if (!old) return old
                 return {
                     ...old,
-                    deliveries: old.deliveries.map((x: any) =>
-                        x.id === id ? { ...x, status } : x
+                    deliveries: old.deliveries.map((item: any) =>
+                        item.id === id ? { ...item, status } : item
                     ),
                 }
             })
@@ -99,7 +100,6 @@ export function OrderDeliveries({ order, deliveries }: any) {
 
     return (
         <div className="overflow-hidden rounded-xl border bg-background shadow-sm">
-            {/* HEADER */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-5 py-3.5">
                 <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
@@ -134,6 +134,7 @@ export function OrderDeliveries({ order, deliveries }: any) {
                         const allowedNextStatuses = getNextDeliveryStatuses(delivery.status)
                         const isRowLocked = !isEditable || allowedNextStatuses.length === 0
                         const totalQty = sumBy(delivery.items ?? [], (item: any) => item.quantity)
+                        const physicalWarehouseLabel = resolvePhysicalWarehouseLabel(delivery.items ?? [])
 
                         return (
                             <div
@@ -160,6 +161,10 @@ export function OrderDeliveries({ order, deliveries }: any) {
                                                     {delivery.delivery_address}
                                                 </span>
                                             )}
+                                            <span className="inline-flex items-center gap-1">
+                                                <Warehouse className="h-3.5 w-3.5" />
+                                                Giao tại: {physicalWarehouseLabel}
+                                            </span>
                                         </div>
                                     </div>
 
@@ -268,10 +273,6 @@ export function OrderDeliveries({ order, deliveries }: any) {
     )
 }
 
-function hasPermission(permissions: any[], module: string, action: string) {
-    return permissions.some((p: any) => p.module === module && p.action === action)
-}
-
 function ItemsTable({ items, orderItems }: { items: any[]; orderItems: any[] }) {
     const orderItemById = new Map<number, any>()
     const orderItemByProductId = new Map<number, any>()
@@ -298,53 +299,79 @@ function ItemsTable({ items, orderItems }: { items: any[]; orderItems: any[] }) 
                         <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">ĐVT</TableHead>
                         <TableHead className="text-xs font-semibold uppercase">Kho xuất</TableHead>
                         <TableHead className="w-[140px] text-right text-xs font-semibold uppercase">Số lượng</TableHead>
+                        <TableHead className="w-[130px] text-right text-xs font-semibold uppercase">Tồn kho</TableHead>
+                        <TableHead className="w-[130px] text-center text-xs font-semibold uppercase">Cảnh báo</TableHead>
                         <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Ghi chú</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {items.map((item, idx) => (
-                        <TableRow key={`${item.product_id}-${item.id ?? ""}`}>
-                            <TableCell className="text-center text-sm font-semibold text-muted-foreground">
-                                {idx + 1}
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex flex-col">
-                                    <span className="font-medium leading-tight">{item.product?.name || "-"}</span>
-                                    <span className="mt-0.5 font-mono text-xs text-muted-foreground">
-                                        {item.product?.code || "-"}
+                    {items.map((item, idx) => {
+                        const quantity = Number(item.quantity || 0)
+                        const availableQuantity = Number(item.available_quantity || 0)
+                        const stockShortage = item?.warehouse_id && availableQuantity < quantity
+                        const note = item.note || resolveOrderItem(item, orderItemById, orderItemByProductId)?.note
+
+                        return (
+                            <TableRow key={`${item.product_id}-${item.id ?? ""}`}>
+                                <TableCell className="text-center text-sm font-semibold text-muted-foreground">
+                                    {idx + 1}
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex flex-col">
+                                        <span className="font-medium leading-tight">{item.product?.name || "-"}</span>
+                                        <span className="mt-0.5 font-mono text-xs text-muted-foreground">
+                                            {item.product?.code || "-"}
+                                        </span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-center text-sm font-medium text-muted-foreground">
+                                    {item.product?.unit || "-"}
+                                </TableCell>
+                                <TableCell className="text-sm">
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <Warehouse className="h-3.5 w-3.5 text-muted-foreground" />
+                                        {item.warehouse?.name || "-"}
                                     </span>
-                                </div>
-                            </TableCell>
-                            <TableCell className="text-center text-sm font-medium text-muted-foreground">
-                                {item.product?.unit || "-"}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                                <span className="inline-flex items-center gap-1.5">
-                                    <Warehouse className="h-3.5 w-3.5 text-muted-foreground" />
-                                    {item.warehouse?.name || "-"}
-                                </span>
-                            </TableCell>
-                            <TableCell className="text-right font-medium tabular-nums">
-                                {formatNumber(item.quantity)}
-                            </TableCell>
-                            <TableCell>
-                                {item.note || resolveOrderItem(item, orderItemById, orderItemByProductId)?.note ? (
-                                    <span
-                                        className="block max-w-[260px] truncate text-sm text-muted-foreground"
-                                        title={item.note || resolveOrderItem(item, orderItemById, orderItemByProductId)?.note}
-                                    >
-                                        {item.note || resolveOrderItem(item, orderItemById, orderItemByProductId)?.note}
-                                    </span>
-                                ) : (
-                                    <span className="text-xs text-muted-foreground">—</span>
-                                )}
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                                </TableCell>
+                                <TableCell className="text-right font-medium tabular-nums">
+                                    {formatNumber(quantity)}
+                                </TableCell>
+                                <TableCell className={stockShortage ? "text-right font-semibold tabular-nums text-rose-600" : "text-right font-medium tabular-nums text-muted-foreground"}>
+                                    {item.warehouse_id ? formatNumber(availableQuantity) : "-"}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    {item.warehouse_id ? (
+                                        <span className={`inline-flex items-center gap-1 text-xs font-medium ${stockShortage ? "text-rose-600" : "text-emerald-600"}`}>
+                                            {stockShortage ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                                            {stockShortage ? "Vượt tồn" : "Đạt tồn"}
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">-</span>
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    {note ? (
+                                        <span
+                                            className="block max-w-[260px] truncate text-sm text-muted-foreground"
+                                            title={note}
+                                        >
+                                            {note}
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">-</span>
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        )
+                    })}
                 </TableBody>
             </Table>
         </div>
     )
+}
+
+function hasPermission(permissions: any[], module: string, action: string) {
+    return permissions.some((permission: any) => permission.module === module && permission.action === action)
 }
 
 function resolveOrderItem(
@@ -364,6 +391,18 @@ function resolveOrderItem(
     }
 
     return null
+}
+
+function resolvePhysicalWarehouseLabel(items: any[]) {
+    const physicals = items
+        .map((item) => item?.warehouse?.physical_warehouse)
+        .filter(Boolean)
+    const ids = Array.from(new Set(physicals.map((warehouse: any) => warehouse.id).filter(Boolean)))
+
+    if (!ids.length) return "Chưa chọn địa điểm kho"
+    if (ids.length > 1) return "Nhiều địa điểm kho"
+
+    return physicals[0]?.name || `Địa điểm kho #${ids[0]}`
 }
 
 function EmptyState({

@@ -3,15 +3,21 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
     AlertTriangle,
     CalendarDays,
+    CheckCircle2,
     Eye,
     PackageCheck,
+    SlidersHorizontal,
     Warehouse,
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { getMyPermissions } from "@/api/auth/permission"
+import { listInventoryLotRecords } from "@/api/inventory/lot"
+import { updateExportItemLot, updateExportItemWarehouse, updateExportStatus } from "@/api/sale/export"
+import { getWarehouse, listWarehouses } from "@/api/warehouse"
+import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { AsyncSelect } from "@/components/rjsf/async-select"
 import {
     Select,
     SelectContent,
@@ -19,7 +25,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-
 import {
     Table,
     TableBody,
@@ -28,13 +33,8 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-
-import { ExportDetailDialog } from "../../export/components/export-detail-dialog"
-import { getMyPermissions } from "@/api/auth/permission"
-import { updateExportItemWarehouse, updateExportStatus } from "@/api/sale/export"
-import { getWarehouse, listWarehouses } from "@/api/warehouse"
-import { warehouseOption } from "@/lib/option-mapper"
 import { formatCurrency } from "@/lib/utils"
+import { ExportDetailDialog } from "../../export/components/export-detail-dialog"
 
 const EXPORT_STATUSES = [
     { value: "NEW", label: "Mới" },
@@ -64,41 +64,34 @@ export function OrderExports({ exports, order }: any) {
         queryFn: getMyPermissions,
     })
     const canUpdateStatus = permissions.some(
-        (p: any) =>
-            p.module === "sales.exports" &&
-            (p.action === "status.update" || p.action === "update")
+        (permission: any) =>
+            permission.module === "sales.exports" &&
+            (permission.action === "status.update" || permission.action === "update")
     )
 
     const { mutate: changeStatus, isPending } = useMutation({
         mutationFn: ({ id, status }: any) => updateExportStatus(id, status),
-
         onMutate: async ({ id, status }) => {
-            await queryClient.cancelQueries({
-                queryKey: ["order-detail", order.id],
-            })
-
+            await queryClient.cancelQueries({ queryKey: ["order-detail", order.id] })
             const prev = queryClient.getQueryData(["order-detail", order.id])
 
             queryClient.setQueryData(["order-detail", order.id], (old: any) => {
                 if (!old) return old
                 return {
                     ...old,
-                    exports: old.exports.map((x: any) =>
-                        x.id === id ? { ...x, status } : x
+                    exports: old.exports.map((item: any) =>
+                        item.id === id ? { ...item, status } : item
                     ),
                 }
             })
 
             return { prev }
         },
-
         onError: (error: any, __, context) => {
             queryClient.setQueryData(["order-detail", order.id], context?.prev)
             toast.error(error?.message || "Cập nhật thất bại")
         },
-
         onSuccess: () => toast.success("Cập nhật trạng thái thành công"),
-
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] })
             queryClient.invalidateQueries({ queryKey: ["exports"] })
@@ -109,7 +102,6 @@ export function OrderExports({ exports, order }: any) {
 
     return (
         <div className="overflow-hidden rounded-xl border bg-background shadow-sm">
-            {/* HEADER */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-5 py-3.5">
                 <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400">
@@ -128,8 +120,8 @@ export function OrderExports({ exports, order }: any) {
                         Tổng tiền: <span className="ml-1 font-semibold">{formatCurrency(totalExportAmount)}</span>
                     </Badge>
                     <Badge variant="outline" className="font-normal">
-                    {formatNumber(exports?.length || 0)} phiếu
-                </Badge>
+                        {formatNumber(exports?.length || 0)} phiếu
+                    </Badge>
                 </div>
             </div>
 
@@ -143,21 +135,17 @@ export function OrderExports({ exports, order }: any) {
                 <div className="space-y-3 p-4">
                     {exports.map((exportDoc: any) => {
                         const meta = getExportStatusMeta(exportDoc.status)
-                        const isRowLocked =
-                            exportDoc.status === "DONE"
+                        const isRowLocked = exportDoc.status === "DONE"
                         const allowedNextStatuses =
                             exportDoc.status === "NEW"
                                 ? ["DONE", "CANCELLED"]
                                 : exportDoc.status === "CANCELLED"
-                                  ? ["NEW"]
-                                  : []
-
-                        const totalQty = sumBy(
-                            exportDoc.items ?? [],
-                            (item: any) => item.quantity
-                        )
+                                    ? ["NEW"]
+                                    : []
+                        const totalQty = sumBy(exportDoc.items ?? [], (item: any) => item.quantity)
                         const totalAmount = sumExportAmount(exportDoc.items ?? [], order?.items ?? [])
-
+                        const physicalWarehouseLabel = resolvePhysicalWarehouseLabel(exportDoc.items ?? [])
+                        const physicalWarehouseId = resolveSinglePhysicalWarehouseId(exportDoc.items ?? [])
                         const missingWarehouseRows = (exportDoc.items ?? []).filter(
                             (item: any) => exportDoc.status === "NEW" && !item?.warehouse_id
                         ).length
@@ -181,50 +169,44 @@ export function OrderExports({ exports, order }: any) {
                                         >
                                             {exportDoc.export_no}
                                         </button>
-
                                         <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                                             <span className="flex items-center gap-1">
                                                 <CalendarDays className="h-3.5 w-3.5" />
-                                                {exportDoc.export_date}
+                                                {formatDate(exportDoc.export_date)}
                                             </span>
-
                                             {exportDoc.delivery?.delivery_no && (
                                                 <span className="flex items-center gap-1">
                                                     <PackageCheck className="h-3.5 w-3.5" />
                                                     {exportDoc.delivery.delivery_no}
                                                 </span>
                                             )}
+                                            <span className="flex items-center gap-1">
+                                                <Warehouse className="h-3.5 w-3.5" />
+                                                Xuất tại: {physicalWarehouseLabel}
+                                            </span>
                                         </div>
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-2">
                                         {missingWarehouseRows > 0 && (
-                                            <Badge
-                                                variant="destructive"
-                                                className="gap-1 font-normal"
-                                            >
+                                            <Badge variant="destructive" className="gap-1 font-normal">
                                                 <AlertTriangle className="h-3.5 w-3.5" />
                                                 Chưa có kho xuất ({missingWarehouseRows} dòng)
                                             </Badge>
                                         )}
-
                                         <Badge variant="outline" className="font-normal">
                                             {formatNumber(exportDoc.items?.length || 0)} dòng
                                         </Badge>
-
                                         <Badge variant="secondary" className="font-normal">
                                             SL: {formatNumber(totalQty)}
                                         </Badge>
-
                                         <Badge variant="secondary" className="font-normal">
                                             Thành tiền: {formatCurrency(totalAmount)}
                                         </Badge>
 
                                         <Select
                                             value={exportDoc.status || "NEW"}
-                                            onValueChange={(status) =>
-                                                changeStatus({ id: exportDoc.id, status })
-                                            }
+                                            onValueChange={(status) => changeStatus({ id: exportDoc.id, status })}
                                             disabled={
                                                 isPending ||
                                                 isRowLocked ||
@@ -237,30 +219,29 @@ export function OrderExports({ exports, order }: any) {
                                                 className="h-8 w-[150px]"
                                                 title={
                                                     missingWarehouseRows > 0
-                                                        ? "Chưa có kho xuất — không thể chuyển trạng thái"
+                                                        ? "Chưa có kho xuất, không thể chuyển trạng thái"
                                                         : stockShortageRows > 0
-                                                            ? "Có dòng không đủ tồn trong kho xuất — không thể chuyển trạng thái"
-                                                        : !canUpdateStatus
-                                                            ? "Bạn không có quyền đổi trạng thái phiếu xuất"
-                                                            : undefined
+                                                            ? "Có dòng không đủ tồn trong kho xuất, không thể chuyển trạng thái"
+                                                            : !canUpdateStatus
+                                                                ? "Bạn không có quyền đổi trạng thái phiếu xuất"
+                                                                : undefined
                                                 }
                                             >
                                                 <SelectValue>
                                                     <Badge variant={meta.variant}>{meta.label}</Badge>
                                                 </SelectValue>
                                             </SelectTrigger>
-
                                             <SelectContent>
-                                                {EXPORT_STATUSES.map((s) => (
+                                                {EXPORT_STATUSES.map((status) => (
                                                     <SelectItem
-                                                        key={s.value}
-                                                        value={s.value}
+                                                        key={status.value}
+                                                        value={status.value}
                                                         disabled={
-                                                            s.value !== exportDoc.status &&
-                                                            !allowedNextStatuses.includes(s.value)
+                                                            status.value !== exportDoc.status &&
+                                                            !allowedNextStatuses.includes(status.value)
                                                         }
                                                     >
-                                                        {s.label}
+                                                        {status.label}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -280,7 +261,7 @@ export function OrderExports({ exports, order }: any) {
                                 {missingWarehouseRows > 0 && (
                                     <div className="flex items-center gap-1.5 border-b bg-rose-50 px-4 py-2 text-xs font-medium text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
                                         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                        Một số dòng chưa có kho xuất — không thể chuyển trạng thái cho tới khi chọn đủ kho.
+                                        Một số dòng chưa có kho xuất, không thể chuyển trạng thái cho tới khi chọn đủ kho.
                                     </div>
                                 )}
                                 {stockShortageRows > 0 && (
@@ -295,6 +276,7 @@ export function OrderExports({ exports, order }: any) {
                                     exportDoc={exportDoc}
                                     order={order}
                                     orderId={order.id}
+                                    physicalWarehouseId={physicalWarehouseId}
                                 />
                             </div>
                         )
@@ -316,11 +298,13 @@ function ItemsTable({
     exportDoc,
     order,
     orderId,
+    physicalWarehouseId,
 }: {
     items: any[]
     exportDoc: any
     order: any
     orderId: number
+    physicalWarehouseId?: number
 }) {
     const queryClient = useQueryClient()
     const { mutate: changeWarehouse, isPending } = useMutation({
@@ -332,6 +316,16 @@ function ItemsTable({
             queryClient.invalidateQueries({ queryKey: ["exports"] })
         },
         onError: () => toast.error("Cập nhật kho xuất thất bại"),
+    })
+    const { mutate: changeLot, isPending: isChangingLot } = useMutation({
+        mutationFn: ({ itemId, lotCode }: { itemId: number; lotCode?: string }) =>
+            updateExportItemLot(exportDoc.id, itemId, lotCode),
+        onSuccess: () => {
+            toast.success("Đã cập nhật lô xuất")
+            queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] })
+            queryClient.invalidateQueries({ queryKey: ["exports"] })
+        },
+        onError: () => toast.error("Cập nhật lô xuất thất bại"),
     })
 
     if (!items.length) {
@@ -356,15 +350,16 @@ function ItemsTable({
                 <TableHeader className="bg-muted/30">
                     <TableRow className="hover:bg-transparent">
                         <TableHead className="w-[56px] text-center text-xs font-semibold uppercase">#</TableHead>
-                        <TableHead className="min-w-[240px] text-xs font-semibold uppercase">Sản phẩm</TableHead>
+                        <TableHead className="min-w-[260px] text-xs font-semibold uppercase">Sản phẩm</TableHead>
                         <TableHead className="w-[120px] text-center text-xs font-semibold uppercase">ĐVT</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Chiết khấu</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Số lượng</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Tồn kho</TableHead>
+                        <TableHead className="w-[130px] text-center text-xs font-semibold uppercase">Cảnh báo</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Đơn giá</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Thành tiền</TableHead>
-                        <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Kho xuất</TableHead>
-                        <TableHead className="text-xs font-semibold uppercase">Lô hàng</TableHead>
+                        <TableHead className="min-w-[240px] text-xs font-semibold uppercase">Kho xuất</TableHead>
+                        <TableHead className="min-w-[180px] text-xs font-semibold uppercase">Lô hàng</TableHead>
                         <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Ghi chú</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -387,8 +382,8 @@ function ItemsTable({
                                     missingWarehouse
                                         ? "bg-rose-50/70 dark:bg-rose-950/20"
                                         : stockShortage
-                                          ? "bg-amber-50/70 dark:bg-amber-950/20"
-                                        : undefined
+                                            ? "bg-amber-50/70 dark:bg-amber-950/20"
+                                            : undefined
                                 }
                             >
                                 <TableCell className="text-center text-sm font-semibold text-muted-foreground">
@@ -398,7 +393,7 @@ function ItemsTable({
                                     <div className="flex flex-col">
                                         <span className="font-medium leading-tight">{item.product?.name || "-"}</span>
                                         <span className="mt-0.5 font-mono text-xs text-muted-foreground">
-                                            {item.product?.code || "—"}
+                                            {item.product?.code || "-"}
                                         </span>
                                     </div>
                                 </TableCell>
@@ -411,14 +406,18 @@ function ItemsTable({
                                 <TableCell className="text-right font-medium tabular-nums">
                                     {formatNumber(quantity)}
                                 </TableCell>
-                                <TableCell
-                                    className={
-                                        stockShortage
-                                            ? "text-right font-semibold tabular-nums text-rose-600"
-                                            : "text-right font-medium tabular-nums text-muted-foreground"
-                                    }
-                                >
-                                    {item.warehouse_id ? formatNumber(availableQuantity) : "—"}
+                                <TableCell className={stockShortage ? "text-right font-semibold tabular-nums text-rose-600" : "text-right font-medium tabular-nums text-muted-foreground"}>
+                                    {item.warehouse_id ? formatNumber(availableQuantity) : "-"}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    {item.warehouse_id ? (
+                                        <span className={`inline-flex items-center gap-1 text-xs font-medium ${stockShortage ? "text-rose-600" : "text-emerald-600"}`}>
+                                            {stockShortage ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                                            {stockShortage ? "Vượt tồn" : "Đạt tồn"}
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">-</span>
+                                    )}
                                 </TableCell>
                                 <TableCell className="text-right text-sm tabular-nums">
                                     {formatCurrency(unitPrice)}
@@ -427,64 +426,54 @@ function ItemsTable({
                                     {formatCurrency(amount)}
                                 </TableCell>
                                 <TableCell>
-                                    {missingWarehouse ? (
+                                    {isNew ? (
                                         <div className="space-y-1">
                                             <AsyncSelect
-                                                className="h-8 min-h-8 bg-white py-0"
+                                                className="h-9 min-h-9 items-center bg-white px-3 py-0 [&>span]:truncate"
                                                 placeholder="Chọn kho xuất"
+                                                searchPlaceholder="Tìm kho"
                                                 value={item.warehouse_id}
                                                 disabled={isPending}
-                                                onChange={(v: any) => {
-                                                    if (v) {
+                                                onChange={(value: any) => {
+                                                    if (value) {
                                                         changeWarehouse({
                                                             itemId: item.id,
-                                                            warehouseId: Number(v),
+                                                            warehouseId: Number(value),
                                                         })
                                                     }
                                                 }}
                                                 dataSource={{
                                                     getList: listWarehouses,
                                                     getById: getWarehouse,
-                                                    params: { page: 1, size: 20 },
+                                                    params: {
+                                                        page: 1,
+                                                        size: 20,
+                                                        ...(physicalWarehouseId ? { physical_warehouse_id: physicalWarehouseId } : {}),
+                                                    },
                                                 }}
-                                                mapOption={warehouseOption}
+                                                mapOption={warehouseNameOption}
+                                                popoverContentClassName="w-[360px]"
                                             />
-                                            <span className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 dark:text-rose-400">
-                                                <AlertTriangle className="h-3.5 w-3.5" />
-                                                Chưa có kho xuất
-                                            </span>
+                                            {missingWarehouse && (
+                                                <span className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 dark:text-rose-400">
+                                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                                    Chưa có kho xuất
+                                                </span>
+                                            )}
                                         </div>
-                                    ) : isNew ? (
-                                        <AsyncSelect
-                                            className="h-8 min-h-8 bg-white py-0"
-                                            placeholder="Chọn kho xuất"
-                                            value={item.warehouse_id}
-                                            disabled={isPending}
-                                            onChange={(v: any) => {
-                                                if (v) {
-                                                    changeWarehouse({
-                                                        itemId: item.id,
-                                                        warehouseId: Number(v),
-                                                    })
-                                                }
-                                            }}
-                                            dataSource={{
-                                                getList: listWarehouses,
-                                                getById: getWarehouse,
-                                                params: { page: 1, size: 20 },
-                                            }}
-                                            mapOption={warehouseOption}
-                                        />
                                     ) : (
                                         <span className="text-sm">
-                                            {item.warehouse?.code
-                                                ? `${item.warehouse.code} - ${item.warehouse.name}`
-                                                : item.warehouse?.name || "—"}
+                                            {item.warehouse?.name || item.warehouse?.code || "-"}
                                         </span>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-sm text-muted-foreground">
-                                    {item.lot_no || item.lot_nos || "—"}
+                                <TableCell>
+                                    <ExportLotSelector
+                                        item={item}
+                                        isNew={isNew}
+                                        disabled={isChangingLot || !item.warehouse_id || !item.product_id}
+                                        onChange={(lotCode) => changeLot({ itemId: item.id, lotCode })}
+                                    />
                                 </TableCell>
                                 <TableCell>
                                     {item.note || orderItem?.note ? (
@@ -495,7 +484,7 @@ function ItemsTable({
                                             {item.note || orderItem?.note}
                                         </span>
                                     ) : (
-                                        <span className="text-xs text-muted-foreground">—</span>
+                                        <span className="text-xs text-muted-foreground">-</span>
                                     )}
                                 </TableCell>
                             </TableRow>
@@ -504,6 +493,68 @@ function ItemsTable({
                 </TableBody>
             </Table>
         </div>
+    )
+}
+
+function ExportLotSelector({
+    item,
+    isNew,
+    disabled,
+    onChange,
+}: {
+    item: any
+    isNew: boolean
+    disabled?: boolean
+    onChange: (lotCode?: string) => void
+}) {
+    const { data, isLoading } = useQuery({
+        queryKey: ["export-item-lots", item.product_id, item.warehouse_id],
+        enabled: Boolean(isNew && item.product_id && item.warehouse_id),
+        queryFn: () =>
+            listInventoryLotRecords({
+                page: 1,
+                size: 50,
+                product_id: Number(item.product_id),
+                warehouse_id: Number(item.warehouse_id),
+                only_remaining: true,
+            }),
+        staleTime: 30_000,
+    })
+    const lots = getPagedItems(data)
+    const selected = item.lot_code || "AUTO"
+
+    if (!isNew) {
+        return <span className="text-sm text-muted-foreground">{item.lot_code || item.lot_no || item.lot_nos || "Auto"}</span>
+    }
+
+    return (
+        <Select
+            value={selected}
+            disabled={disabled}
+            onValueChange={(value) => onChange(value === "AUTO" ? undefined : value)}
+        >
+            <SelectTrigger className="h-8 min-w-[150px]">
+                <SelectValue placeholder="Auto" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="AUTO">
+                    <span className="inline-flex items-center gap-1.5">
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                        Auto
+                    </span>
+                </SelectItem>
+                {isLoading && <SelectItem value="LOADING" disabled>Đang tải...</SelectItem>}
+                {lots.map((lot: any) => {
+                    const lotNo = String(lot.lot_no || "")
+                    if (!lotNo) return null
+                    return (
+                        <SelectItem key={`${lot.id}-${lotNo}`} value={lotNo}>
+                            {lotNo} - còn {formatNumber(resolveLotRemaining(lot))}
+                        </SelectItem>
+                    )
+                })}
+            </SelectContent>
+        </Select>
     )
 }
 
@@ -592,6 +643,47 @@ function resolveExportItemAmount(item: any, orderItem: any, quantity: number, un
         orderItem?.lineType
     if (lineType === "PROMOTION") return 0
     return Math.max(quantity * unitPrice - Number(discount || 0), 0)
+}
+
+function resolvePhysicalWarehouseLabel(items: any[]) {
+    const physicals = items
+        .map((item) => item?.warehouse?.physical_warehouse)
+        .filter(Boolean)
+    const ids = Array.from(new Set(physicals.map((warehouse: any) => warehouse.id).filter(Boolean)))
+
+    if (!ids.length) return "Chưa chọn địa điểm kho"
+    if (ids.length > 1) return "Nhiều địa điểm kho"
+
+    return physicals[0]?.name || `Địa điểm kho #${ids[0]}`
+}
+
+function resolveSinglePhysicalWarehouseId(items: any[]) {
+    const ids = Array.from(
+        new Set(
+            items
+                .map((item) => item?.warehouse?.physical_warehouse?.id ?? item?.warehouse?.physical_warehouse_id)
+                .filter(Boolean)
+                .map(Number)
+        )
+    )
+    return ids.length === 1 ? ids[0] : undefined
+}
+
+function warehouseNameOption(warehouse: any) {
+    if (!warehouse) return null
+    return {
+        value: warehouse.id,
+        label: warehouse.name || warehouse.code || `#${warehouse.id}`,
+        raw: warehouse,
+    }
+}
+
+function resolveLotRemaining(lot: any) {
+    return lot?.quantity_remaining ?? lot?.closing_quantity ?? lot?.total_quantity ?? 0
+}
+
+function getPagedItems(data: any) {
+    return data?.items ?? data?.data?.items ?? []
 }
 
 function formatNumber(value: unknown) {
