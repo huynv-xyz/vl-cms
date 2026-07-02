@@ -18,5 +18,6 @@ export type DeliveryFormItem = {
     quantity: number
     remain_quantity?: number
     warehouse_id?: number
+    warehouse?: any
     note?: string
 }

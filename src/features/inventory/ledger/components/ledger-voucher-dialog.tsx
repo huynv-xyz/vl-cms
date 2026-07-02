@@ -5,6 +5,7 @@ import { toast } from "sonner"
 
 import { createVoucher, listVoucherTypes, postVoucher, type CreateVoucherRequest, type InventoryVoucherType, type VoucherTypeCode } from "@/api/inventory/voucher"
 import { getProduct, listProducts } from "@/api/product"
+import { getPhysicalWarehouse, listPhysicalWarehouses } from "@/api/physical-warehouse"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Button } from "@/components/ui/button"
@@ -26,6 +27,8 @@ type VoucherMode = "in" | "out" | "transfer"
 type VoucherLine = {
     id: string
     product_id?: number
+    warehouse_id?: number
+    to_warehouse_id?: number
     lot_id?: number
     unit?: string
     quantity: string
@@ -91,7 +94,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     const isTransfer = mode === "transfer"
     const { data: voucherTypes = [], isLoading: isLoadingTypes } = useQuery({
         queryKey: ["inventory-voucher-types", isInbound ? "I" : "O", mode],
-        queryFn: () => listVoucherTypes(isInbound ? "I" : "O"),
+        queryFn: () => listVoucherTypes(isInbound ? "I" : "O", 1),
         enabled: open,
     })
     const selectableVoucherTypes = useMemo(
@@ -103,15 +106,15 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     )
     const [voucherType, setVoucherType] = useState<VoucherTypeCode | "">("")
     const [postingDate, setPostingDate] = useState(today())
-    const [warehouseId, setWarehouseId] = useState<number | undefined>()
-    const [toWarehouseId, setToWarehouseId] = useState<number | undefined>()
+    const [physicalWarehouseId, setPhysicalWarehouseId] = useState<number | undefined>()
+    const [toPhysicalWarehouseId, setToPhysicalWarehouseId] = useState<number | undefined>()
     const [description, setDescription] = useState("")
     const [lines, setLines] = useState<VoucherLine[]>([createEmptyLine()])
 
     const title = isTransfer ? "Tạo phiếu chuyển kho" : isInbound ? "Tạo phiếu nhập kho" : "Tạo phiếu xuất kho"
     const Icon = isTransfer ? ArrowLeftRight : isInbound ? ArrowDownLeft : ArrowUpRight
-    const warehouseLabel = isTransfer ? "Kho xuất" : "Kho hàng"
-    const warehousePlaceholder = isTransfer ? "Chọn kho xuất" : "Chọn kho hàng"
+    const warehouseLabel = isTransfer ? "Địa điểm kho xuất" : "Địa điểm kho"
+    const warehousePlaceholder = isTransfer ? "Chọn địa điểm kho xuất" : "Chọn địa điểm kho"
     const descriptionLabel = isTransfer ? "Diễn giải" : "Ghi chú"
     const descriptionPlaceholder = isTransfer ? "Diễn giải phiếu chuyển kho" : "Ghi chú chung của phiếu"
     const itemListTitle = isTransfer ? "Danh sách hàng chuyển" : "Danh sách sản phẩm"
@@ -123,7 +126,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     useEffect(() => {
         if (!open) return
         setVoucherType(isTransfer ? "TRANSFER_EXPORT" : "")
-        setToWarehouseId(undefined)
+        setToPhysicalWarehouseId(undefined)
     }, [mode, open])
 
     useEffect(() => {
@@ -180,6 +183,46 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         setLines((current) => current.map((line) => (line.id === id ? { ...line, ...patch } : line)))
     }
 
+    const resolveDefaultWarehouseForPhysical = async (defaultWarehouseId?: number, selectedPhysicalWarehouseId?: number) => {
+        if (!defaultWarehouseId || !selectedPhysicalWarehouseId) return undefined
+        try {
+            const warehouse = await getWarehouse(defaultWarehouseId)
+            return Number(warehouse?.physical_warehouse_id) === Number(selectedPhysicalWarehouseId)
+                ? defaultWarehouseId
+                : undefined
+        } catch {
+            return undefined
+        }
+    }
+
+    const handleProductChange = async (line: VoucherLine, option: any) => {
+        const defaultWarehouseId = option?.raw?.default_warehouse_id
+            ? Number(option.raw.default_warehouse_id)
+            : undefined
+        const nextLine: Partial<VoucherLine> = {
+            product_id: option?.value || undefined,
+            warehouse_id: undefined,
+            lot_id: undefined,
+            lot_code: "",
+            unit: option?.raw?.unit || undefined,
+            product_inventory_account: option?.raw?.inventory_account_code || undefined,
+        }
+
+        const matchedWarehouseId = await resolveDefaultWarehouseForPhysical(defaultWarehouseId, physicalWarehouseId)
+        if (matchedWarehouseId) {
+            nextLine.warehouse_id = matchedWarehouseId
+        }
+
+        const accountLine = {
+            ...line,
+            ...nextLine,
+        }
+        updateLine(line.id, {
+            ...nextLine,
+            ...(selectedVoucherType ? resolveLineAccounts(accountLine, selectedVoucherType) : {}),
+        })
+    }
+
     const addLine = () => setLines((current) => [...current, createEmptyLine()])
 
     const removeLine = (id: string) => {
@@ -189,21 +232,18 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     const resetForm = () => {
         setVoucherType((selectableVoucherTypes[0]?.code as VoucherTypeCode) || "")
         setPostingDate(today())
-        setWarehouseId(undefined)
-        setToWarehouseId(undefined)
+        setPhysicalWarehouseId(undefined)
+        setToPhysicalWarehouseId(undefined)
         setDescription("")
         setLines([createEmptyLine()])
     }
 
     const buildPayload = (): CreateVoucherRequest => {
-        if (!warehouseId) {
-            throw new Error(isTransfer ? "Chọn kho xuất" : "Chọn kho hàng")
+        if (!physicalWarehouseId) {
+            throw new Error(isTransfer ? "Chọn địa điểm kho xuất" : "Chọn địa điểm kho")
         }
-        if (isTransfer && !toWarehouseId) {
-            throw new Error("Chọn kho nhập")
-        }
-        if (isTransfer && warehouseId === toWarehouseId) {
-            throw new Error("Kho xuất và kho nhập không được trùng nhau")
+        if (isTransfer && !toPhysicalWarehouseId) {
+            throw new Error("Chọn địa điểm kho nhập")
         }
         if (!postingDate) {
             throw new Error("Chọn ngày chứng từ")
@@ -214,14 +254,28 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         if (!validLines.length) {
             throw new Error("Thêm ít nhất 1 dòng sản phẩm có số lượng")
         }
+        const invalidWarehouseLine = validLines.find((line) => !line.warehouse_id)
+        if (invalidWarehouseLine) {
+            throw new Error(isTransfer ? "Chọn kho xuất cho từng dòng hàng" : "Chọn kho cho từng dòng hàng")
+        }
+        if (isTransfer) {
+            const invalidToWarehouseLine = validLines.find((line) => !line.to_warehouse_id)
+            if (invalidToWarehouseLine) {
+                throw new Error("Chọn kho nhập cho từng dòng hàng")
+            }
+            const duplicatedWarehouseLine = validLines.find((line) => line.warehouse_id && line.warehouse_id === line.to_warehouse_id)
+            if (duplicatedWarehouseLine) {
+                throw new Error("Kho xuất và kho nhập trên dòng hàng không được trùng nhau")
+            }
+        }
 
         return {
             voucher_type_code: isTransfer ? "TRANSFER_EXPORT" : voucherType,
             posting_date: postingDate,
             document_date: postingDate,
-            warehouse_id: warehouseId,
-            from_warehouse_id: isTransfer ? warehouseId : undefined,
-            to_warehouse_id: isTransfer ? toWarehouseId : undefined,
+            physical_warehouse_id: !isTransfer ? physicalWarehouseId : undefined,
+            from_physical_warehouse_id: isTransfer ? physicalWarehouseId : undefined,
+            to_physical_warehouse_id: isTransfer ? toPhysicalWarehouseId : undefined,
             description: description.trim() || undefined,
             source_type: isTransfer ? "TRANSFER_EXPORT" : voucherType,
             items: validLines.map((line, index) => {
@@ -231,7 +285,8 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                 return {
                     line_no: index + 1,
                     product_id: Number(line.product_id),
-                    warehouse_id: warehouseId,
+                    warehouse_id: Number(line.warehouse_id),
+                    to_warehouse_id: isTransfer && line.to_warehouse_id ? Number(line.to_warehouse_id) : undefined,
                     lot_id: !isInbound && line.lot_id ? Number(line.lot_id) : undefined,
                     quantity,
                     unit: line.unit,
@@ -298,41 +353,52 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                         <div className="min-w-0 space-y-1.5">
                             <Label>{warehouseLabel}</Label>
                             <AsyncSelect
-                                value={warehouseId}
+                                value={physicalWarehouseId}
                                 onChange={(value: any) => {
-                                    setWarehouseId(value || undefined)
-                                    setLines((current) => current.map((line) => ({ ...line, lot_id: undefined, lot_code: "" })))
+                                    setPhysicalWarehouseId(value || undefined)
+                                    setLines((current) => current.map((line) => ({
+                                        ...line,
+                                        warehouse_id: undefined,
+                                        lot_id: undefined,
+                                        lot_code: "",
+                                    })))
                                 }}
                                 placeholder={warehousePlaceholder}
                                 dataSource={{
-                                    getList: listWarehouses,
-                                    getById: getWarehouse,
-                                    params: { page: 1, size: 20 },
+                                    getList: listPhysicalWarehouses,
+                                    getById: getPhysicalWarehouse,
+                                    params: { page: 1, size: 20, status: "ACTIVE" },
                                 }}
-                                mapOption={(warehouse: any) => ({
-                                    value: warehouse.id,
-                                    label: warehouse.name,
-                                    raw: warehouse,
+                                mapOption={(physicalWarehouse: any) => ({
+                                    value: physicalWarehouse.id,
+                                    label: physicalWarehouse.name,
+                                    raw: physicalWarehouse,
                                 })}
                             />
                         </div>
 
                         {isTransfer ? (
                             <div className="min-w-0 space-y-1.5">
-                                <Label>Kho nhập</Label>
+                                <Label>Địa điểm kho nhập</Label>
                                 <AsyncSelect
-                                    value={toWarehouseId}
-                                    onChange={(value: any) => setToWarehouseId(value || undefined)}
-                                    placeholder="Chọn kho nhập"
-                                    dataSource={{
-                                        getList: listWarehouses,
-                                        getById: getWarehouse,
-                                        params: { page: 1, size: 20 },
+                                    value={toPhysicalWarehouseId}
+                                    onChange={(value: any) => {
+                                        setToPhysicalWarehouseId(value || undefined)
+                                        setLines((current) => current.map((line) => ({
+                                            ...line,
+                                            to_warehouse_id: undefined,
+                                        })))
                                     }}
-                                    mapOption={(warehouse: any) => ({
-                                        value: warehouse.id,
-                                        label: warehouse.name,
-                                        raw: warehouse,
+                                    placeholder="Chọn địa điểm kho nhập"
+                                    dataSource={{
+                                        getList: listPhysicalWarehouses,
+                                        getById: getPhysicalWarehouse,
+                                        params: { page: 1, size: 20, status: "ACTIVE" },
+                                    }}
+                                    mapOption={(physicalWarehouse: any) => ({
+                                        value: physicalWarehouse.id,
+                                        label: physicalWarehouse.name,
+                                        raw: physicalWarehouse,
                                     })}
                                 />
                             </div>
@@ -359,11 +425,13 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[1540px] text-sm">
+                            <table className="w-full min-w-[1880px] text-sm">
                                 <thead className="text-muted-foreground bg-muted/30 border-b text-xs">
                                     <tr>
                                         <th className="w-12 px-3 py-2 text-center">STT</th>
                                         <th className="min-w-[420px] px-3 py-2 text-left">{productColumnLabel}</th>
+                                        <th className="w-64 px-3 py-2 text-left">{isTransfer ? "Kho xuất" : "Kho"}</th>
+                                        {isTransfer ? <th className="w-64 px-3 py-2 text-left">Kho nhập</th> : null}
                                         <th className="w-20 px-3 py-2 text-left">ĐVT</th>
                                         <th className="w-32 px-3 py-2 text-left">TK Nợ</th>
                                         <th className="w-32 px-3 py-2 text-left">TK Có</th>
@@ -385,24 +453,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                             <td className="px-3 py-2">
                                                 <AsyncSelect
                                                     value={line.product_id}
-                                                    onChange={(_value: any, option: any) => {
-                                                        const nextLine = {
-                                                            ...line,
-                                                            product_id: option?.value || undefined,
-                                                            lot_id: undefined,
-                                                            lot_code: "",
-                                                            unit: option?.raw?.unit || undefined,
-                                                            product_inventory_account: option?.raw?.inventory_account_code || undefined,
-                                                        }
-                                                        updateLine(line.id, {
-                                                            product_id: nextLine.product_id,
-                                                            lot_id: undefined,
-                                                            lot_code: "",
-                                                            unit: nextLine.unit,
-                                                            product_inventory_account: nextLine.product_inventory_account,
-                                                            ...(selectedVoucherType ? resolveLineAccounts(nextLine, selectedVoucherType) : {}),
-                                                        })
-                                                    }}
+                                                    onChange={(_value: any, option: any) => void handleProductChange(line, option)}
                                                     placeholder={isTransfer ? "Chọn hàng chuyển" : "Chọn sản phẩm"}
                                                     dataSource={{
                                                         getList: listProducts,
@@ -416,6 +467,50 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                                     })}
                                                 />
                                             </td>
+                                            <td className="px-3 py-2">
+                                                <AsyncSelect
+                                                    key={`warehouse-${line.id}-${physicalWarehouseId || "none"}`}
+                                                    value={line.warehouse_id}
+                                                    disabled={!physicalWarehouseId}
+                                                    onChange={(value: any) => updateLine(line.id, {
+                                                        warehouse_id: value || undefined,
+                                                        lot_id: undefined,
+                                                        lot_code: "",
+                                                    })}
+                                                    placeholder={physicalWarehouseId ? (isTransfer ? "Chọn kho xuất" : "Chọn kho") : "Chọn địa điểm kho trước"}
+                                                    dataSource={{
+                                                        getList: listWarehouses,
+                                                        getById: getWarehouse,
+                                                        params: { page: 1, size: 20, status: "ACTIVE", physical_warehouse_id: physicalWarehouseId },
+                                                    }}
+                                                    mapOption={(warehouse: any) => ({
+                                                        value: warehouse.id,
+                                                        label: warehouse.name,
+                                                        raw: warehouse,
+                                                    })}
+                                                />
+                                            </td>
+                                            {isTransfer ? (
+                                                <td className="px-3 py-2">
+                                                    <AsyncSelect
+                                                        key={`to-warehouse-${line.id}-${toPhysicalWarehouseId || "none"}`}
+                                                        value={line.to_warehouse_id}
+                                                        disabled={!toPhysicalWarehouseId}
+                                                        onChange={(value: any) => updateLine(line.id, { to_warehouse_id: value || undefined })}
+                                                        placeholder={toPhysicalWarehouseId ? "Chọn kho nhập" : "Chọn địa điểm kho nhập trước"}
+                                                        dataSource={{
+                                                            getList: listWarehouses,
+                                                            getById: getWarehouse,
+                                                            params: { page: 1, size: 20, status: "ACTIVE", physical_warehouse_id: toPhysicalWarehouseId },
+                                                        }}
+                                                        mapOption={(warehouse: any) => ({
+                                                            value: warehouse.id,
+                                                            label: warehouse.name,
+                                                            raw: warehouse,
+                                                        })}
+                                                    />
+                                                </td>
+                                            ) : null}
                                             <td className="text-muted-foreground px-3 py-2">
                                                 {line.unit || "-"}
                                             </td>
@@ -448,7 +543,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                                 <td className="px-3 py-2">
                                                     <PreferredLotButton
                                                         value={line.lot_code}
-                                                        disabled={!line.product_id || !warehouseId}
+                                                        disabled={!line.product_id || !line.warehouse_id}
                                                         onChange={(lotNo) => updateLine(line.id, { lot_code: lotNo, lot_id: undefined })}
                                                     />
                                                 </td>

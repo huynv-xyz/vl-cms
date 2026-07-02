@@ -22,7 +22,7 @@ export type InventoryVoucher = {
     voucher_type_code: VoucherTypeCode | string
     posting_date?: string
     document_date?: string
-    warehouse_id?: number
+    physical_warehouse_id?: number
     description?: string
     status: VoucherStatus | string
     posted_at?: string
@@ -34,11 +34,11 @@ export type InventoryVoucher = {
     source_id?: number
     created_at?: string
     updated_at?: string
-    warehouse?: { id: number; name: string; code?: string }
-    from_warehouse_id?: number
-    to_warehouse_id?: number
-    from_warehouse?: { id: number; name: string; code?: string } | null
-    to_warehouse?: { id: number; name: string; code?: string } | null
+    physical_warehouse?: { id: number; name: string; code?: string }
+    from_physical_warehouse_id?: number
+    to_physical_warehouse_id?: number
+    from_physical_warehouse?: { id: number; name: string; code?: string } | null
+    to_physical_warehouse?: { id: number; name: string; code?: string } | null
     items?: InventoryVoucherItem[]
 }
 
@@ -48,6 +48,7 @@ export type InventoryVoucherItem = {
     line_no?: number
     product_id?: number
     warehouse_id?: number
+    to_warehouse_id?: number
     lot_id?: number
     lot_code?: string
     expiry_date?: string
@@ -98,11 +99,15 @@ export type InventoryVoucherPrintDetail = Omit<InventoryVoucher, "items"> & {
         direction?: "I" | "O" | string
     } | null
     warehouse?: { id: number; code?: string; name?: string } | null
+    physical_warehouse?: { id: number; code?: string; name?: string } | null
     from_warehouse?: { id: number; code?: string; name?: string } | null
     to_warehouse?: { id: number; code?: string; name?: string } | null
+    from_physical_warehouse?: { id: number; code?: string; name?: string } | null
+    to_physical_warehouse?: { id: number; code?: string; name?: string } | null
     items?: Array<InventoryVoucherItem & {
         product?: { id: number; code?: string; name?: string; unit?: string } | null
         warehouse?: { id: number; code?: string; name?: string } | null
+        to_warehouse?: { id: number; code?: string; name?: string } | null
     }>
 }
 
@@ -122,6 +127,7 @@ export type CreateVoucherItemRequest = {
     line_no?: number
     product_id: number
     warehouse_id: number
+    to_warehouse_id?: number
     lot_id?: number
     lot_code?: string
     expiry_date?: string
@@ -144,6 +150,9 @@ export type CreateVoucherRequest = {
     warehouse_id?: number
     from_warehouse_id?: number
     to_warehouse_id?: number
+    physical_warehouse_id?: number
+    from_physical_warehouse_id?: number
+    to_physical_warehouse_id?: number
     description?: string
     transfer_id?: number
     production_id?: number
@@ -176,8 +185,8 @@ export function getVoucherPrintDetail(id: number) {
     return apiGet<InventoryVoucherPrintDetail>(`/inventory/vouchers/${id}/print`)
 }
 
-export function listVoucherTypes(direction?: "I" | "O") {
-    return apiGet<InventoryVoucherType[]>("/inventory/vouchers/types", { direction })
+export function listVoucherTypes(direction?: "I" | "O", active?: number) {
+    return apiGet<InventoryVoucherType[]>("/inventory/vouchers/types", { direction, active })
 }
 
 export function createVoucher(body: CreateVoucherRequest) {

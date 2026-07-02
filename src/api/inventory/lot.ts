@@ -102,6 +102,7 @@ export const listInventoryLots = (params: InventoryLotListParams) => {
         limit: params.size,
     })
 }
+export const listInventoryLotRecords = inventoryLotApi.list
 export const getInventoryLot = inventoryLotApi.detail
 export const createInventoryLot = inventoryLotApi.create
 export const updateInventoryLot = inventoryLotApi.update

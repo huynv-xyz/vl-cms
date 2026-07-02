@@ -13,6 +13,7 @@ export type ExportItem = {
     product?: Product
     warehouse_id?: number
     warehouse?: Warehouse
+    lot_code?: string
     lot_no?: string
     lot_nos?: string
     quantity: number

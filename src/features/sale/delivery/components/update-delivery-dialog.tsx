@@ -125,6 +125,7 @@ export function UpdateDeliveryDialog({
                 quantity: existingQuantity,
                 remain_quantity: Number(o.remain_quantity ?? o.quantity ?? 0),
                 warehouse_id: existing?.warehouse_id,
+                warehouse: existing?.warehouse,
                 note: existing?.note ?? "",
             }
         })
