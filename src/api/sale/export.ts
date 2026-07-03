@@ -32,6 +32,10 @@ export function updateExportStatus(id: number, status: string) {
     return apiPut(`/sales/exports/${id}/status`, { status })
 }
 
+export function finishExportSalesOnly(id: number, reason?: string) {
+    return apiPut(`/sales/exports/${id}/sales-only-done`, { reason })
+}
+
 export function updateExportItemWarehouse(
     exportId: number,
     itemId: number,
