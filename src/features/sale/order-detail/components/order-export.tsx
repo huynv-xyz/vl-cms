@@ -6,6 +6,7 @@ import {
     CheckCircle2,
     Eye,
     PackageCheck,
+    ShieldCheck,
     SlidersHorizontal,
     Warehouse,
 } from "lucide-react"
@@ -13,7 +14,7 @@ import { toast } from "sonner"
 
 import { getMyPermissions } from "@/api/auth/permission"
 import { listInventoryLotRecords } from "@/api/inventory/lot"
-import { updateExportItemLot, updateExportItemWarehouse, updateExportStatus } from "@/api/sale/export"
+import { finishExportSalesOnly, updateExportItemLot, updateExportItemWarehouse, updateExportStatus } from "@/api/sale/export"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Badge } from "@/components/ui/badge"
@@ -68,6 +69,11 @@ export function OrderExports({ exports, order }: any) {
             permission.module === "sales.exports" &&
             (permission.action === "status.update" || permission.action === "update")
     )
+    const canFinishSalesOnly = permissions.some(
+        (permission: any) =>
+            permission.module === "sales.exports" &&
+            permission.action === "sales-only-done"
+    )
 
     const { mutate: changeStatus, isPending } = useMutation({
         mutationFn: ({ id, status }: any) => updateExportStatus(id, status),
@@ -99,6 +105,33 @@ export function OrderExports({ exports, order }: any) {
             queryClient.invalidateQueries({ queryKey: ["orders"] })
         },
     })
+
+    const { mutate: finishSalesOnly, isPending: isFinishingSalesOnly } = useMutation({
+        mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
+            finishExportSalesOnly(id, reason),
+        onSuccess: () => toast.success("Đã chốt phiếu xuất không ghi kho"),
+        onError: (error: any) => toast.error(error?.message || "Chốt phiếu xuất không ghi kho thất bại"),
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] })
+            queryClient.invalidateQueries({ queryKey: ["exports"] })
+            queryClient.invalidateQueries({ queryKey: ["deliveries"] })
+            queryClient.invalidateQueries({ queryKey: ["orders"] })
+        },
+    })
+
+    const handleFinishSalesOnly = (exportDoc: any) => {
+        const ok = window.confirm(
+            "Chức năng tạm dành cho ADMIN.\n\n" +
+            "Phiếu xuất sẽ được chuyển Hoàn thành, ghi công nợ và dữ liệu bán hàng, nhưng KHÔNG ghi sổ kho/không trừ tồn kho.\n\n" +
+            "Chỉ dùng khi tồn kho đã được chốt/import trước đó. Bạn chắc chắn muốn tiếp tục?"
+        )
+        if (!ok) return
+
+        finishSalesOnly({
+            id: exportDoc.id,
+            reason: "Xu ly tam: chi ghi nghiep vu ban hang, khong ghi kho.",
+        })
+    }
 
     return (
         <div className="overflow-hidden rounded-xl border bg-background shadow-sm">
@@ -246,6 +279,24 @@ export function OrderExports({ exports, order }: any) {
                                                 ))}
                                             </SelectContent>
                                         </Select>
+
+                                        {canFinishSalesOnly && exportDoc.status === "NEW" && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-8 gap-1.5 border-amber-300 bg-amber-50 px-2.5 text-xs font-medium text-amber-700 hover:bg-amber-100 hover:text-amber-800"
+                                                disabled={isFinishingSalesOnly || missingWarehouseRows > 0}
+                                                title={
+                                                    missingWarehouseRows > 0
+                                                        ? "Cần chọn kho xuất cho tất cả dòng trước khi xử lý"
+                                                        : "Chốt bán hàng không ghi kho"
+                                                }
+                                                onClick={() => handleFinishSalesOnly(exportDoc)}
+                                            >
+                                                <ShieldCheck className="h-3.5 w-3.5" />
+                                                Không ghi kho
+                                            </Button>
+                                        )}
 
                                         <Button
                                             size="icon"

@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { flushSync } from "react-dom"
 import { useQueries } from "@tanstack/react-query"
 import {
@@ -10,6 +10,7 @@ import {
 import { AlertTriangle, CheckCircle2 } from "lucide-react"
 
 import { getStockLots } from "@/api/inventory/lot"
+import { getPhysicalWarehouse as getPhysicalWarehouseDetail, listPhysicalWarehouses } from "@/api/physical-warehouse"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Badge } from "@/components/ui/badge"
@@ -36,6 +37,29 @@ export function DeliveryItemsEditor({
     items,
     onChange,
 }: Props) {
+    const defaultPhysicalWarehouseId = useMemo(() => {
+        const selectedWarehousePhysicalIds = items
+            .filter((item) => item.selected)
+            .map((item) => getWarehousePhysical(item.warehouse)?.id)
+            .filter(Boolean)
+
+        const sourceIds = selectedWarehousePhysicalIds.length
+            ? selectedWarehousePhysicalIds
+            : orderItems
+                .map((item) => getWarehousePhysical(item.product?.default_warehouse)?.id)
+                .filter(Boolean)
+
+        const ids = Array.from(new Set(sourceIds.map(Number)))
+        return ids.length === 1 ? ids[0] : undefined
+    }, [items, orderItems])
+    const [selectedPhysicalWarehouseId, setSelectedPhysicalWarehouseId] = useState<number | undefined>()
+
+    useEffect(() => {
+        if (!selectedPhysicalWarehouseId && defaultPhysicalWarehouseId) {
+            setSelectedPhysicalWarehouseId(defaultPhysicalWarehouseId)
+        }
+    }, [defaultPhysicalWarehouseId, selectedPhysicalWarehouseId])
+
     const updateRow = (orderItemId: number, patch: any) => {
         const map = new Map(items.map((item) => [item.order_item_id, item]))
         const order = orderItems.find((item) => Number(item.id) === Number(orderItemId))
@@ -57,17 +81,23 @@ export function DeliveryItemsEditor({
         return orderItems.map((orderItem) => {
             const existing = items.find((item) => Number(item.order_item_id) === Number(orderItem.id))
             const warehouse = existing?.warehouse ?? orderItem.product?.default_warehouse
+            const warehousePhysicalId = getWarehousePhysical(warehouse)?.id
+            const canUseWarehouse =
+                !selectedPhysicalWarehouseId ||
+                (warehousePhysicalId != null && Number(warehousePhysicalId) === Number(selectedPhysicalWarehouseId))
 
             return {
                 ...orderItem,
                 order_item_id: orderItem.id,
                 selected: existing?.selected ?? false,
                 quantity_delivery: existing?.quantity ?? 0,
-                warehouse_id: existing?.warehouse_id ?? orderItem.product?.default_warehouse_id,
-                warehouse,
+                warehouse_id: canUseWarehouse
+                    ? existing?.warehouse_id ?? orderItem.product?.default_warehouse_id
+                    : undefined,
+                warehouse: canUseWarehouse ? warehouse : undefined,
             }
         })
-    }, [orderItems, items])
+    }, [orderItems, items, selectedPhysicalWarehouseId])
 
     const normalizedData = useMemo(() => {
         return data.map((row) => ({
@@ -84,17 +114,31 @@ export function DeliveryItemsEditor({
     const someSelectableSelected =
         selectedSelectableRows.length > 0 && selectedSelectableRows.length < selectableRows.length
 
-    const selectedPhysicalWarehouses = selectedRows
-        .map((row) => getPhysicalWarehouse(row.warehouse))
-        .filter(Boolean) as Array<{ id?: number; name?: string }>
-    const selectedPhysicalIds = Array.from(
-        new Set(selectedPhysicalWarehouses.map((warehouse) => warehouse.id).filter(Boolean))
-    )
-    const selectedPhysicalWarehouseId = selectedPhysicalIds.length === 1 ? selectedPhysicalIds[0] : undefined
-    const selectedPhysicalWarehouseLabel =
-        selectedPhysicalIds.length > 1
-            ? "Nhiều địa điểm kho"
-            : selectedPhysicalWarehouses[0]?.name || "Chưa chọn địa điểm kho"
+    const changePhysicalWarehouse = (physicalWarehouseId?: number) => {
+        const nextPhysicalWarehouseId = physicalWarehouseId || undefined
+        setSelectedPhysicalWarehouseId(nextPhysicalWarehouseId)
+
+        if (!nextPhysicalWarehouseId) {
+            return
+        }
+
+        const nextItems = items.map((item) => {
+            if (!item.warehouse_id) return item
+
+            const physicalId = getWarehousePhysical(item.warehouse)?.id
+            if (physicalId != null && Number(physicalId) === Number(nextPhysicalWarehouseId)) {
+                return item
+            }
+
+            return {
+                ...item,
+                warehouse_id: undefined,
+                warehouse: undefined,
+            }
+        })
+
+        onChange(nextItems)
+    }
 
     const stockQueries = useQueries({
         queries: normalizedData.map((row) => ({
@@ -212,7 +256,7 @@ export function DeliveryItemsEditor({
                         placeholder="Chọn kho xuất"
                         searchPlaceholder="Tìm kho"
                         value={row.original.warehouse_id}
-                        disabled={!row.original.selected}
+                        disabled={!row.original.selected || !selectedPhysicalWarehouseId}
                         onChange={(warehouseId: number | undefined, option: any) =>
                             updateRow(row.original.order_item_id, {
                                 warehouse_id: warehouseId || undefined,
@@ -225,9 +269,8 @@ export function DeliveryItemsEditor({
                             params: {
                                 page: 1,
                                 size: 20,
-                                ...(selectedPhysicalWarehouseId
-                                    ? { physical_warehouse_id: selectedPhysicalWarehouseId }
-                                    : {}),
+                                status: "ACTIVE",
+                                physical_warehouse_id: selectedPhysicalWarehouseId,
                             },
                         }}
                         mapOption={warehouseNameOption}
@@ -288,11 +331,26 @@ export function DeliveryItemsEditor({
     return (
         <div className="rounded-lg border bg-background">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-                <div>
+                <div className="flex flex-wrap items-center gap-3">
                     <div className="text-base font-semibold">Hàng giao</div>
-                    <div className="text-sm text-muted-foreground">
-                        Tại địa điểm kho: <span className="font-medium text-foreground">{selectedPhysicalWarehouseLabel}</span>
-                    </div>
+                    <AsyncSelect
+                        className="h-9 min-h-9 w-[260px] items-center bg-white px-3 py-0"
+                        placeholder="Chọn địa điểm kho"
+                        searchPlaceholder="Tìm địa điểm kho"
+                        value={selectedPhysicalWarehouseId}
+                        onChange={(value: number | undefined) => changePhysicalWarehouse(value)}
+                        dataSource={{
+                            getList: listPhysicalWarehouses,
+                            getById: getPhysicalWarehouseDetail,
+                            params: {
+                                page: 1,
+                                size: 50,
+                                status: "ACTIVE",
+                            },
+                        }}
+                        mapOption={physicalWarehouseOption}
+                        popoverContentClassName="w-[360px]"
+                    />
                 </div>
                 <div className="flex gap-2">
                     <Badge variant="secondary">{selectedRows.length} dòng chọn</Badge>
@@ -339,7 +397,7 @@ export function DeliveryItemsEditor({
     )
 }
 
-function getPhysicalWarehouse(warehouse: any) {
+function getWarehousePhysical(warehouse: any) {
     if (!warehouse) return null
     if (warehouse.physical_warehouse) {
         return {
@@ -354,6 +412,15 @@ function getPhysicalWarehouse(warehouse: any) {
         }
     }
     return null
+}
+
+function physicalWarehouseOption(physicalWarehouse: any) {
+    if (!physicalWarehouse) return null
+    return {
+        value: physicalWarehouse.id,
+        label: physicalWarehouse.name || physicalWarehouse.code || `#${physicalWarehouse.id}`,
+        raw: physicalWarehouse,
+    }
 }
 
 function warehouseNameOption(warehouse: any) {
