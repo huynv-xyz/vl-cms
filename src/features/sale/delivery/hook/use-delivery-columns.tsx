@@ -38,20 +38,22 @@ export function useDeliveryColumns() {
         {
             accessorKey: "delivery_no",
             header: "Mã giao / Đơn hàng",
+            size: 190,
+            minSize: 170,
             cell: ({ row }) => {
                 const r = row.original
                 return (
                     <button
                         type="button"
-                        className="group flex flex-col items-start text-left"
+                        className="group flex w-full min-w-0 flex-col items-start text-left"
                         onClick={() => setSelectedId(r.id)}
                     >
-                        <span className="font-mono text-sm font-semibold text-primary group-hover:underline">
+                        <span className="max-w-full truncate font-mono text-sm font-semibold text-primary group-hover:underline">
                             {r.delivery_no}
                         </span>
-                        <span className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                        <span className="mt-0.5 inline-flex max-w-full items-center gap-1 text-xs text-muted-foreground">
                             <Package className="h-3 w-3" />
-                            {r.order?.order_no || "Chưa có đơn"}
+                            <span className="truncate">{r.order?.order_no || "Chưa có đơn"}</span>
                         </span>
                     </button>
                 )
@@ -61,11 +63,13 @@ export function useDeliveryColumns() {
         {
             accessorKey: "customer_id",
             header: "Khách hàng",
+            size: 250,
+            minSize: 220,
             cell: ({ row }) => {
                 const customer = row.original.order?.customer
                 if (!customer) return <span className="text-muted-foreground">—</span>
                 return (
-                    <div className="inline-flex min-w-[180px] items-start gap-1.5 text-sm">
+                    <div className="inline-flex w-full min-w-0 items-start gap-1.5 text-sm">
                         <User className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                         <div className="min-w-0">
                             <div className="truncate font-medium">{customer.name}</div>
@@ -83,13 +87,17 @@ export function useDeliveryColumns() {
         {
             accessorKey: "company_id",
             header: "Công ty",
+            size: 220,
+            minSize: 190,
             cell: ({ row }) => {
                 const name = row.original.company?.name
                 if (!name) return <span className="text-muted-foreground">—</span>
                 return (
-                    <div className="inline-flex items-center gap-1.5 text-sm">
-                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>{name}</span>
+                    <div className="inline-flex w-full min-w-0 items-start gap-1.5 text-sm">
+                        <Building2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="line-clamp-2 min-w-0 leading-5" title={name}>
+                            {name}
+                        </span>
                     </div>
                 )
             },
@@ -98,8 +106,10 @@ export function useDeliveryColumns() {
         {
             accessorKey: "delivery_date",
             header: "Ngày giao",
+            size: 135,
+            minSize: 125,
             cell: ({ row }) => (
-                <div className="inline-flex items-center gap-1.5 text-sm tabular-nums">
+                <div className="inline-flex w-full items-center gap-1.5 text-sm tabular-nums">
                     <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="font-medium">{formatDate(row.original.delivery_date)}</span>
                 </div>
@@ -109,13 +119,15 @@ export function useDeliveryColumns() {
         {
             accessorKey: "delivery_address",
             header: "Địa chỉ giao",
+            size: 320,
+            minSize: 260,
             cell: ({ row }) => {
                 const addr = row.original.delivery_address
                 if (!addr) return <span className="text-muted-foreground">—</span>
                 return (
-                    <div className="flex max-w-[320px] items-start gap-1.5 text-sm">
+                    <div className="flex w-full min-w-0 items-start gap-1.5 text-sm">
                         <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        <span className="line-clamp-2 text-muted-foreground" title={addr}>
+                        <span className="line-clamp-2 min-w-0 text-muted-foreground" title={addr}>
                             {addr}
                         </span>
                     </div>
@@ -126,6 +138,8 @@ export function useDeliveryColumns() {
         {
             accessorKey: "status",
             header: "Trạng thái",
+            size: 165,
+            minSize: 150,
             cell: ({ row }) => <DeliveryStatusSelect delivery={row.original} />,
         },
 

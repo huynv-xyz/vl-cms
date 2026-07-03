@@ -203,6 +203,8 @@ export function DeliveryTable({
                 onPaginationChange={onPaginationChange}
                 pageCount={pageCount}
                 showToolbar={false}
+                enableColumnResize
+                enableStickyHorizontalScroll
             />
             {dialog}
         </div>
