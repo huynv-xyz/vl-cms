@@ -34,6 +34,7 @@
     SlidersVertical,
     PieChart,
     Trophy,
+    Scale,
 } from 'lucide-react'
 import { SidebarData } from '../types'
 import { Logo } from '@/assets/logo'
@@ -313,6 +314,11 @@ export const sidebarData: SidebarData = {
                     title: 'Xuất kho',
                     url: '/inventory/outbounds',
                     icon: ReceiptText,
+                },
+                {
+                    title: 'Tính giá tồn kho',
+                    url: '/inventory/costing',
+                    icon: Scale,
                 },
             ],
         },

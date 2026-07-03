@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { CalendarDays, Funnel, Printer, X } from "lucide-react"
+import { Funnel, Printer, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { getVoucherPrintDetail, listVoucherTypes, VOUCHER_TYPE_LABEL, type InventoryVoucherPrintDetail } from "@/api/inventory/voucher"
@@ -690,11 +690,8 @@ function LedgerRow({
     return (
         <tr className="hover:bg-muted/30 border-b">
             <Td className="text-muted-foreground text-center font-mono">{formatNumber(index)}</Td>
-            <Td>
-                <div className="flex items-center gap-1.5 whitespace-nowrap">
-                    <CalendarDays className="text-muted-foreground h-3.5 w-3.5" />
-                    {formatDate(item.posting_date)}
-                </div>
+            <Td className="whitespace-nowrap text-center tabular-nums">
+                {formatDate(item.posting_date)}
             </Td>
             <Td className={cn(centerVoucherFields && "text-center")}>
                 <div className={cn("flex items-center gap-1.5", centerVoucherFields && "justify-center")}>
