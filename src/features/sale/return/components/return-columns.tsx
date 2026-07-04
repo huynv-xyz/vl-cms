@@ -40,6 +40,7 @@ export function useReturnColumns() {
             id: "print",
             header: "",
             size: 44,
+            minSize: 44,
             cell: ({ row }) => (
                 <div className="flex h-8 w-8 items-center justify-center">
                     {row.original.status === "DONE" && (
@@ -64,14 +65,15 @@ export function useReturnColumns() {
         buildTextColumn({
             accessorKey: "return_no",
             title: "Mã trả",
+            width: 190,
             render: (row) => (
                 <button
                     type="button"
-                    className="min-w-0 text-left font-medium text-primary hover:underline"
+                    className="w-full min-w-0 text-left font-medium text-primary hover:underline"
                     onClick={() => setSelectedReturn({ id: row.id })}
                 >
-                    {row.return_no}
-                    <div className="text-xs font-normal text-muted-foreground">
+                    <span className="block truncate">{row.return_no}</span>
+                    <div className="truncate text-xs font-normal text-muted-foreground">
                         {row.export?.export_no ? `Xuất ${row.export.export_no}` : "Chưa có phiếu xuất"}
                     </div>
                 </button>
@@ -81,23 +83,29 @@ export function useReturnColumns() {
         {
             accessorKey: "order_id",
             header: "Đơn hàng",
+            size: 170,
+            minSize: 150,
             cell: ({ row }) =>
-                row.original.order?.order_no ??
-                (row.original.order_id ? `#${row.original.order_id}` : "-"),
+                <span className="block truncate font-mono text-sm">
+                    {row.original.order?.order_no ??
+                        (row.original.order_id ? `#${row.original.order_id}` : "-")}
+                </span>,
         },
 
         {
             accessorKey: "customer",
             header: "Khách hàng",
+            size: 280,
+            minSize: 230,
             cell: ({ row }) => {
                 const customer = row.original.customer ?? row.original.order?.customer
 
                 return (
-                    <div className="min-w-[220px]">
-                        <div className="font-medium text-slate-900">
+                    <div className="w-full min-w-0">
+                        <div className="truncate font-medium text-slate-900">
                             {customer?.name ?? "-"}
                         </div>
-                        <div className="mt-0.5 font-mono text-xs text-muted-foreground">
+                        <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
                             {customer?.code ?? "-"}
                         </div>
                     </div>
@@ -108,25 +116,35 @@ export function useReturnColumns() {
         {
             accessorKey: "export_id",
             header: "Phiếu xuất",
+            size: 170,
+            minSize: 150,
             cell: ({ row }) =>
-                row.original.export?.export_no ??
-                (row.original.export_id ? `#${row.original.export_id}` : "-"),
+                <span className="block truncate font-mono text-sm">
+                    {row.original.export?.export_no ??
+                        (row.original.export_id ? `#${row.original.export_id}` : "-")}
+                </span>,
         },
 
         buildTextColumn({
             accessorKey: "reason",
             title: "Lý do",
+            width: 260,
+            className: "max-w-0 truncate",
         }),
 
         {
             accessorKey: "created_at",
             header: "Ngày trả",
+            size: 125,
+            minSize: 115,
             cell: ({ row }) => formatReturnDate(row.original.return_date || row.original.created_at),
         },
 
         {
             accessorKey: "status",
             header: "Trạng thái",
+            size: 165,
+            minSize: 150,
             cell: ({ row }) => {
                 const status = row.original.status
                 const isLocked = status === "DONE"
