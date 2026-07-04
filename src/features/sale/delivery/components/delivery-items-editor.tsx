@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { flushSync } from "react-dom"
 import { useQueries } from "@tanstack/react-query"
 import {
@@ -37,28 +37,18 @@ export function DeliveryItemsEditor({
     items,
     onChange,
 }: Props) {
-    const defaultPhysicalWarehouseId = useMemo(() => {
-        const selectedWarehousePhysicalIds = items
+    const initialPhysicalWarehouseId = useMemo(() => {
+        const ids = items
             .filter((item) => item.selected)
             .map((item) => getWarehousePhysical(item.warehouse)?.id)
             .filter(Boolean)
+            .map(Number)
 
-        const sourceIds = selectedWarehousePhysicalIds.length
-            ? selectedWarehousePhysicalIds
-            : orderItems
-                .map((item) => getWarehousePhysical(item.product?.default_warehouse)?.id)
-                .filter(Boolean)
-
-        const ids = Array.from(new Set(sourceIds.map(Number)))
-        return ids.length === 1 ? ids[0] : undefined
-    }, [items, orderItems])
-    const [selectedPhysicalWarehouseId, setSelectedPhysicalWarehouseId] = useState<number | undefined>()
-
-    useEffect(() => {
-        if (!selectedPhysicalWarehouseId && defaultPhysicalWarehouseId) {
-            setSelectedPhysicalWarehouseId(defaultPhysicalWarehouseId)
-        }
-    }, [defaultPhysicalWarehouseId, selectedPhysicalWarehouseId])
+        const uniqueIds = Array.from(new Set(ids))
+        return uniqueIds.length === 1 ? uniqueIds[0] : undefined
+    }, [items])
+    const [selectedPhysicalWarehouseId, setSelectedPhysicalWarehouseId] = useState<number | undefined>(initialPhysicalWarehouseId)
+    const [warehouseFilterLocked, setWarehouseFilterLocked] = useState(Boolean(initialPhysicalWarehouseId))
 
     const updateRow = (orderItemId: number, patch: any) => {
         const map = new Map(items.map((item) => [item.order_item_id, item]))
@@ -77,12 +67,68 @@ export function DeliveryItemsEditor({
         onChange(Array.from(map.values()))
     }
 
+    const updateWarehouse = (orderItemId: number, warehouseId: number | undefined, warehouse: any) => {
+        const physicalId = getWarehousePhysical(warehouse)?.id
+        if (!selectedPhysicalWarehouseId && physicalId) {
+            setSelectedPhysicalWarehouseId(Number(physicalId))
+        }
+        if (physicalId) {
+            setWarehouseFilterLocked(true)
+        }
+
+        const map = new Map(items.map((item) => [Number(item.order_item_id), item]))
+        const nextItems = orderItems.map((orderItem) => {
+            const current = map.get(Number(orderItem.id)) ?? {
+                order_item_id: orderItem.id,
+                product_id: orderItem.product_id,
+                quantity: 0,
+                selected: false,
+            }
+
+            if (Number(orderItem.id) === Number(orderItemId)) {
+                return {
+                    ...current,
+                    warehouse_id: warehouseId || undefined,
+                    warehouse,
+                    warehouse_touched: true,
+                }
+            }
+
+            if (!physicalId) {
+                return current
+            }
+
+            const currentWarehouse = current.warehouse_touched
+                ? current.warehouse
+                : current.warehouse ?? orderItem.product?.default_warehouse
+            const currentWarehousePhysicalId = getWarehousePhysical(currentWarehouse)?.id
+
+            if (
+                currentWarehousePhysicalId != null &&
+                Number(currentWarehousePhysicalId) !== Number(physicalId)
+            ) {
+                return {
+                    ...current,
+                    warehouse_id: undefined,
+                    warehouse: undefined,
+                    warehouse_touched: true,
+                }
+            }
+
+            return current
+        })
+
+        onChange(nextItems)
+    }
+
     const data = useMemo(() => {
         return orderItems.map((orderItem) => {
             const existing = items.find((item) => Number(item.order_item_id) === Number(orderItem.id))
-            const warehouse = existing?.warehouse ?? orderItem.product?.default_warehouse
+            const shouldUseDefaultWarehouse = !existing?.warehouse_touched
+            const warehouse = existing?.warehouse ?? (shouldUseDefaultWarehouse ? orderItem.product?.default_warehouse : undefined)
             const warehousePhysicalId = getWarehousePhysical(warehouse)?.id
             const canUseWarehouse =
+                !warehouseFilterLocked ||
                 !selectedPhysicalWarehouseId ||
                 (warehousePhysicalId != null && Number(warehousePhysicalId) === Number(selectedPhysicalWarehouseId))
 
@@ -92,12 +138,12 @@ export function DeliveryItemsEditor({
                 selected: existing?.selected ?? false,
                 quantity_delivery: existing?.quantity ?? 0,
                 warehouse_id: canUseWarehouse
-                    ? existing?.warehouse_id ?? orderItem.product?.default_warehouse_id
+                    ? existing?.warehouse_id ?? (shouldUseDefaultWarehouse ? orderItem.product?.default_warehouse_id : undefined)
                     : undefined,
                 warehouse: canUseWarehouse ? warehouse : undefined,
             }
         })
-    }, [orderItems, items, selectedPhysicalWarehouseId])
+    }, [orderItems, items, selectedPhysicalWarehouseId, warehouseFilterLocked])
 
     const normalizedData = useMemo(() => {
         return data.map((row) => ({
@@ -117,15 +163,25 @@ export function DeliveryItemsEditor({
     const changePhysicalWarehouse = (physicalWarehouseId?: number) => {
         const nextPhysicalWarehouseId = physicalWarehouseId || undefined
         setSelectedPhysicalWarehouseId(nextPhysicalWarehouseId)
+        setWarehouseFilterLocked(Boolean(nextPhysicalWarehouseId))
 
         if (!nextPhysicalWarehouseId) {
             return
         }
 
-        const nextItems = items.map((item) => {
-            if (!item.warehouse_id) return item
+        const map = new Map(items.map((item) => [Number(item.order_item_id), item]))
+        const nextItems = orderItems.map((orderItem) => {
+            const item = map.get(Number(orderItem.id)) ?? {
+                order_item_id: orderItem.id,
+                product_id: orderItem.product_id,
+                quantity: 0,
+                selected: false,
+            }
 
-            const physicalId = getWarehousePhysical(item.warehouse)?.id
+            const warehouse = item.warehouse_touched
+                ? item.warehouse
+                : item.warehouse ?? orderItem.product?.default_warehouse
+            const physicalId = getWarehousePhysical(warehouse)?.id
             if (physicalId != null && Number(physicalId) === Number(nextPhysicalWarehouseId)) {
                 return item
             }
@@ -134,6 +190,7 @@ export function DeliveryItemsEditor({
                 ...item,
                 warehouse_id: undefined,
                 warehouse: undefined,
+                warehouse_touched: true,
             }
         })
 
@@ -256,12 +313,9 @@ export function DeliveryItemsEditor({
                         placeholder="Chọn kho xuất"
                         searchPlaceholder="Tìm kho"
                         value={row.original.warehouse_id}
-                        disabled={!row.original.selected || !selectedPhysicalWarehouseId}
+                        disabled={!row.original.selected}
                         onChange={(warehouseId: number | undefined, option: any) =>
-                            updateRow(row.original.order_item_id, {
-                                warehouse_id: warehouseId || undefined,
-                                warehouse: option?.raw,
-                            })
+                            updateWarehouse(row.original.order_item_id, warehouseId, option?.raw)
                         }
                         dataSource={{
                             getList: listWarehouses,
@@ -270,7 +324,9 @@ export function DeliveryItemsEditor({
                                 page: 1,
                                 size: 20,
                                 status: "ACTIVE",
-                                physical_warehouse_id: selectedPhysicalWarehouseId,
+                                ...(warehouseFilterLocked && selectedPhysicalWarehouseId
+                                    ? { physical_warehouse_id: selectedPhysicalWarehouseId }
+                                    : {}),
                             },
                         }}
                         mapOption={warehouseNameOption}

@@ -68,3 +68,12 @@ export const deleteOrderItem = (id: number) =>
 
 export const updateOrderStatus = (id: number, status: string) =>
     apiPut(`/sales/orders/${id}/status`, { status })
+
+export type AdjustOrderPriceItem = {
+    order_item_id: number
+    unit_price: number
+    discount?: number
+}
+
+export const adjustOrderPrice = (id: number, items: AdjustOrderPriceItem[]) =>
+    apiPut(`/sales/orders/${id}/price-adjustment`, { items })

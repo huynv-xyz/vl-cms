@@ -48,6 +48,8 @@ export default function SalesInventorySummaryPage() {
             "quote_text_op",
             "unit",
             "summary_status",
+            "closing_quantity_op",
+            "closing_quantity_value",
         ],
     )
 
@@ -76,6 +78,8 @@ export default function SalesInventorySummaryPage() {
         quote_text_op: singleFilters.quote_text_op as SummaryFilters["quote_text_op"],
         unit: singleFilters.unit,
         summary_status: singleFilters.summary_status,
+        closing_quantity_op: singleFilters.closing_quantity_op as SummaryFilters["closing_quantity_op"],
+        closing_quantity_value: singleFilters.closing_quantity_value,
     }
 
     const { data, isLoading, error } = usePaginatedList(
@@ -104,6 +108,8 @@ export default function SalesInventorySummaryPage() {
             singleFilters.quote_text_op,
             singleFilters.unit,
             singleFilters.summary_status,
+            singleFilters.closing_quantity_op,
+            singleFilters.closing_quantity_value,
         ],
         listInventorySummaryForSales,
         {
@@ -130,6 +136,8 @@ export default function SalesInventorySummaryPage() {
             quote_text_op: requestFilters.quote_text_op,
             unit: requestFilters.unit,
             summary_status: requestFilters.summary_status,
+            closing_quantity_op: requestFilters.closing_quantity_op,
+            closing_quantity_value: requestFilters.closing_quantity_value,
         },
     )
 
@@ -183,6 +191,8 @@ export default function SalesInventorySummaryPage() {
                             quote_text_op: next.quote_text_op,
                             unit: next.unit,
                             summary_status: next.summary_status,
+                            closing_quantity_op: next.closing_quantity_op,
+                            closing_quantity_value: next.closing_quantity_value,
                         })
                     }}
                 />

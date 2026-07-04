@@ -38,6 +38,7 @@ import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import type { InventorySummary, InventorySummaryTotals } from "../data/schema"
 
 type TextFilterOp = "contains" | "equals" | "not_equals" | "not_contains"
+type NumberFilterOp = "eq" | "ne" | "lt" | "lte" | "gt" | "gte"
 
 export type SummaryFilters = {
     product_id?: number
@@ -60,6 +61,8 @@ export type SummaryFilters = {
     quote_text_op?: TextFilterOp
     unit?: string
     summary_status?: string
+    closing_quantity_op?: NumberFilterOp
+    closing_quantity_value?: string
 }
 
 type Props = {
@@ -96,6 +99,15 @@ const TEXT_FILTER_OPERATORS: Array<{ value: TextFilterOp; label: string }> = [
     { value: "equals", label: "Bằng" },
     { value: "not_equals", label: "Khác" },
     { value: "not_contains", label: "Không chứa" },
+]
+
+const NUMBER_FILTER_OPERATORS: Array<{ value: NumberFilterOp; label: string; chipLabel: string }> = [
+    { value: "eq", label: "Bằng (=)", chipLabel: "=" },
+    { value: "ne", label: "Khác (!=)", chipLabel: "!=" },
+    { value: "lt", label: "Nhỏ hơn (<)", chipLabel: "<" },
+    { value: "lte", label: "Nhỏ hơn hoặc bằng (<=)", chipLabel: "<=" },
+    { value: "gt", label: "Lớn hơn (>)", chipLabel: ">" },
+    { value: "gte", label: "Lớn hơn hoặc bằng (>=)", chipLabel: ">=" },
 ]
 
 const UNIT_OPTIONS = ["Kg", "Lít", "Bao", "Cái", "Thùng", "Mét"]
@@ -234,6 +246,28 @@ export function SummaryTable({
         })
     }
 
+    const setNumberFilter = (
+        opKey: "closing_quantity_op",
+        valueKey: "closing_quantity_value",
+        value: string,
+        op: NumberFilterOp,
+    ) => {
+        const normalized = value.trim()
+        onFiltersChange({
+            ...filters,
+            [opKey]: normalized ? op : undefined,
+            [valueKey]: normalized || undefined,
+        })
+    }
+
+    const clearNumberFilter = (opKey: "closing_quantity_op", valueKey: "closing_quantity_value") => {
+        onFiltersChange({
+            ...filters,
+            [opKey]: undefined,
+            [valueKey]: undefined,
+        })
+    }
+
     const setPageIndex = (pageIndex: number) => {
         onPaginationChange((prev) => ({
             ...prev,
@@ -319,6 +353,13 @@ export function SummaryTable({
                 onClear: () => setFilter("summary_status", undefined),
             }
             : null,
+        filters.closing_quantity_value !== undefined && filters.closing_quantity_value !== ""
+            ? {
+                key: "closing_quantity",
+                label: numberFilterDescription("Tồn cuối kỳ", filters.closing_quantity_op, filters.closing_quantity_value),
+                onClear: () => clearNumberFilter("closing_quantity_op", "closing_quantity_value"),
+            }
+            : null,
     ].filter(Boolean) as Array<{ key: string; label: string; onClear: () => void }>
 
     const clearAllActiveFilters = () => {
@@ -343,6 +384,8 @@ export function SummaryTable({
             quote_text_op: undefined,
             unit: undefined,
             summary_status: undefined,
+            closing_quantity_op: undefined,
+            closing_quantity_value: undefined,
         })
     }
 
@@ -507,7 +550,19 @@ export function SummaryTable({
                                     <Th colSpan={showValues ? 2 : 1} className="text-center">Tồn đầu kỳ</Th>
                                     <Th colSpan={showValues ? 2 : 1} className="text-center">Nhập kho</Th>
                                     <Th colSpan={showValues ? 3 : 1} className="text-center">Xuất kho</Th>
-                                    <Th colSpan={showValues ? 2 : 1} className="text-center">Tồn cuối kỳ</Th>
+                                    <Th colSpan={showValues ? 2 : 1} className="text-center">
+                                        {showValues ? (
+                                            "Tồn cuối kỳ"
+                                        ) : (
+                                            <ColumnNumberFilter
+                                                label="Tồn cuối kỳ"
+                                                value={filters.closing_quantity_value}
+                                                op={filters.closing_quantity_op}
+                                                onApply={(value, op) => setNumberFilter("closing_quantity_op", "closing_quantity_value", value, op)}
+                                                onClear={() => clearNumberFilter("closing_quantity_op", "closing_quantity_value")}
+                                            />
+                                        )}
+                                    </Th>
                                     <Th rowSpan={showValues ? 2 : 1}>
                                         <ColumnTextFilter
                                             label="Nhóm hàng"
@@ -537,7 +592,15 @@ export function SummaryTable({
                                     <Th>Số lượng</Th>
                                     <Th>Giá xuất BQ</Th>
                                     <Th>Giá trị</Th>
-                                    <Th>Số lượng</Th>
+                                    <Th>
+                                        <ColumnNumberFilter
+                                            label="Số lượng"
+                                            value={filters.closing_quantity_value}
+                                            op={filters.closing_quantity_op}
+                                            onApply={(value, op) => setNumberFilter("closing_quantity_op", "closing_quantity_value", value, op)}
+                                            onClear={() => clearNumberFilter("closing_quantity_op", "closing_quantity_value")}
+                                        />
+                                    </Th>
                                     <Th>Giá trị</Th>
                                 </tr>
                                 ) : null}
@@ -1016,6 +1079,93 @@ function ColumnTextFilter({
     )
 }
 
+function ColumnNumberFilter({
+    label,
+    value,
+    op,
+    onApply,
+    onClear,
+}: {
+    label: string
+    value?: string
+    op?: NumberFilterOp
+    onApply: (value: string, op: NumberFilterOp) => void
+    onClear: () => void
+}) {
+    const [open, setOpen] = useState(false)
+    const [draftValue, setDraftValue] = useState(value || "0")
+    const [draftOp, setDraftOp] = useState<NumberFilterOp>(op || "gt")
+    const active = value !== undefined && value !== ""
+
+    const apply = () => {
+        onApply(draftValue, draftOp)
+        setOpen(false)
+    }
+
+    const clear = () => {
+        setDraftValue("0")
+        setDraftOp("gt")
+        onClear()
+        setOpen(false)
+    }
+
+    return (
+        <div className="flex items-center justify-center gap-1">
+            <span>{label}</span>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-6 w-6", active && "bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800")}
+                        onClick={() => {
+                            setDraftValue(value || "0")
+                            setDraftOp(op || "gt")
+                        }}
+                    >
+                        <Funnel className="h-3.5 w-3.5" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72 space-y-3 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-semibold">Lọc {label.toLowerCase()}</div>
+                        <Select value={draftOp} onValueChange={(next) => setDraftOp(next as NumberFilterOp)}>
+                            <SelectTrigger className="h-7 w-auto border-0 bg-transparent px-1 text-xs font-semibold shadow-none focus:ring-0">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent align="end">
+                                {NUMBER_FILTER_OPERATORS.map((item) => (
+                                    <SelectItem key={item.value} value={item.value}>
+                                        {item.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Input
+                        value={draftValue}
+                        onChange={(event) => setDraftValue(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") apply()
+                        }}
+                        inputMode="decimal"
+                        placeholder="Nhập số lượng"
+                    />
+                    <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={clear}>
+                            Xóa
+                        </Button>
+                        <Button type="button" size="sm" onClick={apply}>
+                            Áp dụng
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
+        </div>
+    )
+}
+
 function ColumnWarehouseFilter({
     label,
     value,
@@ -1234,6 +1384,8 @@ export function ExportInventorySummaryButton({
                 quote_text_op: filters.quote_text_op,
                 unit: filters.unit,
                 summary_status: filters.summary_status,
+                closing_quantity_op: filters.closing_quantity_op,
+                closing_quantity_value: filters.closing_quantity_value,
             }, listFn)
 
             if (!rows.length) {
@@ -1381,6 +1533,11 @@ function textFilterDescription(label: string, op: TextFilterOp | undefined, valu
 
 function textOpLabel(op?: TextFilterOp) {
     return TEXT_FILTER_OPERATORS.find((item) => item.value === (op || "contains"))?.label.toLowerCase() || "chứa"
+}
+
+function numberFilterDescription(label: string, op: NumberFilterOp | undefined, value?: string) {
+    const operator = NUMBER_FILTER_OPERATORS.find((item) => item.value === (op || "eq"))?.chipLabel || "="
+    return `${label} ${operator} ${value || 0}`
 }
 
 function normalizeTotals(totals?: InventorySummaryTotals): InventorySummaryTotals {

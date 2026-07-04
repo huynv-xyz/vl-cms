@@ -28,6 +28,8 @@ export type SummaryListParams = {
     quote_text_op?: string
     unit?: string
     summary_status?: string
+    closing_quantity_op?: string
+    closing_quantity_value?: string
 }
 
 export type CreateSummaryRequest = Partial<InventorySummary>

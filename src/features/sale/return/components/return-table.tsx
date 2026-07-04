@@ -206,6 +206,8 @@ export function ReturnTable({
                 onPaginationChange={onPaginationChange}
                 pageCount={pageCount}
                 showToolbar={false}
+                enableColumnResize
+                enableStickyHorizontalScroll
             />
             {dialog}
         </div>

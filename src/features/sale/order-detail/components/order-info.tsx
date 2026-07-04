@@ -9,6 +9,7 @@ import { getOrderStatusMeta, ORDER_STATUSES } from "../../order/components/order
 import { OrderDocumentDialog } from "../../order/components/order-document-dialog"
 import { CreateOrderDialog } from "../../order/components/create-order-dialog"
 import { UpdateOrderDialog } from "../../order/components/update-order-dialog"
+import { OrderPriceAdjustmentDialog } from "../../order/components/order-price-adjustment-dialog"
 import {
     CalendarDays,
     Clock,
@@ -31,6 +32,7 @@ export function OrderInfo({ order, metrics }: Props) {
     const [documentOpen, setDocumentOpen] = useState(false)
     const [cloneOpen, setCloneOpen] = useState(false)
     const [editOpen, setEditOpen] = useState(false)
+    const [priceOpen, setPriceOpen] = useState(false)
     const statusMeta = getOrderStatusMeta(order.status)
     const StatusIcon = statusMeta.icon
     const { data: permissions = [] } = useQuery({
@@ -42,8 +44,12 @@ export function OrderInfo({ order, metrics }: Props) {
             p.module === "sales.orders" &&
             (p.action === "status.update" || p.action === "update")
     )
+    const canAdjustPrice = permissions.some(
+        (p: any) => p.module === "sales.orders" && p.action === "price.adjust"
+    )
     const isLocked = order.status === "DONE" || order.status === "CANCELLED"
-    const canEditOrder = canUpdateStatus && !isLocked
+    const hasDoneExport = hasCompletedExport(order)
+    const canEditOrder = canUpdateStatus && !isLocked && !hasDoneExport
 
     return (
         <div className="overflow-hidden rounded-xl border bg-gradient-to-br from-background to-muted/30 shadow-sm">
@@ -116,6 +122,18 @@ export function OrderInfo({ order, metrics }: Props) {
                         <Pencil className="h-3.5 w-3.5" />
                         Sửa đơn
                     </Button>
+                    {canAdjustPrice && hasDoneExport && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-9 gap-1.5"
+                            onClick={() => setPriceOpen(true)}
+                        >
+                            <Pencil className="h-3.5 w-3.5" />
+                            Sửa giá
+                        </Button>
+                    )}
                     <InlineStatus
                         row={order}
                         value={order.status}
@@ -145,6 +163,12 @@ export function OrderInfo({ order, metrics }: Props) {
                 order={order}
                 open={editOpen}
                 onOpenChange={setEditOpen}
+            />
+
+            <OrderPriceAdjustmentDialog
+                order={order}
+                open={priceOpen}
+                onOpenChange={setPriceOpen}
             />
 
             {/* INFO GRID */}
@@ -209,6 +233,16 @@ export function OrderInfo({ order, metrics }: Props) {
             )}
         </div>
     )
+}
+
+function hasCompletedExport(order: any) {
+    if (order?.status === "DONE") {
+        return true
+    }
+    if ((order.exports ?? []).some((item: any) => item.status === "DONE")) {
+        return true
+    }
+    return false
 }
 
 function Info({

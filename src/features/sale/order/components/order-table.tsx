@@ -48,6 +48,7 @@ import { listOrders, updateOrderStatus, type OrderListParams } from "@/api/sale/
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import { OrderDocumentDialog } from "./order-document-dialog"
 import { CreateOrderDialog } from "./create-order-dialog"
+import { OrderPriceAdjustmentDialog } from "./order-price-adjustment-dialog"
 
 const controlClass = "h-9 min-h-9 rounded-md border-slate-300 bg-white shadow-xs"
 const EXPORT_PAGE_SIZE = 500
@@ -74,6 +75,7 @@ export function OrderTable({
     const canUpdateOrder =
         hasPermission(permissions, "sales.orders", "update") ||
         hasPermission(permissions, "sales.orders", "status.update")
+    const canAdjustPrice = hasPermission(permissions, "sales.orders", "price.adjust")
 
     const setFilter = (key: string, value: any) =>
         onFiltersChange?.({ ...filters, [key]: value })
@@ -295,6 +297,7 @@ export function OrderTable({
                                     key={order.id}
                                     order={order}
                                     canUpdateOrder={canUpdateOrder}
+                                    canAdjustPrice={canAdjustPrice}
                                     returnTo={returnTo}
                                 />
                             ))}
@@ -336,16 +339,19 @@ function OrderListHeader() {
 function OrderCard({
     order,
     canUpdateOrder,
+    canAdjustPrice,
     returnTo,
 }: {
     order: Order
     canUpdateOrder: boolean
+    canAdjustPrice: boolean
     returnTo: string
 }) {
     const { openEdit } = useOrders()
     const queryClient = useQueryClient()
     const [documentOpen, setDocumentOpen] = useState(false)
     const [cloneOpen, setCloneOpen] = useState(false)
+    const [priceOpen, setPriceOpen] = useState(false)
 
     const { mutate: changeStatus, isPending } = useMutation({
         mutationFn: ({ id, status }: { id: number; status: string }) =>
@@ -387,6 +393,7 @@ function OrderCard({
 
     const status = order.status || "NEW"
     const isLocked = status === "DONE"
+    const hasDoneExport = hasCompletedExport(order)
     const meta = getOrderStatusMeta(status)
     const StatusIcon = meta.icon
     const stockCheck = getOrderStockCheck(items)
@@ -563,9 +570,11 @@ function OrderCard({
 
                     <OrderRowMenu
                         order={order}
-                        canEdit={!isLocked && canUpdateOrder}
+                        canEdit={!isLocked && !hasDoneExport && canUpdateOrder}
+                        canAdjustPrice={canAdjustPrice && hasDoneExport}
                         onEdit={() => openEdit(order)}
                         onClone={() => setCloneOpen(true)}
+                        onAdjustPrice={() => setPriceOpen(true)}
                     />
                 </div>
             </div>
@@ -580,6 +589,11 @@ function OrderCard({
                 onOpenChange={setCloneOpen}
                 initialData={order}
             />
+            <OrderPriceAdjustmentDialog
+                open={priceOpen}
+                order={order}
+                onOpenChange={setPriceOpen}
+            />
         </div>
     )
 }
@@ -587,13 +601,17 @@ function OrderCard({
 function OrderRowMenu({
     order,
     canEdit,
+    canAdjustPrice,
     onEdit,
     onClone,
+    onAdjustPrice,
 }: {
     order: Order
     canEdit: boolean
+    canAdjustPrice: boolean
     onEdit: () => void
     onClone: () => void
+    onAdjustPrice: () => void
 }) {
     return (
         <DropdownMenu modal={false}>
@@ -619,9 +637,25 @@ function OrderRowMenu({
                     <CopyPlus className="h-4 w-4" />
                     Nhân bản
                 </DropdownMenuItem>
+                {canAdjustPrice && (
+                    <DropdownMenuItem onClick={onAdjustPrice} className="gap-2">
+                        <Pencil className="h-4 w-4" />
+                        Sửa giá
+                    </DropdownMenuItem>
+                )}
             </DropdownMenuContent>
         </DropdownMenu>
     )
+}
+
+function hasCompletedExport(order: any) {
+    if (order?.status === "DONE") {
+        return true
+    }
+    if ((order.exports ?? []).some((item: any) => item.status === "DONE")) {
+        return true
+    }
+    return false
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

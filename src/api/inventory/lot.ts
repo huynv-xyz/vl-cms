@@ -34,6 +34,8 @@ export type InventoryLotListParams = {
     lot_text?: string
     lot_text_op?: LotTextFilterOp
     lot_warning?: string
+    closing_quantity_op?: string
+    closing_quantity_value?: string
 }
 
 export type InventoryLotTotals = {
