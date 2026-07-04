@@ -29,6 +29,8 @@ type Props = {
         | "lot_text"
         | "lot_text_op"
         | "lot_warning"
+        | "closing_quantity_op"
+        | "closing_quantity_value"
     >
 }
 
@@ -96,6 +98,8 @@ export function ExportInventoryLotsButton({ keyword, filters }: Props) {
                 lot_text: filters.lot_text,
                 lot_text_op: filters.lot_text_op,
                 lot_warning: filters.lot_warning,
+                closing_quantity_op: filters.closing_quantity_op,
+                closing_quantity_value: filters.closing_quantity_value,
                 only_remaining: filters.only_remaining,
             })
 

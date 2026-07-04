@@ -44,6 +44,8 @@ export default function InventoryLotPage() {
             "lot_text",
             "lot_text_op",
             "lot_warning",
+            "closing_quantity_op",
+            "closing_quantity_value",
         ],
     )
 
@@ -67,6 +69,8 @@ export default function InventoryLotPage() {
         lot_text: requestFilters.lot_text,
         lot_text_op: requestFilters.lot_text_op as LotFilters["lot_text_op"],
         lot_warning: requestFilters.lot_warning,
+        closing_quantity_op: requestFilters.closing_quantity_op,
+        closing_quantity_value: requestFilters.closing_quantity_value,
     }
 
     const tableFilters: LotFilters = {
@@ -88,6 +92,8 @@ export default function InventoryLotPage() {
         lot_text: singleFilters.lot_text,
         lot_text_op: singleFilters.lot_text_op as LotFilters["lot_text_op"],
         lot_warning: singleFilters.lot_warning,
+        closing_quantity_op: singleFilters.closing_quantity_op as LotFilters["closing_quantity_op"],
+        closing_quantity_value: singleFilters.closing_quantity_value,
     }
 
     const { data, isLoading, error } = usePaginatedList(
@@ -113,6 +119,8 @@ export default function InventoryLotPage() {
             singleFilters.lot_text,
             singleFilters.lot_text_op,
             singleFilters.lot_warning,
+            singleFilters.closing_quantity_op,
+            singleFilters.closing_quantity_value,
         ],
         listInventoryLots,
         {
@@ -143,6 +151,8 @@ export default function InventoryLotPage() {
             singleFilters.lot_text,
             singleFilters.lot_text_op,
             singleFilters.lot_warning,
+            singleFilters.closing_quantity_op,
+            singleFilters.closing_quantity_value,
         ],
         queryFn: () => getInventoryLotTotals(requestParams),
     })
@@ -186,6 +196,8 @@ export default function InventoryLotPage() {
                             lot_text: next.lot_text,
                             lot_text_op: next.lot_text_op,
                             lot_warning: next.lot_warning,
+                            closing_quantity_op: next.closing_quantity_op,
+                            closing_quantity_value: next.closing_quantity_value,
                         })
                     }}
                 />

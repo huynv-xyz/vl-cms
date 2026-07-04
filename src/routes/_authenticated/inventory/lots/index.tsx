@@ -53,6 +53,8 @@ export const Route = createFileRoute("/_authenticated/inventory/lots/")({
             lot_text: typeof search.lot_text === "string" ? search.lot_text : undefined,
             lot_text_op: normalizeTextOp(search.lot_text_op),
             lot_warning: normalizeLotWarning(search.lot_warning),
+            closing_quantity_op: normalizeNumberOp(search.closing_quantity_op),
+            closing_quantity_value: normalizeNumberValue(search.closing_quantity_value),
         }
     },
     component: InventoryLotPage,
@@ -92,4 +94,17 @@ function normalizeLotWarning(value: unknown) {
         ["EXPIRED", "NEAR_EXPIRY", "STALE"].includes(value)
         ? value
         : undefined
+}
+
+function normalizeNumberOp(value: unknown) {
+    return typeof value === "string" &&
+        ["eq", "ne", "lt", "lte", "gt", "gte"].includes(value)
+        ? value
+        : undefined
+}
+
+function normalizeNumberValue(value: unknown) {
+    if (value === undefined || value === null || value === "") return undefined
+    const text = String(value).trim()
+    return Number.isFinite(Number(text)) ? text : undefined
 }

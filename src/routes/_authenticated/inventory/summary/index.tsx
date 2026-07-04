@@ -48,6 +48,8 @@ export const Route = createFileRoute("/_authenticated/inventory/summary/")({
             quote_text_op: normalizeTextOp(search.quote_text_op),
             unit: typeof search.unit === "string" ? search.unit : undefined,
             summary_status: normalizeSummaryStatus(search.summary_status),
+            closing_quantity_op: normalizeNumberOp(search.closing_quantity_op),
+            closing_quantity_value: normalizeNumberValue(search.closing_quantity_value),
         }
     },
 
@@ -88,4 +90,17 @@ function normalizeSummaryStatus(value: unknown) {
         ["NEGATIVE", "OUT_OF_STOCK", "DECREASE", "INCREASE", "STABLE"].includes(value)
         ? value
         : undefined
+}
+
+function normalizeNumberOp(value: unknown) {
+    return typeof value === "string" &&
+        ["eq", "ne", "lt", "lte", "gt", "gte"].includes(value)
+        ? value
+        : undefined
+}
+
+function normalizeNumberValue(value: unknown) {
+    if (value === undefined || value === null || value === "") return undefined
+    const text = String(value).trim()
+    return Number.isFinite(Number(text)) ? text : undefined
 }
