@@ -218,3 +218,68 @@ export function fixProductionInventoryChronology(body: ProductionChronologyFixRe
     return apiPost<ProductionChronologyFixResult>("/tools/production-inventory-chronology/fix", body)
 }
 
+export type ProductionFifoWarehouseAuditRequest = {
+    from_date?: string
+    to_date?: string
+}
+
+export type ProductionFifoWarehouseMismatchRow = {
+    production_id: number
+    production_no?: string | null
+    production_date?: string | null
+    production_status?: string | null
+    issue_voucher_no?: string | null
+    material_id: number
+    product_code?: string | null
+    product_name?: string | null
+    quantity_required?: number | string | null
+    preferred_warehouse_code?: string | null
+    preferred_warehouse_name?: string | null
+    allocated_warehouse_code?: string | null
+    allocated_warehouse_name?: string | null
+    lot_no?: string | null
+    allocated_quantity?: number | string | null
+}
+
+export type ProductionFifoWarehouseCandidate = {
+    production_id: number
+    production_no?: string | null
+    production_date?: string | null
+    production_status?: string | null
+    issue_voucher_no?: string | null
+    mismatch_rows: number
+    rows: ProductionFifoWarehouseMismatchRow[]
+}
+
+export type ProductionFifoWarehouseAuditResult = {
+    from_date?: string | null
+    to_date?: string | null
+    mismatch_rows: number
+    production_count: number
+    candidates: ProductionFifoWarehouseCandidate[]
+}
+
+export type ProductionFifoWarehouseFixRequest = ProductionFifoWarehouseAuditRequest & {
+    production_ids: number[]
+}
+
+export type ProductionFifoWarehouseFixResult = {
+    success: boolean
+    message: string
+    fixed_count: number
+    rows: Array<{
+        production_id: number
+        production_no?: string | null
+        success: boolean
+        message?: string | null
+    }>
+}
+
+export function auditProductionFifoWarehouse(body: ProductionFifoWarehouseAuditRequest) {
+    return apiPost<ProductionFifoWarehouseAuditResult>("/tools/production-fifo-warehouse/audit", body)
+}
+
+export function fixProductionFifoWarehouse(body: ProductionFifoWarehouseFixRequest) {
+    return apiPost<ProductionFifoWarehouseFixResult>("/tools/production-fifo-warehouse/fix", body)
+}
+

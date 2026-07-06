@@ -1,6 +1,6 @@
 import { useState } from "react"
 import type React from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
     AlertTriangle,
@@ -22,6 +22,7 @@ import {
     Route,
     Save,
     Settings2,
+    SlidersHorizontal,
     Trash2,
     Undo2,
     Wand2,
@@ -62,6 +63,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { listProducts, getProduct } from "@/api/product"
 import type { Product } from "@/features/product/data/schema"
 import { listWarehouses, getWarehouse } from "@/api/warehouse"
+import { listInventoryLotRecords } from "@/api/inventory/lot"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import {
     addProductionMaterial,
@@ -877,8 +879,9 @@ function MaterialsTable({ production }: { production: Production }) {
                                             {itemMaterials.map((material, index) => {
                                                 const shortage = Number(material.shortage_quantity) || 0
                                                 const allocations = material.fifo_allocations ?? []
+                                                const hasExpandedFifo = hasExpandedFifoResult(material)
                                                 return (
-                                                    <tr key={material.id} className="border-t">
+                                                    <tr key={material.id} className={cn("border-t", hasExpandedFifo && "bg-amber-50/40")}>
                                                         <Td className="text-muted-foreground">{index + 1}</Td>
                                                         <Td>
                                                             <div className="font-medium leading-tight">{material.product?.name || "-"}</div>
@@ -918,7 +921,7 @@ function MaterialsTable({ production }: { production: Production }) {
                                                             )}
                                                         </Td>
                                                         <Td className="text-right">
-                                                            <PreferredLotForm production={production} material={material} disabled={!canPickLot} />
+                                                            <PreferredLotSelect production={production} material={material} disabled={!canPickLot} />
                                                         </Td>
                                                     </tr>
                                                 )
@@ -1178,8 +1181,8 @@ function MaterialCheckRow({
                         </Button>
                     </div>
                 )}
-                <PreferredLotForm production={production} material={material} disabled={!canPickLot} />
-                <FifoLotSummary allocations={material.fifo_allocations ?? []} />
+                <PreferredLotSelect production={production} material={material} disabled={!canPickLot} />
+                <FifoLotSummary material={material} />
                 {hsdWarnings.length > 0 && (
                     <div className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-700">
                         {hsdWarnings.length} lô cần chú ý HSD
@@ -1190,13 +1193,21 @@ function MaterialCheckRow({
     )
 }
 
-function FifoLotSummary({ allocations }: { allocations: NonNullable<ProductionMaterial["fifo_allocations"]> }) {
+function FifoLotSummary({ material, compact }: { material: ProductionMaterial; compact?: boolean }) {
+    const allocations = material.fifo_allocations ?? []
     if (!allocations.length) {
         return <div className="text-xs text-muted-foreground">Chưa có lô FIFO</div>
     }
 
+    const expanded = hasExpandedFifoResult(material)
+
     return (
         <div className="space-y-1">
+            {expanded ? (
+                <div className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">
+                    FIFO tách nhiều lô/kho
+                </div>
+            ) : null}
             {allocations.slice(0, 2).map((allocation) => (
                 <div key={allocation.id} className="rounded border px-2 py-1 text-xs">
                     <div className="flex items-center justify-between gap-2">
@@ -1215,6 +1226,29 @@ function FifoLotSummary({ allocations }: { allocations: NonNullable<ProductionMa
             )}
         </div>
     )
+}
+
+function hasExpandedFifoResult(material: ProductionMaterial) {
+    const allocations = material.fifo_allocations ?? []
+    if (allocations.length > 1) return true
+    return allocations.some((allocation) =>
+        material.warehouse_id != null
+        && allocation.material_warehouse_id != null
+        && Number(allocation.material_warehouse_id) !== Number(material.warehouse_id)
+    )
+}
+
+function resolveLotRemaining(lot: any) {
+    return lot?.quantity_remaining ?? lot?.closing_quantity ?? lot?.remaining_quantity ?? 0
+}
+
+function getPagedItems(data: any) {
+    if (!data) return []
+    if (Array.isArray(data)) return data
+    if (Array.isArray(data.items)) return data.items
+    if (Array.isArray(data.content)) return data.content
+    if (Array.isArray(data.data?.items)) return data.data.items
+    return []
 }
 
 function FifoTab({
@@ -1709,6 +1743,77 @@ function MaterialForm({
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+    )
+}
+
+function PreferredLotSelect({
+    production,
+    material,
+    disabled,
+}: {
+    production: Production
+    material: ProductionMaterial
+    disabled?: boolean
+}) {
+    const queryClient = useQueryClient()
+    const { data, isLoading } = useQuery({
+        queryKey: ["production-material-lots", material.product_id, material.warehouse_id],
+        enabled: Boolean(material.product_id && material.warehouse_id && !disabled),
+        queryFn: () =>
+            listInventoryLotRecords({
+                page: 1,
+                size: 50,
+                product_id: Number(material.product_id),
+                warehouse_id: Number(material.warehouse_id),
+                only_remaining: true,
+            }),
+        staleTime: 30_000,
+    })
+    const lots = getPagedItems(data)
+    const selected = material.preferred_lot_no || "AUTO"
+
+    const mutation = useMutation({
+        mutationFn: (lotNo?: string) =>
+            setProductionPreferredLot(production.id, material.id, {
+                lot_no: lotNo || undefined,
+            }),
+        onSuccess: () => {
+            toast.success("Đã cập nhật lô ưu tiên")
+            void queryClient.invalidateQueries({ queryKey: ["production-order-detail", production.id] })
+            void queryClient.invalidateQueries({ queryKey: ["production-orders"] })
+            void queryClient.invalidateQueries({ queryKey: ["productions"] })
+        },
+        onError: (e: any) => toast.error(e.message || "Không thể cập nhật lô"),
+    })
+
+    return (
+        <Select
+            value={selected}
+            disabled={disabled || mutation.isPending}
+            onValueChange={(value) => mutation.mutate(value === "AUTO" ? undefined : value)}
+        >
+            <SelectTrigger className="h-8 min-w-[150px] justify-between">
+                <SelectValue placeholder="Auto" />
+            </SelectTrigger>
+            <SelectContent className="max-w-[420px]">
+                <SelectItem value="AUTO">
+                    <span className="inline-flex items-center gap-1.5">
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                        Auto
+                    </span>
+                </SelectItem>
+                {isLoading ? <SelectItem value="LOADING" disabled>Đang tải...</SelectItem> : null}
+                {lots.map((lot: any) => {
+                    const lotNo = String(lot.lot_no || "")
+                    if (!lotNo) return null
+                    return (
+                        <SelectItem key={`${lot.id}-${lotNo}`} value={lotNo}>
+                            {lotNo} - còn {formatNumber(resolveLotRemaining(lot))}
+                        </SelectItem>
+                    )
+                })}
+            </SelectContent>
+        </Select>
     )
 }
 
