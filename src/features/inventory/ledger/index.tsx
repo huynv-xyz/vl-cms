@@ -14,6 +14,7 @@ import { Route } from "@/routes/_authenticated/inventory/ledgers"
 import { InventoryLedgerTable } from "./components/ledger-table"
 import { ExportInventoryLedgerButton } from "./components/export-inventory-ledger-button"
 import { LedgerImportButtons } from "./components/ledger-import-buttons"
+import { LedgerProductionChronologyToolButton } from "./components/ledger-production-chronology-tool-button"
 import { LedgerSalesSyncButton } from "./components/ledger-sales-sync-button"
 import { LedgerTestResetButton } from "./components/ledger-test-reset-button"
 import { LedgerVoucherDialog } from "./components/ledger-voucher-dialog"
@@ -147,6 +148,7 @@ export function InventoryLedgerReportPage({
                 <div className="flex flex-wrap items-center justify-end gap-2">
                     {mode === "all" ? <LedgerImportButtons /> : null}
                     {mode === "all" ? <LedgerSalesSyncButton /> : null}
+                    {mode === "all" ? <LedgerProductionChronologyToolButton /> : null}
                     <ExportInventoryLedgerButton
                         keyword={keyword}
                         showValues={showValues}

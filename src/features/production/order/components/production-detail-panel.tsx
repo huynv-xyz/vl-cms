@@ -1659,6 +1659,8 @@ function MaterialForm({
                             placeholder="Chọn vật tư"
                             dataSource={{ getList: listProducts, getById: getProduct, params: { page: 1, size: 20 } }}
                             mapOption={(x: Product) => ({ value: x.id, label: `${x.code} - ${x.name}`, raw: x })}
+                            popoverContentClassName="w-[680px] max-w-[calc(100vw-48px)]"
+                            optionWrapLabel
                         />
                     </Field>
                     <Field label="Kho xuất">
@@ -1668,6 +1670,8 @@ function MaterialForm({
                             placeholder="Theo kho thành phẩm"
                             dataSource={{ getList: listWarehouses, getById: getWarehouse, params: { page: 1, size: 20 } }}
                             mapOption={(x: any) => ({ value: x.id, label: x.name })}
+                            popoverContentClassName="w-[460px] max-w-[calc(100vw-48px)]"
+                            optionWrapLabel
                         />
                     </Field>
                     <Field label="Loại vật tư">
