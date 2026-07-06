@@ -130,3 +130,156 @@ export function runSalesInventorySync(body: SalesInventorySyncRequest) {
     return apiPost<SalesInventorySyncResult>("/inventory/sales-sync/run", body)
 }
 
+export type ProductionChronologyAuditRequest = {
+    from_date?: string
+    to_date?: string
+}
+
+export type ProductionChronologyVoucherInfo = {
+    id?: number | null
+    voucher_no?: string | null
+    type_code?: string | null
+    posting_date?: string | null
+    status?: string | null
+}
+
+export type ProductionChronologyShortageRow = {
+    ledger_id: number
+    voucher_id: number
+    voucher_no?: string | null
+    posting_date?: string | null
+    voucher_status?: string | null
+    production_id: number
+    production_no?: string | null
+    production_status?: string | null
+    product_id: number
+    product_code?: string | null
+    product_name?: string | null
+    warehouse_id: number
+    warehouse_code?: string | null
+    warehouse_name?: string | null
+    lot_id?: number | null
+    lot_code?: string | null
+    required_qty?: number | string | null
+    available_before?: number | string | null
+    shortage_qty?: number | string | null
+}
+
+export type ProductionChronologyCandidate = {
+    production_id: number
+    production_no?: string | null
+    production_status?: string | null
+    current_date?: string | null
+    issue_voucher?: ProductionChronologyVoucherInfo | null
+    receive_voucher?: ProductionChronologyVoucherInfo | null
+    proposed_date?: string | null
+    proposed_reason?: string | null
+    fixable: boolean
+    shortage_rows: number
+    rows: ProductionChronologyShortageRow[]
+}
+
+export type ProductionChronologyAuditResult = {
+    from_date?: string | null
+    to_date?: string | null
+    shortage_rows: number
+    production_count: number
+    auto_fixable: number
+    not_fixable: number
+    candidates: ProductionChronologyCandidate[]
+}
+
+export type ProductionChronologyFixRequest = ProductionChronologyAuditRequest & {
+    items: Array<{
+        production_id: number
+        new_date?: string | null
+    }>
+}
+
+export type ProductionChronologyFixResult = {
+    success: boolean
+    message: string
+    fixed_count: number
+    rows: Array<{
+        production_id: number
+        production_no?: string | null
+        old_date?: string | null
+        new_date?: string | null
+        success: boolean
+        message?: string | null
+    }>
+}
+
+export function auditProductionInventoryChronology(body: ProductionChronologyAuditRequest) {
+    return apiPost<ProductionChronologyAuditResult>("/tools/production-inventory-chronology/audit", body)
+}
+
+export function fixProductionInventoryChronology(body: ProductionChronologyFixRequest) {
+    return apiPost<ProductionChronologyFixResult>("/tools/production-inventory-chronology/fix", body)
+}
+
+export type ProductionFifoWarehouseAuditRequest = {
+    from_date?: string
+    to_date?: string
+}
+
+export type ProductionFifoWarehouseMismatchRow = {
+    production_id: number
+    production_no?: string | null
+    production_date?: string | null
+    production_status?: string | null
+    issue_voucher_no?: string | null
+    material_id: number
+    product_code?: string | null
+    product_name?: string | null
+    quantity_required?: number | string | null
+    preferred_warehouse_code?: string | null
+    preferred_warehouse_name?: string | null
+    allocated_warehouse_code?: string | null
+    allocated_warehouse_name?: string | null
+    lot_no?: string | null
+    allocated_quantity?: number | string | null
+}
+
+export type ProductionFifoWarehouseCandidate = {
+    production_id: number
+    production_no?: string | null
+    production_date?: string | null
+    production_status?: string | null
+    issue_voucher_no?: string | null
+    mismatch_rows: number
+    rows: ProductionFifoWarehouseMismatchRow[]
+}
+
+export type ProductionFifoWarehouseAuditResult = {
+    from_date?: string | null
+    to_date?: string | null
+    mismatch_rows: number
+    production_count: number
+    candidates: ProductionFifoWarehouseCandidate[]
+}
+
+export type ProductionFifoWarehouseFixRequest = ProductionFifoWarehouseAuditRequest & {
+    production_ids: number[]
+}
+
+export type ProductionFifoWarehouseFixResult = {
+    success: boolean
+    message: string
+    fixed_count: number
+    rows: Array<{
+        production_id: number
+        production_no?: string | null
+        success: boolean
+        message?: string | null
+    }>
+}
+
+export function auditProductionFifoWarehouse(body: ProductionFifoWarehouseAuditRequest) {
+    return apiPost<ProductionFifoWarehouseAuditResult>("/tools/production-fifo-warehouse/audit", body)
+}
+
+export function fixProductionFifoWarehouse(body: ProductionFifoWarehouseFixRequest) {
+    return apiPost<ProductionFifoWarehouseFixResult>("/tools/production-fifo-warehouse/fix", body)
+}
+

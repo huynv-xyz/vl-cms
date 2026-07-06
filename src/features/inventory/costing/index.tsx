@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Calculator, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, Play, Plus, Search, Upload } from "lucide-react"
+import { Calculator, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, Play, Plus, Search, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -19,6 +19,7 @@ import {
     type CostingImportResult,
     type LandedCost,
     type LotCostAllocation,
+    type ProductPeriodCost,
     type ProductionCostResult,
 } from "@/api/inventory/costing"
 import { Main } from "@/components/layout/main"
@@ -53,6 +54,7 @@ const LANDED_COST_IMPORT_COLUMNS = [
 ]
 
 const COSTING_PAGE_SIZE = 50
+const COSTING_EXPORT_PAGE_SIZE = 1000
 const QUARTERS = [
     { label: "Quý 1", value: 1 },
     { label: "Quý 2", value: 2 },
@@ -235,6 +237,16 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
         onError: (error) => toast.error(error instanceof Error ? error.message : "Không tính được giá"),
     })
 
+    const exportMutation = useMutation({
+        mutationFn: async () => {
+            const rows = await fetchAllPeriodCosts(period.id, keyword)
+            await exportCostingResultsXlsx(period, rows)
+            return rows.length
+        },
+        onSuccess: (count) => toast.success(`Đã xuất ${formatNumber(count)} dòng kết quả tính giá`),
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Không xuất được file Excel"),
+    })
+
     const totals = costsQuery.data?.totals || {}
 
     return (
@@ -271,14 +283,25 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                 <CardHeader className="border-b px-3 py-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="font-semibold">Kết quả tính giá</div>
-                        <div className="relative w-full sm:w-80">
-                            <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
-                            <Input
-                                className="pl-9"
-                                value={keyword}
-                                placeholder="Tìm mã hàng, tên hàng"
-                                onChange={(event) => onKeywordChange(event.target.value)}
-                            />
+                        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                            <div className="relative w-full sm:w-80">
+                                <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+                                <Input
+                                    className="pl-9"
+                                    value={keyword}
+                                    placeholder="Tìm mã hàng, tên hàng"
+                                    onChange={(event) => onKeywordChange(event.target.value)}
+                                />
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={exportMutation.isPending}
+                                onClick={() => exportMutation.mutate()}
+                            >
+                                <Download className="mr-2 h-4 w-4" />
+                                Xuất Excel
+                            </Button>
                         </div>
                     </div>
                 </CardHeader>
@@ -964,4 +987,161 @@ function formatDate(value?: string) {
     if (!value) return "-"
     const [year, month, day] = value.slice(0, 10).split("-")
     return `${day}/${month}/${year}`
+}
+
+type CostingExportColumn = {
+    label: string
+    width?: number
+    type?: "number" | "text"
+    numberFormat?: "quantity" | "money"
+    value: (row: ProductPeriodCost, index: number) => string | number | null | undefined
+}
+
+const COSTING_EXPORT_COLUMNS: CostingExportColumn[] = [
+    { label: "STT", width: 8, type: "number", numberFormat: "quantity", value: (_row, index) => index + 1 },
+    { label: "Mã hàng", width: 22, value: (row) => row.product_code },
+    { label: "Tên hàng", width: 46, value: (row) => row.product_name },
+    { label: "ĐVT", width: 10, value: (row) => row.unit },
+    { label: "Tồn đầu SL", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.opening_quantity },
+    { label: "Tồn đầu GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.opening_value },
+    { label: "Nhập SL", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.inbound_quantity },
+    { label: "Nhập GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.inbound_value },
+    { label: "Phí lô", width: 16, type: "number", numberFormat: "money", value: (row) => row.landed_cost_value },
+    { label: "Nhập TP GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.production_inbound_value },
+    { label: "Giá BQ", width: 16, type: "number", numberFormat: "money", value: (row) => row.avg_unit_cost },
+    { label: "Xuất SL", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.outbound_quantity },
+    { label: "Xuất GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.outbound_value },
+    { label: "Tồn cuối SL", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.closing_quantity },
+    { label: "Tồn cuối GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.closing_value },
+]
+
+async function fetchAllPeriodCosts(periodId: number, keyword: string) {
+    const rows: ProductPeriodCost[] = []
+    let page = 1
+    while (true) {
+        const res = await listPeriodCosts(periodId, {
+            page,
+            size: COSTING_EXPORT_PAGE_SIZE,
+            keyword: keyword || undefined,
+        })
+        rows.push(...(res.items || []))
+        if (page >= (res.total_page || 1) || !res.items?.length) break
+        page += 1
+    }
+    return rows
+}
+
+async function exportCostingResultsXlsx(period: CostPeriod, rows: ProductPeriodCost[]) {
+    const { Workbook } = await import("exceljs")
+    const workbook = new Workbook()
+    workbook.creator = "VLIFE"
+    workbook.created = new Date()
+
+    const sheet = workbook.addWorksheet("Kết quả tính giá", {
+        views: [{ state: "frozen", ySplit: 4 }],
+    })
+    const columns = COSTING_EXPORT_COLUMNS
+
+    sheet.mergeCells(1, 1, 1, columns.length)
+    sheet.getCell(1, 1).value = "KẾT QUẢ TÍNH GIÁ"
+    sheet.getCell(1, 1).font = { bold: true, size: 16 }
+    sheet.getCell(1, 1).alignment = { horizontal: "center", vertical: "middle" }
+
+    sheet.mergeCells(2, 1, 2, columns.length)
+    sheet.getCell(2, 1).value = `Kỳ: ${period.name} | Thời gian: ${formatDate(period.from_date)} - ${formatDate(period.to_date)} | Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}`
+    sheet.getCell(2, 1).font = { italic: true, color: { argb: "FF64748B" } }
+    sheet.getCell(2, 1).alignment = { horizontal: "center" }
+
+    sheet.addRow([])
+    sheet.addRow(columns.map((column) => column.label))
+    rows.forEach((row, index) => {
+        sheet.addRow(columns.map((column) => normalizeCostingExportCell(column.value(row, index), column)))
+    })
+
+    sheet.columns = columns.map((column) => ({ width: column.width ?? 16 }))
+    sheet.autoFilter = {
+        from: { row: 4, column: 1 },
+        to: { row: 4, column: columns.length },
+    }
+
+    const border = {
+        top: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        left: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        bottom: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        right: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+    }
+
+    const header = sheet.getRow(4)
+    header.height = 26
+    header.eachCell({ includeEmpty: true }, (cell) => {
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F766E" } }
+        cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
+        cell.border = border
+    })
+
+    for (let rowIndex = 5; rowIndex <= sheet.rowCount; rowIndex++) {
+        const row = sheet.getRow(rowIndex)
+        row.height = 22
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            const column = columns[colNumber - 1]
+            cell.border = border
+            cell.alignment = {
+                vertical: "middle",
+                horizontal: column.type === "number" ? "right" : "left",
+                wrapText: false,
+            }
+            if (column.type === "number") cell.numFmt = getCostingExcelNumberFormat(cell.value, column)
+        })
+    }
+
+    applyCostingAutoColumnWidths(sheet, columns, 5)
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    downloadCostingBlob(buffer, `ket-qua-tinh-gia-${period.from_date}-${period.to_date}.xlsx`)
+}
+
+function normalizeCostingExportCell(value: string | number | null | undefined, column: CostingExportColumn) {
+    if (value == null || value === "") return ""
+    if (column.type === "number") {
+        const numberValue = Number(value)
+        return Number.isFinite(numberValue) ? numberValue : ""
+    }
+    return value
+}
+
+function getCostingExcelNumberFormat(value: unknown, column: CostingExportColumn) {
+    const numberValue = Number(value)
+    if (column.numberFormat === "money") return "#,##0"
+    if (Number.isFinite(numberValue) && Number.isInteger(numberValue)) return "#,##0"
+    return "#,##0.###"
+}
+
+function applyCostingAutoColumnWidths(sheet: any, columns: CostingExportColumn[], firstDataRow: number) {
+    sheet.columns.forEach((column: any, index: number) => {
+        const config = columns[index]
+        let maxLength = config?.label?.length || 8
+        for (let rowIndex = firstDataRow; rowIndex <= sheet.rowCount; rowIndex++) {
+            const cell = sheet.getRow(rowIndex).getCell(index + 1)
+            const text = cell.value == null ? "" : String(cell.value)
+            maxLength = Math.max(maxLength, text.length)
+        }
+        const maxWidth = config?.width ?? 16
+        const minWidth = config?.type === "number" ? 10 : Math.min(maxWidth, 8)
+        column.width = Math.min(Math.max(maxLength + 2, minWidth), maxWidth)
+    })
+}
+
+function downloadCostingBlob(buffer: ArrayBuffer, filename: string) {
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
 }
