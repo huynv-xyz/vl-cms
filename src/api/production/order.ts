@@ -105,6 +105,58 @@ export const cancelProduction = (id: number) =>
 export const unpostProduction = (id: number, reason?: string) =>
     apiPost<Production>(`/productions/${id}/unpost`, { reason })
 
+export type ChangeProductionDateRequest = {
+    production_date: string
+}
+
+export type ProductionDateChangeResult = {
+    success: boolean
+    message?: string
+    production_id?: number
+    production_no?: string
+    old_date?: string
+    new_date?: string
+    status?: string
+    fifo_reallocated?: boolean
+    issue_voucher_updated?: boolean
+    receive_voucher_updated?: boolean
+    allocation_rows?: number
+    warnings?: string[]
+    details?: ProductionDateChangeDetail[]
+}
+
+export type ProductionDateChangeDetail = {
+    type?: string
+    product_code?: string
+    product_name?: string
+    warehouse_code?: string
+    warehouse_name?: string
+    lot_code?: string
+    input_qty?: number
+    outbound_qty_before_new_date?: number
+    first_outbound_date?: string
+    message?: string
+    required_qty?: number
+    available_qty?: number
+    negative_date?: string
+    balance_before?: number
+    quantity_in?: number
+    quantity_out?: number
+    balance_after?: number
+    voucher_no?: string
+    doc_type?: string
+}
+
+export const checkProductionDateChange = (
+    id: number,
+    body: ChangeProductionDateRequest
+) => apiPost<ProductionDateChangeResult>(`/productions/${id}/change-date/check`, body)
+
+export const changeProductionDate = (
+    id: number,
+    body: ChangeProductionDateRequest
+) => apiPost<ProductionDateChangeResult>(`/productions/${id}/change-date`, body)
+
 export type SaveProductionMaterialRequest = {
     production_item_id?: number
     product_id?: number

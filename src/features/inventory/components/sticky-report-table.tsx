@@ -11,6 +11,8 @@ type StickyReportTableProps = {
     renderHeader: () => React.ReactNode
     renderBody: () => React.ReactNode
     renderFooter?: () => React.ReactNode
+    enableColumnResize?: boolean
+    minColumnWidth?: number
 }
 
 export function StickyReportTable({
@@ -21,14 +23,18 @@ export function StickyReportTable({
     renderHeader,
     renderBody,
     renderFooter,
+    enableColumnResize = true,
+    minColumnWidth = 56,
 }: StickyReportTableProps) {
     const rootRef = useRef<HTMLDivElement | null>(null)
     const tableScrollRef = useRef<HTMLDivElement | null>(null)
     const headerWrapperRef = useRef<HTMLDivElement | null>(null)
     const headerTableRef = useRef<HTMLTableElement | null>(null)
+    const resizeLayerRef = useRef<HTMLDivElement | null>(null)
     const stickyScrollRef = useRef<HTMLDivElement | null>(null)
     const isSyncingScrollRef = useRef(false)
-    const tableWidth = columnWidths.reduce((total, width) => total + width, 0)
+    const [widths, setWidths] = useState(() => columnWidths)
+    const tableWidth = widths.reduce((total, width) => total + width, 0)
     const [stickyHeaderTop, setStickyHeaderTop] = useState(64)
     const [fixedHeader, setFixedHeader] = useState({
         active: false,
@@ -46,6 +52,15 @@ export function StickyReportTable({
         left: 0,
         width: 0,
     })
+
+    useEffect(() => {
+        setWidths((current) => {
+            if (current.length === columnWidths.length) {
+                return current
+            }
+            return columnWidths
+        })
+    }, [columnWidths])
 
     useEffect(() => {
         const updateFixedHeader = () => {
@@ -168,11 +183,16 @@ export function StickyReportTable({
             resizeObserver?.disconnect()
             window.removeEventListener("resize", updateStickyScroll)
         }
-    }, [tableWidth, columnWidths])
+    }, [tableWidth, widths])
 
     const syncHeaderScroll = (scrollLeft: number) => {
-        if (!headerTableRef.current) return
-        headerTableRef.current.style.transform = `translateX(-${scrollLeft}px)`
+        const transform = `translateX(-${scrollLeft}px)`
+        if (headerTableRef.current) {
+            headerTableRef.current.style.transform = transform
+        }
+        if (resizeLayerRef.current) {
+            resizeLayerRef.current.style.transform = transform
+        }
     }
 
     const syncStickyScroll = () => {
@@ -208,18 +228,64 @@ export function StickyReportTable({
 
     const colgroup = (
         <colgroup>
-            {columnWidths.map((width, index) => (
+            {widths.map((width, index) => (
                 <col key={index} style={{ width }} />
             ))}
         </colgroup>
     )
+
+    const startColumnResize = (columnIndex: number, event: React.MouseEvent<HTMLDivElement>) => {
+        if (!enableColumnResize) return
+        event.preventDefault()
+        event.stopPropagation()
+
+        const startX = event.clientX
+        const startWidth = widths[columnIndex] ?? minColumnWidth
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            const nextWidth = Math.max(minColumnWidth, Math.round(startWidth + moveEvent.clientX - startX))
+            setWidths((current) => current.map((width, index) => index === columnIndex ? nextWidth : width))
+        }
+
+        const onMouseUp = () => {
+            document.removeEventListener("mousemove", onMouseMove)
+            document.removeEventListener("mouseup", onMouseUp)
+            document.body.style.cursor = ""
+            document.body.style.userSelect = ""
+        }
+
+        document.body.style.cursor = "col-resize"
+        document.body.style.userSelect = "none"
+        document.addEventListener("mousemove", onMouseMove)
+        document.addEventListener("mouseup", onMouseUp)
+    }
+
+    const resizeHandles = enableColumnResize ? (
+        <div
+            ref={resizeLayerRef}
+            className="pointer-events-none absolute inset-y-0 left-0 z-50"
+            style={{ width: tableWidth }}
+        >
+            {widths.slice(0, -1).map((_width, index) => {
+                const left = widths.slice(0, index + 1).reduce((total, width) => total + width, 0)
+                return (
+                    <div
+                        key={index}
+                        className="pointer-events-auto absolute top-0 h-full w-2 -translate-x-1 cursor-col-resize touch-none select-none hover:bg-primary/25"
+                        style={{ left }}
+                        onMouseDown={(event) => startColumnResize(index, event)}
+                    />
+                )
+            })}
+        </div>
+    ) : null
 
     return (
         <div ref={rootRef} className={cn("rounded-md border bg-white", className)}>
             {fixedHeader.active ? <div style={{ height: fixedHeader.height }} /> : null}
             <div
                 ref={headerWrapperRef}
-                className="z-40 overflow-hidden border-b bg-slate-100 shadow-sm"
+                className="relative z-40 overflow-hidden border-b bg-slate-100 shadow-sm"
                 style={fixedHeader.active
                     ? {
                         position: "fixed",
@@ -239,6 +305,7 @@ export function StickyReportTable({
                         {renderHeader()}
                     </thead>
                 </table>
+                {resizeHandles}
             </div>
 
             <div

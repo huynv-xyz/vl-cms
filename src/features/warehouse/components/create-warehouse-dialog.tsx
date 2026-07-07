@@ -17,6 +17,7 @@ export function CreateWarehouseDialog({ open, onOpenChange }: any) {
                 code: "",
                 name: "",
                 address: "",
+                inventory_account_code: "",
                 physical_warehouse_id: undefined,
                 status: "ACTIVE",
             }}
@@ -28,6 +29,7 @@ export function CreateWarehouseDialog({ open, onOpenChange }: any) {
                 code: v.code?.trim(),
                 name: v.name?.trim(),
                 address: v.address?.trim() || "",
+                inventory_account_code: v.inventory_account_code?.trim() || undefined,
                 physical_warehouse_id: v.physical_warehouse_id,
                 status: v.status ?? "ACTIVE",
             })}

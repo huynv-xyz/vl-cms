@@ -8,7 +8,6 @@ import { DatePicker } from "@/components/date-picker"
 import { ProductMultiFilter } from "@/features/inventory/components/product-multi-filter"
 import { StickyReportTable } from "@/features/inventory/components/sticky-report-table"
 import { WarehouseTreeFilter } from "@/features/inventory/components/warehouse-tree-filter"
-import { LongText } from "@/components/long-text"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
@@ -533,17 +532,13 @@ function InventoryLotRow({ index, item }: { index: number; item: InventoryLot })
         <tr className="hover:bg-muted/30 border-b">
             <Td className="text-muted-foreground text-center font-mono">{formatNumber(index)}</Td>
             <Td className="text-muted-foreground text-center font-mono text-xs">{productCode}</Td>
-            <Td className="min-w-[300px] max-w-[520px]">
-                <LongText className="max-w-[520px] font-semibold" contentClassName="max-w-[520px] whitespace-normal break-words leading-relaxed">
-                    {productName}
-                </LongText>
+            <Td className="font-semibold text-foreground">
+                {productName}
             </Td>
             <Td className="text-muted-foreground text-center">{productUnit}</Td>
             <Td className="text-muted-foreground text-center font-mono text-xs">{warehouseCode}</Td>
-            <Td className="min-w-[220px] max-w-[360px] text-center">
-                <LongText className="mx-auto max-w-[360px] text-center" contentClassName="max-w-[420px] whitespace-normal break-words leading-relaxed">
-                    {warehouseName}
-                </LongText>
+            <Td className="text-center">
+                {warehouseName}
             </Td>
             <Td className="text-center font-mono text-xs">{lotNo}</Td>
             <Td>{formatDate(inboundDate)}</Td>
@@ -1064,7 +1059,7 @@ function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement
 }
 
 function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
-    return <td className={cn("overflow-hidden border-r px-3 py-1.5 align-middle last:border-r-0", className)} {...props} />
+    return <td className={cn("overflow-hidden text-ellipsis border-r px-3 py-1.5 align-middle last:border-r-0", className)} {...props} />
 }
 
 function NumberTd({ className, children }: { className?: string; children: React.ReactNode }) {

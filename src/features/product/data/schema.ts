@@ -34,7 +34,9 @@ export type Product = {
     default_warehouse_id?: number
     default_warehouse?: {
         id: number
+        code?: string
         name: string
+        inventory_account_code?: string
     } | null
     inventory_account_code?: string
     price_method_override?: string

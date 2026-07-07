@@ -17,11 +17,10 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { listInventorySummarys, type SummaryListParams } from "@/api/inventory/summary"
+import { listInventorySummaryNatureOptions, listInventorySummarys, type SummaryListParams } from "@/api/inventory/summary"
 import { listPhysicalWarehouses } from "@/api/physical-warehouse"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
-import { LongText } from "@/components/long-text"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
@@ -60,6 +59,7 @@ export type SummaryFilters = {
     quote_text?: string
     quote_text_op?: TextFilterOp
     unit?: string
+    nature?: string
     summary_status?: string
     closing_quantity_op?: NumberFilterOp
     closing_quantity_value?: string
@@ -212,6 +212,11 @@ export function SummaryTable({
     onFiltersChange,
     showValues = true,
 }: Props) {
+    const { data: natureOptions = [] } = useQuery({
+        queryKey: ["inventory-summary-nature-options"],
+        queryFn: listInventorySummaryNatureOptions,
+    })
+
     const summaryTotals = normalizeTotals(totals)
     const today = todayYmd()
 
@@ -346,6 +351,13 @@ export function SummaryTable({
                 onClear: () => setFilter("unit", undefined),
             }
             : null,
+        filters.nature
+            ? {
+                key: "nature",
+                label: `Tính chất: ${natureOptions.find((item) => item.value === filters.nature)?.label || filters.nature}`,
+                onClear: () => setFilter("nature", undefined),
+            }
+            : null,
         filters.summary_status
             ? {
                 key: "summary_status",
@@ -383,6 +395,7 @@ export function SummaryTable({
             quote_text: undefined,
             quote_text_op: undefined,
             unit: undefined,
+            nature: undefined,
             summary_status: undefined,
             closing_quantity_op: undefined,
             closing_quantity_value: undefined,
@@ -572,7 +585,14 @@ export function SummaryTable({
                                             onClear={() => clearTextFilter("quote_text", "quote_text_op")}
                                         />
                                     </Th>
-                                    <Th rowSpan={showValues ? 2 : 1}>Tính chất</Th>
+                                    <Th rowSpan={showValues ? 2 : 1}>
+                                        <ColumnSelectFilter
+                                            label="Tính chất"
+                                            value={filters.nature}
+                                            options={natureOptions}
+                                            onChange={(value) => setFilter("nature", value)}
+                                        />
+                                    </Th>
                                     <Th rowSpan={showValues ? 2 : 1}>
                                         <ColumnSelectFilter
                                             label="Tình trạng"
@@ -676,25 +696,15 @@ function SummaryRow({ index, item, showValues }: { index: number; item: Inventor
             <Td className="text-muted-foreground text-center font-mono text-xs">
                 {item.product_code || "-"}
             </Td>
-            <Td className="min-w-[300px] max-w-[520px]">
-                <LongText
-                    className="max-w-[520px] font-semibold"
-                    contentClassName="max-w-[520px] whitespace-normal break-words leading-relaxed"
-                >
-                    {item.product_name || "-"}
-                </LongText>
+            <Td className="font-semibold text-foreground">
+                {item.product_name || "-"}
             </Td>
             <Td className="text-muted-foreground text-center">{item.unit || "-"}</Td>
             <Td className="text-muted-foreground text-center font-mono text-xs">
                 {item.warehouse_code || "-"}
             </Td>
-            <Td className="max-w-[280px] text-center">
-                <LongText
-                    className="mx-auto max-w-[280px] text-center text-xs"
-                    contentClassName="max-w-[420px] whitespace-normal break-words leading-relaxed"
-                >
-                    {item.warehouse_name || "-"}
-                </LongText>
+            <Td className="text-center text-xs">
+                {item.warehouse_name || "-"}
             </Td>
             <NumberTd>{item.opening_quantity}</NumberTd>
             {showValues ? (
@@ -717,13 +727,8 @@ function SummaryRow({ index, item, showValues }: { index: number; item: Inventor
             {showValues ? (
             <MoneyTd>{item.closing_value}</MoneyTd>
             ) : null}
-            <Td className="max-w-[260px] text-center">
-                <LongText
-                    className="mx-auto max-w-[260px] text-center text-xs"
-                    contentClassName="max-w-[420px] whitespace-normal break-words leading-relaxed"
-                >
-                    {item.quote_name || "-"}
-                </LongText>
+            <Td className="text-center text-xs">
+                {item.quote_name || "-"}
             </Td>
             <Td className="text-center text-xs">{item.nature || "-"}</Td>
             <Td className="text-center">
@@ -1383,6 +1388,7 @@ export function ExportInventorySummaryButton({
                 quote_text: filters.quote_text,
                 quote_text_op: filters.quote_text_op,
                 unit: filters.unit,
+                nature: filters.nature,
                 summary_status: filters.summary_status,
                 closing_quantity_op: filters.closing_quantity_op,
                 closing_quantity_value: filters.closing_quantity_value,
@@ -1647,7 +1653,7 @@ function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement
 }
 
 function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
-    return <td className={cn("overflow-hidden border-r px-3 py-1.5 align-middle last:border-r-0", className)} {...props} />
+    return <td className={cn("overflow-hidden text-ellipsis border-r px-3 py-1.5 align-middle last:border-r-0", className)} {...props} />
 }
 
 function NumberTd({ className, children }: { className?: string; children: React.ReactNode }) {

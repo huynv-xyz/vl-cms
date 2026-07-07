@@ -1,6 +1,7 @@
 import { CrudFormDialog } from "@/components/crud/crud-form-dialog"
 import { createProduct, type CreateProductRequest } from "@/api/product"
 import { getProductGroup } from "@/api/product-group"
+import { getWarehouse } from "@/api/warehouse"
 import { productSchema, productUiSchema } from "./product-form-schema"
 import { toProductNatureValue } from "./product-nature"
 import type { ProductFormValues } from "./types"
@@ -8,9 +9,13 @@ import { useEffect, useRef } from "react"
 
 export function CreateProductDialog({ open, onOpenChange }: any) {
     const lastGroupIdRef = useRef<number | undefined>(undefined)
+    const lastWarehouseIdRef = useRef<number | undefined>(undefined)
 
     useEffect(() => {
-        if (open) lastGroupIdRef.current = undefined
+        if (open) {
+            lastGroupIdRef.current = undefined
+            lastWarehouseIdRef.current = undefined
+        }
     }, [open])
 
     return (
@@ -51,13 +56,27 @@ export function CreateProductDialog({ open, onOpenChange }: any) {
             queryKeyToInvalidate={["product"]}
             mutationFn={createProduct}
             onFormChange={async (v) => {
-                if (v.group_id === lastGroupIdRef.current) return v
-                lastGroupIdRef.current = v.group_id
-                if (!v.group_id) return v
+                let next = v
 
-                const group = await getProductGroup(v.group_id)
-                const standardUnit = normalizeProductUnit((group as any)?.standard_unit)
-                return standardUnit ? { ...v, unit: standardUnit } : v
+                if (v.group_id !== lastGroupIdRef.current) {
+                    lastGroupIdRef.current = v.group_id
+                    if (v.group_id) {
+                        const group = await getProductGroup(v.group_id)
+                        const standardUnit = normalizeProductUnit((group as any)?.standard_unit)
+                        if (standardUnit) next = { ...next, unit: standardUnit }
+                    }
+                }
+
+                if (v.default_warehouse_id !== lastWarehouseIdRef.current) {
+                    lastWarehouseIdRef.current = v.default_warehouse_id
+                    if (v.default_warehouse_id) {
+                        const warehouse = await getWarehouse(v.default_warehouse_id)
+                        const accountCode = (warehouse as any)?.inventory_account_code?.trim()
+                        if (accountCode) next = { ...next, inventory_account_code: accountCode }
+                    }
+                }
+
+                return next
             }}
             mapFormToRequest={(v) => ({
                 code: v.code,

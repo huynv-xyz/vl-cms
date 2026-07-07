@@ -47,6 +47,7 @@ export const Route = createFileRoute("/_authenticated/inventory/summary/")({
             quote_text: typeof search.quote_text === "string" ? search.quote_text : undefined,
             quote_text_op: normalizeTextOp(search.quote_text_op),
             unit: typeof search.unit === "string" ? search.unit : undefined,
+            nature: typeof search.nature === "string" ? search.nature : undefined,
             summary_status: normalizeSummaryStatus(search.summary_status),
             closing_quantity_op: normalizeNumberOp(search.closing_quantity_op),
             closing_quantity_value: normalizeNumberValue(search.closing_quantity_value),
