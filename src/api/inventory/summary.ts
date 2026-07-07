@@ -27,6 +27,7 @@ export type SummaryListParams = {
     quote_text?: string
     quote_text_op?: string
     unit?: string
+    nature?: string
     summary_status?: string
     closing_quantity_op?: string
     closing_quantity_value?: string
@@ -50,3 +51,8 @@ export const deleteInventorySummary = summaryApi.delete
 
 export const listInventorySummaryForSales = (params: SummaryListParams) =>
     apiGet<PagedResult<InventorySummary> & { totals?: Record<string, number> }>("/inventory/summary/sales", params)
+
+export type InventorySummaryOption = { value: string; label: string }
+
+export const listInventorySummaryNatureOptions = () =>
+    apiGet<InventorySummaryOption[]>("/inventory/summary/nature-options")

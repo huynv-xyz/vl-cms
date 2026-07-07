@@ -10,7 +10,6 @@ import { DatePicker } from "@/components/date-picker"
 import { ProductMultiFilter } from "@/features/inventory/components/product-multi-filter"
 import { StickyReportTable } from "@/features/inventory/components/sticky-report-table"
 import { WarehouseTreeFilter } from "@/features/inventory/components/warehouse-tree-filter"
-import { LongText } from "@/components/long-text"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
 import { Badge } from "@/components/ui/badge"
@@ -710,7 +709,7 @@ function LedgerRow({
                 </div>
             </Td>
             <Td>
-                <LedgerLongText value={item.description} className="max-w-[360px]" />
+                <LedgerText value={item.description} />
             </Td>
             <Td className="text-muted-foreground text-center font-mono text-xs">
                 {item.tk_no || "-"}
@@ -719,25 +718,25 @@ function LedgerRow({
                 {item.tk_co || "-"}
             </Td>
             <Td className={cn(centerVoucherFields && "text-center")}>
-                <LedgerLongText
+                <LedgerText
                     value={item.product_code}
-                    className={cn("max-w-[150px] font-mono", centerVoucherFields && "mx-auto text-center")}
+                    className={cn("font-mono", centerVoucherFields && "text-center")}
                 />
             </Td>
             <Td>
-                <LedgerLongText value={item.product_name} className="max-w-[340px] font-semibold" />
+                <LedgerText value={item.product_name} className="font-semibold text-foreground" />
             </Td>
             <Td className="text-muted-foreground text-center">
                 {item.unit || "-"}
             </Td>
             <Td className="text-center">
-                <LedgerLongText value={item.lot_code} className="mx-auto max-w-[150px] text-center font-mono" />
+                <LedgerText value={item.lot_code} className="text-center font-mono" />
             </Td>
             <Td className="text-center">
-                <LedgerLongText value={item.warehouse_code} className="mx-auto max-w-[160px] text-center font-mono" />
+                <LedgerText value={item.warehouse_code} className="text-center font-mono" />
             </Td>
             <Td className="text-center">
-                <LedgerLongText value={item.warehouse_name} className="mx-auto max-w-[260px] text-center font-medium" />
+                <LedgerText value={item.warehouse_name} className="text-center font-medium text-foreground" />
             </Td>
             {showValues ? (
                 <Td className="text-right tabular-nums">
@@ -762,10 +761,10 @@ function LedgerRow({
                 </Td>
             ) : null}
             <Td className="text-center">
-                <LedgerLongText value={meta.label} className="mx-auto max-w-[250px] text-center" />
+                <LedgerText value={meta.label} className="text-center" />
             </Td>
             <Td>
-                <LedgerLongText value={item.supplier_name} className="max-w-[340px]" />
+                <LedgerText value={item.supplier_name} />
             </Td>
         </tr>
     )
@@ -863,7 +862,7 @@ function VoucherDetailDialog({
                                                 {!isTransfer ? <Td className="text-right tabular-nums">{formatMoney(item.amount)}</Td> : null}
                                                 <Td>{formatWarehouse(isTransfer ? item.warehouse || sourceWarehouse : item.warehouse)}</Td>
                                                 <Td>
-                                                    <LedgerLongText value={item.note} className="max-w-[260px]" />
+                                                    <LedgerText value={item.note} />
                                                 </Td>
                                             </tr>
                                         ))}
@@ -924,7 +923,7 @@ function VoucherPrintButton({ voucherId }: { voucherId: number }) {
     )
 }
 
-function LedgerLongText({
+function LedgerText({
     value,
     className,
 }: {
@@ -932,12 +931,9 @@ function LedgerLongText({
     className?: string
 }) {
     return (
-        <LongText
-            className={cn("text-muted-foreground text-xs leading-4", className)}
-            contentClassName="max-w-[520px] whitespace-normal break-words leading-relaxed"
-        >
+        <span className={cn("block overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground text-xs leading-4", className)}>
             {value || "-"}
-        </LongText>
+        </span>
     )
 }
 
@@ -1084,7 +1080,7 @@ function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement
 }
 
 function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
-    return <td className={cn("overflow-hidden border-r px-3 py-1.5 align-middle last:border-r-0", className)} {...props} />
+    return <td className={cn("overflow-hidden text-ellipsis border-r px-3 py-1.5 align-middle last:border-r-0", className)} {...props} />
 }
 
 function formatDate(value?: string) {

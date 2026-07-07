@@ -1,6 +1,7 @@
 import { CrudFormDialog } from "@/components/crud/crud-form-dialog"
 import { updateProduct, type UpdateProductRequest } from "@/api/product"
 import { getProductGroup } from "@/api/product-group"
+import { getWarehouse } from "@/api/warehouse"
 import type { Product } from "../data/schema"
 import { productSchema, productUiSchema } from "./product-form-schema"
 import { formatProductNature, toProductNatureValue } from "./product-nature"
@@ -9,10 +10,14 @@ import { useEffect, useRef } from "react"
 
 export function UpdateProductDialog({ product, open, onOpenChange }: any) {
     const lastGroupIdRef = useRef<number | undefined>(product?.group_id)
+    const lastWarehouseIdRef = useRef<number | undefined>(product?.default_warehouse_id)
 
     useEffect(() => {
-        if (open) lastGroupIdRef.current = product?.group_id
-    }, [open, product?.group_id])
+        if (open) {
+            lastGroupIdRef.current = product?.group_id
+            lastWarehouseIdRef.current = product?.default_warehouse_id
+        }
+    }, [open, product?.group_id, product?.default_warehouse_id])
 
     return (
         <CrudFormDialog<ProductFormValues, UpdateProductRequest, unknown>
@@ -56,13 +61,27 @@ export function UpdateProductDialog({ product, open, onOpenChange }: any) {
             queryKeyToInvalidate={["product"]}
             mutationFn={updateProduct}
             onFormChange={async (v) => {
-                if (v.group_id === lastGroupIdRef.current) return v
-                lastGroupIdRef.current = v.group_id
-                if (!v.group_id) return v
+                let next = v
 
-                const group = await getProductGroup(v.group_id)
-                const standardUnit = normalizeProductUnit((group as any)?.standard_unit)
-                return standardUnit ? { ...v, unit: standardUnit } : v
+                if (v.group_id !== lastGroupIdRef.current) {
+                    lastGroupIdRef.current = v.group_id
+                    if (v.group_id) {
+                        const group = await getProductGroup(v.group_id)
+                        const standardUnit = normalizeProductUnit((group as any)?.standard_unit)
+                        if (standardUnit) next = { ...next, unit: standardUnit }
+                    }
+                }
+
+                if (v.default_warehouse_id !== lastWarehouseIdRef.current) {
+                    lastWarehouseIdRef.current = v.default_warehouse_id
+                    if (v.default_warehouse_id) {
+                        const warehouse = await getWarehouse(v.default_warehouse_id)
+                        const accountCode = (warehouse as any)?.inventory_account_code?.trim()
+                        if (accountCode) next = { ...next, inventory_account_code: accountCode }
+                    }
+                }
+
+                return next
             }}
             mapFormToRequest={(v) => ({
                 id: product.id,

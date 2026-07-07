@@ -21,6 +21,11 @@ export const warehouseColumns: ColumnDef<Warehouse>[] = [
     }),
 
     buildTextColumn({
+        accessorKey: "inventory_account_code",
+        title: "Tài khoản kho",
+    }),
+
+    buildTextColumn({
         accessorFn: (row) =>
             row.physical_warehouse?.name ||
             (row.physical_warehouse_id ? `#${row.physical_warehouse_id}` : ""),

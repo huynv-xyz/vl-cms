@@ -20,6 +20,10 @@ export const warehouseSchema: RJSFSchema = {
             type: "string",
             title: "Địa chỉ",
         },
+        inventory_account_code: {
+            type: "string",
+            title: "Tài khoản kho",
+        },
         physical_warehouse_id: {
             type: "integer",
             title: "Địa điểm kho",

@@ -7,6 +7,7 @@ import { CustomersProvider } from './components/customers-provider'
 import { CreateCustomerButton } from './components/create-customer-button'
 import { ImportCustomersButton } from './components/import-customers-button'
 import { ImportInvoiceAliasesButton } from './components/import-invoice-aliases-button'
+import { ExportCustomersButton } from './components/export-customers-button'
 import { Route } from '@/routes/_authenticated/customers'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
@@ -41,6 +42,14 @@ export default function CustomerPage() {
                 title='Khách hàng'
                 actions={
                     <div className="flex flex-wrap items-center gap-2">
+                        <ExportCustomersButton
+                            keyword={keyword}
+                            filters={{
+                                type: requestFilters.type,
+                                region: requestFilters.region,
+                                status: requestFilters.status,
+                            }}
+                        />
                         <ImportCustomersButton />
                         <ImportInvoiceAliasesButton />
                         <CreateCustomerButton />
