@@ -1,9 +1,11 @@
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
+import { Boxes, CheckCircle2, Layers, Warehouse as WarehouseIcon, type LucideIcon } from "lucide-react"
 
 import { listProductGroups } from "@/api/product-group"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { CrudTable } from "@/components/crud/crud-table"
 import { AsyncSelect } from "@/components/rjsf/async-select"
+import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import {
     Select,
     SelectContent,
@@ -11,8 +13,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { formatNumber } from "@/lib/utils"
+import { cn, formatNumber } from "@/lib/utils"
 import { warehouseOption } from "@/lib/option-mapper"
 import type { Product } from "../data/schema"
 import { productColumns } from "./product-columns"
@@ -25,8 +26,17 @@ type ProductFilters = {
     inventory_account_code?: string
 }
 
+export type ProductSummary = {
+    total: number
+    active: number
+    groups: number
+    warehouses: number
+}
+
 type ProductTableProps = {
     data: Product[]
+    summary?: ProductSummary
+    isSummaryLoading?: boolean
     pagination: PaginationState
     onPaginationChange: OnChangeFn<PaginationState>
     pageCount: number
@@ -46,6 +56,8 @@ const NATURE_OPTIONS = [
 
 export function ProductTable({
     data,
+    summary,
+    isSummaryLoading,
     pagination,
     onPaginationChange,
     pageCount,
@@ -54,149 +66,129 @@ export function ProductTable({
     filters,
     onFiltersChange,
 }: ProductTableProps) {
-    const activeCount = data.filter((x) => Number(x.status) === 1).length
-    const groupCount = new Set(data.map((x) => x.group?.id ?? x.group_id).filter(Boolean)).size
-    const warehouseCount = new Set(data.map((x) => x.default_warehouse_id).filter(Boolean)).size
-
     return (
         <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-4">
-                <SummaryCard label="Sản phẩm đang xem" value={formatNumber(data.length)} />
-                <SummaryCard label="Đang hoạt động" value={formatNumber(activeCount)} />
-                <SummaryCard label="Nhóm sản phẩm" value={formatNumber(groupCount)} />
-                <SummaryCard label="Kho ngầm định" value={formatNumber(warehouseCount)} />
+            <ProductSummaryStrip summary={summary} isLoading={isSummaryLoading} />
+
+            <div className="space-y-2">
+                <div className="flex w-full flex-wrap items-center gap-2">
+                    <SearchOnBlurInput
+                        value={keyword}
+                        onChange={onKeywordChange}
+                        placeholder="Tìm mã, tên, nhóm, TK kho..."
+                        wrapperClassName="relative h-10 min-w-[280px] flex-[1.8_1_0]"
+                        className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
+                    />
+
+                    <Select
+                        value={filters.status || "all"}
+                        onValueChange={(value) =>
+                            onFiltersChange({
+                                ...filters,
+                                status: value === "all" ? undefined : value,
+                            })
+                        }
+                    >
+                        <SelectTrigger className={filterControlClass("min-w-[150px] flex-1")}>
+                            <SelectValue placeholder="Trạng thái" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                            <SelectItem value="1">Hoạt động</SelectItem>
+                            <SelectItem value="0">Ngừng</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <Select
+                        value={filters.nature || "all"}
+                        onValueChange={(value) =>
+                            onFiltersChange({
+                                ...filters,
+                                nature: value === "all" ? undefined : value,
+                            })
+                        }
+                    >
+                        <SelectTrigger className={filterControlClass("min-w-[180px] flex-1")}>
+                            <SelectValue placeholder="Tính chất" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Tất cả tính chất</SelectItem>
+                            {NATURE_OPTIONS.map((item) => (
+                                <SelectItem key={item} value={item}>
+                                    {item}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="flex w-full flex-wrap items-center gap-2">
+                    <AsyncSelect
+                        className={filterControlClass("min-w-[220px] flex-1")}
+                        value={filters.group_code || undefined}
+                        onChange={(value: any) =>
+                            onFiltersChange({
+                                ...filters,
+                                group_code: value || undefined,
+                            })
+                        }
+                        placeholder="Nhóm sản phẩm"
+                        dataSource={{
+                            getList: listProductGroups,
+                            getById: getProductGroupByCode,
+                            params: { page: 1, size: 20 },
+                        }}
+                        mapOption={(group: any) => ({
+                            value: group.code,
+                            label: `${group.code || `#${group.id}`} - ${group.name || ""}`,
+                        })}
+                    />
+
+                    <AsyncSelect
+                        className={filterControlClass("min-w-[220px] flex-1")}
+                        value={filters.default_warehouse_id}
+                        onChange={(value: any) =>
+                            onFiltersChange({
+                                ...filters,
+                                default_warehouse_id: value || undefined,
+                            })
+                        }
+                        placeholder="Kho ngầm định"
+                        dataSource={{
+                            getList: listWarehouses,
+                            getById: getWarehouse,
+                            params: { page: 1, size: 20 },
+                        }}
+                        mapOption={warehouseOption}
+                    />
+
+                    <SearchOnBlurInput
+                        value={filters.inventory_account_code ?? ""}
+                        onChange={(value) =>
+                            onFiltersChange({
+                                ...filters,
+                                inventory_account_code: value || undefined,
+                            })
+                        }
+                        placeholder="TK kho"
+                        wrapperClassName="relative h-10 min-w-[140px] flex-1"
+                        className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
+                    />
+                </div>
             </div>
 
             <CrudTable<Product>
                 data={data}
                 columns={productColumns}
                 entityName="sản phẩm"
-                searchPlaceholder="Tìm mã, tên, nhóm, TK kho..."
-                searchInputClassName="w-[320px]"
                 pagination={pagination}
                 onPaginationChange={onPaginationChange}
                 pageCount={pageCount}
-                keyword={keyword}
-                onKeywordChange={onKeywordChange}
-                filters={[
-                    {
-                        columnId: "status",
-                        title: "",
-                        render: () => (
-                            <Select
-                                value={filters.status || "all"}
-                                onValueChange={(value) =>
-                                    onFiltersChange({
-                                        ...filters,
-                                        status: value === "all" ? undefined : value,
-                                    })
-                                }
-                            >
-                                <SelectTrigger className="w-[150px]">
-                                    <SelectValue placeholder="Trạng thái" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                                    <SelectItem value="1">Hoạt động</SelectItem>
-                                    <SelectItem value="0">Ngừng</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        ),
-                    },
-                    {
-                        columnId: "nature",
-                        title: "",
-                        render: () => (
-                            <Select
-                                value={filters.nature || "all"}
-                                onValueChange={(value) =>
-                                    onFiltersChange({
-                                        ...filters,
-                                        nature: value === "all" ? undefined : value,
-                                    })
-                                }
-                            >
-                                <SelectTrigger className="w-[190px]">
-                                    <SelectValue placeholder="Tính chất" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Tất cả tính chất</SelectItem>
-                                    {NATURE_OPTIONS.map((item) => (
-                                        <SelectItem key={item} value={item}>
-                                            {item}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        ),
-                    },
-                    {
-                        columnId: "warehouse",
-                        title: "",
-                        render: () => (
-                            <AsyncSelect
-                                className="w-[220px]"
-                                value={filters.default_warehouse_id}
-                                onChange={(value: any) =>
-                                    onFiltersChange({
-                                        ...filters,
-                                        default_warehouse_id: value || undefined,
-                                    })
-                                }
-                                placeholder="Kho ngầm định"
-                                dataSource={{
-                                    getList: listWarehouses,
-                                    getById: getWarehouse,
-                                    params: { page: 1, size: 20 },
-                                }}
-                                mapOption={warehouseOption}
-                            />
-                        ),
-                    },
-                    {
-                        columnId: "group_code",
-                        title: "",
-                        render: () => (
-                            <AsyncSelect
-                                className="w-[220px]"
-                                value={filters.group_code ?? ""}
-                                onChange={(value: any) =>
-                                    onFiltersChange({
-                                        ...filters,
-                                        group_code: value || undefined,
-                                    })
-                                }
-                                placeholder="Nhóm sản phẩm"
-                                dataSource={{
-                                    getList: listProductGroups,
-                                    getById: getProductGroupByCode,
-                                    params: { page: 1, size: 20 },
-                                }}
-                                mapOption={(group: any) => ({
-                                    value: group.code,
-                                    label: `${group.code || `#${group.id}`} - ${group.name || ""}`,
-                                })}
-                            />
-                        ),
-                    },
-                    {
-                        columnId: "account",
-                        title: "",
-                        render: () => (
-                            <Input
-                                className="w-[130px]"
-                                value={filters.inventory_account_code ?? ""}
-                                onChange={(event) =>
-                                    onFiltersChange({
-                                        ...filters,
-                                        inventory_account_code: event.target.value || undefined,
-                                    })
-                                }
-                                placeholder="TK kho"
-                            />
-                        ),
-                    },
-                ]}
+                showToolbar={false}
+                enableColumnResize
+                enableStickyHorizontalScroll
+                headerVariant="report"
+                footer={false}
             />
         </div>
     )
@@ -208,11 +200,98 @@ async function getProductGroupByCode(code: string) {
     return items.find((item: any) => String(item.code) === String(code)) ?? items[0]
 }
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
+function ProductSummaryStrip({
+    summary,
+    isLoading,
+}: {
+    summary?: ProductSummary
+    isLoading?: boolean
+}) {
+    const loadingText = "Đang tải..."
+
     return (
-        <div className="rounded-md border bg-background px-4 py-3">
-            <div className="text-sm font-medium text-muted-foreground">{label}</div>
-            <div className="mt-1 text-2xl font-semibold tracking-tight">{value}</div>
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+                icon={Boxes}
+                label="Tổng sản phẩm"
+                value={isLoading ? loadingText : formatNumber(summary?.total ?? 0)}
+                tone="opening"
+            />
+            <MetricCard
+                icon={CheckCircle2}
+                label="Đang hoạt động"
+                value={isLoading ? loadingText : formatNumber(summary?.active ?? 0)}
+                tone="credit"
+            />
+            <MetricCard
+                icon={Layers}
+                label="Nhóm sản phẩm"
+                value={isLoading ? loadingText : formatNumber(summary?.groups ?? 0)}
+                tone="closing"
+            />
+            <MetricCard
+                icon={WarehouseIcon}
+                label="Kho ngầm định"
+                value={isLoading ? loadingText : formatNumber(summary?.warehouses ?? 0)}
+                tone="neutral"
+            />
         </div>
     )
+}
+
+function MetricCard({
+    icon: Icon,
+    label,
+    value,
+    tone,
+}: {
+    icon: LucideIcon
+    label: string
+    value: string
+    tone: "opening" | "credit" | "closing" | "neutral"
+}) {
+    const toneClass = {
+        opening: {
+            card: "border-sky-200 bg-sky-50 text-sky-800",
+            icon: "bg-white/75 text-sky-700",
+            value: "text-sky-950",
+        },
+        credit: {
+            card: "border-emerald-200 bg-emerald-50 text-emerald-800",
+            icon: "bg-white/75 text-emerald-700",
+            value: "text-emerald-700",
+        },
+        closing: {
+            card: "border-blue-200 bg-blue-50 text-blue-800",
+            icon: "bg-white/75 text-blue-700",
+            value: "text-blue-950",
+        },
+        neutral: {
+            card: "border-amber-200 bg-amber-50 text-amber-800",
+            icon: "bg-white/75 text-amber-700",
+            value: "text-amber-700",
+        },
+    }[tone]
+
+    return (
+        <div className={cn("rounded-lg border p-2.5 shadow-sm", toneClass.card)}>
+            <div className="flex items-center gap-2">
+                <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-md", toneClass.icon)}>
+                    <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <div className="text-center text-[11px] font-semibold uppercase leading-tight tracking-wide">
+                        {label}
+                    </div>
+                    <div className={cn("mt-1 truncate text-right text-lg font-semibold tabular-nums", toneClass.value)}>
+                        {value}
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+function filterControlClass(className?: string) {
+    return `h-10 rounded-md border-slate-300 bg-white shadow-xs ${className ?? ""}`
 }

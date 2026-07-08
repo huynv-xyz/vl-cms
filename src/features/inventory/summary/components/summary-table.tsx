@@ -444,7 +444,7 @@ export function SummaryTable({
                         <SearchOnBlurInput
                             value={keyword}
                             onChange={onKeywordChange}
-                            placeholder="Tìm mã hàng, tên hàng, kho, nhóm hàng..."
+                            placeholder="Tìm mã hàng, tên hàng, ĐVT, kho, nhóm hàng, tính chất..."
                             wrapperClassName="relative h-10 min-w-[220px] flex-[1_1_240px] xl:max-w-[320px]"
                             className={cn(controlClass, "pl-10")}
                         />

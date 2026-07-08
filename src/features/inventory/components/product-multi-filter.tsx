@@ -28,7 +28,7 @@ export function ProductMultiFilter({ value, onChange, className }: ProductMultiF
             className={cn("h-10 min-w-[280px] flex-[1.8_1_0] border-slate-300 bg-white shadow-xs", className)}
             value={value}
             onChange={(next: string[]) => onChange(next?.length ? next : undefined)}
-            searchPlaceholder="Nhập tên sản phẩm..."
+            searchPlaceholder="Tìm mã hàng, mã báo giá, mã MISA, tên hàng..."
             placeholder="Sản phẩm"
             dataSource={{
                 getList: listProducts,

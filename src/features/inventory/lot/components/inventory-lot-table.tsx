@@ -266,7 +266,7 @@ export function InventoryLotTable({
                         <SearchOnBlurInput
                             value={keyword}
                             onChange={onKeywordChange}
-                            placeholder="Tìm hàng hóa, kho, số lô, ĐVT, nhóm hàng, số lượng, giá trị..."
+                            placeholder="Tìm mã hàng, tên hàng, ĐVT, số lô, kho, nhóm hàng, HSD, số lượng, giá trị..."
                             wrapperClassName="relative h-10 min-w-[260px] flex-[1_1_320px] xl:max-w-[520px]"
                             className={cn(controlClass, "pl-10")}
                         />

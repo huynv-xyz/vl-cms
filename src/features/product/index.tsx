@@ -1,15 +1,19 @@
-import { PageSection } from '@/components/page-section'
-import { usePaginatedList } from '@/hooks/use-paginated-list'
-import { listAllProducts } from '@/api/product'
-import { ProductTable } from './components/product-table'
-import { ProductDialogs } from './components/product-dialogs'
-import { ProductsProvider } from './components/products-provider'
-import { CreateProductButton } from './components/create-product-button'
-import { ExportProductsButton } from './components/export-products-button'
-import { ImportProductButton } from './components/import-product-button'
-import { Route } from '@/routes/_authenticated/products'
-import { useUrlPagination } from '@/hooks/use-url-pagination'
-import { useUrlListFilters } from '@/hooks/use-url-list-filters'
+import { useQuery } from "@tanstack/react-query"
+import { PageSection } from "@/components/page-section"
+import { usePaginatedList } from "@/hooks/use-paginated-list"
+import { listAllProducts, type ProductListParams } from "@/api/product"
+import { ProductTable } from "./components/product-table"
+import { ProductDialogs } from "./components/product-dialogs"
+import { ProductsProvider } from "./components/products-provider"
+import { CreateProductButton } from "./components/create-product-button"
+import { ExportProductsButton } from "./components/export-products-button"
+import { ImportProductButton } from "./components/import-product-button"
+import { Route } from "@/routes/_authenticated/products"
+import { useUrlPagination } from "@/hooks/use-url-pagination"
+import { useUrlListFilters } from "@/hooks/use-url-list-filters"
+import type { Product } from "./data/schema"
+
+const SUMMARY_PAGE_SIZE = 1000
 
 export default function ProductPage() {
     const search = Route.useSearch()
@@ -29,9 +33,20 @@ export default function ProductPage() {
         ["status", "nature", "group_code", "default_warehouse_id", "inventory_account_code"]
     )
 
+    const requestParams = {
+        keyword,
+        status: requestFilters.status,
+        nature: requestFilters.nature,
+        group_code: requestFilters.group_code,
+        default_warehouse_id: requestFilters.default_warehouse_id
+            ? Number(requestFilters.default_warehouse_id)
+            : undefined,
+        inventory_account_code: requestFilters.inventory_account_code,
+    }
+
     const { data, isLoading, error } = usePaginatedList(
         [
-            'product',
+            "product",
             search.page,
             search.size,
             keyword,
@@ -45,16 +60,22 @@ export default function ProductPage() {
         {
             page: search.page,
             size: search.size,
-            keyword,
-            status: requestFilters.status,
-            nature: requestFilters.nature,
-            group_code: requestFilters.group_code,
-            default_warehouse_id: requestFilters.default_warehouse_id
-                ? Number(requestFilters.default_warehouse_id)
-                : undefined,
-            inventory_account_code: requestFilters.inventory_account_code,
+            ...requestParams,
         },
     )
+
+    const { data: summary, isLoading: isSummaryLoading } = useQuery({
+        queryKey: [
+            "product-summary",
+            keyword,
+            singleFilters.status,
+            singleFilters.nature,
+            singleFilters.group_code,
+            singleFilters.default_warehouse_id,
+            singleFilters.inventory_account_code,
+        ],
+        queryFn: () => fetchProductSummary(requestParams),
+    })
 
     return (
         <ProductsProvider>
@@ -62,7 +83,6 @@ export default function ProductPage() {
                 isLoading={isLoading}
                 error={error}
                 title="Sản phẩm"
-                description="Quản lý danh mục hàng hóa, VTHH, kho ngầm định và tài khoản kho."
                 actions={
                     <div className="flex items-center gap-2">
                         <ExportProductsButton
@@ -87,11 +107,16 @@ export default function ProductPage() {
                     <div className="space-y-4">
                         <ProductTable
                             data={data.items}
+                            summary={summary}
+                            isSummaryLoading={isSummaryLoading}
                             pagination={pagination}
                             onPaginationChange={setPagination}
                             pageCount={data.total_page}
                             keyword={keyword}
-                            onKeywordChange={setKeyword}
+                            onKeywordChange={(value) => {
+                                setPagination((p) => ({ ...p, pageIndex: 0 }))
+                                setKeyword(value)
+                            }}
                             filters={{
                                 status: singleFilters.status,
                                 nature: singleFilters.nature,
@@ -101,7 +126,8 @@ export default function ProductPage() {
                                     : undefined,
                                 inventory_account_code: singleFilters.inventory_account_code,
                             }}
-                            onFiltersChange={(next) =>
+                            onFiltersChange={(next) => {
+                                setPagination((p) => ({ ...p, pageIndex: 0 }))
                                 setSingleFilters({
                                     status: next.status,
                                     nature: next.nature,
@@ -111,7 +137,7 @@ export default function ProductPage() {
                                         : undefined,
                                     inventory_account_code: next.inventory_account_code,
                                 })
-                            }
+                            }}
                         />
                         <ProductDialogs />
                     </div>
@@ -119,4 +145,30 @@ export default function ProductPage() {
             </PageSection>
         </ProductsProvider>
     )
+}
+
+async function fetchProductSummary(filters: Omit<ProductListParams, "page" | "size">) {
+    const all: Product[] = []
+    let page = 1
+    let total = 0
+    let totalPage = 1
+
+    do {
+        const res = await listAllProducts({
+            ...filters,
+            page,
+            size: SUMMARY_PAGE_SIZE,
+        })
+        all.push(...(res.items ?? []))
+        total = res.total ?? all.length
+        totalPage = res.total_page ?? page
+        page += 1
+    } while (page <= totalPage)
+
+    return {
+        total,
+        active: all.filter((x) => Number(x.status) === 1).length,
+        groups: new Set(all.map((x) => x.group?.id ?? x.group_id).filter(Boolean)).size,
+        warehouses: new Set(all.map((x) => x.default_warehouse_id).filter(Boolean)).size,
+    }
 }
