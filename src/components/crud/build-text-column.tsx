@@ -31,7 +31,7 @@ export function buildTextColumn<T>({
 }: BuildTextColumnOptions<T>): ColumnDef<T> {
 
     const widthClass = width ? `w-[${width}px]` : undefined
-    const maxWidthStyle = maxWidth ?? width
+    const maxWidthStyle = maxWidth
 
     const base = {
         enableSorting,
@@ -59,11 +59,7 @@ export function buildTextColumn<T>({
             return (
                 <span
                     className={`block truncate ${textClassName}`}
-                    style={
-                        maxWidthStyle
-                            ? { maxWidth: `${maxWidthStyle}px` }
-                            : undefined
-                    }
+                    style={maxWidthStyle ? { maxWidth: `${maxWidthStyle}px` } : undefined}
                 >
                     {display}
                 </span>

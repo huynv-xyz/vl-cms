@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button"
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -81,6 +82,17 @@ type FormState = {
     description: string
 }
 
+type ImportErrorRow = {
+    row: string
+    message: string
+}
+
+type ImportErrorDialog = {
+    title: string
+    summary: string
+    errors: ImportErrorRow[]
+}
+
 const emptyForm = (): FormState => ({
     posting_date: new Date().toISOString().slice(0, 10),
     doc_date: new Date().toISOString().slice(0, 10),
@@ -95,6 +107,18 @@ const emptyForm = (): FormState => ({
 })
 
 const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
+
+const BANK_IMPORT_REQUIRED_COLUMNS = [
+    "Ngày hạch toán",
+    "Ngày chứng từ",
+    "Số chứng từ",
+    "Mã đối tượng",
+    "Tên đối tượng",
+    "Diễn giải",
+    "TK đối ứng",
+    "Thu",
+    "Chi",
+]
 
 export function CashBankLedgerTable({
     sourceType = "BANK",
@@ -116,6 +140,8 @@ export function CashBankLedgerTable({
     const [form, setForm] = useState<FormState>(emptyForm)
     const [filterAliasId, setFilterAliasId] = useState<number | undefined>(undefined)
     const [exporting, setExporting] = useState(false)
+    const [bankImportGuideOpen, setBankImportGuideOpen] = useState(false)
+    const [importErrorDialog, setImportErrorDialog] = useState<ImportErrorDialog | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const incomingLabel = sourceType === "OPENING"
         ? "Có đầu kỳ"
@@ -209,16 +235,24 @@ export function CashBankLedgerTable({
             sourceType === "OPENING" ? importOpeningArLedgers(file) : importBankArLedgers(file),
         onSuccess: async (count) => {
             await queryClient.invalidateQueries({ queryKey: ["ar-ledgers"] })
+            setImportErrorDialog(null)
+            resetImportInput()
             toast.success(
                 sourceType === "OPENING"
                     ? `Đã import ${count} số dư đầu kỳ`
                     : `Đã import ${count} giao dịch ngân hàng`,
             )
-            if (fileInputRef.current) {
-                fileInputRef.current.value = ""
-            }
         },
-        onError: (error: any) => toast.error(error?.message || "Import Excel thất bại"),
+        onError: (error: any) => {
+            resetImportInput()
+            const parsed = parseImportErrorMessage(error?.message)
+            setImportErrorDialog({
+                title: sourceType === "OPENING" ? "Lỗi import nợ đầu kỳ" : "Lỗi import giao dịch ngân hàng",
+                summary: parsed.summary,
+                errors: parsed.errors,
+            })
+            toast.error("Import Excel thất bại, kiểm tra chi tiết trong hộp thoại lỗi")
+        },
     })
 
     const openCreate = () => {
@@ -302,6 +336,38 @@ export function CashBankLedgerTable({
         }))
     }
 
+    const resetImportInput = () => {
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ""
+        }
+    }
+
+    const openImportPicker = () => {
+        resetImportInput()
+        if (sourceType === "BANK") {
+            setBankImportGuideOpen(true)
+            return
+        }
+
+        fileInputRef.current?.click()
+    }
+
+    const chooseBankImportFile = () => {
+        resetImportInput()
+        setBankImportGuideOpen(false)
+        window.setTimeout(() => fileInputRef.current?.click(), 0)
+    }
+
+    const copyImportErrors = async () => {
+        if (!importErrorDialog) return
+        const text = [
+            importErrorDialog.summary,
+            ...importErrorDialog.errors.map((error) => `${error.row}: ${error.message}`),
+        ].filter(Boolean).join("\n")
+        await navigator.clipboard.writeText(text)
+        toast.success("Đã copy danh sách lỗi")
+    }
+
     return (
         <div className="space-y-4">
             <div className="rounded-lg border bg-white shadow-sm">
@@ -327,7 +393,7 @@ export function CashBankLedgerTable({
                                     type="button"
                                     variant="outline"
                                     disabled={importMutation.isPending}
-                                    onClick={() => fileInputRef.current?.click()}
+                                    onClick={openImportPicker}
                                 >
                                     <Upload className="mr-2 h-4 w-4" />
                                     {importMutation.isPending ? "Đang import..." : "Import Excel"}
@@ -536,6 +602,81 @@ export function CashBankLedgerTable({
                 onSubmit={() => saveMutation.mutate()}
                 pending={saveMutation.isPending}
             />
+
+            <Dialog open={bankImportGuideOpen} onOpenChange={setBankImportGuideOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Import giao dịch ngân hàng</DialogTitle>
+                        <DialogDescription>
+                            File import giao dịch ngân hàng cần có đủ các tiêu đề cột sau.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="rounded-md border bg-muted/30 p-3">
+                        <div className="mb-2 text-sm font-medium">Tiêu đề cột cần có</div>
+                        <pre className="max-h-[320px] select-text overflow-auto whitespace-pre-wrap rounded bg-background p-3 text-sm leading-6 text-foreground">
+                            {BANK_IMPORT_REQUIRED_COLUMNS.join("\n")}
+                        </pre>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setBankImportGuideOpen(false)}>
+                            Đóng
+                        </Button>
+                        <Button onClick={chooseBankImportFile}>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Chọn file import
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!importErrorDialog} onOpenChange={(nextOpen) => !nextOpen && setImportErrorDialog(null)}>
+                <DialogContent className="max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>{importErrorDialog?.title}</DialogTitle>
+                        <DialogDescription>
+                            {importErrorDialog?.summary || "Import Excel thất bại. Kiểm tra lại các dòng lỗi dưới đây rồi import lại."}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="max-h-[520px] overflow-auto rounded-md border">
+                        <table className="w-full border-collapse text-sm">
+                            <thead className="sticky top-0 bg-muted text-muted-foreground">
+                                <tr>
+                                    <th className="w-32 border-b px-3 py-2 text-left font-medium">Dòng</th>
+                                    <th className="border-b px-3 py-2 text-left font-medium">Lý do lỗi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {(importErrorDialog?.errors || []).map((error, index) => (
+                                    <tr key={`${error.row}-${index}`} className="border-b last:border-b-0">
+                                        <td className="px-3 py-2 align-top font-medium">{error.row}</td>
+                                        <td className="px-3 py-2 align-top text-muted-foreground">{error.message}</td>
+                                    </tr>
+                                ))}
+                                {!importErrorDialog?.errors?.length ? (
+                                    <tr>
+                                        <td className="px-3 py-4 text-muted-foreground" colSpan={2}>
+                                            Không có chi tiết dòng lỗi.
+                                        </td>
+                                    </tr>
+                                ) : null}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setImportErrorDialog(null)}>
+                            Đóng
+                        </Button>
+                        <Button variant="outline" onClick={copyImportErrors}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy lỗi
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
@@ -799,6 +940,36 @@ function formatMoney(value?: number | string) {
     return amount.toLocaleString("en-US", { maximumFractionDigits: 6 })
 }
 
+function parseImportErrorMessage(message?: string): { summary: string; errors: ImportErrorRow[] } {
+    const fallback = "Import Excel thất bại. Đã rollback toàn bộ, chưa ghi dòng nào."
+    const lines = (message || fallback)
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+
+    const summary = lines.find((line) => !/^D[oò]ng\s+\d+/i.test(line)) || fallback
+    const errors = lines
+        .filter((line) => /^D[oò]ng\s+\d+/i.test(line))
+        .map((line) => {
+            const match = line.match(/^(D[oò]ng\s+\d+)\s*:\s*(.*)$/i)
+            return {
+                row: match?.[1] || "-",
+                message: match?.[2] || line,
+            }
+        })
+
+    if (!errors.length && lines.length) {
+        return {
+            summary,
+            errors: lines
+                .filter((line) => line !== summary)
+                .map((line, index) => ({ row: `#${index + 1}`, message: line })),
+        }
+    }
+
+    return { summary, errors }
+}
+
 async function fetchAllRows(base: ArLedgerListParams): Promise<ArLedger[]> {
     const size = 200
     const all: ArLedger[] = []
@@ -1011,3 +1182,4 @@ function exportAdjustmentXlsx(
         { name: isOpening ? "Nợ đầu kỳ" : "Điều chỉnh công nợ", rows: exportRows },
     ])
 }
+
