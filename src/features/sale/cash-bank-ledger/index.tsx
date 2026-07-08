@@ -54,6 +54,7 @@ export default function CashBankLedgerPage() {
             error={error}
             title="Ngân hàng"
             description="Nhập giao dịch ngân hàng trực tiếp vào sổ công nợ."
+            actions={<div id="cash-bank-ledger-actions" />}
             data={data}
         >
             {(data) => (
@@ -68,6 +69,7 @@ export default function CashBankLedgerPage() {
                         ...singleFilters,
                         customer_id: customerId,
                     }}
+                    actionsPortalId="cash-bank-ledger-actions"
                     onFiltersChange={(next) =>
                         setSingleFilters({
                             from_date: next.from_date,
