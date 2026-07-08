@@ -739,20 +739,16 @@ function ProductSelect({
 }
 
 function listProductsByCode(params: any) {
-    const { keyword, ...rest } = params ?? {}
     return listProducts({
-        ...rest,
-        keyword: undefined,
-        code: keyword || undefined,
+        ...(params ?? {}),
+        keyword: params?.keyword || undefined,
     })
 }
 
 function listProductsByName(params: any) {
-    const { keyword, ...rest } = params ?? {}
     return listProducts({
-        ...rest,
-        keyword: undefined,
-        name: keyword || undefined,
+        ...(params ?? {}),
+        keyword: params?.keyword || undefined,
     })
 }
 

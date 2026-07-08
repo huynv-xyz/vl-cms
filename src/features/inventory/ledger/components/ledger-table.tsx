@@ -239,7 +239,7 @@ export function InventoryLedgerTable({
                     <SearchOnBlurInput
                         value={keyword}
                         onChange={onKeywordChange}
-                        placeholder="Tìm chứng từ, diễn giải, NCC, sản phẩm, lô, kho..."
+                        placeholder="Tìm chứng từ, diễn giải, NCC, mã/tên hàng, ĐVT, số lô, kho, TK..."
                         wrapperClassName="relative h-10 min-w-[220px] flex-[1_1_260px] xl:max-w-[360px]"
                         className={cn(controlClass, "pl-10")}
                     />

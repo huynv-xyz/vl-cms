@@ -56,15 +56,12 @@ export function InboundTable({
             data={data}
             columns={inboundColumns}
             entityName="phiếu nhập"
-            searchPlaceholder="Tìm theo số chứng từ..."
-
+            searchPlaceholder="Tìm chứng từ, diễn giải, NCC, mã/tên hàng, số lô, kho..."
             pagination={pagination}
             onPaginationChange={onPaginationChange}
             pageCount={pageCount}
-
             keyword={keyword}
             onKeywordChange={onKeywordChange}
-
             filters={[
                 {
                     columnId: "product",
@@ -92,7 +89,6 @@ export function InboundTable({
                         />
                     ),
                 },
-
                 {
                     columnId: "warehouse",
                     title: "",
@@ -119,7 +115,6 @@ export function InboundTable({
                         />
                     ),
                 },
-
                 {
                     columnId: "source_type",
                     title: "",
@@ -129,15 +124,13 @@ export function InboundTable({
                             onValueChange={(v) =>
                                 onFiltersChange({
                                     ...filters,
-                                    source_type:
-                                        v === "ALL" ? undefined : [v],
+                                    source_type: v === "ALL" ? undefined : [v],
                                 })
                             }
                         >
                             <SelectTrigger className="w-[180px]">
                                 <SelectValue placeholder="Loại nhập" />
                             </SelectTrigger>
-
                             <SelectContent>
                                 <SelectItem value="ALL">Loại nhập</SelectItem>
                                 <SelectItem value="OPENING">Tồn đầu kỳ</SelectItem>
@@ -148,7 +141,6 @@ export function InboundTable({
                         </Select>
                     ),
                 },
-
                 {
                     columnId: "from",
                     title: "",
@@ -165,7 +157,6 @@ export function InboundTable({
                         />
                     ),
                 },
-
                 {
                     columnId: "to",
                     title: "",
