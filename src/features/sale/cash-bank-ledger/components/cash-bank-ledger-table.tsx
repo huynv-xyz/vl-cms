@@ -1,8 +1,10 @@
 import type React from "react"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Copy, Download, Loader2, Plus, Upload, WalletCards } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, Copy, Download, Loader2, Plus, Scale, Upload, WalletCards } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -66,6 +68,7 @@ type Props = {
     onKeywordChange: (value: string) => void
     filters: Filters
     onFiltersChange: (filters: Filters) => void
+    actionsPortalId?: string
 }
 
 type FormState = {
@@ -120,6 +123,19 @@ const BANK_IMPORT_REQUIRED_COLUMNS = [
     "Chi",
 ]
 
+const CASH_BANK_COLUMNS = [
+    { key: "stt", width: 60, minWidth: 52 },
+    { key: "date", width: 130, minWidth: 110 },
+    { key: "doc", width: 180, minWidth: 140 },
+    { key: "customer_code", width: 190, minWidth: 150 },
+    { key: "customer_name", width: 260, minWidth: 190 },
+    { key: "description", width: 420, minWidth: 260 },
+    { key: "account", width: 130, minWidth: 110 },
+    { key: "incoming", width: 170, minWidth: 140 },
+    { key: "outgoing", width: 170, minWidth: 140 },
+    { key: "actions", width: 96, minWidth: 90 },
+]
+
 export function CashBankLedgerTable({
     sourceType = "BANK",
     title = "Giao dịch ngân hàng",
@@ -134,6 +150,7 @@ export function CashBankLedgerTable({
     onKeywordChange,
     filters,
     onFiltersChange,
+    actionsPortalId,
 }: Props) {
     const queryClient = useQueryClient()
     const [open, setOpen] = useState(false)
@@ -142,6 +159,19 @@ export function CashBankLedgerTable({
     const [exporting, setExporting] = useState(false)
     const [bankImportGuideOpen, setBankImportGuideOpen] = useState(false)
     const [importErrorDialog, setImportErrorDialog] = useState<ImportErrorDialog | null>(null)
+    const [columnWidths, setColumnWidths] = useState<number[]>(() => CASH_BANK_COLUMNS.map((column) => column.width))
+    const tableWidth = columnWidths.reduce((total, width) => total + width, 0)
+    const tableScrollRef = useRef<HTMLDivElement>(null)
+    const stickyScrollRef = useRef<HTMLDivElement>(null)
+    const headerTableRef = useRef<HTMLTableElement>(null)
+    const isSyncingScrollRef = useRef(false)
+    const [stickyScroll, setStickyScroll] = useState({
+        visible: false,
+        contentWidth: 0,
+        viewportWidth: 0,
+    })
+    const [stickyHeaderTop, setStickyHeaderTop] = useState(64)
+    const [actionsHost, setActionsHost] = useState<HTMLElement | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const incomingLabel = sourceType === "OPENING"
         ? "Có đầu kỳ"
@@ -336,6 +366,149 @@ export function CashBankLedgerTable({
         }))
     }
 
+    const startColumnResize = (columnIndex: number, event: React.MouseEvent<HTMLDivElement>) => {
+        event.preventDefault()
+        event.stopPropagation()
+
+        const startX = event.clientX
+        const startWidth = columnWidths[columnIndex] ?? CASH_BANK_COLUMNS[columnIndex].width
+        const minWidth = CASH_BANK_COLUMNS[columnIndex].minWidth
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            const nextWidth = Math.max(minWidth, startWidth + moveEvent.clientX - startX)
+            setColumnWidths((current) => current.map((width, index) => index === columnIndex ? nextWidth : width))
+        }
+        const onMouseUp = () => {
+            document.removeEventListener("mousemove", onMouseMove)
+            document.removeEventListener("mouseup", onMouseUp)
+        }
+
+        document.addEventListener("mousemove", onMouseMove)
+        document.addEventListener("mouseup", onMouseUp)
+    }
+
+    const renderHeaderRow = () => (
+        <tr>
+            <ReportTh resizeIndex={0} onResizeStart={startColumnResize}>STT</ReportTh>
+            <ReportTh resizeIndex={1} onResizeStart={startColumnResize}>Ngày</ReportTh>
+            <ReportTh resizeIndex={2} onResizeStart={startColumnResize}>Chứng từ</ReportTh>
+            <ReportTh resizeIndex={3} onResizeStart={startColumnResize}>Mã KH</ReportTh>
+            <ReportTh resizeIndex={4} onResizeStart={startColumnResize}>Khách hàng</ReportTh>
+            <ReportTh resizeIndex={5} onResizeStart={startColumnResize}>Diễn giải</ReportTh>
+            <ReportTh resizeIndex={6} onResizeStart={startColumnResize}>TK đối ứng</ReportTh>
+            <ReportTh resizeIndex={7} onResizeStart={startColumnResize}>{incomingLabel}</ReportTh>
+            <ReportTh resizeIndex={8} onResizeStart={startColumnResize}>{outgoingLabel}</ReportTh>
+            <ReportTh resizeIndex={9} onResizeStart={startColumnResize}>Thao tác</ReportTh>
+        </tr>
+    )
+
+    useEffect(() => {
+        const updateStickyHeaderTop = () => {
+            const appHeader = document.querySelector<HTMLElement>(".header-fixed")
+            if (!appHeader) {
+                setStickyHeaderTop(0)
+                return
+            }
+
+            const rect = appHeader.getBoundingClientRect()
+            const nextTop = Math.max(0, Math.min(rect.bottom, rect.height))
+            setStickyHeaderTop((current) => current === nextTop ? current : nextTop)
+        }
+
+        updateStickyHeaderTop()
+        document.addEventListener("scroll", updateStickyHeaderTop, { passive: true })
+        window.addEventListener("resize", updateStickyHeaderTop)
+
+        return () => {
+            document.removeEventListener("scroll", updateStickyHeaderTop)
+            window.removeEventListener("resize", updateStickyHeaderTop)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (!actionsPortalId) {
+            setActionsHost(null)
+            return
+        }
+
+        setActionsHost(document.getElementById(actionsPortalId))
+    }, [actionsPortalId])
+
+    useEffect(() => {
+        const updateStickyScroll = () => {
+            const tableScroll = tableScrollRef.current
+            if (!tableScroll) return
+
+            const next = {
+                visible: tableScroll.scrollWidth > tableScroll.clientWidth + 1,
+                contentWidth: tableScroll.scrollWidth,
+                viewportWidth: tableScroll.clientWidth,
+            }
+            setStickyScroll((current) => (
+                current.visible === next.visible &&
+                current.contentWidth === next.contentWidth &&
+                current.viewportWidth === next.viewportWidth
+                    ? current
+                    : next
+            ))
+
+            if (stickyScrollRef.current) {
+                stickyScrollRef.current.scrollLeft = tableScroll.scrollLeft
+            }
+            if (headerTableRef.current) {
+                headerTableRef.current.style.transform = `translateX(-${tableScroll.scrollLeft}px)`
+            }
+        }
+
+        updateStickyScroll()
+
+        const tableScroll = tableScrollRef.current
+        const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateStickyScroll) : null
+        if (tableScroll && resizeObserver) {
+            resizeObserver.observe(tableScroll)
+            const tableElement = tableScroll.querySelector("table")
+            if (tableElement) resizeObserver.observe(tableElement)
+        }
+        window.addEventListener("resize", updateStickyScroll)
+
+        return () => {
+            resizeObserver?.disconnect()
+            window.removeEventListener("resize", updateStickyScroll)
+        }
+    }, [tableWidth, data.length])
+
+    const syncStickyScroll = () => {
+        if (isSyncingScrollRef.current) return
+        const tableScroll = tableScrollRef.current
+        const sticky = stickyScrollRef.current
+        if (!tableScroll || !sticky) return
+
+        isSyncingScrollRef.current = true
+        sticky.scrollLeft = tableScroll.scrollLeft
+        if (headerTableRef.current) {
+            headerTableRef.current.style.transform = `translateX(-${tableScroll.scrollLeft}px)`
+        }
+        requestAnimationFrame(() => {
+            isSyncingScrollRef.current = false
+        })
+    }
+
+    const syncTableScroll = () => {
+        if (isSyncingScrollRef.current) return
+        const tableScroll = tableScrollRef.current
+        const sticky = stickyScrollRef.current
+        if (!tableScroll || !sticky) return
+
+        isSyncingScrollRef.current = true
+        tableScroll.scrollLeft = sticky.scrollLeft
+        if (headerTableRef.current) {
+            headerTableRef.current.style.transform = `translateX(-${sticky.scrollLeft}px)`
+        }
+        requestAnimationFrame(() => {
+            isSyncingScrollRef.current = false
+        })
+    }
+
     const resetImportInput = () => {
         if (fileInputRef.current) {
             fileInputRef.current.value = ""
@@ -368,9 +541,53 @@ export function CashBankLedgerTable({
         toast.success("Đã copy danh sách lỗi")
     }
 
+    const actionButtons = (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+            {sourceType === "BANK" || sourceType === "OPENING" ? (
+                <>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".xlsx,.xls"
+                        className="hidden"
+                        onChange={(event) => {
+                            const file = event.target.files?.[0]
+                            if (file) importMutation.mutate(file)
+                        }}
+                    />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={importMutation.isPending}
+                        onClick={openImportPicker}
+                    >
+                        <Upload className="mr-2 h-4 w-4" />
+                        {importMutation.isPending ? "Đang import..." : "Import Excel"}
+                    </Button>
+                </>
+            ) : null}
+            {canExport ? (
+                <Button type="button" onClick={handleExport} disabled={exporting}>
+                    {exporting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <Download className="mr-2 h-4 w-4" />
+                    )}
+                    Xuất Excel
+                </Button>
+            ) : null}
+            <Button type="button" onClick={openCreate}>
+                <Plus className="mr-2 h-4 w-4" />
+                {createLabel}
+            </Button>
+        </div>
+    )
+
     return (
         <div className="space-y-4">
+            {actionsPortalId && actionsHost ? createPortal(actionButtons, actionsHost) : null}
             <div className="rounded-lg border bg-white shadow-sm">
+                {!actionsPortalId ? (
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-slate-50 px-4 py-3">
                     <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                         <WalletCards className="h-4 w-4 text-slate-500" />
@@ -416,19 +633,20 @@ export function CashBankLedgerTable({
                         </Button>
                     </div>
                 </div>
+                ) : null}
 
-                <div className="space-y-2 p-4">
-                    <div className="flex w-full flex-wrap items-center gap-2">
+                <div className="p-3">
+                    <div className="grid w-full gap-2 xl:grid-cols-[minmax(280px,1.35fr)_minmax(300px,1.3fr)_minmax(170px,0.75fr)_minmax(170px,0.75fr)]">
                         <SearchOnBlurInput
                             value={keyword}
                             onChange={onKeywordChange}
                             placeholder="Tìm chứng từ, khách hàng, nội dung..."
-                            wrapperClassName="relative h-10 min-w-[300px] flex-[1.3_1_0]"
+                            wrapperClassName="relative h-10 min-w-0"
                             className={cn(controlClass, "pl-10")}
                         />
 
                         <AsyncSelect
-                            className={cn(controlClass, "min-w-[260px] flex-[1.6_1_0] py-0")}
+                            className={cn(controlClass, "min-w-0 py-0")}
                             value={useCustomerSelector ? filters.customer_id : filterAliasId}
                             onChange={(value: number | undefined, option: any) => {
                                 if (useCustomerSelector) {
@@ -451,14 +669,10 @@ export function CashBankLedgerTable({
                                     params: { page: 1, size: 20 },
                                 }}
                             mapOption={useCustomerSelector ? customerOption : aliasCustomerOption}
-                            wrapLabel
                         />
-                    </div>
-
-                    <div className="flex w-full flex-wrap items-center gap-2">
                         <DatePicker
                             className={cn(
-                                "h-10 min-w-[170px] flex-1",
+                                "h-10 min-w-0",
                                 "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
                             )}
                             value={filters.from_date}
@@ -473,7 +687,7 @@ export function CashBankLedgerTable({
                         />
                         <DatePicker
                             className={cn(
-                                "h-10 min-w-[170px] flex-1",
+                                "h-10 min-w-0",
                                 "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
                             )}
                             value={filters.to_date}
@@ -490,75 +704,81 @@ export function CashBankLedgerTable({
                 </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-3">
-                <Summary label={incomingLabel} value={formatMoney(totals.incoming)} tone="success" />
-                <Summary label={sourceType === "BANK" ? "Tiền ra / hoàn" : outgoingLabel} value={formatMoney(totals.outgoing)} tone="danger" />
-                <Summary label="Chênh lệch" value={formatMoney(totals.net)} tone={totals.net >= 0 ? "success" : "danger"} />
+            <div className="grid gap-2 md:grid-cols-3">
+                <Summary icon={ArrowDownLeft} label={incomingLabel} value={formatMoney(totals.incoming)} tone="credit" />
+                <Summary icon={ArrowUpRight} label={sourceType === "BANK" ? "Tiền ra / hoàn" : outgoingLabel} value={formatMoney(totals.outgoing)} tone="debit" />
+                <Summary icon={Scale} label="Chênh lệch" value={formatMoney(totals.net)} tone={totals.net >= 0 ? "credit" : "debit"} />
             </div>
 
-            <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1180px] text-sm">
-                        <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500">
-                            <tr>
-                                <th className="w-12 px-3 py-3 text-center">#</th>
-                                <th className="px-3 py-3 text-left">Ngày</th>
-                                <th className="px-3 py-3 text-left">Chứng từ</th>
-                                <th className="min-w-[170px] px-3 py-3 text-left">Mã KH</th>
-                                <th className="px-3 py-3 text-left">Khách hàng</th>
-                                <th className="px-3 py-3 text-left">Diễn giải</th>
-                                <th className="px-3 py-3 text-left">TK đối ứng</th>
-                                <th className="px-3 py-3 text-right">{incomingLabel}</th>
-                                <th className="px-3 py-3 text-right">{outgoingLabel}</th>
-                                <th className="w-12 px-2 py-3" />
-                            </tr>
+            <div className="rounded-lg border bg-white shadow-sm">
+                <div
+                    className="sticky z-40 overflow-hidden rounded-t-lg border-b bg-slate-50 shadow-sm"
+                    style={{ top: stickyHeaderTop }}
+                >
+                    <table
+                        ref={headerTableRef}
+                        className="table-fixed border-collapse text-sm"
+                        style={{ width: tableWidth, minWidth: tableWidth }}
+                    >
+                        <colgroup>
+                            {columnWidths.map((width, index) => (
+                                <col key={CASH_BANK_COLUMNS[index].key} style={{ width }} />
+                            ))}
+                        </colgroup>
+                        <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                            {renderHeaderRow()}
                         </thead>
+                    </table>
+                </div>
+
+                <div ref={tableScrollRef} onScroll={syncStickyScroll} className="w-full overflow-x-auto">
+                    <table
+                        className="table-fixed border-collapse text-sm"
+                        style={{ width: tableWidth, minWidth: tableWidth }}
+                    >
+                        <colgroup>
+                            {columnWidths.map((width, index) => (
+                                <col key={CASH_BANK_COLUMNS[index].key} style={{ width }} />
+                            ))}
+                        </colgroup>
                         <tbody>
                             {data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-500">
+                                    <ReportTd colSpan={10} className="py-12 text-center text-sm text-slate-500">
                                         {emptyText}
-                                    </td>
+                                    </ReportTd>
                                 </tr>
                             ) : (
                                 data.map((row, index) => (
-                                    <tr key={row.id} className="border-b last:border-b-0 hover:bg-slate-50">
-                                        <td className="px-3 py-3 text-center text-xs text-slate-500">
+                                    <tr key={row.id} className="hover:bg-slate-50">
+                                        <ReportTd className="text-center text-xs text-slate-500">
                                             {pagination.pageIndex * pagination.pageSize + index + 1}
-                                        </td>
-                                        <td className="whitespace-nowrap px-3 py-3 text-slate-700">
+                                        </ReportTd>
+                                        <ReportTd className="text-center text-slate-700">
                                             {formatDate(row.posting_date)}
-                                        </td>
-                                        <td className="px-3 py-3">
-                                            <div className="font-mono text-xs font-semibold text-sky-700">
-                                                {row.doc_no || `#${row.id}`}
-                                            </div>
-                                        </td>
-                                        <td className="px-3 py-3">
-                                            <span className="inline-flex max-w-[220px] whitespace-normal break-words rounded border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs font-semibold leading-snug text-slate-700">
-                                                {row.customer?.code || `#${row.customer_id}`}
-                                            </span>
-                                        </td>
-                                        <td className="px-3 py-3">
-                                            <div className="font-medium text-slate-950">
-                                                {row.customer?.name || row.customer_name || "-"}
-                                            </div>
-                                        </td>
-                                        <td className="max-w-[360px] px-3 py-3">
-                                            <div className="line-clamp-2 text-slate-700">
-                                                {row.description || "-"}
-                                            </div>
-                                        </td>
-                                        <td className="whitespace-nowrap px-3 py-3 font-mono text-xs font-semibold text-slate-700">
+                                        </ReportTd>
+                                        <ReportTd className="text-center font-mono text-xs font-semibold text-sky-700">
+                                            {row.doc_no || `#${row.id}`}
+                                        </ReportTd>
+                                        <ReportTd className="text-center font-mono text-xs font-semibold text-slate-700">
+                                            {row.customer?.code || `#${row.customer_id}`}
+                                        </ReportTd>
+                                        <ReportTd className="font-medium text-slate-950">
+                                            {row.customer?.name || row.customer_name || "-"}
+                                        </ReportTd>
+                                        <ReportTd className="text-slate-700">
+                                            {row.description || "-"}
+                                        </ReportTd>
+                                        <ReportTd className="text-center font-mono text-xs font-semibold text-slate-700">
                                             {row.account_code || "-"}
-                                        </td>
-                                        <td className="px-3 py-3 text-right font-semibold tabular-nums text-emerald-700">
+                                        </ReportTd>
+                                        <ReportTd className="text-right font-semibold tabular-nums text-emerald-700">
                                             {formatMoney(row.credit_amount)}
-                                        </td>
-                                        <td className="px-3 py-3 text-right font-semibold tabular-nums text-rose-700">
+                                        </ReportTd>
+                                        <ReportTd className="text-right font-semibold tabular-nums text-rose-700">
                                             {formatMoney(row.debit_amount)}
-                                        </td>
-                                        <td className="px-2 py-3 text-center">
+                                        </ReportTd>
+                                        <ReportTd className="text-center">
                                             <CrudRowActions
                                                 row={row}
                                                 onEdit={openEdit}
@@ -566,7 +786,7 @@ export function CashBankLedgerTable({
                                                     ? (item) => (
                                                         <DropdownMenuItem onClick={() => openClone(item)}>
                                                             <Copy className="mr-2 h-4 w-4" />
-                                                            Nhân bản
+                                                            Nh?n b?n
                                                         </DropdownMenuItem>
                                                     )
                                                     : undefined}
@@ -574,13 +794,24 @@ export function CashBankLedgerTable({
                                                     await deleteMutation.mutateAsync(item.id)
                                                 }}
                                             />
-                                        </td>
+                                        </ReportTd>
                                     </tr>
                                 ))
                             )}
                         </tbody>
                     </table>
                 </div>
+
+                {stickyScroll.visible ? (
+                    <div
+                        ref={stickyScrollRef}
+                        onScroll={syncTableScroll}
+                        className="sticky bottom-0 z-30 w-full overflow-x-auto border-t bg-background/95 py-1 shadow-[0_-6px_18px_rgba(15,23,42,0.08)] backdrop-blur supports-[backdrop-filter]:bg-background/80"
+                        style={{ maxWidth: stickyScroll.viewportWidth || undefined }}
+                    >
+                        <div style={{ width: stickyScroll.contentWidth, height: 1 }} />
+                    </div>
+                ) : null}
             </div>
 
             <div className="rounded-lg border bg-white px-4 py-3 shadow-sm">
@@ -841,23 +1072,72 @@ function Field({
     )
 }
 
+function ReportTh({
+    className,
+    children,
+    resizeIndex,
+    onResizeStart,
+}: {
+    className?: string
+    children: React.ReactNode
+    resizeIndex?: number
+    onResizeStart?: (columnIndex: number, event: React.MouseEvent<HTMLDivElement>) => void
+}) {
+    return (
+        <th className={cn("relative border border-slate-200 px-2 py-2 text-center font-semibold align-middle", className)}>
+            <span className="block truncate whitespace-nowrap">{children}</span>
+            {resizeIndex !== undefined && onResizeStart ? (
+                <div
+                    className="absolute right-0 top-0 z-40 h-full w-1.5 cursor-col-resize touch-none select-none hover:bg-primary/30"
+                    onMouseDown={(event) => onResizeStart(resizeIndex, event)}
+                />
+            ) : null}
+        </th>
+    )
+}
+
+function ReportTd({
+    className,
+    children,
+    colSpan,
+}: {
+    className?: string
+    children: React.ReactNode
+    colSpan?: number
+}) {
+    return (
+        <td
+            colSpan={colSpan}
+            className={cn("max-w-0 truncate whitespace-nowrap border border-slate-200 px-2 py-2 align-middle", className)}
+        >
+            {children}
+        </td>
+    )
+}
+
 function Summary({
+    icon: Icon,
     label,
     value,
     tone,
 }: {
+    icon: LucideIcon
     label: string
     value: string
-    tone: "success" | "danger"
+    tone: "credit" | "debit"
 }) {
+    const toneClass = tone === "credit"
+        ? "border-emerald-200 bg-emerald-50/80 text-emerald-700 shadow-emerald-100"
+        : "border-rose-200 bg-rose-50/80 text-rose-700 shadow-rose-100"
+
     return (
-        <div className="rounded-lg border bg-white p-4 shadow-sm">
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
-            <div className={cn(
-                "mt-1 text-xl font-semibold tabular-nums",
-                tone === "success" ? "text-emerald-700" : "text-rose-700",
-            )}>
-                {value}
+        <div className={cn("flex min-h-[76px] items-center gap-3 rounded-lg border px-3 py-2 shadow-sm", toneClass)}>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/75">
+                <Icon className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+                <div className="text-center text-xs font-semibold uppercase tracking-wide opacity-80">{label}</div>
+                <div className="mt-1 text-right text-xl font-bold tabular-nums">{value}</div>
             </div>
         </div>
     )

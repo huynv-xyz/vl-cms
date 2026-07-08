@@ -4,7 +4,7 @@ import CashBankLedgerPage from "@/features/sale/cash-bank-ledger"
 export const Route = createFileRoute("/_authenticated/sales/cash-bank-ledger/")({
     validateSearch: (search: Record<string, unknown>) => ({
         page: Number(search.page ?? 1),
-        size: Number(search.size ?? 20),
+        size: Number(search.size ?? 50),
         keyword: typeof search.keyword === "string" ? search.keyword : "",
         from_date: typeof search.from_date === "string" ? search.from_date : "",
         to_date: typeof search.to_date === "string" ? search.to_date : "",
