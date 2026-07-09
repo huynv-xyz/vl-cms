@@ -1507,7 +1507,7 @@ async function exportSummaryXlsx(rows: InventorySummary[], filters: SummaryFilte
     }
 
     const buffer = await workbook.xlsx.writeBuffer()
-    downloadBlob(buffer, `nhap-xuat-ton-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    downloadBlob(buffer, `nhap-xuat-ton-${todayYmd()}.xlsx`)
 }
 
 function getInventoryStatus(row: InventorySummary) {
@@ -1624,7 +1624,7 @@ function dateToYmd(date: Date) {
 
 function formatPeriod(fromDate?: string, toDate?: string) {
     const fromText = fromDate ? formatDate(fromDate) : "Không chọn từ ngày"
-    const toText = toDate ? formatDate(toDate) : formatDate(new Date().toISOString().slice(0, 10))
+    const toText = toDate ? formatDate(toDate) : formatDate(todayYmd())
     return `${fromText} - ${toText}`
 }
 

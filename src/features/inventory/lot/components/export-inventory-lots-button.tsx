@@ -36,7 +36,7 @@ type Props = {
 
 type ExportColumn = {
     label: string
-    value: (row: InventoryLot, index: number) => string | number | Date | null | undefined
+    value: (row: InventoryLot, index: number) => string | number | null | undefined
     width?: number
     type?: "date" | "number" | "text"
 }
@@ -51,8 +51,8 @@ const COLUMNS: ExportColumn[] = [
     { label: "Mã kho", value: (row) => rowString(row, "warehouse_code") || row.warehouse?.code, width: 18 },
     { label: "Kho", value: (row) => rowString(row, "warehouse_name") || row.warehouse?.name, width: 28 },
     { label: "Số lô", value: (row) => rowString(row, "lot_no") || row.lot_no, width: 22 },
-    { label: "Ngày nhập", value: (row) => parseDate(rowString(row, "inbound_date") || row.inbound_date), width: 14, type: "date" },
-    { label: "HSD", value: (row) => parseDate(rowString(row, "expiry_date") || row.expiry_date), width: 14, type: "date" },
+    { label: "Ngày nhập", value: (row) => rowString(row, "inbound_date") || row.inbound_date, width: 14, type: "date" },
+    { label: "HSD", value: (row) => rowString(row, "expiry_date") || row.expiry_date, width: 14, type: "date" },
     { label: "Cảnh báo", value: (row) => lotWarningLabel(row), width: 28 },
     { label: "Đơn giá mua", value: (row) => rowNumber(row, "purchase_unit_cost") || row.unit_cost || 0, width: 18, type: "number" },
     { label: "PLH/ĐV", value: (row) => rowNumber(row, "handling_fee_unit"), width: 16, type: "number" },
@@ -70,6 +70,7 @@ const COLUMNS: ExportColumn[] = [
     { label: "Tính chất", value: (row) => rowString(row, "nature") || row.product?.nature, width: 16 },
     { label: "Dạng hàng", value: () => "", width: 16 },
 ]
+
 export function ExportInventoryLotsButton({ keyword, filters }: Props) {
     const [loading, setLoading] = useState(false)
 
@@ -207,11 +208,12 @@ async function exportInventoryLotsXlsx(rows: InventoryLot[]) {
     }
 
     const buffer = await workbook.xlsx.writeBuffer()
-    downloadBlob(buffer, `ton-kho-theo-lo-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    downloadBlob(buffer, `ton-kho-theo-lo-${todayYmd()}.xlsx`)
 }
 
-function normalizeCellValue(value: string | number | Date | null | undefined, column: ExportColumn) {
+function normalizeCellValue(value: string | number | null | undefined, column: ExportColumn) {
     if (value == null || value === "") return ""
+    if (column.type === "date") return excelDateSerial(String(value)) || ""
     if (column.type === "number") {
         const numberValue = Number(value)
         return Number.isFinite(numberValue) ? numberValue : ""
@@ -228,18 +230,6 @@ function rowNumber(row: InventoryLot, key: string) {
 function rowString(row: InventoryLot, key: string) {
     const value = (row as any)?.[key]
     return value == null ? "" : String(value)
-}
-
-function parseDate(value?: string | null) {
-    if (!value) return ""
-    const dateOnly = value.trim().split(/[T\s]/)[0]
-    const ymd = dateOnly.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
-    if (ymd) return new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]))
-
-    const dmy = dateOnly.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
-    if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
-
-    return value
 }
 
 function lotWarningLabel(row: InventoryLot) {
@@ -282,13 +272,34 @@ function monthDiff(from: Date, to: Date) {
 
 function parseLocalDate(value?: string | null) {
     if (!value) return null
-    const [year, month, day] = value.trim().split(/[T\s]/)[0].split("-").map(Number)
+    const dateOnly = value.trim().split(/[T\s]/)[0]
+    const ymd = dateOnly.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+    const dmy = dateOnly.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+    const year = ymd ? Number(ymd[1]) : dmy ? Number(dmy[3]) : 0
+    const month = ymd ? Number(ymd[2]) : dmy ? Number(dmy[2]) : 0
+    const day = ymd ? Number(ymd[3]) : dmy ? Number(dmy[1]) : 0
     if (!year || !month || !day) return null
     return startOfDay(new Date(year, month - 1, day))
 }
 
+function excelDateSerial(value?: string | null) {
+    const date = parseLocalDate(value)
+    if (!date) return null
+    const utcMidnight = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+    const excelEpoch = Date.UTC(1899, 11, 30)
+    return Math.round((utcMidnight - excelEpoch) / 86_400_000)
+}
+
 function startOfDay(date: Date) {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function todayYmd() {
+    const date = new Date()
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
 }
 
 function downloadBlob(buffer: ArrayBuffer, filename: string) {

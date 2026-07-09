@@ -80,19 +80,29 @@ export async function request<T>(
     if (!response.ok) {
         const errorText = await response.text().catch(() => "")
         let errorMessage = errorText
+        let errorData: any = null
+        let errorCode: any = undefined
         try {
             const errorBody = JSON.parse(errorText)
             errorMessage = errorBody?.msg || errorText
+            errorData = errorBody?.data ?? errorBody?.meta ?? null
+            errorCode = errorBody?.code
         } catch {
             // keep raw response text when the server does not return ApiResponse JSON
         }
-        throw new Error(errorMessage || `HTTP ${response.status}`)
+        const error = new Error(errorMessage || `HTTP ${response.status}`)
+        ;(error as any).data = errorData
+        ;(error as any).code = errorCode
+        throw error
     }
 
     const body = await response.json()
 
     if (body.code !== 0) {
-        throw new Error(body.msg ?? "API error")
+        const error = new Error(body.msg ?? "API error")
+        ;(error as any).data = body.data ?? body.meta ?? null
+        ;(error as any).code = body.code
+        throw error
     }
 
     return body.data as T

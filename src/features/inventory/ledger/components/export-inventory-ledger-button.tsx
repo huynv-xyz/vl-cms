@@ -17,7 +17,7 @@ type Props = {
 
 type ExportColumn = {
     label: string
-    value: (row: InventoryLedgerReportRow, index: number) => string | number | Date | null | undefined
+    value: (row: InventoryLedgerReportRow, index: number) => string | number | null | undefined
     width?: number
     type?: "date" | "number" | "text"
     numberFormat?: "integer" | "quantity" | "money"
@@ -27,7 +27,7 @@ const EXPORT_PAGE_SIZE = 500
 
 const COLUMNS: ExportColumn[] = [
     { label: "STT", value: (_row, index) => index + 1, width: 8, type: "number", numberFormat: "integer" },
-    { label: "Ngày", value: (row) => parseDate(row.posting_date), width: 14, type: "date" },
+    { label: "Ngày", value: (row) => row.posting_date, width: 14, type: "date" },
     { label: "Chứng từ", value: (row) => row.doc_no, width: 22 },
     { label: "Diễn giải", value: (row) => row.description, width: 36 },
     { label: "TK Nợ", value: (row) => row.tk_no, width: 12 },
@@ -212,7 +212,7 @@ async function exportInventoryLedgerXlsx(
     }
 
     const buffer = await workbook.xlsx.writeBuffer()
-    downloadBlob(buffer, `${filePrefix}-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    downloadBlob(buffer, `${filePrefix}-${todayYmd()}.xlsx`)
 }
 
 function autoFitColumns(sheet: any, columns: ExportColumn[]) {
@@ -238,7 +238,7 @@ function autoFitColumns(sheet: any, columns: ExportColumn[]) {
 
 function displayLength(value: any, column: ExportColumn) {
     if (value == null || value === "") return 0
-    if (value instanceof Date) return 10
+    if (column.type === "date") return formatDateText(String(value)).length
     if (column.type === "number") {
         const numberValue = Number(value)
         if (!Number.isFinite(numberValue)) return 0
@@ -252,10 +252,13 @@ function displayLength(value: any, column: ExportColumn) {
 }
 
 function normalizeCellValue(
-    value: string | number | Date | null | undefined,
+    value: string | number | null | undefined,
     column: ExportColumn,
 ) {
     if (value == null || value === "") return ""
+    if (column.type === "date") {
+        return excelDateSerial(String(value)) || ""
+    }
     if (column.type === "number") {
         const numberValue = Number(value)
         return Number.isFinite(numberValue) ? numberValue : ""
@@ -270,35 +273,43 @@ function getExcelNumberFormat(value: unknown, column: ExportColumn) {
     return "#,##0.###"
 }
 
-function parseDate(value?: string | null) {
-    if (!value) return ""
-    const dateOnly = value.trim().split(/[T\s]/)[0]
-    const ymd = dateOnly.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
-    if (ymd) {
-        return new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]))
-    }
-
-    const dmy = dateOnly.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
-    if (dmy) {
-        return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
-    }
-
-    return value
-}
-
 function formatPeriod(fromDate?: string, toDate?: string) {
     const from = fromDate ? formatDateText(fromDate) : "Đầu kỳ"
     const to = toDate ? formatDateText(toDate) : "Hôm nay"
     return `${from} - ${to}`
 }
 
-function formatDateText(value: string) {
+function formatDateText(value?: string | null) {
+    if (!value) return ""
     const dateOnly = value.trim().split(/[T\s]/)[0]
     const ymd = dateOnly.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
     if (ymd) {
         return `${ymd[3].padStart(2, "0")}/${ymd[2].padStart(2, "0")}/${ymd[1]}`
     }
     return value
+}
+
+function excelDateSerial(value?: string | null) {
+    if (!value) return null
+    const dateOnly = value.trim().split(/[T\s]/)[0]
+    const ymd = dateOnly.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+    const dmy = dateOnly.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+    const year = ymd ? Number(ymd[1]) : dmy ? Number(dmy[3]) : 0
+    const month = ymd ? Number(ymd[2]) : dmy ? Number(dmy[2]) : 0
+    const day = ymd ? Number(ymd[3]) : dmy ? Number(dmy[1]) : 0
+    if (!year || !month || !day) return null
+
+    const utcMidnight = Date.UTC(year, month - 1, day)
+    const excelEpoch = Date.UTC(1899, 11, 30)
+    return Math.round((utcMidnight - excelEpoch) / 86_400_000)
+}
+
+function todayYmd() {
+    const date = new Date()
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
 }
 
 function downloadBlob(buffer: ArrayBuffer, filename: string) {
