@@ -49,6 +49,7 @@ import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import { OrderDocumentDialog } from "./order-document-dialog"
 import { CreateOrderDialog } from "./create-order-dialog"
 import { OrderPriceAdjustmentDialog } from "./order-price-adjustment-dialog"
+import { OrderQuantityAdjustmentDialog } from "./order-quantity-adjustment-dialog"
 
 const controlClass = "h-9 min-h-9 rounded-md border-slate-300 bg-white shadow-xs"
 const EXPORT_PAGE_SIZE = 500
@@ -76,6 +77,7 @@ export function OrderTable({
         hasPermission(permissions, "sales.orders", "update") ||
         hasPermission(permissions, "sales.orders", "status.update")
     const canAdjustPrice = hasPermission(permissions, "sales.orders", "price.adjust")
+    const canAdjustQuantity = hasPermission(permissions, "sales.orders", "quantity.adjust")
 
     const setFilter = (key: string, value: any) =>
         onFiltersChange?.({ ...filters, [key]: value })
@@ -298,6 +300,7 @@ export function OrderTable({
                                     order={order}
                                     canUpdateOrder={canUpdateOrder}
                                     canAdjustPrice={canAdjustPrice}
+                                    canAdjustQuantity={canAdjustQuantity}
                                     returnTo={returnTo}
                                 />
                             ))}
@@ -340,11 +343,13 @@ function OrderCard({
     order,
     canUpdateOrder,
     canAdjustPrice,
+    canAdjustQuantity,
     returnTo,
 }: {
     order: Order
     canUpdateOrder: boolean
     canAdjustPrice: boolean
+    canAdjustQuantity: boolean
     returnTo: string
 }) {
     const { openEdit } = useOrders()
@@ -352,6 +357,7 @@ function OrderCard({
     const [documentOpen, setDocumentOpen] = useState(false)
     const [cloneOpen, setCloneOpen] = useState(false)
     const [priceOpen, setPriceOpen] = useState(false)
+    const [quantityOpen, setQuantityOpen] = useState(false)
 
     const { mutate: changeStatus, isPending } = useMutation({
         mutationFn: ({ id, status }: { id: number; status: string }) =>
@@ -572,9 +578,11 @@ function OrderCard({
                         order={order}
                         canEdit={!isLocked && !hasDoneExport && canUpdateOrder}
                         canAdjustPrice={canAdjustPrice && hasDoneExport}
+                        canAdjustQuantity={canAdjustQuantity && hasDoneExport}
                         onEdit={() => openEdit(order)}
                         onClone={() => setCloneOpen(true)}
                         onAdjustPrice={() => setPriceOpen(true)}
+                        onAdjustQuantity={() => setQuantityOpen(true)}
                     />
                 </div>
             </div>
@@ -594,6 +602,11 @@ function OrderCard({
                 order={order}
                 onOpenChange={setPriceOpen}
             />
+            <OrderQuantityAdjustmentDialog
+                open={quantityOpen}
+                order={order}
+                onOpenChange={setQuantityOpen}
+            />
         </div>
     )
 }
@@ -602,16 +615,20 @@ function OrderRowMenu({
     order,
     canEdit,
     canAdjustPrice,
+    canAdjustQuantity,
     onEdit,
     onClone,
     onAdjustPrice,
+    onAdjustQuantity,
 }: {
     order: Order
     canEdit: boolean
     canAdjustPrice: boolean
+    canAdjustQuantity: boolean
     onEdit: () => void
     onClone: () => void
     onAdjustPrice: () => void
+    onAdjustQuantity: () => void
 }) {
     return (
         <DropdownMenu modal={false}>
@@ -641,6 +658,12 @@ function OrderRowMenu({
                     <DropdownMenuItem onClick={onAdjustPrice} className="gap-2">
                         <Pencil className="h-4 w-4" />
                         Sửa giá
+                    </DropdownMenuItem>
+                )}
+                {canAdjustQuantity && (
+                    <DropdownMenuItem onClick={onAdjustQuantity} className="gap-2">
+                        <Pencil className="h-4 w-4" />
+                        Sửa SL
                     </DropdownMenuItem>
                 )}
             </DropdownMenuContent>

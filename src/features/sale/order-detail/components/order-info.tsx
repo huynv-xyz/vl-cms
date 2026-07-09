@@ -10,6 +10,7 @@ import { OrderDocumentDialog } from "../../order/components/order-document-dialo
 import { CreateOrderDialog } from "../../order/components/create-order-dialog"
 import { UpdateOrderDialog } from "../../order/components/update-order-dialog"
 import { OrderPriceAdjustmentDialog } from "../../order/components/order-price-adjustment-dialog"
+import { OrderQuantityAdjustmentDialog } from "../../order/components/order-quantity-adjustment-dialog"
 import {
     CalendarDays,
     Clock,
@@ -33,6 +34,7 @@ export function OrderInfo({ order, metrics }: Props) {
     const [cloneOpen, setCloneOpen] = useState(false)
     const [editOpen, setEditOpen] = useState(false)
     const [priceOpen, setPriceOpen] = useState(false)
+    const [quantityOpen, setQuantityOpen] = useState(false)
     const statusMeta = getOrderStatusMeta(order.status)
     const StatusIcon = statusMeta.icon
     const { data: permissions = [] } = useQuery({
@@ -46,6 +48,9 @@ export function OrderInfo({ order, metrics }: Props) {
     )
     const canAdjustPrice = permissions.some(
         (p: any) => p.module === "sales.orders" && p.action === "price.adjust"
+    )
+    const canAdjustQuantity = permissions.some(
+        (p: any) => p.module === "sales.orders" && p.action === "quantity.adjust"
     )
     const isLocked = order.status === "DONE" || order.status === "CANCELLED"
     const hasDoneExport = hasCompletedExport(order)
@@ -134,6 +139,18 @@ export function OrderInfo({ order, metrics }: Props) {
                             Sửa giá
                         </Button>
                     )}
+                    {canAdjustQuantity && hasDoneExport && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-9 gap-1.5"
+                            onClick={() => setQuantityOpen(true)}
+                        >
+                            <Pencil className="h-3.5 w-3.5" />
+                            Sửa SL
+                        </Button>
+                    )}
                     <InlineStatus
                         row={order}
                         value={order.status}
@@ -169,6 +186,12 @@ export function OrderInfo({ order, metrics }: Props) {
                 order={order}
                 open={priceOpen}
                 onOpenChange={setPriceOpen}
+            />
+
+            <OrderQuantityAdjustmentDialog
+                order={order}
+                open={quantityOpen}
+                onOpenChange={setQuantityOpen}
             />
 
             {/* INFO GRID */}

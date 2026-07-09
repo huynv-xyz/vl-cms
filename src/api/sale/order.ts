@@ -77,3 +77,14 @@ export type AdjustOrderPriceItem = {
 
 export const adjustOrderPrice = (id: number, items: AdjustOrderPriceItem[]) =>
     apiPut(`/sales/orders/${id}/price-adjustment`, { items })
+
+export type AdjustOrderQuantityItem = {
+    order_item_id: number
+    quantity: number
+}
+
+export const adjustOrderQuantity = (id: number, items: AdjustOrderQuantityItem[]) =>
+    apiPut(`/sales/orders/${id}/quantity-adjustment`, { items })
+
+export const checkOrderQuantityAdjustment = (id: number, items: AdjustOrderQuantityItem[]) =>
+    apiPost(`/sales/orders/${id}/quantity-adjustment/check`, { items })
