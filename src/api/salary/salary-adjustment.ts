@@ -8,6 +8,8 @@ export type SalaryAdjustmentItem = {
   emp_name: string
   region_code?: string
   region_name?: string
+  luong_cb_dieu_chinh?: number | null
+  phu_cap_dieu_chinh?: number | null
   ho_tro?: number | null
   ghi_chu?: string
   status: number
@@ -17,6 +19,8 @@ export type CreateAdjustmentRequest = {
   period: string
   employee_id: number
   region_code?: string
+  luong_cb_dieu_chinh?: number | null
+  phu_cap_dieu_chinh?: number | null
   ho_tro?: number | null
   ghi_chu?: string
 }

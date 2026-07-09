@@ -6,6 +6,8 @@ export type SalaryAdjustmentItem = {
   emp_name: string
   region_code?: string
   region_name?: string
+  luong_cb_dieu_chinh?: number | null
+  phu_cap_dieu_chinh?: number | null
   ho_tro?: number | null
   ghi_chu?: string
   status: number

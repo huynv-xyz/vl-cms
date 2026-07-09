@@ -50,6 +50,20 @@ export const adjustmentColumns: ColumnDef<SalaryAdjustmentItem>[] = [
     size: 110,
   },
   {
+    id: "luong_cb_dieu_chinh",
+    header: () => <div className="text-right">Lương CB chốt</div>,
+    accessorFn: (r) => r.luong_cb_dieu_chinh,
+    cell: ({ getValue }) => <MoneyCell value={getValue() as number | null} accent="green" />,
+    size: 140,
+  },
+  {
+    id: "phu_cap_dieu_chinh",
+    header: () => <div className="text-right">Phụ cấp chốt</div>,
+    accessorFn: (r) => r.phu_cap_dieu_chinh,
+    cell: ({ getValue }) => <MoneyCell value={getValue() as number | null} accent="green" />,
+    size: 140,
+  },
+  {
     id: "ho_tro",
     header: () => <div className="text-right">Hỗ trợ thêm</div>,
     accessorFn: (r) => r.ho_tro,

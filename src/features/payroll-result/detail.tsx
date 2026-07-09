@@ -27,6 +27,9 @@ const fmt = (value?: number | null, digits = 0) =>
 const pct = (value?: number | null) =>
   value == null ? "-" : `${(value * 100).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%`
 
+const progressPct = (value?: number | null) =>
+  value == null ? 0 : Math.max(0, Math.min(value * 100, 100))
+
 function money(value?: number | null) {
   return `${fmt(value)} đ`
 }
@@ -154,6 +157,7 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
   const payroll = data?.payroll
   const performance = data?.performance
   const incomeItems = data?.monthly_items.filter((item) => item.item_type === "INCOME") ?? []
+  const advanceItems = data?.monthly_items.filter((item) => item.item_type === "ADVANCE") ?? []
   const deductionItems = data?.monthly_items.filter((item) => item.item_type === "DEDUCTION") ?? []
   const annualBonusTotal = data?.annual_bonus.reduce((sum, item) => sum + (item.amount ?? 0), 0) ?? 0
   const budgetTotal = data?.budgets.reduce((sum, item) => sum + (item.total_budget ?? 0), 0) ?? 0
@@ -174,12 +178,12 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
     : 0
   const isPayrollStale = payroll ? Math.abs(incomeFormulaTotal - payroll.gross_total) > 1 : false
 
-  const productRows: Array<[string, number, number]> = performance
+  const productRows: Array<[string, number, number, number, number]> = performance
     ? [
-        ["Bón gốc", performance.target_bon_goc / 12, performance.actual_bon_goc],
-        ["Bón lá bột", performance.target_bon_la_bot / 12, performance.actual_bon_la_bot],
-        ["CLCN", performance.target_clcn / 12, performance.actual_clcn],
-        ["Bón lá lỏng", performance.target_bon_la_long / 12, performance.actual_bon_la_long],
+        ["Bón gốc", performance.target_bon_goc / 12, performance.actual_bon_goc, performance.target_bon_goc_qd_month ?? 0, performance.actual_bon_goc_qd ?? 0],
+        ["Bón lá bột", performance.target_bon_la_bot / 12, performance.actual_bon_la_bot, performance.target_bon_la_bot_qd_month ?? 0, performance.actual_bon_la_bot_qd ?? 0],
+        ["CLCN", performance.target_clcn / 12, performance.actual_clcn, performance.target_clcn_qd_month ?? 0, performance.actual_clcn_qd ?? 0],
+        ["Bón lá lỏng", performance.target_bon_la_long / 12, performance.actual_bon_la_long, performance.target_bon_la_long_qd_month ?? 0, performance.actual_bon_la_long_qd ?? 0],
       ]
     : []
 
@@ -428,7 +432,7 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
                       {hasActualData ? pct(performance.completion_rate) : "-"}
                     </span>
                   </div>
-                  <Progress value={hasActualData ? performance.completion_rate : 0} />
+                  <Progress value={hasActualData ? progressPct(performance.completion_rate) : 0} />
                 </div>
 
                 <div className="overflow-x-auto">
@@ -436,23 +440,27 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
                     <thead className="bg-muted/40 text-left">
                       <tr>
                         <th className="px-3 py-2">Nhóm hàng</th>
-                        <th className="px-3 py-2 text-right">Chỉ tiêu tháng</th>
-                        <th className="px-3 py-2 text-right">Thực hiện</th>
                         <th className="px-3 py-2 text-right">Đơn vị</th>
+                        <th className="px-3 py-2 text-right">Chỉ tiêu</th>
+                        <th className="px-3 py-2 text-right">Thực hiện</th>
+                        <th className="px-3 py-2 text-right">CT quy đổi</th>
+                        <th className="px-3 py-2 text-right">TH quy đổi</th>
                         <th className="px-3 py-2 text-right">Tỷ lệ</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {productRows.map(([name, target, actual]) => {
-                        const rate = target > 0 ? actual / target : 0
+                      {productRows.map(([name, target, actual, targetQd, actualQd]) => {
+                        const rate = targetQd > 0 ? actualQd / targetQd : 0
                         return (
                           <tr key={name} className="border-t">
                             <td className="px-3 py-2 font-medium">{name}</td>
+                            <td className="px-3 py-2 text-right text-muted-foreground">{productUnit(name)}</td>
                             <td className="px-3 py-2 text-right tabular-nums">{fmt(target, 1)}</td>
                             <td className="px-3 py-2 text-right tabular-nums">{hasActualData ? fmt(actual, 1) : "-"}</td>
-                            <td className="px-3 py-2 text-right text-muted-foreground">{productUnit(name)}</td>
-                            <td className={`px-3 py-2 text-right font-semibold tabular-nums ${completionTone(hasActualData && target > 0 ? rate : null)}`}>
-                              {hasActualData && target > 0 ? pct(rate) : "-"}
+                            <td className="px-3 py-2 text-right tabular-nums">{fmt(targetQd, 1)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{hasActualData ? fmt(actualQd, 1) : "-"}</td>
+                            <td className={`px-3 py-2 text-right font-semibold tabular-nums ${completionTone(hasActualData && targetQd > 0 ? rate : null)}`}>
+                              {hasActualData && targetQd > 0 ? pct(rate) : "-"}
                             </td>
                           </tr>
                         )
@@ -483,7 +491,7 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
 
           <div className="grid gap-4 xl:grid-cols-2">
             <Section title="Phát sinh trong kỳ">
-              {incomeItems.length === 0 && deductionItems.length === 0 ? (
+              {incomeItems.length === 0 && advanceItems.length === 0 && deductionItems.length === 0 && data.adjustments.length === 0 ? (
                 <EmptyState title="Không có phát sinh" description="Kỳ lương này không có khoản cộng hoặc khoản trừ riêng." />
               ) : (
                 <div className="overflow-hidden rounded-md border">
@@ -496,19 +504,38 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
                       </tr>
                     </thead>
                     <tbody>
-                      {[...incomeItems, ...deductionItems].map((item, index) => {
+                      {data.adjustments.map((item, index) => (
+                        <tr key={`adjustment-${index}`} className="border-t">
+                          <td className="px-3 py-2">
+                            <Badge className="bg-blue-600">Điều chỉnh</Badge>
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {[
+                              item.luong_cb_dieu_chinh != null ? `Lương CB chốt ${money(item.luong_cb_dieu_chinh)}` : "",
+                              item.phu_cap_dieu_chinh != null ? `Phụ cấp chốt ${money(item.phu_cap_dieu_chinh)}` : "",
+                              item.ho_tro != null ? `Hỗ trợ ${money(item.ho_tro)}` : "",
+                              item.ghi_chu || "",
+                            ].filter(Boolean).join(" · ") || "Điều chỉnh lương"}
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold tabular-nums text-blue-700">
+                            {item.ho_tro != null ? `+ ${money(item.ho_tro)}` : "-"}
+                          </td>
+                        </tr>
+                      ))}
+                      {[...incomeItems, ...advanceItems, ...deductionItems].map((item, index) => {
                         const isIncome = item.item_type === "INCOME"
+                        const isAdvance = item.item_type === "ADVANCE"
                         return (
                           <tr key={`${item.item_type}-${index}`} className="border-t">
                             <td className="px-3 py-2">
-                              <Badge className={isIncome ? "bg-emerald-600" : "bg-rose-600"}>
-                                {isIncome ? "Khoản cộng" : "Khoản trừ"}
+                              <Badge className={isIncome ? "bg-emerald-600" : isAdvance ? "bg-amber-600" : "bg-rose-600"}>
+                                {isIncome ? "Khoản cộng" : isAdvance ? "Tạm ứng" : "Khoản trừ"}
                               </Badge>
                             </td>
                             <td className="px-3 py-2 text-muted-foreground">
-                              {item.note || (isIncome ? "Thu nhập phát sinh" : "Giảm trừ phát sinh")}
+                              {item.note || (isIncome ? "Thu nhập phát sinh" : isAdvance ? "Tạm ứng trong kỳ" : "Giảm trừ phát sinh")}
                             </td>
-                            <td className={`px-3 py-2 text-right font-semibold tabular-nums ${isIncome ? "text-emerald-700" : "text-rose-700"}`}>
+                            <td className={`px-3 py-2 text-right font-semibold tabular-nums ${isIncome ? "text-emerald-700" : isAdvance ? "text-amber-700" : "text-rose-700"}`}>
                               {isIncome ? "+" : "-"} {money(item.amount)}
                             </td>
                           </tr>

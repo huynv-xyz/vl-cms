@@ -57,12 +57,14 @@ export type PayrollScopeDetail = {
 
 export type PayrollAdjustmentDetail = {
   region_code?: string
+  luong_cb_dieu_chinh?: number | null
+  phu_cap_dieu_chinh?: number | null
   ho_tro?: number | null
   ghi_chu?: string
 }
 
 export type PayrollMonthlyItemDetail = {
-  item_type: "INCOME" | "DEDUCTION"
+  item_type: "INCOME" | "ADVANCE" | "DEDUCTION"
   amount: number
   note?: string
 }
@@ -93,11 +95,19 @@ export type PayrollPerformanceDetail = {
   target_bon_la_long: number
   target_gtqd_year: number
   target_gtqd_month: number
+  target_bon_goc_qd_month: number
+  target_bon_la_bot_qd_month: number
+  target_clcn_qd_month: number
+  target_bon_la_long_qd_month: number
   actual_bon_goc: number
   actual_bon_la_bot: number
   actual_clcn: number
   actual_bon_la_long: number
   actual_gtqd_month: number
+  actual_bon_goc_qd: number
+  actual_bon_la_bot_qd: number
+  actual_clcn_qd: number
+  actual_bon_la_long_qd: number
   completion_rate: number
   debt_rate: number
   source_transaction_count: number

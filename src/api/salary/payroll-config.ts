@@ -28,7 +28,7 @@ export type EmployeeDeductionItem = {
   employee_id: number
   code: string
   name: string
-  item_type: "INCOME" | "DEDUCTION"
+  item_type: "INCOME" | "ADVANCE" | "DEDUCTION"
   amount: number
   note?: string | null
 }
@@ -51,7 +51,7 @@ export type TaxBracketPayload = {
 export type EmployeeDeductionPayload = {
   period: string
   employeeId: number
-  itemType: "INCOME" | "DEDUCTION"
+  itemType: "INCOME" | "ADVANCE" | "DEDUCTION"
   amount: number
   note?: string | null
 }

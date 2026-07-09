@@ -40,6 +40,7 @@ import { Route as AuthenticatedVipPointRulesIndexRouteImport } from './routes/_a
 import { Route as AuthenticatedVipCustomerIndexRouteImport } from './routes/_authenticated/vip/customer/index'
 import { Route as AuthenticatedVipCustomerTargetIndexRouteImport } from './routes/_authenticated/vip/customer-target/index'
 import { Route as AuthenticatedVipCustomerPlanIndexRouteImport } from './routes/_authenticated/vip/customer-plan/index'
+import { Route as AuthenticatedToolsSalesExportInventoryRollbackIndexRouteImport } from './routes/_authenticated/tools/sales-export-inventory-rollback/index'
 import { Route as AuthenticatedToolsProductMergeIndexRouteImport } from './routes/_authenticated/tools/product-merge/index'
 import { Route as AuthenticatedSalesReturnsIndexRouteImport } from './routes/_authenticated/sales/returns/index'
 import { Route as AuthenticatedSalesReceiptsIndexRouteImport } from './routes/_authenticated/sales/receipts/index'
@@ -78,6 +79,7 @@ import { Route as AuthenticatedInventoryOutboundsIndexRouteImport } from './rout
 import { Route as AuthenticatedInventoryLotsIndexRouteImport } from './routes/_authenticated/inventory/lots/index'
 import { Route as AuthenticatedInventoryLedgersIndexRouteImport } from './routes/_authenticated/inventory/ledgers/index'
 import { Route as AuthenticatedInventoryInboundsIndexRouteImport } from './routes/_authenticated/inventory/inbounds/index'
+import { Route as AuthenticatedInventoryCostingIndexRouteImport } from './routes/_authenticated/inventory/costing/index'
 import { Route as AuthenticatedAccessUsersIndexRouteImport } from './routes/_authenticated/access/users/index'
 import { Route as AuthenticatedAccessUserRolesIndexRouteImport } from './routes/_authenticated/access/user-roles/index'
 import { Route as AuthenticatedAccessRolesIndexRouteImport } from './routes/_authenticated/access/roles/index'
@@ -264,6 +266,12 @@ const AuthenticatedVipCustomerPlanIndexRoute =
   AuthenticatedVipCustomerPlanIndexRouteImport.update({
     id: '/vip/customer-plan/',
     path: '/vip/customer-plan/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedToolsSalesExportInventoryRollbackIndexRoute =
+  AuthenticatedToolsSalesExportInventoryRollbackIndexRouteImport.update({
+    id: '/tools/sales-export-inventory-rollback/',
+    path: '/tools/sales-export-inventory-rollback/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedToolsProductMergeIndexRoute =
@@ -494,6 +502,12 @@ const AuthenticatedInventoryInboundsIndexRoute =
     path: '/inventory/inbounds/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedInventoryCostingIndexRoute =
+  AuthenticatedInventoryCostingIndexRouteImport.update({
+    id: '/inventory/costing/',
+    path: '/inventory/costing/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAccessUsersIndexRoute =
   AuthenticatedAccessUsersIndexRouteImport.update({
     id: '/access/users/',
@@ -589,6 +603,7 @@ export interface FileRoutesByFullPath {
   '/access/roles/': typeof AuthenticatedAccessRolesIndexRoute
   '/access/user-roles/': typeof AuthenticatedAccessUserRolesIndexRoute
   '/access/users/': typeof AuthenticatedAccessUsersIndexRoute
+  '/inventory/costing/': typeof AuthenticatedInventoryCostingIndexRoute
   '/inventory/inbounds/': typeof AuthenticatedInventoryInboundsIndexRoute
   '/inventory/ledgers/': typeof AuthenticatedInventoryLedgersIndexRoute
   '/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
@@ -627,6 +642,7 @@ export interface FileRoutesByFullPath {
   '/sales/receipts/': typeof AuthenticatedSalesReceiptsIndexRoute
   '/sales/returns/': typeof AuthenticatedSalesReturnsIndexRoute
   '/tools/product-merge/': typeof AuthenticatedToolsProductMergeIndexRoute
+  '/tools/sales-export-inventory-rollback/': typeof AuthenticatedToolsSalesExportInventoryRollbackIndexRoute
   '/vip/customer-plan/': typeof AuthenticatedVipCustomerPlanIndexRoute
   '/vip/customer-target/': typeof AuthenticatedVipCustomerTargetIndexRoute
   '/vip/customer/': typeof AuthenticatedVipCustomerIndexRoute
@@ -670,6 +686,7 @@ export interface FileRoutesByTo {
   '/access/roles': typeof AuthenticatedAccessRolesIndexRoute
   '/access/user-roles': typeof AuthenticatedAccessUserRolesIndexRoute
   '/access/users': typeof AuthenticatedAccessUsersIndexRoute
+  '/inventory/costing': typeof AuthenticatedInventoryCostingIndexRoute
   '/inventory/inbounds': typeof AuthenticatedInventoryInboundsIndexRoute
   '/inventory/ledgers': typeof AuthenticatedInventoryLedgersIndexRoute
   '/inventory/lots': typeof AuthenticatedInventoryLotsIndexRoute
@@ -708,6 +725,7 @@ export interface FileRoutesByTo {
   '/sales/receipts': typeof AuthenticatedSalesReceiptsIndexRoute
   '/sales/returns': typeof AuthenticatedSalesReturnsIndexRoute
   '/tools/product-merge': typeof AuthenticatedToolsProductMergeIndexRoute
+  '/tools/sales-export-inventory-rollback': typeof AuthenticatedToolsSalesExportInventoryRollbackIndexRoute
   '/vip/customer-plan': typeof AuthenticatedVipCustomerPlanIndexRoute
   '/vip/customer-target': typeof AuthenticatedVipCustomerTargetIndexRoute
   '/vip/customer': typeof AuthenticatedVipCustomerIndexRoute
@@ -753,6 +771,7 @@ export interface FileRoutesById {
   '/_authenticated/access/roles/': typeof AuthenticatedAccessRolesIndexRoute
   '/_authenticated/access/user-roles/': typeof AuthenticatedAccessUserRolesIndexRoute
   '/_authenticated/access/users/': typeof AuthenticatedAccessUsersIndexRoute
+  '/_authenticated/inventory/costing/': typeof AuthenticatedInventoryCostingIndexRoute
   '/_authenticated/inventory/inbounds/': typeof AuthenticatedInventoryInboundsIndexRoute
   '/_authenticated/inventory/ledgers/': typeof AuthenticatedInventoryLedgersIndexRoute
   '/_authenticated/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
@@ -791,6 +810,7 @@ export interface FileRoutesById {
   '/_authenticated/sales/receipts/': typeof AuthenticatedSalesReceiptsIndexRoute
   '/_authenticated/sales/returns/': typeof AuthenticatedSalesReturnsIndexRoute
   '/_authenticated/tools/product-merge/': typeof AuthenticatedToolsProductMergeIndexRoute
+  '/_authenticated/tools/sales-export-inventory-rollback/': typeof AuthenticatedToolsSalesExportInventoryRollbackIndexRoute
   '/_authenticated/vip/customer-plan/': typeof AuthenticatedVipCustomerPlanIndexRoute
   '/_authenticated/vip/customer-target/': typeof AuthenticatedVipCustomerTargetIndexRoute
   '/_authenticated/vip/customer/': typeof AuthenticatedVipCustomerIndexRoute
@@ -836,6 +856,7 @@ export interface FileRouteTypes {
     | '/access/roles/'
     | '/access/user-roles/'
     | '/access/users/'
+    | '/inventory/costing/'
     | '/inventory/inbounds/'
     | '/inventory/ledgers/'
     | '/inventory/lots/'
@@ -874,6 +895,7 @@ export interface FileRouteTypes {
     | '/sales/receipts/'
     | '/sales/returns/'
     | '/tools/product-merge/'
+    | '/tools/sales-export-inventory-rollback/'
     | '/vip/customer-plan/'
     | '/vip/customer-target/'
     | '/vip/customer/'
@@ -917,6 +939,7 @@ export interface FileRouteTypes {
     | '/access/roles'
     | '/access/user-roles'
     | '/access/users'
+    | '/inventory/costing'
     | '/inventory/inbounds'
     | '/inventory/ledgers'
     | '/inventory/lots'
@@ -955,6 +978,7 @@ export interface FileRouteTypes {
     | '/sales/receipts'
     | '/sales/returns'
     | '/tools/product-merge'
+    | '/tools/sales-export-inventory-rollback'
     | '/vip/customer-plan'
     | '/vip/customer-target'
     | '/vip/customer'
@@ -999,6 +1023,7 @@ export interface FileRouteTypes {
     | '/_authenticated/access/roles/'
     | '/_authenticated/access/user-roles/'
     | '/_authenticated/access/users/'
+    | '/_authenticated/inventory/costing/'
     | '/_authenticated/inventory/inbounds/'
     | '/_authenticated/inventory/ledgers/'
     | '/_authenticated/inventory/lots/'
@@ -1037,6 +1062,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sales/receipts/'
     | '/_authenticated/sales/returns/'
     | '/_authenticated/tools/product-merge/'
+    | '/_authenticated/tools/sales-export-inventory-rollback/'
     | '/_authenticated/vip/customer-plan/'
     | '/_authenticated/vip/customer-target/'
     | '/_authenticated/vip/customer/'
@@ -1280,6 +1306,13 @@ declare module '@tanstack/react-router' {
       path: '/vip/customer-plan'
       fullPath: '/vip/customer-plan/'
       preLoaderRoute: typeof AuthenticatedVipCustomerPlanIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tools/sales-export-inventory-rollback/': {
+      id: '/_authenticated/tools/sales-export-inventory-rollback/'
+      path: '/tools/sales-export-inventory-rollback'
+      fullPath: '/tools/sales-export-inventory-rollback/'
+      preLoaderRoute: typeof AuthenticatedToolsSalesExportInventoryRollbackIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/tools/product-merge/': {
@@ -1548,6 +1581,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInventoryInboundsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/inventory/costing/': {
+      id: '/_authenticated/inventory/costing/'
+      path: '/inventory/costing'
+      fullPath: '/inventory/costing/'
+      preLoaderRoute: typeof AuthenticatedInventoryCostingIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/access/users/': {
       id: '/_authenticated/access/users/'
       path: '/access/users'
@@ -1650,6 +1690,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccessRolesIndexRoute: typeof AuthenticatedAccessRolesIndexRoute
   AuthenticatedAccessUserRolesIndexRoute: typeof AuthenticatedAccessUserRolesIndexRoute
   AuthenticatedAccessUsersIndexRoute: typeof AuthenticatedAccessUsersIndexRoute
+  AuthenticatedInventoryCostingIndexRoute: typeof AuthenticatedInventoryCostingIndexRoute
   AuthenticatedInventoryInboundsIndexRoute: typeof AuthenticatedInventoryInboundsIndexRoute
   AuthenticatedInventoryLedgersIndexRoute: typeof AuthenticatedInventoryLedgersIndexRoute
   AuthenticatedInventoryLotsIndexRoute: typeof AuthenticatedInventoryLotsIndexRoute
@@ -1688,6 +1729,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSalesReceiptsIndexRoute: typeof AuthenticatedSalesReceiptsIndexRoute
   AuthenticatedSalesReturnsIndexRoute: typeof AuthenticatedSalesReturnsIndexRoute
   AuthenticatedToolsProductMergeIndexRoute: typeof AuthenticatedToolsProductMergeIndexRoute
+  AuthenticatedToolsSalesExportInventoryRollbackIndexRoute: typeof AuthenticatedToolsSalesExportInventoryRollbackIndexRoute
   AuthenticatedVipCustomerPlanIndexRoute: typeof AuthenticatedVipCustomerPlanIndexRoute
   AuthenticatedVipCustomerTargetIndexRoute: typeof AuthenticatedVipCustomerTargetIndexRoute
   AuthenticatedVipCustomerIndexRoute: typeof AuthenticatedVipCustomerIndexRoute
@@ -1729,6 +1771,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccessUserRolesIndexRoute:
     AuthenticatedAccessUserRolesIndexRoute,
   AuthenticatedAccessUsersIndexRoute: AuthenticatedAccessUsersIndexRoute,
+  AuthenticatedInventoryCostingIndexRoute:
+    AuthenticatedInventoryCostingIndexRoute,
   AuthenticatedInventoryInboundsIndexRoute:
     AuthenticatedInventoryInboundsIndexRoute,
   AuthenticatedInventoryLedgersIndexRoute:
@@ -1793,6 +1837,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSalesReturnsIndexRoute: AuthenticatedSalesReturnsIndexRoute,
   AuthenticatedToolsProductMergeIndexRoute:
     AuthenticatedToolsProductMergeIndexRoute,
+  AuthenticatedToolsSalesExportInventoryRollbackIndexRoute:
+    AuthenticatedToolsSalesExportInventoryRollbackIndexRoute,
   AuthenticatedVipCustomerPlanIndexRoute:
     AuthenticatedVipCustomerPlanIndexRoute,
   AuthenticatedVipCustomerTargetIndexRoute:

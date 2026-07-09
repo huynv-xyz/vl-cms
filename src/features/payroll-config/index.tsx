@@ -15,10 +15,11 @@ import {
   listSystemConfigs,
   updateSystemConfig,
 } from "@/api/salary/salary-rules"
-import { listEmployees } from "@/api/employee"
+import { getEmployee, listEmployees } from "@/api/employee"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SalaryPeriodStepper, currentSalaryPeriod } from "@/components/salary/period-stepper"
+import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
@@ -443,12 +444,28 @@ function TaxBracketTab() {
 type EmployeeDeductionFormState = {
   period: string
   employeeId: string
-  itemType: "INCOME" | "DEDUCTION"
+  itemType: "INCOME" | "ADVANCE" | "DEDUCTION"
   amount: string
   note: string
 }
 
-const monthlyIncomeTypeLabel = (value?: string | null) => value === "DEDUCTION" ? "Giảm trừ" : "Thu nhập"
+const monthlyIncomeTypeLabel = (value?: string | null) => {
+  if (value === "ADVANCE") return "Tạm ứng"
+  if (value === "DEDUCTION") return "Giảm trừ"
+  return "Thu nhập"
+}
+
+const monthlyIncomeTypeTone = (value?: string | null) => {
+  if (value === "ADVANCE") return "border-amber-200 text-amber-700"
+  if (value === "DEDUCTION") return "border-rose-200 text-rose-700"
+  return "border-emerald-200 text-emerald-700"
+}
+
+const monthlyIncomeAmountTone = (value?: string | null) => {
+  if (value === "ADVANCE") return "text-amber-700"
+  if (value === "DEDUCTION") return "text-rose-700"
+  return "text-emerald-700"
+}
 
 function MonthlyIncomeDialog({
   open,
@@ -469,12 +486,6 @@ function MonthlyIncomeDialog({
     amount: "0",
     note: "",
   })
-  const employeesQuery = useQuery({
-    queryKey: ["payroll-config", "employees-for-monthly-income"],
-    queryFn: () => listEmployees({ page: 1, size: 500, status: "1" }),
-    enabled: open,
-  })
-
   useEffect(() => {
     if (!open) return
     setForm(item ? {
@@ -522,22 +533,35 @@ function MonthlyIncomeDialog({
             <SalaryPeriodStepper className="w-full" value={form.period} onChange={(value) => setForm({ ...form, period: value })} />
           </Field>
           <Field label="Nhân viên">
-            <Select value={form.employeeId} onValueChange={(v) => setForm({ ...form, employeeId: v })}>
-              <SelectTrigger className="w-full"><SelectValue placeholder="Chọn nhân viên" /></SelectTrigger>
-              <SelectContent>
-                {(employeesQuery.data?.items ?? []).map(emp => (
-                  <SelectItem key={emp.id} value={String(emp.id)}>
-                    {emp.code} - {emp.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AsyncSelect
+              value={form.employeeId || undefined}
+              onChange={(value: string | number | undefined) => setForm({ ...form, employeeId: value ? String(value) : "" })}
+              dataSource={{
+                getList: (params: any) => listEmployees({ page: 1, size: 30, status: "1", keyword: params.keyword }),
+                getById: getEmployee,
+              }}
+              mapOption={(emp: any) => ({
+                value: String(emp.id),
+                label: `${emp.code || `#${emp.id}`} - ${emp.name || ""}`,
+                raw: emp,
+              })}
+              initialOption={item ? {
+                value: String(item.employee_id),
+                label: `${item.code || `#${item.employee_id}`} - ${item.name || ""}`,
+              } : undefined}
+              placeholder="Chọn nhân viên"
+              searchPlaceholder="Gõ mã hoặc tên nhân viên..."
+              emptyText="Không tìm thấy nhân viên"
+              clearText="Bỏ chọn nhân viên"
+              required
+            />
           </Field>
           <Field label="Loại">
-            <Select value={form.itemType} onValueChange={(v) => setForm({ ...form, itemType: v as "INCOME" | "DEDUCTION" })}>
+            <Select value={form.itemType} onValueChange={(v) => setForm({ ...form, itemType: v as "INCOME" | "ADVANCE" | "DEDUCTION" })}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="INCOME">Thu nhập</SelectItem>
+                <SelectItem value="ADVANCE">Tạm ứng</SelectItem>
                 <SelectItem value="DEDUCTION">Giảm trừ</SelectItem>
               </SelectContent>
             </Select>
@@ -599,6 +623,9 @@ function MonthlyIncomeTab() {
   const totalIncome = items
     .filter(item => item.item_type === "INCOME")
     .reduce((sum, item) => sum + (item.amount ?? 0), 0)
+  const totalAdvance = items
+    .filter(item => item.item_type === "ADVANCE")
+    .reduce((sum, item) => sum + (item.amount ?? 0), 0)
   const totalDeduction = items
     .filter(item => item.item_type === "DEDUCTION")
     .reduce((sum, item) => sum + (item.amount ?? 0), 0)
@@ -645,10 +672,14 @@ function MonthlyIncomeTab() {
           </Button>
         </div>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-md border bg-emerald-50 px-4 py-3 text-emerald-900">
           <div className="text-xs font-medium uppercase">Tổng thu nhập</div>
           <div className="mt-1 text-lg font-semibold tabular-nums">{fmt(totalIncome)}</div>
+        </div>
+        <div className="rounded-md border bg-amber-50 px-4 py-3 text-amber-900">
+          <div className="text-xs font-medium uppercase">Tổng tạm ứng</div>
+          <div className="mt-1 text-lg font-semibold tabular-nums">{fmt(totalAdvance)}</div>
         </div>
         <div className="rounded-md border bg-rose-50 px-4 py-3 text-rose-900">
           <div className="text-xs font-medium uppercase">Tổng giảm trừ</div>
@@ -680,11 +711,11 @@ function MonthlyIncomeTab() {
                 </td>
                 <td className="px-4 py-3"><Badge variant="outline">{item.period}</Badge></td>
                 <td className="px-4 py-3">
-                  <Badge variant="outline" className={item.item_type === "INCOME" ? "border-emerald-200 text-emerald-700" : "border-rose-200 text-rose-700"}>
+                  <Badge variant="outline" className={monthlyIncomeTypeTone(item.item_type)}>
                     {monthlyIncomeTypeLabel(item.item_type)}
                   </Badge>
                 </td>
-                <td className={`px-4 py-3 text-right font-medium tabular-nums ${item.item_type === "INCOME" ? "text-emerald-700" : "text-rose-700"}`}>
+                <td className={`px-4 py-3 text-right font-medium tabular-nums ${monthlyIncomeAmountTone(item.item_type)}`}>
                   {fmt(item.amount)}
                 </td>
                 <td className="max-w-xs truncate px-4 py-3 text-muted-foreground">{item.note || "-"}</td>

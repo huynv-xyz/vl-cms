@@ -13,6 +13,13 @@ const productLabels: Record<ProductKey, string> = {
     bon_la_long: "Bón lá lỏng",
 }
 
+const productUnitMultipliers: Record<ProductKey, number> = {
+    bon_goc: 1,
+    bon_la_bot: 1000,
+    clcn: 1,
+    bon_la_long: 1000,
+}
+
 function formatNumber(value?: number | null) {
     if (value == null) return "-"
     return value.toLocaleString("vi-VN")
@@ -143,8 +150,9 @@ function productCell(row: SalesActualItem, key: ProductKey) {
     const target = getTargetValue(row, key)
     const actual = getActualValue(row, key)
     const coeff = getCoeff(row, key)
-    const targetQd = target == null || coeff == null ? undefined : target * coeff
-    const actualQd = actual == null || coeff == null ? undefined : actual * coeff
+    const unitMultiplier = productUnitMultipliers[key]
+    const targetQd = target == null || coeff == null ? undefined : target * unitMultiplier * coeff
+    const actualQd = actual == null || coeff == null ? undefined : actual * unitMultiplier * coeff
     const tone = completionTone(actual, target)
     const progress = Math.min(tone.rate ?? 0, 140)
 
@@ -155,7 +163,7 @@ function productCell(row: SalesActualItem, key: ProductKey) {
                     {productLabels[key]}
                 </span>
                 <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-semibold tabular-nums">
-                    HS x{formatCoeff(coeff)}
+                    HS x{formatCoeff(coeff)}{unitMultiplier !== 1 ? " · x1000" : ""}
                 </Badge>
             </div>
             <div className="flex items-start justify-between gap-2">
