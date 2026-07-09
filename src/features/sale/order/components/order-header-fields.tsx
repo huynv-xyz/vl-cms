@@ -54,8 +54,6 @@ export function OrderHeaderFields({ value, onChange, showStatus = true }: Props)
                     placeholder="Chọn nhân viên"
                     value={value.employee_id}
                     onChange={(employeeId: any) => update({ employee_id: employeeId })}
-                    disabled
-                    className="disabled:cursor-default disabled:bg-background disabled:text-foreground disabled:opacity-100"
                     dataSource={{ getList: listEmployees, getById: getEmployee }}
                     mapOption={(x: any) => ({
                         value: x.id,

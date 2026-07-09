@@ -2,10 +2,11 @@ import { ColumnDef } from "@tanstack/react-table"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
 import { buildBadgeColumn } from "@/components/crud/build-badge-column"
-import { buildActionsColumn } from "@/components/crud/build-actions-column"
-import { formatNumber } from "@/lib/utils"
 import type { Employee } from "../data/schema"
 import { EmployeeRowActions } from "./employee-row-actions"
+
+const gridCell = "border-r border-slate-200 last:border-r-0"
+const centerCell = `${gridCell} text-center`
 
 function formatDate(value?: string | null) {
     if (!value) return "-"
@@ -22,67 +23,125 @@ function formatDate(value?: string | null) {
     return `${day}/${month}/${date.getFullYear()}`
 }
 
-export const employeeColumns: ColumnDef<Employee>[] = [
-    buildIndexColumn(),
+function OneLineText({
+    value,
+    className,
+}: {
+    value: unknown
+    className?: string
+}) {
+    const display =
+        value === null || value === undefined || value === "" ? "-" : String(value)
 
-    buildTextColumn({
+    return <span className={`block min-w-0 truncate ${className ?? ""}`}>{display}</span>
+}
+
+export const employeeColumns: ColumnDef<Employee>[] = [
+    {
+        ...buildIndexColumn<Employee>(),
+        size: 56,
+        minSize: 48,
+        meta: {
+            thClassName: `w-14 whitespace-nowrap ${centerCell}`,
+            tdClassName: `w-14 whitespace-nowrap ${centerCell}`,
+        },
+    },
+
+    buildTextColumn<Employee>({
         accessorKey: "code",
         title: "Mã NV",
+        width: 130,
+        className: `w-[130px] whitespace-nowrap ${centerCell}`,
+        render: (row) => (
+            <OneLineText
+                value={row.code}
+                className="text-center font-mono text-sm font-semibold"
+            />
+        ),
     }),
 
-    buildTextColumn({
+    buildTextColumn<Employee>({
         accessorKey: "name",
-        title: "Tên",
+        title: "Tên nhân viên",
+        width: 240,
+        className: `w-[240px] ${centerCell}`,
+        render: (row) => (
+            <OneLineText value={row.name} className="text-center text-sm font-medium" />
+        ),
     }),
 
-    buildTextColumn({
+    buildTextColumn<Employee>({
         accessorKey: "birth_date",
-        render: (row) => formatDate(row.birth_date),
         title: "Ngày sinh",
+        width: 120,
+        className: `w-[120px] whitespace-nowrap ${centerCell}`,
+        render: (row) => formatDate(row.birth_date),
     }),
 
-    buildTextColumn({
+    buildTextColumn<Employee>({
         accessorKey: "identity_no",
         title: "CMND/CCCD",
+        width: 150,
+        className: `w-[150px] whitespace-nowrap ${centerCell}`,
+        render: (row) => <OneLineText value={row.identity_no} className="text-center text-sm" />,
+    }),
+
+    buildTextColumn<Employee>({
+        accessorKey: "identity_issue_date",
+        title: "Ngày cấp",
+        width: 120,
+        className: `w-[120px] whitespace-nowrap ${centerCell}`,
+        render: (row) => formatDate(row.identity_issue_date),
+    }),
+
+    buildTextColumn<Employee>({
+        accessorKey: "identity_issue_place",
+        title: "Nơi cấp",
+        width: 180,
+        className: `w-[180px] ${centerCell}`,
+        render: (row) => (
+            <OneLineText value={row.identity_issue_place} className="text-center text-sm" />
+        ),
+    }),
+
+    buildTextColumn<Employee>({
+        accessorKey: "permanent_address",
+        title: "Địa chỉ",
+        width: 320,
+        className: `w-[320px] ${gridCell}`,
+        render: (row) => <OneLineText value={row.permanent_address} className="text-sm" />,
     }),
 
     {
-        accessorKey: "labor_type",
-        header: "Loại LĐ",
-        cell: ({ row }) => row.original.labor_type || "CT",
+        ...buildBadgeColumn<Employee>({
+            accessorKey: "status",
+            title: "Trạng thái",
+            width: 120,
+            mapValueToLabel: (v) => (Number(v) === 1 ? "Còn làm" : "Đã nghỉ"),
+            mapValueToVariant: (v) => (Number(v) === 1 ? "default" : "outline"),
+            mapValueToClassName: (v) =>
+                Number(v) === 1 ? "text-xs" : "text-xs text-muted-foreground",
+        }),
+        meta: {
+            thClassName: `w-[120px] whitespace-nowrap ${centerCell}`,
+            tdClassName: `w-[120px] whitespace-nowrap ${centerCell}`,
+        },
     },
 
     {
-        accessorKey: "dependent_count",
-        header: () => <div className="text-right">NPT</div>,
-        cell: ({ row }) => <div className="text-right tabular-nums">{formatNumber(row.original.dependent_count ?? 0)}</div>,
+        id: "actions",
+        header: "Thao tác",
+        enableSorting: false,
+        enableHiding: false,
+        size: 90,
+        cell: ({ row }) => (
+            <div className="flex items-center justify-center gap-2">
+                <EmployeeRowActions row={row} />
+            </div>
+        ),
+        meta: {
+            thClassName: `w-[90px] whitespace-nowrap ${centerCell}`,
+            tdClassName: `w-[90px] whitespace-nowrap ${centerCell}`,
+        },
     },
-
-    {
-        accessorKey: "basic_salary",
-        header: () => <div className="text-right">Lương cơ bản</div>,
-        cell: ({ row }) => <div className="text-right tabular-nums">{formatNumber(row.original.basic_salary)}</div>,
-    },
-
-    {
-        accessorKey: "allowance_salary",
-        header: () => <div className="text-right">Phụ cấp</div>,
-        cell: ({ row }) => <div className="text-right tabular-nums">{formatNumber(row.original.allowance_salary)}</div>,
-    },
-
-    {
-        accessorKey: "insurance_base",
-        header: () => <div className="text-right">Lương đóng BH</div>,
-        cell: ({ row }) => <div className="text-right tabular-nums">{formatNumber(row.original.insurance_base)}</div>,
-    },
-
-    buildBadgeColumn({
-        accessorKey: "status",
-        title: "Trạng thái",
-        mapValueToLabel: (v) => (Number(v) === 1 ? "Còn làm" : "Đã nghỉ"),
-    }),
-
-    buildActionsColumn({
-        renderActions: (_, row) => <EmployeeRowActions row={row} />,
-    }),
 ]
