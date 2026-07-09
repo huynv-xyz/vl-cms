@@ -1,15 +1,16 @@
 import { type ColumnDef } from '@tanstack/react-table'
+import { FileText } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { LongText } from '@/components/long-text'
-import { buildActionsColumn } from '@/components/crud/build-actions-column'
 import { buildBadgeColumn } from '@/components/crud/build-badge-column'
 import { buildIndexColumn } from '@/components/crud/build-index-column'
-import { buildSelectColumn } from '@/components/crud/build-select-column'
 import { buildTextColumn } from '@/components/crud/build-text-column'
 import type { Customer } from '../data/schema'
 import { CustomerRowActions } from './customer-row-actions'
 import { useCustomers } from './customers-provider'
+
+const gridCell = 'border-r border-slate-200 last:border-r-0'
+const centerCell = `${gridCell} text-center`
 
 function TruncatedCustomerText({
     value,
@@ -19,15 +20,12 @@ function TruncatedCustomerText({
     className?: string
 }) {
     const display =
-        value === null || value === undefined || value === "" ? "-" : String(value)
+        value === null || value === undefined || value === '' ? '-' : String(value)
 
     return (
-        <LongText
-            className={className}
-            contentClassName="max-w-[520px] whitespace-normal break-words leading-relaxed"
-        >
+        <span className={`block min-w-0 truncate ${className ?? ''}`}>
             {display}
-        </LongText>
+        </span>
     )
 }
 
@@ -35,28 +33,40 @@ function CustomerInvoiceInfoButton({ customer }: { customer: Customer }) {
     const { openDetail } = useCustomers()
 
     return (
-        <Button type="button" variant="outline" size="sm" onClick={() => openDetail(customer)}>
-            Thông tin xuất HĐ
-            {customer.alias_count && customer.alias_count > 1 ? ` (${customer.alias_count})` : ""}
+        <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            title="Thông tin xuất HĐ"
+            onClick={() => openDetail(customer)}
+        >
+            <FileText className="h-4 w-4" />
+            <span className="sr-only">Thông tin xuất HĐ</span>
         </Button>
     )
 }
 
 export const customerColumns: ColumnDef<Customer>[] = [
-    buildSelectColumn<Customer>(),
-
-    buildIndexColumn<Customer>(),
+    {
+        ...buildIndexColumn<Customer>(),
+        size: 56,
+        minSize: 48,
+        meta: {
+            thClassName: `w-14 whitespace-nowrap ${centerCell}`,
+            tdClassName: `w-14 whitespace-nowrap ${centerCell}`,
+        },
+    },
 
     buildTextColumn<Customer>({
         accessorKey: 'code',
         title: 'Mã khách hàng',
-        width: 140,
-        maxWidth: 140,
-        textClassName: 'font-medium text-sm',
+        width: 170,
+        className: `w-[170px] whitespace-nowrap ${centerCell}`,
         render: (row) => (
             <TruncatedCustomerText
                 value={row.code}
-                className="max-w-[140px] font-medium text-sm"
+                className="text-center font-mono text-sm font-semibold"
             />
         ),
     }),
@@ -64,90 +74,135 @@ export const customerColumns: ColumnDef<Customer>[] = [
     buildTextColumn<Customer>({
         accessorKey: 'name',
         title: 'Tên khách hàng',
-        width: 320,
-        maxWidth: 320,
-        render: (row) => <TruncatedCustomerText value={row.name} className="max-w-[320px] text-sm" />,
+        width: 340,
+        className: `w-[340px] ${gridCell}`,
+        render: (row) => (
+            <TruncatedCustomerText
+                value={row.name}
+                className="text-sm font-medium"
+            />
+        ),
     }),
 
     buildTextColumn<Customer>({
         accessorKey: 'address',
         title: 'Địa chỉ',
-        width: 260,
-        maxWidth: 260,
-        render: (row) => <TruncatedCustomerText value={row.address} className="max-w-[260px] text-sm" />,
-    }),
-
-    buildTextColumn<Customer>({
-        title: 'Nhân viên phụ trách',
-        width: 190,
-        maxWidth: 190,
-        accessorFn: (row) =>
-            row.employee
-                ? row.employee.code
-                    ? `${row.employee.code} - ${row.employee.name}`
-                    : row.employee.name
-                : row.employee_id,
+        width: 320,
+        className: `w-[320px] ${gridCell}`,
         render: (row) => (
             <TruncatedCustomerText
-                value={
-                    row.employee
-                        ? row.employee.code
-                            ? `${row.employee.code} - ${row.employee.name}`
-                            : row.employee.name
-                        : row.employee_id
-                }
-                className="max-w-[190px] text-sm"
+                value={row.address}
+                className="text-sm"
             />
         ),
     }),
 
-    buildBadgeColumn<Customer>({
-        accessorKey: 'type',
-        title: 'Loại khách hàng',
-        width: 120,
-        mapValueToLabel: (value) => String(value || '-'),
-        mapValueToVariant: () => 'outline',
+    buildTextColumn<Customer>({
+        title: 'Nhân viên phụ trách',
+        width: 210,
+        className: `w-[210px] ${centerCell}`,
+        render: (row) => (
+            <div className="min-w-0 text-center">
+                <div className="truncate text-sm font-medium">
+                    {row.employee?.name || row.employee_id || '-'}
+                </div>
+                {row.employee?.code && (
+                    <div className="truncate text-xs text-muted-foreground">
+                        {row.employee.code}
+                    </div>
+                )}
+            </div>
+        ),
     }),
 
-    buildBadgeColumn<Customer>({
-        accessorKey: 'region',
-        title: 'Khu vực',
-        width: 120,
-        mapValueToLabel: (value) => String(value || '-'),
-        mapValueToVariant: () => 'secondary',
-    }),
+    {
+        ...buildBadgeColumn<Customer>({
+            accessorKey: 'type',
+            title: 'Loại khách hàng',
+            width: 130,
+            mapValueToLabel: (value) => String(value || '-'),
+            mapValueToVariant: () => 'outline',
+        }),
+        meta: {
+            thClassName: `w-[130px] whitespace-nowrap ${centerCell}`,
+            tdClassName: `w-[130px] whitespace-nowrap ${centerCell}`,
+        },
+    },
 
-    buildBadgeColumn<Customer>({
-        accessorKey: 'status',
-        title: 'Trạng thái',
-        width: 120,
-        mapValueToLabel: (value) => (Number(value) === 1 ? 'Hoạt động' : 'Tắt'),
-        mapValueToVariant: (value) => (Number(value) === 1 ? 'default' : 'outline'),
-        mapValueToClassName: (value) =>
-            Number(value) === 1 ? 'text-xs' : 'text-xs text-muted-foreground',
-    }),
+    {
+        ...buildBadgeColumn<Customer>({
+            accessorKey: 'region',
+            title: 'Khu vực',
+            width: 110,
+            mapValueToLabel: (value) => String(value || '-'),
+            mapValueToVariant: () => 'secondary',
+        }),
+        meta: {
+            thClassName: `w-[110px] whitespace-nowrap ${centerCell}`,
+            tdClassName: `w-[110px] whitespace-nowrap ${centerCell}`,
+        },
+    },
+
+    {
+        ...buildBadgeColumn<Customer>({
+            accessorKey: 'status',
+            title: 'Trạng thái',
+            width: 120,
+            mapValueToLabel: (value) => (Number(value) === 1 ? 'Hoạt động' : 'Ngừng'),
+            mapValueToVariant: (value) => (Number(value) === 1 ? 'default' : 'outline'),
+            mapValueToClassName: (value) =>
+                Number(value) === 1 ? 'text-xs' : 'text-xs text-muted-foreground',
+        }),
+        meta: {
+            thClassName: `w-[120px] whitespace-nowrap ${centerCell}`,
+            tdClassName: `w-[120px] whitespace-nowrap ${centerCell}`,
+        },
+    },
 
     buildTextColumn<Customer>({
         accessorKey: 'note',
         title: 'Ghi chú',
         width: 220,
-        maxWidth: 220,
-        render: (row) => <TruncatedCustomerText value={row.note} className="max-w-[220px] text-sm" />,
+        className: `w-[220px] ${gridCell}`,
+        render: (row) => (
+            <TruncatedCustomerText
+                value={row.note}
+                className="text-sm"
+            />
+        ),
     }),
 
     {
         id: 'invoice_info',
         header: 'Thông tin xuất HĐ',
-        cell: ({ row }) => <CustomerInvoiceInfoButton customer={row.original} />,
+        size: 180,
+        cell: ({ row }) => (
+            <div className="flex justify-center">
+                <CustomerInvoiceInfoButton customer={row.original} />
+            </div>
+        ),
         enableSorting: false,
         enableHiding: false,
         meta: {
-            className: 'text-left',
-            tdClassName: 'text-left',
+            thClassName: `w-[180px] whitespace-nowrap ${centerCell}`,
+            tdClassName: `w-[180px] whitespace-nowrap ${centerCell}`,
         },
     },
 
-    buildActionsColumn<Customer>({
-        renderActions: (_, row) => <CustomerRowActions row={row} />,
-    }),
+    {
+        id: 'actions',
+        header: 'Thao tác',
+        enableSorting: false,
+        enableHiding: false,
+        size: 90,
+        cell: ({ row }) => (
+            <div className="flex items-center justify-center gap-2">
+                <CustomerRowActions row={row} />
+            </div>
+        ),
+        meta: {
+            thClassName: `w-[90px] whitespace-nowrap ${centerCell}`,
+            tdClassName: `w-[90px] whitespace-nowrap ${centerCell}`,
+        },
+    },
 ]

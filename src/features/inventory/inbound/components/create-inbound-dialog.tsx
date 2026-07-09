@@ -22,7 +22,7 @@ export function CreateInboundDialog({ open, onOpenChange }: any) {
     const queryClient = useQueryClient()
 
     const [formData, setFormData] = useState<any>({
-        inbound_date: new Date().toISOString().slice(0, 10),
+        inbound_date: todayYmd(),
         warehouse_id: undefined,
         product_id: undefined,
         lot_no: "",
@@ -98,4 +98,12 @@ export function CreateInboundDialog({ open, onOpenChange }: any) {
             </DialogContent>
         </Dialog>
     )
+}
+
+function todayYmd() {
+    const date = new Date()
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
 }

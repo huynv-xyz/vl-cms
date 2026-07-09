@@ -22,6 +22,8 @@ type Props = {
 
 export function OrderHeaderFields({ value, onChange, showStatus = true }: Props) {
     const update = (patch: any) => onChange({ ...value, ...patch })
+    const customerEmployeeId = (customerOption: any) =>
+        customerOption?.raw?.employee_id ?? customerOption?.raw?.employee?.id ?? undefined
 
     return (
         <div className="grid gap-x-4 gap-y-2.5 md:grid-cols-2 xl:grid-cols-[minmax(420px,1fr)_minmax(360px,0.9fr)_minmax(300px,0.75fr)]">
@@ -29,7 +31,12 @@ export function OrderHeaderFields({ value, onChange, showStatus = true }: Props)
                 <AsyncSelect
                     placeholder="Chọn khách hàng"
                     value={value.customer_id}
-                    onChange={(customerId: any) => update({ customer_id: customerId })}
+                    onChange={(customerId: any, customerOption: any) =>
+                        update({
+                            customer_id: customerId,
+                            employee_id: customerEmployeeId(customerOption),
+                        })
+                    }
                     required
                     dataSource={{ getList: listCustomers, getById: getCustomer }}
                     popoverContentClassName="w-[520px] max-w-[calc(100vw-2rem)]"
@@ -47,6 +54,8 @@ export function OrderHeaderFields({ value, onChange, showStatus = true }: Props)
                     placeholder="Chọn nhân viên"
                     value={value.employee_id}
                     onChange={(employeeId: any) => update({ employee_id: employeeId })}
+                    disabled
+                    className="disabled:cursor-default disabled:bg-background disabled:text-foreground disabled:opacity-100"
                     dataSource={{ getList: listEmployees, getById: getEmployee }}
                     mapOption={(x: any) => ({
                         value: x.id,

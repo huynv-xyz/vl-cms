@@ -1,6 +1,7 @@
+import { useQuery } from '@tanstack/react-query'
 import { PageSection } from '@/components/page-section'
 import { usePaginatedList } from '@/hooks/use-paginated-list'
-import { listCustomers } from '@/api/customer'
+import { listCustomers, type CustomerListParams } from '@/api/customer'
 import { CustomerTable } from './components/customer-table'
 import { CustomerDialogs } from './components/customer-dialogs'
 import { CustomersProvider } from './components/customers-provider'
@@ -18,21 +19,49 @@ export default function CustomerPage() {
 
     const { pagination, setPagination } = useUrlPagination(search, navigate)
 
-    const { keyword, setKeyword, multiFilters, setMultiFilters, requestFilters } =
-        useUrlListFilters(search, navigate, ['type', 'region', 'status'])
+    const {
+        keyword,
+        setKeyword,
+        singleFilters,
+        setSingleFilters,
+        requestFilters,
+    } = useUrlListFilters(search, navigate, [], ['type', 'region', 'status'])
+
+    const requestParams = {
+        keyword,
+        type: requestFilters.type,
+        region: requestFilters.region,
+        status: requestFilters.status,
+    }
 
     const { data, isLoading, error } = usePaginatedList(
-        ['customer'],
+        [
+            'customer',
+            search.page,
+            search.size,
+            keyword,
+            singleFilters.type,
+            singleFilters.region,
+            singleFilters.status,
+        ],
         listCustomers,
         {
             page: search.page,
             size: search.size,
-            keyword,
-            type: requestFilters.type,
-            region: requestFilters.region,
-            status: requestFilters.status,
+            ...requestParams,
         },
     )
+
+    const { data: summary, isLoading: isSummaryLoading } = useQuery({
+        queryKey: [
+            'customer-summary',
+            keyword,
+            singleFilters.type,
+            singleFilters.region,
+            singleFilters.status,
+        ],
+        queryFn: () => fetchCustomerSummary(requestParams),
+    })
 
     return (
         <CustomersProvider>
@@ -61,23 +90,29 @@ export default function CustomerPage() {
                     <div className='space-y-4'>
                         <CustomerTable
                             data={data.items}
+                            summary={summary}
+                            isSummaryLoading={isSummaryLoading}
                             pagination={pagination}
                             onPaginationChange={setPagination}
                             pageCount={data.total_page}
                             keyword={keyword}
-                            onKeywordChange={setKeyword}
-                            filters={{
-                                types: multiFilters.type,
-                                regions: multiFilters.region,
-                                statuses: multiFilters.status,
+                            onKeywordChange={(value) => {
+                                setPagination((p) => ({ ...p, pageIndex: 0 }))
+                                setKeyword(value)
                             }}
-                            onFiltersChange={(next) =>
-                                setMultiFilters({
-                                    type: next.types,
-                                    region: next.regions,
-                                    status: next.statuses,
+                            filters={{
+                                type: singleFilters.type,
+                                region: singleFilters.region,
+                                status: singleFilters.status,
+                            }}
+                            onFiltersChange={(next) => {
+                                setPagination((p) => ({ ...p, pageIndex: 0 }))
+                                setSingleFilters({
+                                    type: next.type,
+                                    region: next.region,
+                                    status: next.status,
                                 })
-                            }
+                            }}
                         />
                         <CustomerDialogs />
                     </div>
@@ -85,4 +120,27 @@ export default function CustomerPage() {
             </PageSection>
         </CustomersProvider>
     )
+}
+
+async function fetchCustomerSummary(filters: Omit<CustomerListParams, 'page' | 'size'>) {
+    const baseParams = { ...filters, page: 1, size: 1 }
+    const [totalRes, activeRes, b2bRes, b2cRes] = await Promise.all([
+        listCustomers(baseParams),
+        filters.status && filters.status !== '1'
+            ? Promise.resolve({ total: 0 })
+            : listCustomers({ ...baseParams, status: '1' }),
+        filters.type && filters.type !== 'B2B'
+            ? Promise.resolve({ total: 0 })
+            : listCustomers({ ...baseParams, type: 'B2B' }),
+        filters.type && filters.type !== 'B2C'
+            ? Promise.resolve({ total: 0 })
+            : listCustomers({ ...baseParams, type: 'B2C' }),
+    ])
+
+    return {
+        total: totalRes.total ?? 0,
+        active: activeRes.total ?? 0,
+        b2b: b2bRes.total ?? 0,
+        b2c: b2cRes.total ?? 0,
+    }
 }
