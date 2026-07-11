@@ -4,7 +4,8 @@ import CustomerVipPage from "@/features/vip/customer"
 export const Route = createFileRoute("/_authenticated/vip/customer/")({
     validateSearch: (search: Record<string, unknown>) => ({
         page: Number(search.page ?? 1),
-        size: Number(search.size ?? 20),
+        size: Number(search.size ?? 50),
+        calc_year: Number(search.calc_year ?? new Date().getFullYear()),
         keyword: typeof search.keyword === 'string' ? search.keyword : undefined,
         region: typeof search.region === 'string' ? search.region : undefined,
         tier_code: typeof search.tier_code === 'string' ? search.tier_code : undefined,

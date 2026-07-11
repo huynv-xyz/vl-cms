@@ -1,6 +1,7 @@
 import { PageSection } from '@/components/page-section'
 import { usePaginatedList } from '@/hooks/use-paginated-list'
 import { CustomerVipTable } from './components/customer-vip-table'
+import { ExportCustomerVipButton } from './components/export-customer-vip-button'
 import { listCustomerVips } from '@/api/customer-vip'
 import { Route } from '@/routes/_authenticated/vip/customer'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
@@ -32,6 +33,7 @@ export default function CustomerVipPage() {
             'customer-vip',
             search.page,
             search.size,
+            search.calc_year,
             keyword,
             multiFilters.region,
             multiFilters.tier_code,
@@ -45,6 +47,7 @@ export default function CustomerVipPage() {
         {
             page: search.page,
             size: search.size,
+            calc_year: search.calc_year,
             keyword,
             region: requestFilters.region,
             tier_code: requestFilters.tier_code,
@@ -56,12 +59,34 @@ export default function CustomerVipPage() {
         },
     )
 
+    const tableFilters = {
+        calc_year: search.calc_year,
+        regions: multiFilters.region,
+        tier_codes: multiFilters.tier_code,
+        group_codes: multiFilters.group_code,
+        customer_types: multiFilters.customer_type,
+        customer_codes: multiFilters.customer_code,
+        from_date: singleFilters.from_date,
+        to_date: singleFilters.to_date,
+    }
+
+    const setCalcYear = (year: number) => {
+        navigate({
+            search: (prev) => ({
+                ...prev,
+                calc_year: year,
+                page: 1,
+            }),
+            replace: true,
+        })
+    }
+
     return (
         <PageSection
             isLoading={isLoading}
             error={error}
             title='Danh sách VIP'
-            description='Danh sách khách hàng và thông tin xếp hạng VIP.'
+            actions={<ExportCustomerVipButton keyword={keyword} filters={tableFilters} />}
             data={data}
         >
             {(data) => (
@@ -72,15 +97,8 @@ export default function CustomerVipPage() {
                     pageCount={data.total_page}
                     keyword={keyword}
                     onKeywordChange={setKeyword}
-                    filters={{
-                        regions: multiFilters.region,
-                        tier_codes: multiFilters.tier_code,
-                        group_codes: multiFilters.group_code,
-                        customer_types: multiFilters.customer_type,
-                        customer_codes: multiFilters.customer_code,
-                        from_date: singleFilters.from_date,
-                        to_date: singleFilters.to_date,
-                    }}
+                    filters={tableFilters}
+                    onCalcYearChange={setCalcYear}
                     onFiltersChange={(next) =>
                         setMultiFilters({
                             region: next.regions,
