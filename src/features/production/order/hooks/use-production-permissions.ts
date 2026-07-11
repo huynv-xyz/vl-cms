@@ -33,6 +33,7 @@ export type ProductionPermissions = {
     /** Hủy LSX */
     canCancel: boolean
     canChangeDate: boolean
+    canAdjustDone: boolean
     /** Loading flag */
     isLoading: boolean
 }
@@ -92,6 +93,7 @@ export function useProductionPermissions(): ProductionPermissions {
         canUnpost: isAdmin || has(permissions, "unpost"),
         canCancel: isAdmin || has(permissions, "cancel"),
         canChangeDate: isAdmin || has(permissions, "change-date"),
+        canAdjustDone: isAdmin || has(permissions, "adjust"),
         isLoading,
     }
 }

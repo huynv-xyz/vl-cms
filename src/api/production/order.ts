@@ -157,6 +157,70 @@ export const changeProductionDate = (
     body: ChangeProductionDateRequest
 ) => apiPost<ProductionDateChangeResult>(`/productions/${id}/change-date`, body)
 
+export type AdjustProductionRequest = {
+    warehouse_id?: number
+    items: {
+        product_id?: number
+        warehouse_id?: number
+        quantity_plan?: number
+        quantity_done?: number
+        lot_no?: string
+        expiry_date?: string
+        note?: string
+        materials?: {
+            product_id?: number
+            original_product_id?: number
+            warehouse_id?: number
+            material_type?: string
+            source_type?: string
+            source_ref_id?: number
+            bom_item_id?: number
+            quantity_per_unit?: number
+            quantity_original?: number
+            quantity?: number
+            lot_id?: number
+            lot_no?: string
+            note?: string
+        }[]
+    }[]
+}
+
+export type ProductionAdjustmentResult = {
+    success: boolean
+    message?: string
+    production_id?: number
+    production_no?: string
+    production_date?: string
+    status?: string
+    issue_voucher_found?: boolean
+    receive_voucher_found?: boolean
+    allocation_rows?: number
+    details?: ProductionAdjustmentDetail[]
+}
+
+export type ProductionAdjustmentDetail = {
+    type?: string
+    category?: string
+    status?: string
+    message?: string
+    product_code?: string
+    product_name?: string
+    warehouse_code?: string
+    lot_code?: string
+    quantity?: number
+    available_quantity?: number
+}
+
+export const checkProductionAdjustment = (
+    id: number,
+    body: AdjustProductionRequest
+) => apiPost<ProductionAdjustmentResult>(`/productions/${id}/adjust/check`, body)
+
+export const adjustProduction = (
+    id: number,
+    body: AdjustProductionRequest
+) => apiPost<ProductionAdjustmentResult>(`/productions/${id}/adjust`, body)
+
 export type SaveProductionMaterialRequest = {
     production_item_id?: number
     product_id?: number

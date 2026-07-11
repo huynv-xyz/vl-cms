@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { ColumnDef } from "@tanstack/react-table"
+import { useQuery } from "@tanstack/react-query"
 import { Printer } from "lucide-react"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
@@ -17,11 +18,20 @@ import {
 } from "@/components/ui/select"
 
 import { useUpdateStatus } from "@/hooks/use-update-status"
+import { getMyPermissions } from "@/api/auth/permission"
 import { updateReturnStatus } from "@/api/sale/return"
 import { ReturnDetailDialog } from "../components/return-detail-dialog"
 import { RETURN_STATUSES, returnStatusLabel } from "./return-status"
 
 export function useReturnColumns() {
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canChangeDoneStatus = permissions.some(
+        (p: any) => p.module === "sales.returns" && p.action === "status.after-done"
+    )
+
     const [selectedReturn, setSelectedReturn] = useState<{
         id: number
         printOnOpen?: boolean
@@ -147,7 +157,7 @@ export function useReturnColumns() {
             minSize: 150,
             cell: ({ row }) => {
                 const status = row.original.status
-                const isLocked = status === "DONE"
+                const isLocked = status === "DONE" && !canChangeDoneStatus
 
                 return (
                     <Select
