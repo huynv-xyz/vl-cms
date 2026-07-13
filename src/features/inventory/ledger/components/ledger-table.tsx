@@ -57,6 +57,10 @@ type Props = {
         product_code_text_op?: string
         product_name_text?: string
         product_name_text_op?: string
+        warehouse_code_text?: string
+        warehouse_code_text_op?: string
+        warehouse_name_text?: string
+        warehouse_name_text_op?: string
         unit?: string
         lot_text?: string
         lot_text_op?: string
@@ -109,8 +113,8 @@ export function InventoryLedgerTable({
     }
 
     const setTextFilter = (
-        textKey: "doc_text" | "description_text" | "supplier_text" | "product_text" | "product_code_text" | "product_name_text" | "lot_text",
-        opKey: "doc_text_op" | "description_text_op" | "supplier_text_op" | "product_text_op" | "product_code_text_op" | "product_name_text_op" | "lot_text_op",
+        textKey: "doc_text" | "description_text" | "supplier_text" | "product_text" | "product_code_text" | "product_name_text" | "warehouse_code_text" | "warehouse_name_text" | "lot_text",
+        opKey: "doc_text_op" | "description_text_op" | "supplier_text_op" | "product_text_op" | "product_code_text_op" | "product_name_text_op" | "warehouse_code_text_op" | "warehouse_name_text_op" | "lot_text_op",
         value: string,
         op: TextFilterOp,
     ) => {
@@ -123,8 +127,8 @@ export function InventoryLedgerTable({
     }
 
     const clearTextFilter = (
-        textKey: "doc_text" | "description_text" | "supplier_text" | "product_text" | "product_code_text" | "product_name_text" | "lot_text",
-        opKey: "doc_text_op" | "description_text_op" | "supplier_text_op" | "product_text_op" | "product_code_text_op" | "product_name_text_op" | "lot_text_op",
+        textKey: "doc_text" | "description_text" | "supplier_text" | "product_text" | "product_code_text" | "product_name_text" | "warehouse_code_text" | "warehouse_name_text" | "lot_text",
+        opKey: "doc_text_op" | "description_text_op" | "supplier_text_op" | "product_text_op" | "product_code_text_op" | "product_name_text_op" | "warehouse_code_text_op" | "warehouse_name_text_op" | "lot_text_op",
     ) => {
         onFiltersChange({
             ...filters,
@@ -195,6 +199,20 @@ export function InventoryLedgerTable({
                 onClear: () => clearTextFilter("product_name_text", "product_name_text_op"),
             }
             : null,
+        filters.warehouse_code_text
+            ? {
+                key: "warehouse_code_text",
+                label: textFilterDescription("Mã kho", filters.warehouse_code_text_op, filters.warehouse_code_text),
+                onClear: () => clearTextFilter("warehouse_code_text", "warehouse_code_text_op"),
+            }
+            : null,
+        filters.warehouse_name_text
+            ? {
+                key: "warehouse_name_text",
+                label: textFilterDescription("Tên kho", filters.warehouse_name_text_op, filters.warehouse_name_text),
+                onClear: () => clearTextFilter("warehouse_name_text", "warehouse_name_text_op"),
+            }
+            : null,
         filters.unit
             ? { key: "unit", label: `ĐVT: ${filters.unit}`, onClear: () => setFilter("unit", undefined) }
             : null,
@@ -226,6 +244,10 @@ export function InventoryLedgerTable({
             product_code_text_op: undefined,
             product_name_text: undefined,
             product_name_text_op: undefined,
+            warehouse_code_text: undefined,
+            warehouse_code_text_op: undefined,
+            warehouse_name_text: undefined,
+            warehouse_name_text_op: undefined,
             unit: undefined,
             lot_text: undefined,
             lot_text_op: undefined,
@@ -362,6 +384,7 @@ export function InventoryLedgerTable({
                     columnWidths={showValues
                         ? [64, 110, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 120, 110, 110, 120, 140, 260, 260]
                         : [64, 110, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 110, 110, 120, 260, 260]}
+                    defaultPinnedUntil={7}
                     renderHeader={() => (
                         <>
                             <tr>
@@ -422,8 +445,24 @@ export function InventoryLedgerTable({
                                         onClear={() => clearTextFilter("lot_text", "lot_text_op")}
                                     />
                                 </Th>
-                                <Th className="min-w-[160px]">Mã kho</Th>
-                                <Th className="min-w-[220px]">Kho</Th>
+                                <Th className="min-w-[160px]">
+                                    <ColumnTextFilter
+                                        label="Mã kho"
+                                        value={filters.warehouse_code_text}
+                                        op={filters.warehouse_code_text_op}
+                                        onApply={(value, op) => setTextFilter("warehouse_code_text", "warehouse_code_text_op", value, op)}
+                                        onClear={() => clearTextFilter("warehouse_code_text", "warehouse_code_text_op")}
+                                    />
+                                </Th>
+                                <Th className="min-w-[220px]">
+                                    <ColumnTextFilter
+                                        label="Tên kho"
+                                        value={filters.warehouse_name_text}
+                                        op={filters.warehouse_name_text_op}
+                                        onApply={(value, op) => setTextFilter("warehouse_name_text", "warehouse_name_text_op", value, op)}
+                                        onClear={() => clearTextFilter("warehouse_name_text", "warehouse_name_text_op")}
+                                    />
+                                </Th>
                                 {showValues ? <Th className="min-w-[120px]">{"\u0110\u01a1n gi\u00e1"}</Th> : null}
                                 <Th className="min-w-[120px]">Tồn đầu</Th>
                                 <Th className="min-w-[110px]">Nhập</Th>
@@ -515,8 +554,8 @@ function ColumnTextFilter({
     }
 
     return (
-        <div className="flex items-center justify-center gap-1.5">
-            <span>{label}</span>
+        <div className="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap">
+            <span className="truncate">{label}</span>
             <Popover
                 open={open}
                 onOpenChange={(next) => {
@@ -531,7 +570,7 @@ function ColumnTextFilter({
                     <button
                         type="button"
                         className={cn(
-                            "inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent",
+                            "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent",
                             active ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground hover:text-foreground",
                         )}
                         aria-label={`Lọc ${label}`}
@@ -1076,7 +1115,7 @@ function Quantity({ value, tone }: { value: number; tone: "in" | "out" }) {
 }
 
 function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
-    return <th className={cn("border-r bg-slate-100 px-3 py-2 text-center font-semibold last:border-r-0", className)} {...props} />
+    return <th className={cn("border-r bg-slate-100 px-2 py-1 text-center font-semibold leading-tight last:border-r-0", className)} {...props} />
 }
 
 function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {

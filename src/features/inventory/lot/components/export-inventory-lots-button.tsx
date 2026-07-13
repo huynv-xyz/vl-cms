@@ -23,6 +23,10 @@ type Props = {
         | "product_code_text_op"
         | "product_name_text"
         | "product_name_text_op"
+        | "warehouse_code_text"
+        | "warehouse_code_text_op"
+        | "warehouse_name_text"
+        | "warehouse_name_text_op"
         | "quote_text"
         | "quote_text_op"
         | "unit"
@@ -93,6 +97,10 @@ export function ExportInventoryLotsButton({ keyword, filters }: Props) {
                 product_code_text_op: filters.product_code_text_op,
                 product_name_text: filters.product_name_text,
                 product_name_text_op: filters.product_name_text_op,
+                warehouse_code_text: filters.warehouse_code_text,
+                warehouse_code_text_op: filters.warehouse_code_text_op,
+                warehouse_name_text: filters.warehouse_name_text,
+                warehouse_name_text_op: filters.warehouse_name_text_op,
                 quote_text: filters.quote_text,
                 quote_text_op: filters.quote_text_op,
                 unit: filters.unit,

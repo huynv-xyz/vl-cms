@@ -323,14 +323,14 @@ export function SummaryTable({
                 onClear: () => setFilter("warehouse_ids", undefined),
             }
             : null,
-        false && filters.warehouse_code_text
+        filters.warehouse_code_text
             ? {
                 key: "warehouse_code_text",
                 label: textFilterDescription("Mã kho", filters.warehouse_code_text_op, filters.warehouse_code_text),
                 onClear: () => clearTextFilter("warehouse_code_text", "warehouse_code_text_op"),
             }
             : null,
-        false && filters.warehouse_name_text
+        filters.warehouse_name_text
             ? {
                 key: "warehouse_name_text",
                 label: textFilterDescription("Tên kho", filters.warehouse_name_text_op, filters.warehouse_name_text),
@@ -528,6 +528,7 @@ export function SummaryTable({
                         columnWidths={showValues
                             ? [64, 150, 320, 90, 150, 220, 130, 140, 130, 140, 130, 130, 140, 130, 140, 180, 120, 150, 120]
                             : [64, 150, 320, 90, 150, 220, 130, 130, 130, 130, 180, 120, 150, 120]}
+                        defaultPinnedUntil={2}
                         renderHeader={() => (
                             <>
                                 <tr>
@@ -558,8 +559,24 @@ export function SummaryTable({
                                             onChange={(value) => setFilter("unit", value)}
                                         />
                                     </Th>
-                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[150px]">Mã kho</Th>
-                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[220px]">Tên kho</Th>
+                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[150px]">
+                                        <ColumnTextFilter
+                                            label="Mã kho"
+                                            value={filters.warehouse_code_text}
+                                            op={filters.warehouse_code_text_op}
+                                            onApply={(value, op) => setTextFilter("warehouse_code_text", "warehouse_code_text_op", value, op)}
+                                            onClear={() => clearTextFilter("warehouse_code_text", "warehouse_code_text_op")}
+                                        />
+                                    </Th>
+                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[220px]">
+                                        <ColumnTextFilter
+                                            label="Tên kho"
+                                            value={filters.warehouse_name_text}
+                                            op={filters.warehouse_name_text_op}
+                                            onApply={(value, op) => setTextFilter("warehouse_name_text", "warehouse_name_text_op", value, op)}
+                                            onClear={() => clearTextFilter("warehouse_name_text", "warehouse_name_text_op")}
+                                        />
+                                    </Th>
                                     <Th colSpan={showValues ? 2 : 1} className="text-center">Tồn đầu kỳ</Th>
                                     <Th colSpan={showValues ? 2 : 1} className="text-center">Nhập kho</Th>
                                     <Th colSpan={showValues ? 3 : 1} className="text-center">Xuất kho</Th>
@@ -752,6 +769,7 @@ function WarehouseTreeFilter({
     const [open, setOpen] = useState(false)
     const [draftValue, setDraftValue] = useState<number[]>(value)
     const [warehouseKeyword, setWarehouseKeyword] = useState("")
+    const [activePhysicalId, setActivePhysicalId] = useState<number>()
     const selected = useMemo(() => new Set(draftValue), [draftValue])
     const appliedSelected = useMemo(() => new Set(value), [value])
 
@@ -759,6 +777,7 @@ function WarehouseTreeFilter({
         if (open) {
             setDraftValue(value)
             setWarehouseKeyword("")
+            setActivePhysicalId(undefined)
         }
     }, [open, value])
 
@@ -818,13 +837,16 @@ function WarehouseTreeFilter({
     }
 
     const filteredWarehouses = useMemo(() => {
+        const scopedWarehouses = activePhysicalId
+            ? warehouses.filter((warehouse: any) => Number(warehouse.physical_warehouse_id || 0) === activePhysicalId)
+            : warehouses
         const keyword = warehouseKeyword.trim().toLowerCase()
-        if (!keyword) return warehouses
-        return warehouses.filter((warehouse: any) => {
+        if (!keyword) return scopedWarehouses
+        return scopedWarehouses.filter((warehouse: any) => {
             const text = `${warehouse.code || ""} ${warehouse.name || ""}`.toLowerCase()
             return text.includes(keyword)
         })
-    }, [warehouses, warehouseKeyword])
+    }, [activePhysicalId, warehouses, warehouseKeyword])
 
     const allWarehouseIds = useMemo(() => warehouses.map((warehouse: any) => Number(warehouse.id)), [warehouses])
     const filteredWarehouseIds = useMemo(() => filteredWarehouses.map((warehouse: any) => Number(warehouse.id)), [filteredWarehouses])
@@ -883,22 +905,32 @@ function WarehouseTreeFilter({
                                     const childIds = (warehousesByPhysical.get(Number(physical.id)) || []).map((warehouse: any) => Number(warehouse.id))
                                     const checkedCount = childIds.filter((id) => selected.has(id)).length
                                     const checked = checkedCount === 0 ? false : checkedCount === childIds.length ? true : "indeterminate"
+                                    const physicalId = Number(physical.id)
                                     return (
-                                        <label
+                                        <button
                                             key={physical.id}
-                                            className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-sm hover:bg-white"
+                                            type="button"
+                                            className={cn(
+                                                "flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-white",
+                                                activePhysicalId === physicalId && "bg-white shadow-sm"
+                                            )}
+                                            onClick={() => {
+                                                setActivePhysicalId(physicalId)
+                                                setWarehouseKeyword("")
+                                            }}
                                         >
                                             <Checkbox
                                                 checked={checked}
                                                 disabled={!childIds.length}
-                                                onCheckedChange={() => togglePhysical(Number(physical.id))}
+                                                onClick={(event) => event.stopPropagation()}
+                                                onCheckedChange={() => togglePhysical(physicalId)}
                                                 className="mt-0.5"
                                             />
                                             <span className="min-w-0">
                                                 <span className="block truncate font-medium">{physical.name}</span>
                                                 <span className="text-xs text-muted-foreground">{checkedCount}/{childIds.length} kho</span>
                                             </span>
-                                        </label>
+                                        </button>
                                     )
                                 })
                             ) : (
@@ -1010,11 +1042,6 @@ function ColumnTextFilter({
     const [draftValue, setDraftValue] = useState(value || "")
     const [draftOp, setDraftOp] = useState<TextFilterOp>(op || "contains")
     const active = Boolean(value)
-    const normalizedLabel = label.toLowerCase()
-
-    if (normalizedLabel.includes("kho")) {
-        return <span>{label}</span>
-    }
 
     const apply = () => {
         onApply(draftValue, draftOp)
@@ -1029,15 +1056,15 @@ function ColumnTextFilter({
     }
 
     return (
-        <div className="flex items-center justify-center gap-1">
-            <span>{label}</span>
+        <div className="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap">
+            <span className="truncate">{label}</span>
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className={cn("h-6 w-6", active && "bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800")}
+                        className={cn("h-6 w-6 shrink-0", active && "bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800")}
                         onClick={() => {
                             setDraftValue(value || "")
                             setDraftOp(op || "contains")
@@ -1649,7 +1676,7 @@ function downloadBlob(buffer: ArrayBuffer, filename: string) {
 }
 
 function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
-    return <th className={cn("border-r bg-slate-100 px-3 py-2 text-center font-semibold last:border-r-0", className)} {...props} />
+    return <th className={cn("border-r bg-slate-100 px-2 py-1 text-center font-semibold leading-tight last:border-r-0", className)} {...props} />
 }
 
 function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {

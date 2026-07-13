@@ -201,14 +201,14 @@ export function InventoryLotTable({
             : null,
         filters.product_id ? { key: "product_id", label: "Sản phẩm: đã chọn", onClear: () => setFilter("product_id", undefined) } : null,
         filters.warehouse_id ? { key: "warehouse_id", label: "Kho: đã chọn", onClear: () => setFilter("warehouse_id", undefined) } : null,
-        false && filters.warehouse_code_text
+        filters.warehouse_code_text
             ? {
                 key: "warehouse_code_text",
                 label: textFilterDescription("Mã kho", filters.warehouse_code_text_op, filters.warehouse_code_text),
                 onClear: () => clearTextFilter("warehouse_code_text", "warehouse_code_text_op"),
             }
             : null,
-        false && filters.warehouse_name_text
+        filters.warehouse_name_text
             ? {
                 key: "warehouse_name_text",
                 label: textFilterDescription("Tên kho", filters.warehouse_name_text_op, filters.warehouse_name_text),
@@ -366,6 +366,7 @@ export function InventoryLotTable({
 
                     <StickyReportTable
                         columnWidths={[64, 150, 320, 90, 150, 220, 160, 120, 120, 160, 130, 120, 130, 150, 130, 140, 130, 140, 130, 140, 130, 140, 180, 120, 120]}
+                        defaultPinnedUntil={2}
                         renderHeader={() => (
                             <>
                                 <tr>
@@ -666,12 +667,6 @@ function ColumnTextFilter({
     const [draftValue, setDraftValue] = useState(value || "")
     const [draftOp, setDraftOp] = useState<TextFilterOp>(op || "contains")
     const active = Boolean(value)
-    const normalizedLabel = label.toLowerCase()
-
-    if (normalizedLabel.includes("kho")) {
-        return <span>{label}</span>
-    }
-
     const apply = () => {
         onApply(draftValue, draftOp)
         setOpen(false)
@@ -685,15 +680,15 @@ function ColumnTextFilter({
     }
 
     return (
-        <div className="flex items-center justify-center gap-1">
-            <span>{label}</span>
+        <div className="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap">
+            <span className="truncate">{label}</span>
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className={cn("h-6 w-6", active && "bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800")}
+                        className={cn("h-6 w-6 shrink-0", active && "bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800")}
                         onClick={() => {
                             setDraftValue(value || "")
                             setDraftOp(op || "contains")
@@ -1055,7 +1050,7 @@ function reportString(item: InventoryLot, key: string) {
 }
 
 function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
-    return <th className={cn("border-r bg-slate-100 px-3 py-2 text-center font-semibold last:border-r-0", className)} {...props} />
+    return <th className={cn("border-r bg-slate-100 px-2 py-1 text-center font-semibold leading-tight last:border-r-0", className)} {...props} />
 }
 
 function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {

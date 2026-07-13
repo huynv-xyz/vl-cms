@@ -1,5 +1,7 @@
 import type React from "react"
-import { useEffect, useRef, useState } from "react"
+import type { ReactElement } from "react"
+import { Children, Fragment, cloneElement, isValidElement, useEffect, useId, useMemo, useRef, useState } from "react"
+import { Pin } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -13,6 +15,7 @@ type StickyReportTableProps = {
     renderFooter?: () => React.ReactNode
     enableColumnResize?: boolean
     minColumnWidth?: number
+    defaultPinnedUntil?: number
 }
 
 export function StickyReportTable({
@@ -25,8 +28,11 @@ export function StickyReportTable({
     renderFooter,
     enableColumnResize = true,
     minColumnWidth = 56,
+    defaultPinnedUntil = -1,
 }: StickyReportTableProps) {
     const rootRef = useRef<HTMLDivElement | null>(null)
+    const generatedId = useId().replace(/[^a-zA-Z0-9_-]/g, "")
+    const tableScopeClassName = `sticky-report-table-${generatedId}`
     const tableScrollRef = useRef<HTMLDivElement | null>(null)
     const headerWrapperRef = useRef<HTMLDivElement | null>(null)
     const headerTableRef = useRef<HTMLTableElement | null>(null)
@@ -35,6 +41,8 @@ export function StickyReportTable({
     const isSyncingScrollRef = useRef(false)
     const [widths, setWidths] = useState(() => columnWidths)
     const tableWidth = widths.reduce((total, width) => total + width, 0)
+    const [pinnedUntilIndex, setPinnedUntilIndex] = useState(defaultPinnedUntil)
+    const [horizontalScrollLeft, setHorizontalScrollLeft] = useState(0)
     const [stickyHeaderTop, setStickyHeaderTop] = useState(64)
     const [fixedHeader, setFixedHeader] = useState({
         active: false,
@@ -61,6 +69,48 @@ export function StickyReportTable({
             return columnWidths
         })
     }, [columnWidths])
+
+    useEffect(() => {
+        setPinnedUntilIndex(defaultPinnedUntil)
+    }, [defaultPinnedUntil])
+
+    const columnOffsets = useMemo(() => {
+        let left = 0
+        return widths.map((width) => {
+            const offset = left
+            left += width
+            return offset
+        })
+    }, [widths])
+
+    const pinnedColumnStyles = useMemo(() => {
+        if (pinnedUntilIndex < 0) return ""
+        const lastPinnedIndex = Math.min(pinnedUntilIndex, widths.length - 1)
+        const rules: string[] = []
+        for (let index = 0; index <= lastPinnedIndex; index += 1) {
+            const column = index + 1
+            const isEdge = index === lastPinnedIndex
+            const gridShadow = "inset -1px 0 0 rgb(226 232 240), inset 0 -1px 0 rgb(226 232 240)"
+            const edgeShadow = `${gridShadow}, 8px 0 12px -10px rgba(15, 23, 42, 0.65)`
+            rules.push(`
+                .${tableScopeClassName} tbody tr > *:nth-child(${column}) {
+                    position: sticky;
+                    left: ${columnOffsets[index] || 0}px;
+                    z-index: 25;
+                    background: #fff;
+                    box-shadow: ${isEdge ? edgeShadow : gridShadow};
+                }
+                .${tableScopeClassName} tfoot tr > *:nth-child(${column}) {
+                    position: sticky;
+                    left: ${columnOffsets[index] || 0}px;
+                    z-index: 35;
+                    background: hsl(var(--muted));
+                    box-shadow: ${isEdge ? edgeShadow : gridShadow};
+                }
+            `)
+        }
+        return rules.join("\n")
+    }, [columnOffsets, horizontalScrollLeft, pinnedUntilIndex, tableScopeClassName, widths.length])
 
     useEffect(() => {
         const updateFixedHeader = () => {
@@ -187,11 +237,9 @@ export function StickyReportTable({
 
     const syncHeaderScroll = (scrollLeft: number) => {
         const transform = `translateX(-${scrollLeft}px)`
+        setHorizontalScrollLeft((current) => current === scrollLeft ? current : scrollLeft)
         if (headerTableRef.current) {
             headerTableRef.current.style.transform = transform
-        }
-        if (resizeLayerRef.current) {
-            resizeLayerRef.current.style.transform = transform
         }
     }
 
@@ -263,15 +311,23 @@ export function StickyReportTable({
     const resizeHandles = enableColumnResize ? (
         <div
             ref={resizeLayerRef}
-            className="pointer-events-none absolute inset-y-0 left-0 z-50"
-            style={{ width: tableWidth }}
+            className="pointer-events-none absolute inset-y-0 left-0 z-[90]"
+            style={{ width: "100%" }}
         >
             {widths.slice(0, -1).map((_width, index) => {
-                const left = widths.slice(0, index + 1).reduce((total, width) => total + width, 0)
+                const boundaryLeft = widths.slice(0, index + 1).reduce((total, width) => total + width, 0)
+                const pinnedRight = pinnedUntilIndex >= 0
+                    ? (columnOffsets[pinnedUntilIndex] || 0) + (widths[pinnedUntilIndex] || 0)
+                    : 0
+                const isPinnedHandle = index <= pinnedUntilIndex
+                const left = isPinnedHandle
+                    ? boundaryLeft
+                    : boundaryLeft - horizontalScrollLeft
+                if (!isPinnedHandle && (left < pinnedRight || left < 0)) return null
                 return (
                     <div
                         key={index}
-                        className="pointer-events-auto absolute top-0 h-full w-2 -translate-x-1 cursor-col-resize touch-none select-none hover:bg-primary/25"
+                        className="pointer-events-auto absolute top-0 z-[95] h-full w-2 -translate-x-1 cursor-col-resize touch-none select-none hover:bg-primary/25"
                         style={{ left }}
                         onMouseDown={(event) => startColumnResize(index, event)}
                     />
@@ -280,8 +336,142 @@ export function StickyReportTable({
         </div>
     ) : null
 
+    const togglePinnedUntil = (columnIndex: number) => {
+        setPinnedUntilIndex((current) => current === columnIndex ? -1 : columnIndex)
+    }
+
+    const applyPinnedCell = (
+        cell: React.ReactElement<any>,
+        columnIndex: number,
+        section: "header" | "body" | "footer",
+        canPin: boolean,
+        pinTargetIndex = columnIndex,
+    ) => {
+        const isPinned = pinnedUntilIndex >= 0 && columnIndex <= pinnedUntilIndex
+        const isPinnedEdge = isPinned && pinTargetIndex === pinnedUntilIndex
+        const isActivePin = pinnedUntilIndex === pinTargetIndex
+        const gridShadow = "inset -1px 0 0 rgb(226 232 240), inset 0 -1px 0 rgb(226 232 240)"
+        const previousClassName = cell.props.className
+        const previousStyle = cell.props.style || {}
+        const pinnedStyle = isPinned && section === "header"
+            ? {
+                position: "sticky" as const,
+                left: columnOffsets[columnIndex] || 0,
+                transform: `translateX(${horizontalScrollLeft}px)`,
+                zIndex: 70,
+                boxShadow: isPinnedEdge ? `${gridShadow}, 8px 0 12px -10px rgba(15,23,42,0.65)` : gridShadow,
+            }
+            : {}
+        const pinButton = section === "header" && canPin ? (
+            <button
+                type="button"
+                title={pinnedUntilIndex === pinTargetIndex ? "Bỏ cố định cột" : "Cố định đến cột này"}
+                aria-label={pinnedUntilIndex === pinTargetIndex ? "Bỏ cố định cột" : "Cố định đến cột này"}
+                className={cn(
+                    "absolute right-1 top-1 z-[80] inline-flex h-4 w-4 items-center justify-center rounded text-muted-foreground/70 transition-opacity hover:bg-white hover:text-primary",
+                    isActivePin ? "bg-primary/10 text-primary opacity-100" : "opacity-0 group-hover/cell:opacity-100 focus:opacity-100",
+                )}
+                onClick={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    togglePinnedUntil(pinTargetIndex)
+                }}
+            >
+                <Pin className="h-3 w-3" />
+            </button>
+        ) : null
+
+        return {
+            ...cell.props,
+            className: cn(
+                previousClassName,
+                canPin && section === "header" && "group/cell relative pr-6",
+                isPinned && section === "header" && "bg-slate-100",
+                isPinned && section === "body" && "bg-white",
+                isPinned && section === "footer" && "bg-muted",
+                isPinnedEdge && section !== "header" && "shadow-[8px_0_12px_-10px_rgba(15,23,42,0.65)]",
+            ),
+            style: {
+                ...previousStyle,
+                ...pinnedStyle,
+            },
+            children: pinButton ? (
+                <>
+                    {cell.props.children}
+                    {pinButton}
+                </>
+            ) : cell.props.children,
+        }
+    }
+
+    const enhanceRows = (node: React.ReactNode, section: "header" | "body" | "footer") => {
+        const occupancyEnd: number[] = []
+        let rowIndex = 0
+
+        const enhanceNode = (target: React.ReactNode): React.ReactNode => {
+            return Children.map(target, (child) => {
+                if (!isValidElement(child)) return child
+                const row = child as ReactElement<any>
+
+                if (row.type === Fragment) {
+                    return <>{enhanceNode(row.props.children)}</>
+                }
+
+                if (row.type !== "tr") {
+                    return row
+                }
+
+                let columnIndex = 0
+                const nextChildren = Children.map(row.props.children, (cell) => {
+                    if (!isValidElement(cell)) return cell
+                    const tableCell = cell as ReactElement<any>
+
+                    while ((occupancyEnd[columnIndex] || 0) > rowIndex) {
+                        columnIndex += 1
+                    }
+
+                    const colSpan = Number(tableCell.props.colSpan || 1)
+                    const rowSpan = Number(tableCell.props.rowSpan || 1)
+                    const startColumn = columnIndex
+
+                    if (rowSpan > 1) {
+                        for (let offset = 0; offset < colSpan; offset += 1) {
+                            occupancyEnd[startColumn + offset] = rowIndex + rowSpan
+                        }
+                    }
+                    columnIndex += colSpan
+
+                    const endColumn = startColumn + colSpan - 1
+                    const isHeader = section === "header"
+                    const isGroupHeader = colSpan > 1
+                    const isTopHeaderCell = rowIndex === 0
+                    const isRowSpanningLeaf = rowSpan > 1
+                    const pinTargetIndex = isGroupHeader ? Math.min(endColumn, widths.length - 1) : startColumn
+                    const isFullyPinned = pinnedUntilIndex >= 0 && endColumn <= pinnedUntilIndex
+                    const canPin = isHeader && startColumn < widths.length && (
+                        isGroupHeader || isRowSpanningLeaf || (isTopHeaderCell && colSpan === 1)
+                    )
+                    const shouldApplyPinnedStyle = isFullyPinned || canPin
+                    if (!shouldApplyPinnedStyle) return tableCell
+
+                    return cloneElement(tableCell, applyPinnedCell(tableCell, startColumn, section, canPin, pinTargetIndex))
+                })
+
+                rowIndex += 1
+                return cloneElement(row, { ...row.props, children: nextChildren })
+            })
+        }
+
+        return enhanceNode(node)
+    }
+
+    const enhancedHeader = enhanceRows(renderHeader(), "header")
+    const enhancedBody = enhanceRows(renderBody(), "body")
+    const enhancedFooter = renderFooter ? enhanceRows(renderFooter(), "footer") : null
+
     return (
-        <div ref={rootRef} className={cn("rounded-md border bg-white", className)}>
+        <div ref={rootRef} className={cn(tableScopeClassName, "rounded-md border bg-white", className)}>
+            {pinnedColumnStyles ? <style>{pinnedColumnStyles}</style> : null}
             {fixedHeader.active ? <div style={{ height: fixedHeader.height }} /> : null}
             <div
                 ref={headerWrapperRef}
@@ -302,7 +492,7 @@ export function StickyReportTable({
                 >
                     {colgroup}
                     <thead className={cn("border-b bg-slate-100 text-xs text-muted-foreground", headerClassName)}>
-                        {renderHeader()}
+                        {enhancedHeader}
                     </thead>
                 </table>
                 {resizeHandles}
@@ -319,9 +509,9 @@ export function StickyReportTable({
                 >
                     {colgroup}
                     <tbody>
-                        {renderBody()}
+                        {enhancedBody}
                     </tbody>
-                    {renderFooter ? <tfoot className="bg-muted/40 border-t font-semibold">{renderFooter()}</tfoot> : null}
+                    {renderFooter ? <tfoot className="bg-muted/40 border-t font-semibold">{enhancedFooter}</tfoot> : null}
                 </table>
             </div>
 
