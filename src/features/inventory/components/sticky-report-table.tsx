@@ -39,6 +39,8 @@ export function StickyReportTable({
     const resizeLayerRef = useRef<HTMLDivElement | null>(null)
     const stickyScrollRef = useRef<HTMLDivElement | null>(null)
     const isSyncingScrollRef = useRef(false)
+    const latestHorizontalScrollLeftRef = useRef(0)
+    const horizontalScrollFrameRef = useRef<number | null>(null)
     const [widths, setWidths] = useState(() => columnWidths)
     const tableWidth = widths.reduce((total, width) => total + width, 0)
     const [pinnedUntilIndex, setPinnedUntilIndex] = useState(defaultPinnedUntil)
@@ -83,7 +85,7 @@ export function StickyReportTable({
         })
     }, [widths])
 
-    const pinnedColumnStyles = useMemo(() => {
+    const pinnedBodyColumnStyles = useMemo(() => {
         if (pinnedUntilIndex < 0) return ""
         const lastPinnedIndex = Math.min(pinnedUntilIndex, widths.length - 1)
         const rules: string[] = []
@@ -100,17 +102,10 @@ export function StickyReportTable({
                     background: #fff;
                     box-shadow: ${isEdge ? edgeShadow : gridShadow};
                 }
-                .${tableScopeClassName} tfoot tr > *:nth-child(${column}) {
-                    position: sticky;
-                    left: ${columnOffsets[index] || 0}px;
-                    z-index: 35;
-                    background: hsl(var(--muted));
-                    box-shadow: ${isEdge ? edgeShadow : gridShadow};
-                }
             `)
         }
         return rules.join("\n")
-    }, [columnOffsets, horizontalScrollLeft, pinnedUntilIndex, tableScopeClassName, widths.length])
+    }, [columnOffsets, pinnedUntilIndex, tableScopeClassName, widths.length])
 
     useEffect(() => {
         const updateFixedHeader = () => {
@@ -175,6 +170,10 @@ export function StickyReportTable({
             window.removeEventListener("scroll", updateFixedHeader, true)
             window.removeEventListener("resize", updateFixedHeader)
             resizeObserver?.disconnect()
+            if (horizontalScrollFrameRef.current !== null) {
+                cancelAnimationFrame(horizontalScrollFrameRef.current)
+                horizontalScrollFrameRef.current = null
+            }
         }
     }, [])
 
@@ -237,9 +236,19 @@ export function StickyReportTable({
 
     const syncHeaderScroll = (scrollLeft: number) => {
         const transform = `translateX(-${scrollLeft}px)`
-        setHorizontalScrollLeft((current) => current === scrollLeft ? current : scrollLeft)
+        latestHorizontalScrollLeftRef.current = scrollLeft
+        if (rootRef.current) {
+            rootRef.current.style.setProperty("--sticky-report-scroll-left", `${scrollLeft}px`)
+        }
         if (headerTableRef.current) {
             headerTableRef.current.style.transform = transform
+        }
+        if (horizontalScrollFrameRef.current === null) {
+            horizontalScrollFrameRef.current = requestAnimationFrame(() => {
+                horizontalScrollFrameRef.current = null
+                const latest = latestHorizontalScrollLeftRef.current
+                setHorizontalScrollLeft((current) => current === latest ? current : latest)
+            })
         }
     }
 
@@ -353,12 +362,13 @@ export function StickyReportTable({
         const gridShadow = "inset -1px 0 0 rgb(226 232 240), inset 0 -1px 0 rgb(226 232 240)"
         const previousClassName = cell.props.className
         const previousStyle = cell.props.style || {}
-        const pinnedStyle = isPinned && section === "header"
+        const pinnedStyle = isPinned && section !== "body"
             ? {
                 position: "sticky" as const,
                 left: columnOffsets[columnIndex] || 0,
-                transform: `translateX(${horizontalScrollLeft}px)`,
-                zIndex: 70,
+                transform: section === "header" ? "translateX(var(--sticky-report-scroll-left, 0px))" : undefined,
+                zIndex: section === "header" ? 70 : section === "footer" ? 35 : 25,
+                background: section === "header" ? "rgb(241 245 249)" : section === "footer" ? "hsl(var(--muted))" : "#fff",
                 boxShadow: isPinnedEdge ? `${gridShadow}, 8px 0 12px -10px rgba(15,23,42,0.65)` : gridShadow,
             }
             : {}
@@ -447,14 +457,52 @@ export function StickyReportTable({
                     const isTopHeaderCell = rowIndex === 0
                     const isRowSpanningLeaf = rowSpan > 1
                     const pinTargetIndex = isGroupHeader ? Math.min(endColumn, widths.length - 1) : startColumn
+                    const edgeTargetIndex = section === "header" ? pinTargetIndex : endColumn
                     const isFullyPinned = pinnedUntilIndex >= 0 && endColumn <= pinnedUntilIndex
+                    const isFooterCrossingPinnedEdge = section === "footer" &&
+                        pinnedUntilIndex >= 0 &&
+                        startColumn <= pinnedUntilIndex &&
+                        endColumn > pinnedUntilIndex
                     const canPin = isHeader && startColumn < widths.length && (
                         isGroupHeader || isRowSpanningLeaf || (isTopHeaderCell && colSpan === 1)
                     )
-                    const shouldApplyPinnedStyle = isFullyPinned || canPin
+                    const shouldApplyPinnedStyle = isFullyPinned || isFooterCrossingPinnedEdge || canPin
                     if (!shouldApplyPinnedStyle) return tableCell
 
-                    return cloneElement(tableCell, applyPinnedCell(tableCell, startColumn, section, canPin, pinTargetIndex))
+                    if (isFooterCrossingPinnedEdge) {
+                        const pinnedColSpan = pinnedUntilIndex - startColumn + 1
+                        const remainingColSpan = colSpan - pinnedColSpan
+                        const pinnedCell = cloneElement(tableCell, {
+                            ...applyPinnedCell(
+                                cloneElement(tableCell, {
+                                    ...tableCell.props,
+                                    colSpan: pinnedColSpan,
+                                }),
+                                startColumn,
+                                section,
+                                canPin,
+                                pinnedUntilIndex,
+                            ),
+                            key: `${tableCell.key ?? `${rowIndex}-${startColumn}`}-pinned`,
+                            colSpan: pinnedColSpan,
+                        })
+                        const remainingCell = cloneElement(tableCell, {
+                            ...tableCell.props,
+                            key: `${tableCell.key ?? `${rowIndex}-${startColumn}`}-remaining`,
+                            colSpan: remainingColSpan,
+                            children: null,
+                            className: cn(tableCell.props.className, "text-transparent"),
+                        })
+
+                        return (
+                            <>
+                                {pinnedCell}
+                                {remainingCell}
+                            </>
+                        )
+                    }
+
+                    return cloneElement(tableCell, applyPinnedCell(tableCell, startColumn, section, canPin, edgeTargetIndex))
                 })
 
                 rowIndex += 1
@@ -471,7 +519,7 @@ export function StickyReportTable({
 
     return (
         <div ref={rootRef} className={cn(tableScopeClassName, "rounded-md border bg-white", className)}>
-            {pinnedColumnStyles ? <style>{pinnedColumnStyles}</style> : null}
+            {pinnedBodyColumnStyles ? <style>{pinnedBodyColumnStyles}</style> : null}
             {fixedHeader.active ? <div style={{ height: fixedHeader.height }} /> : null}
             <div
                 ref={headerWrapperRef}

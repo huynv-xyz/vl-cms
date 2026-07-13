@@ -658,7 +658,10 @@ export function SummaryTable({
                         renderFooter={() => (
                             <>
                                 <tr>
-                                    <Td colSpan={6}>Tổng cộng theo bộ lọc</Td>
+                                    <Td colSpan={3}>Tổng cộng theo bộ lọc</Td>
+                                    <Td />
+                                    <Td />
+                                    <Td />
                                     <NumberTd>{summaryTotals.opening_quantity}</NumberTd>
                                     {showValues ? (
                                     <MoneyTd>{summaryTotals.opening_value}</MoneyTd>
