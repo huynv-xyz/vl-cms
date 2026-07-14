@@ -85,7 +85,7 @@ const PRODUCTION_COST_OBJECT_REQUIRED_COLUMNS = [
     "Nhập",
     "Xuất",
     "Diễn giải",
-    "Mã đối tượng",
+    "Mã đối tượng hoặc Mã VTHH",
 ]
 
 type ImportGuide = {
@@ -287,7 +287,7 @@ export function LedgerImportButtons() {
             columns: PRODUCTION_COST_OBJECT_REQUIRED_COLUMNS,
             notes: [
                 "Hệ thống chỉ xử lý Loại chứng từ: Xuất kho sản xuất và Nhập kho thành phẩm sản xuất. Các loại chứng từ khác sẽ được bỏ qua và báo số dòng bỏ qua.",
-                "Dòng Xuất kho sản xuất bắt buộc có Mã đối tượng. Mã đối tượng là mã thành phẩm của nguyên vật liệu đó.",
+                "Dòng Xuất kho sản xuất bắt buộc có Mã đối tượng. Nếu file kế toán đang dùng tên cột Mã VTHH thì hệ thống cũng hiểu đây là Mã đối tượng.",
                 "Trong cùng Ngày chứng từ phải có dòng Nhập kho thành phẩm sản xuất có Mã hàng bằng Mã đối tượng.",
                 "Nếu cùng ngày có nhiều dòng Nhập kho thành phẩm sản xuất cho cùng mã thành phẩm, hệ thống sẽ ghép theo mã lệnh trong cột Diễn giải dạng <01941>.",
                 "Nếu Diễn giải không có mã lệnh, hệ thống sẽ thử ghép theo thứ tự file: nhóm Xuất kho sản xuất đứng trước sẽ đi với dòng Nhập kho thành phẩm sản xuất đứng trước. Chỉ cập nhật khi danh sách NVL và tỷ lệ số lượng khớp rõ ràng.",
