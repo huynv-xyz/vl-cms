@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react"
+﻿import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Calculator, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, Play, Plus, Search, Upload } from "lucide-react"
@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { StickyReportTable } from "@/features/inventory/components/sticky-report-table"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 
 function todayYmd() {
@@ -55,6 +56,7 @@ const LANDED_COST_IMPORT_COLUMNS = [
 
 const COSTING_PAGE_SIZE = 50
 const COSTING_EXPORT_PAGE_SIZE = 1000
+const GRID_TABLE_CLASS = "[&_td]:border [&_td]:border-slate-200 [&_th]:border [&_th]:border-slate-200"
 const QUARTERS = [
     { label: "Quý 1", value: 1 },
     { label: "Quý 2", value: 2 },
@@ -201,34 +203,42 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
 }) {
     const queryClient = useQueryClient()
     const [pageIndex, setPageIndex] = useState(0)
-    const [expandedProductId, setExpandedProductId] = useState<number | null>(null)
+    const [expandedRow, setExpandedRow] = useState<{ id: number; productId: number } | null>(null)
+    const [productionOnly, setProductionOnly] = useState(false)
+    const [lotAllocatedOnly, setLotAllocatedOnly] = useState(false)
 
     useEffect(() => {
         setPageIndex(0)
-        setExpandedProductId(null)
-    }, [period.id, keyword])
+        setExpandedRow(null)
+    }, [period.id, keyword, productionOnly, lotAllocatedOnly])
 
     const costsQuery = useQuery({
-        queryKey: ["inventory-cost-period-costs", period.id, keyword, pageIndex],
-        queryFn: () => listPeriodCosts(period.id, { page: pageIndex + 1, size: COSTING_PAGE_SIZE, keyword }),
+        queryKey: ["inventory-cost-period-costs", period.id, keyword, productionOnly, lotAllocatedOnly, pageIndex],
+        queryFn: () => listPeriodCosts(period.id, {
+            page: pageIndex + 1,
+            size: COSTING_PAGE_SIZE,
+            keyword,
+            production_only: productionOnly,
+            lot_allocated_only: lotAllocatedOnly,
+        }),
     })
 
     const lotAllocationsQuery = useQuery({
-        queryKey: ["inventory-cost-lot-allocations", period.id, expandedProductId],
-        enabled: expandedProductId !== null,
-        queryFn: () => listLotCostAllocations(period.id, expandedProductId!),
+        queryKey: ["inventory-cost-lot-allocations", period.id, expandedRow?.productId],
+        enabled: expandedRow?.productId !== undefined,
+        queryFn: () => listLotCostAllocations(period.id, expandedRow!.productId),
     })
 
     const productionCostsQuery = useQuery({
-        queryKey: ["inventory-production-cost-results", period.id, expandedProductId],
-        enabled: expandedProductId !== null,
-        queryFn: () => listProductionCostResults(period.id, expandedProductId!),
+        queryKey: ["inventory-production-cost-results", period.id, expandedRow?.productId],
+        enabled: expandedRow?.productId !== undefined,
+        queryFn: () => listProductionCostResults(period.id, expandedRow!.productId),
     })
 
     const calculateMutation = useMutation({
         mutationFn: () => calculateCostPeriod(period.id),
         onSuccess: (result) => {
-            toast.success(`Đã tính giá: ${result.product_rows} sản phẩm, ${result.lot_allocations} phân bổ phí lô`)
+            toast.success(`Đã tính giá: ${result.product_rows} dòng, ${result.production_product_count} thành phẩm, ${result.lot_allocations} phân bổ phí lô`)
             queryClient.invalidateQueries({ queryKey: ["inventory-cost-periods"] })
             queryClient.invalidateQueries({ queryKey: ["inventory-cost-period-costs", period.id] })
             queryClient.invalidateQueries({ queryKey: ["inventory-cost-lot-allocations", period.id] })
@@ -239,7 +249,7 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
 
     const exportMutation = useMutation({
         mutationFn: async () => {
-            const rows = await fetchAllPeriodCosts(period.id, keyword)
+            const rows = await fetchAllPeriodCosts(period.id, keyword, productionOnly, lotAllocatedOnly)
             await exportCostingResultsXlsx(period, rows)
             return rows.length
         },
@@ -272,11 +282,12 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                 </CardContent>
             </Card>
 
-            <div className="grid gap-2 md:grid-cols-4">
+            <div className="grid gap-2 md:grid-cols-5">
                 <MetricCard title="Tồn đầu kỳ" quantity={totals.opening_quantity} value={totals.opening_value} />
                 <MetricCard title="Nhập trong kỳ" quantity={totals.inbound_quantity} value={totals.inbound_value} />
                 <MetricCard title="Xuất trong kỳ" quantity={totals.outbound_quantity} value={totals.outbound_value} />
                 <MetricCard title="Tồn cuối kỳ" quantity={totals.closing_quantity} value={totals.closing_value} />
+                <CountMetricCard title="TP đã tính giá" label="Sản phẩm" value={costsQuery.data?.production_product_count || 0} />
             </div>
 
             <Card className="gap-2 overflow-hidden py-2">
@@ -284,6 +295,23 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="font-semibold">Kết quả tính giá</div>
                         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                            <Button
+                                type="button"
+                                variant={productionOnly ? "default" : "outline"}
+                                onClick={() => setProductionOnly((value) => !value)}
+                            >
+                                Thành phẩm đã tính giá
+                                <span className="ml-2 rounded-full bg-background/80 px-2 py-0.5 text-xs text-foreground">
+                                    {formatNumber(costsQuery.data?.production_product_count || 0)}
+                                </span>
+                            </Button>
+                            <Button
+                                type="button"
+                                variant={lotAllocatedOnly ? "default" : "outline"}
+                                onClick={() => setLotAllocatedOnly((value) => !value)}
+                            >
+                                Có phân bổ theo lô
+                            </Button>
                             <div className="relative w-full sm:w-80">
                                 <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
                                 <Input
@@ -306,14 +334,17 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <div className="overflow-auto">
-                        <table className="min-w-[1400px] w-full border-collapse text-sm">
-                            <thead className="bg-slate-50 text-slate-600">
+                    <StickyReportTable
+                        columnWidths={[64, 150, 300, 90, 160, 220, 130, 150, 130, 150, 130, 150, 130, 130, 150, 130, 150]}
+                        tableClassName={cn("border-collapse", GRID_TABLE_CLASS)}
+                        renderHeader={() => (
                                 <tr>
                                     <Th>STT</Th>
                                     <Th>Mã hàng</Th>
                                     <Th>Tên hàng</Th>
                                     <Th>ĐVT</Th>
+                                    <Th>Mã kho</Th>
+                                    <Th>Tên kho</Th>
                                     <Th>Tồn đầu SL</Th>
                                     <Th>Tồn đầu GT</Th>
                                     <Th>Nhập SL</Th>
@@ -326,21 +357,22 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                                     <Th>Tồn cuối SL</Th>
                                     <Th>Tồn cuối GT</Th>
                                 </tr>
-                            </thead>
-                            <tbody>
+                        )}
+                        renderBody={() => (
+                            <>
                                 {(costsQuery.data?.items || []).map((row, index) => {
-                                    const expanded = expandedProductId === row.product_id
+                                    const expanded = expandedRow?.id === row.id
                                     return (
                                         <Fragment key={row.id}>
                                             <tr
                                                 className="cursor-pointer border-t hover:bg-slate-50"
-                                                onClick={() => setExpandedProductId(expanded ? null : row.product_id)}
+                                                onClick={() => setExpandedRow(expanded ? null : { id: row.id, productId: row.product_id })}
                                             >
                                                 <Td center>{pageIndex * COSTING_PAGE_SIZE + index + 1}</Td>
                                                 <Td center>{row.product_code}</Td>
-                                                <Td className="min-w-72 font-medium">
+                                                <Td className="font-medium">
                                                     <div className="flex items-center justify-between gap-2">
-                                                        <span>{row.product_name}</span>
+                                                        <span className="min-w-0 truncate">{row.product_name}</span>
                                                         {expanded ? (
                                                             <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
                                                         ) : (
@@ -349,6 +381,8 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                                                     </div>
                                                 </Td>
                                                 <Td center>{row.unit || "-"}</Td>
+                                                <Td center>{row.warehouse_code || "-"}</Td>
+                                                <Td>{row.warehouse_name || "-"}</Td>
                                                 <Td number>{formatNumber(row.opening_quantity)}</Td>
                                                 <Td number>{formatCurrency(row.opening_value)}</Td>
                                                 <Td number>{formatNumber(row.inbound_quantity)}</Td>
@@ -363,7 +397,7 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                                             </tr>
                                             {expanded && (
                                                 <tr className="border-t bg-slate-50/70">
-                                                    <td colSpan={15} className="px-4 py-3">
+                                                    <td colSpan={17} className="px-4 py-3">
                                                         <CostBreakdownPanel
                                                             lotRows={lotAllocationsQuery.data || []}
                                                             productionRows={productionCostsQuery.data || []}
@@ -378,14 +412,14 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                                 })}
                                 {!costsQuery.data?.items?.length && (
                                     <tr>
-                                        <td colSpan={15} className="p-6 text-center text-sm text-muted-foreground">
+                                        <td colSpan={17} className="p-6 text-center text-sm text-muted-foreground">
                                             Chưa có kết quả. Bấm Tính giá để sinh dữ liệu kỳ.
                                         </td>
                                     </tr>
                                 )}
-                            </tbody>
-                        </table>
-                    </div>
+                            </>
+                        )}
+                    />
                     <CardPagination
                         className="border-t py-3"
                         pageIndex={pageIndex}
@@ -425,9 +459,11 @@ function LotAllocationsPanel({ rows, isLoading }: { rows: LotCostAllocation[]; i
     return (
         <div className="rounded-md border bg-background">
             <div className="border-b px-3 py-2 text-sm font-semibold">Chi tiết phân bổ theo lô</div>
-            <div className="overflow-auto">
-                <table className="min-w-[1200px] w-full border-collapse text-sm">
-                    <thead className="bg-slate-50 text-slate-600">
+            <StickyReportTable
+                columnWidths={[64, 180, 260, 140, 140, 150, 150, 150, 150, 150, 170]}
+                tableClassName={cn("border-collapse", GRID_TABLE_CLASS)}
+                defaultPinnedUntil={-1}
+                renderHeader={() => (
                         <tr>
                             <Th>STT</Th>
                             <Th>Số lô</Th>
@@ -441,15 +477,16 @@ function LotAllocationsPanel({ rows, isLoading }: { rows: LotCostAllocation[]; i
                             <Th>Giá sau phí</Th>
                             <Th>Thành tiền sau phí</Th>
                         </tr>
-                    </thead>
-                    <tbody>
+                )}
+                renderBody={() => (
+                    <>
                         {rows.map((row, index) => (
                             <tr key={row.id} className="border-t">
                                 <Td center>{index + 1}</Td>
                                 <Td center className="font-mono">{row.lot_no || "-"}</Td>
-                                <Td className="min-w-52">
-                                    <div className="font-medium">{row.warehouse_name || "-"}</div>
-                                    <div className="text-xs text-muted-foreground">{row.warehouse_code || ""}</div>
+                                <Td>
+                                    <div className="truncate font-medium">{row.warehouse_name || "-"}</div>
+                                    <div className="truncate text-xs text-muted-foreground">{row.warehouse_code || ""}</div>
                                 </Td>
                                 <Td center>{formatDate(row.inbound_date)}</Td>
                                 <Td center>{formatDate(row.expiry_date)}</Td>
@@ -468,9 +505,9 @@ function LotAllocationsPanel({ rows, isLoading }: { rows: LotCostAllocation[]; i
                                 </td>
                             </tr>
                         )}
-                    </tbody>
-                </table>
-            </div>
+                    </>
+                )}
+            />
         </div>
     )
 }
@@ -483,9 +520,11 @@ function ProductionCostsPanel({ rows, isLoading }: { rows: ProductionCostResult[
     return (
         <div className="rounded-md border bg-background">
             <div className="border-b px-3 py-2 text-sm font-semibold">Chi tiết giá thành sản xuất</div>
-            <div className="overflow-auto">
-                <table className="min-w-[1150px] w-full border-collapse text-sm">
-                    <thead className="bg-slate-50 text-slate-600">
+            <StickyReportTable
+                columnWidths={[64, 180, 140, 220, 260, 150, 150, 150, 160]}
+                tableClassName={cn("border-collapse", GRID_TABLE_CLASS)}
+                defaultPinnedUntil={-1}
+                renderHeader={() => (
                         <tr>
                             <Th>STT</Th>
                             <Th>Lệnh SX</Th>
@@ -497,17 +536,18 @@ function ProductionCostsPanel({ rows, isLoading }: { rows: ProductionCostResult[
                             <Th>Giá thành/ĐV</Th>
                             <Th>Tổng giá thành</Th>
                         </tr>
-                    </thead>
-                    <tbody>
+                )}
+                renderBody={() => (
+                    <>
                         {rows.map((row, index) => (
                             <tr key={row.id} className="border-t">
                                 <Td center>{index + 1}</Td>
                                 <Td center className="font-medium">{row.production_no || "-"}</Td>
                                 <Td center>{formatDate(row.production_date)}</Td>
                                 <Td center className="font-mono">{row.output_lot_no || "-"}</Td>
-                                <Td className="min-w-52">
-                                    <div className="font-medium">{row.warehouse_name || "-"}</div>
-                                    <div className="text-xs text-muted-foreground">{row.warehouse_code || ""}</div>
+                                <Td>
+                                    <div className="truncate font-medium">{row.warehouse_name || "-"}</div>
+                                    <div className="truncate text-xs text-muted-foreground">{row.warehouse_code || ""}</div>
                                 </Td>
                                 <Td number>{formatNumber(row.output_quantity)}</Td>
                                 <Td number>{formatCurrency(row.material_cost)}</Td>
@@ -522,9 +562,9 @@ function ProductionCostsPanel({ rows, isLoading }: { rows: ProductionCostResult[
                                 </td>
                             </tr>
                         )}
-                    </tbody>
-                </table>
-            </div>
+                    </>
+                )}
+            />
         </div>
     )
 }
@@ -662,9 +702,10 @@ function LandedCostsPanel({ keyword, onKeywordChange }: {
                 </div>
             </CardHeader>
             <CardContent className="p-0">
-                <div className="overflow-auto">
-                    <table className="min-w-[1000px] w-full border-collapse text-sm">
-                        <thead className="bg-slate-50 text-slate-600">
+                <StickyReportTable
+                    columnWidths={[64, 130, 170, 150, 160, 140, 220, 300, 100]}
+                    tableClassName={cn("border-collapse", GRID_TABLE_CLASS)}
+                    renderHeader={() => (
                             <tr>
                                 <Th>STT</Th>
                                 <Th>Ngày CT</Th>
@@ -676,8 +717,9 @@ function LandedCostsPanel({ keyword, onKeywordChange }: {
                                 <Th>Diễn giải</Th>
                                 <Th>Thao tác</Th>
                             </tr>
-                        </thead>
-                        <tbody>
+                    )}
+                    renderBody={() => (
+                        <>
                             {(query.data?.items || []).map((row: LandedCost, index) => (
                                 <tr key={row.id} className="border-t">
                                     <Td center>{pageIndex * COSTING_PAGE_SIZE + index + 1}</Td>
@@ -706,16 +748,16 @@ function LandedCostsPanel({ keyword, onKeywordChange }: {
                                     </td>
                                 </tr>
                             )}
-                        </tbody>
-                        <tfoot>
+                        </>
+                    )}
+                    renderFooter={() => (
                             <tr className="border-t bg-slate-50 font-semibold">
                                 <td colSpan={5} className="px-3 py-2 text-right">Tổng</td>
                                 <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(query.data?.totals?.amount)}</td>
                                 <td colSpan={3} />
                             </tr>
-                        </tfoot>
-                    </table>
-                </div>
+                    )}
+                />
                 <CardPagination
                     className="border-t py-3"
                     pageIndex={pageIndex}
@@ -764,7 +806,7 @@ function LandedCostsPanel({ keyword, onKeywordChange }: {
                     Đã import {importResult?.success ?? 0} dòng, lỗi {importResult?.failed ?? 0} dòng.
                 </div>
                 <div className="max-h-[520px] overflow-auto rounded-md border">
-                    <table className="w-full border-collapse text-sm">
+                    <table className={cn("w-full min-w-[720px] border-collapse text-sm", GRID_TABLE_CLASS)}>
                         <thead className="sticky top-0 bg-muted text-muted-foreground">
                             <tr>
                                 <th className="w-24 border-b px-3 py-2 text-left font-medium">Dòng</th>
@@ -936,6 +978,20 @@ function MetricCard({ title, quantity, value }: { title: string; quantity?: numb
     )
 }
 
+function CountMetricCard({ title, label, value }: { title: string; label: string; value?: number }) {
+    return (
+        <Card className="bg-amber-50 py-2">
+            <CardContent className="px-3 py-2">
+                <div className="text-center text-sm font-semibold uppercase text-amber-700">{title}</div>
+                <div className="mt-1.5 grid grid-cols-[1fr_auto] gap-x-3 text-sm">
+                    <span className="text-muted-foreground">{label}</span>
+                    <span className="text-right font-semibold text-amber-700">{formatNumber(value)}</span>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
 function StatusBadge({ status }: { status?: string }) {
     const label = status === "LOCKED" ? "Đã khóa" : status === "CALCULATED" ? "Đã tính" : "Nháp"
     return (
@@ -977,7 +1033,7 @@ function Td({
     className?: string
 }) {
     return (
-        <td className={cn("px-3 py-1.5 align-middle", center && "text-center", number && "text-right tabular-nums", className)}>
+        <td className={cn("overflow-hidden text-ellipsis whitespace-nowrap px-3 py-1.5 align-middle", center && "text-center", number && "text-right tabular-nums", className)}>
             {children}
         </td>
     )
@@ -1002,6 +1058,8 @@ const COSTING_EXPORT_COLUMNS: CostingExportColumn[] = [
     { label: "Mã hàng", width: 22, value: (row) => row.product_code },
     { label: "Tên hàng", width: 46, value: (row) => row.product_name },
     { label: "ĐVT", width: 10, value: (row) => row.unit },
+    { label: "Mã kho", width: 22, value: (row) => row.warehouse_code },
+    { label: "Tên kho", width: 28, value: (row) => row.warehouse_name },
     { label: "Tồn đầu SL", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.opening_quantity },
     { label: "Tồn đầu GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.opening_value },
     { label: "Nhập SL", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.inbound_quantity },
@@ -1015,7 +1073,7 @@ const COSTING_EXPORT_COLUMNS: CostingExportColumn[] = [
     { label: "Tồn cuối GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.closing_value },
 ]
 
-async function fetchAllPeriodCosts(periodId: number, keyword: string) {
+async function fetchAllPeriodCosts(periodId: number, keyword: string, productionOnly: boolean, lotAllocatedOnly: boolean) {
     const rows: ProductPeriodCost[] = []
     let page = 1
     while (true) {
@@ -1023,6 +1081,8 @@ async function fetchAllPeriodCosts(periodId: number, keyword: string) {
             page,
             size: COSTING_EXPORT_PAGE_SIZE,
             keyword: keyword || undefined,
+            production_only: productionOnly,
+            lot_allocated_only: lotAllocatedOnly,
         })
         rows.push(...(res.items || []))
         if (page >= (res.total_page || 1) || !res.items?.length) break
