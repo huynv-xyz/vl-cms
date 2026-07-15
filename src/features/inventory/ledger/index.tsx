@@ -17,7 +17,6 @@ import { LedgerImportButtons } from "./components/ledger-import-buttons"
 import { LedgerProductionChronologyToolButton } from "./components/ledger-production-chronology-tool-button"
 import { LedgerProductionFifoWarehouseToolButton } from "./components/ledger-production-fifo-warehouse-tool-button"
 import { LedgerSalesSyncButton } from "./components/ledger-sales-sync-button"
-import { LedgerTestResetButton } from "./components/ledger-test-reset-button"
 import { LedgerVoucherDialog } from "./components/ledger-voucher-dialog"
 import type { InventoryLedgerTotals } from "./data/schema"
 
@@ -198,7 +197,6 @@ export function InventoryLedgerReportPage({
                             show_values: showValues,
                         }}
                     />
-                    {mode === "all" ? <LedgerTestResetButton /> : null}
                     {mode !== "out" ? (
                         <Button size="sm" variant="outline" onClick={() => setVoucherDialog("in")}>
                             <ArrowDownLeft className="mr-2 h-4 w-4 text-emerald-600" />

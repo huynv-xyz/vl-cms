@@ -1,7 +1,7 @@
 ﻿import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import type React from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Calculator, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, Play, Plus, Search, Upload } from "lucide-react"
+import { AlertCircle, Calculator, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, Loader2, Play, Plus, Search, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -9,18 +9,20 @@ import {
     createCostPeriod,
     createLandedCost,
     deleteLandedCost,
+    getCostBasis,
     importLandedCosts,
     listCostPeriods,
     listLandedCosts,
-    listLotCostAllocations,
     listPeriodCosts,
-    listProductionCostResults,
+    type CostBasis,
     type CostPeriod,
+    type CostingCalculationError,
     type CostingImportResult,
     type LandedCost,
     type LotCostAllocation,
     type ProductPeriodCost,
-    type ProductionCostResult,
+    type ProductionCostBasis,
+    type TransferInboundCostBasis,
 } from "@/api/inventory/costing"
 import { Main } from "@/components/layout/main"
 import { CardPagination } from "@/components/table/card-pagination"
@@ -57,6 +59,7 @@ const LANDED_COST_IMPORT_COLUMNS = [
 const COSTING_PAGE_SIZE = 50
 const COSTING_EXPORT_PAGE_SIZE = 1000
 const GRID_TABLE_CLASS = "[&_td]:border [&_td]:border-slate-200 [&_th]:border [&_th]:border-slate-200"
+type CostResultFilter = "all" | "production" | "lot"
 const QUARTERS = [
     { label: "Quý 1", value: 1 },
     { label: "Quý 2", value: 2 },
@@ -203,17 +206,22 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
 }) {
     const queryClient = useQueryClient()
     const [pageIndex, setPageIndex] = useState(0)
-    const [expandedRow, setExpandedRow] = useState<{ id: number; productId: number } | null>(null)
-    const [productionOnly, setProductionOnly] = useState(false)
-    const [lotAllocatedOnly, setLotAllocatedOnly] = useState(false)
+    const [basisRow, setBasisRow] = useState<ProductPeriodCost | null>(null)
+    const [resultFilter, setResultFilter] = useState<CostResultFilter>("all")
+    const [calculationError, setCalculationError] = useState<{
+        message: string
+        details: CostingCalculationError[]
+    } | null>(null)
+    const productionOnly = resultFilter === "production"
+    const lotAllocatedOnly = resultFilter === "lot"
 
     useEffect(() => {
         setPageIndex(0)
-        setExpandedRow(null)
-    }, [period.id, keyword, productionOnly, lotAllocatedOnly])
+        setBasisRow(null)
+    }, [period.id, keyword, resultFilter])
 
     const costsQuery = useQuery({
-        queryKey: ["inventory-cost-period-costs", period.id, keyword, productionOnly, lotAllocatedOnly, pageIndex],
+        queryKey: ["inventory-cost-period-costs", period.id, keyword, resultFilter, pageIndex],
         queryFn: () => listPeriodCosts(period.id, {
             page: pageIndex + 1,
             size: COSTING_PAGE_SIZE,
@@ -223,28 +231,22 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
         }),
     })
 
-    const lotAllocationsQuery = useQuery({
-        queryKey: ["inventory-cost-lot-allocations", period.id, expandedRow?.productId],
-        enabled: expandedRow?.productId !== undefined,
-        queryFn: () => listLotCostAllocations(period.id, expandedRow!.productId),
-    })
-
-    const productionCostsQuery = useQuery({
-        queryKey: ["inventory-production-cost-results", period.id, expandedRow?.productId],
-        enabled: expandedRow?.productId !== undefined,
-        queryFn: () => listProductionCostResults(period.id, expandedRow!.productId),
-    })
-
     const calculateMutation = useMutation({
         mutationFn: () => calculateCostPeriod(period.id),
         onSuccess: (result) => {
+            setCalculationError(null)
             toast.success(`Đã tính giá: ${result.product_rows} dòng, ${result.production_product_count} thành phẩm, ${result.lot_allocations} phân bổ phí lô`)
             queryClient.invalidateQueries({ queryKey: ["inventory-cost-periods"] })
             queryClient.invalidateQueries({ queryKey: ["inventory-cost-period-costs", period.id] })
             queryClient.invalidateQueries({ queryKey: ["inventory-cost-lot-allocations", period.id] })
             queryClient.invalidateQueries({ queryKey: ["inventory-production-cost-results", period.id] })
         },
-        onError: (error) => toast.error(error instanceof Error ? error.message : "Không tính được giá"),
+        onError: (error) => {
+            const message = error instanceof Error ? error.message : "Không tính được giá"
+            const details = Array.isArray((error as any)?.data?.details) ? (error as any).data.details : []
+            setCalculationError({ message, details })
+            toast.error("Không tính được giá. Xem chi tiết trên màn hình.")
+        },
     })
 
     const exportMutation = useMutation({
@@ -275,12 +277,24 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                             disabled={period.status === "LOCKED" || calculateMutation.isPending}
                             onClick={() => calculateMutation.mutate()}
                         >
-                            <Play className="mr-2 h-4 w-4" />
-                            Tính giá
+                            {calculateMutation.isPending ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Play className="mr-2 h-4 w-4" />
+                            )}
+                            {calculateMutation.isPending ? "Đang tính..." : "Tính giá"}
                         </Button>
                     </div>
                 </CardContent>
             </Card>
+
+            {calculationError && (
+                <CostingCalculationErrorPanel
+                    message={calculationError.message}
+                    details={calculationError.details}
+                    onClose={() => setCalculationError(null)}
+                />
+            )}
 
             <div className="grid gap-2 md:grid-cols-5">
                 <MetricCard title="Tồn đầu kỳ" quantity={totals.opening_quantity} value={totals.opening_value} />
@@ -295,23 +309,26 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="font-semibold">Kết quả tính giá</div>
                         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                            <Button
-                                type="button"
-                                variant={productionOnly ? "default" : "outline"}
-                                onClick={() => setProductionOnly((value) => !value)}
-                            >
-                                Thành phẩm đã tính giá
-                                <span className="ml-2 rounded-full bg-background/80 px-2 py-0.5 text-xs text-foreground">
-                                    {formatNumber(costsQuery.data?.production_product_count || 0)}
-                                </span>
-                            </Button>
-                            <Button
-                                type="button"
-                                variant={lotAllocatedOnly ? "default" : "outline"}
-                                onClick={() => setLotAllocatedOnly((value) => !value)}
-                            >
-                                Có phân bổ theo lô
-                            </Button>
+                            <div className="flex flex-wrap items-center gap-1 rounded-md border bg-muted/30 p-1">
+                                <CostResultFilterButton
+                                    active={resultFilter === "all"}
+                                    label="Tất cả"
+                                    count={costsQuery.data?.all_count || costsQuery.data?.total || 0}
+                                    onClick={() => setResultFilter("all")}
+                                />
+                                <CostResultFilterButton
+                                    active={resultFilter === "production"}
+                                    label="Thành phẩm đã tính giá"
+                                    count={costsQuery.data?.production_count || 0}
+                                    onClick={() => setResultFilter("production")}
+                                />
+                                <CostResultFilterButton
+                                    active={resultFilter === "lot"}
+                                    label="Có phân bổ theo lô"
+                                    count={costsQuery.data?.lot_allocated_count || 0}
+                                    onClick={() => setResultFilter("lot")}
+                                />
+                            </div>
                             <div className="relative w-full sm:w-80">
                                 <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
                                 <Input
@@ -335,7 +352,7 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                 </CardHeader>
                 <CardContent className="p-0">
                     <StickyReportTable
-                        columnWidths={[64, 150, 300, 90, 160, 220, 130, 150, 130, 150, 130, 150, 130, 130, 150, 130, 150]}
+                        columnWidths={[64, 150, 300, 90, 160, 220, 130, 150, 130, 150, 130, 150, 130, 130, 150, 130, 150, 160]}
                         tableClassName={cn("border-collapse", GRID_TABLE_CLASS)}
                         renderHeader={() => (
                                 <tr>
@@ -356,63 +373,41 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                                     <Th>Xuất GT</Th>
                                     <Th>Tồn cuối SL</Th>
                                     <Th>Tồn cuối GT</Th>
+                                    <Th>Cơ sở tính giá</Th>
                                 </tr>
                         )}
                         renderBody={() => (
                             <>
-                                {(costsQuery.data?.items || []).map((row, index) => {
-                                    const expanded = expandedRow?.id === row.id
-                                    return (
-                                        <Fragment key={row.id}>
-                                            <tr
-                                                className="cursor-pointer border-t hover:bg-slate-50"
-                                                onClick={() => setExpandedRow(expanded ? null : { id: row.id, productId: row.product_id })}
-                                            >
-                                                <Td center>{pageIndex * COSTING_PAGE_SIZE + index + 1}</Td>
-                                                <Td center>{row.product_code}</Td>
-                                                <Td className="font-medium">
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <span className="min-w-0 truncate">{row.product_name}</span>
-                                                        {expanded ? (
-                                                            <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                                        ) : (
-                                                            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                                        )}
-                                                    </div>
-                                                </Td>
-                                                <Td center>{row.unit || "-"}</Td>
-                                                <Td center>{row.warehouse_code || "-"}</Td>
-                                                <Td>{row.warehouse_name || "-"}</Td>
-                                                <Td number>{formatNumber(row.opening_quantity)}</Td>
-                                                <Td number>{formatCurrency(row.opening_value)}</Td>
-                                                <Td number>{formatNumber(row.inbound_quantity)}</Td>
-                                                <Td number>{formatCurrency(row.inbound_value)}</Td>
-                                                <Td number>{formatCurrency(row.landed_cost_value)}</Td>
-                                                <Td number>{formatCurrency(row.production_inbound_value)}</Td>
-                                                <Td number>{formatCurrency(row.avg_unit_cost)}</Td>
-                                                <Td number>{formatNumber(row.outbound_quantity)}</Td>
-                                                <Td number>{formatCurrency(row.outbound_value)}</Td>
-                                                <Td number>{formatNumber(row.closing_quantity)}</Td>
-                                                <Td number>{formatCurrency(row.closing_value)}</Td>
-                                            </tr>
-                                            {expanded && (
-                                                <tr className="border-t bg-slate-50/70">
-                                                    <td colSpan={17} className="px-4 py-3">
-                                                        <CostBreakdownPanel
-                                                            lotRows={lotAllocationsQuery.data || []}
-                                                            productionRows={productionCostsQuery.data || []}
-                                                            isLotLoading={lotAllocationsQuery.isLoading}
-                                                            isProductionLoading={productionCostsQuery.isLoading}
-                                                        />
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </Fragment>
-                                    )
-                                })}
+                                {(costsQuery.data?.items || []).map((row, index) => (
+                                    <tr key={row.id} className="border-t">
+                                        <Td center>{pageIndex * COSTING_PAGE_SIZE + index + 1}</Td>
+                                        <Td center>{row.product_code}</Td>
+                                        <Td className="font-medium">{row.product_name}</Td>
+                                        <Td center>{row.unit || "-"}</Td>
+                                        <Td center>{row.warehouse_code || "-"}</Td>
+                                        <Td>{row.warehouse_name || "-"}</Td>
+                                        <Td number>{formatNumber(row.opening_quantity)}</Td>
+                                        <Td number>{formatCurrency(row.opening_value)}</Td>
+                                        <Td number>{formatNumber(row.inbound_quantity)}</Td>
+                                        <Td number>{formatCurrency(row.inbound_value)}</Td>
+                                        <Td number>{formatCurrency(row.landed_cost_value)}</Td>
+                                        <Td number>{formatCurrency(row.production_inbound_value)}</Td>
+                                        <Td number>{formatCurrency(row.avg_unit_cost)}</Td>
+                                        <Td number>{formatNumber(row.outbound_quantity)}</Td>
+                                        <Td number>{formatCurrency(row.outbound_value)}</Td>
+                                        <Td number>{formatNumber(row.closing_quantity)}</Td>
+                                        <Td number>{formatCurrency(row.closing_value)}</Td>
+                                        <Td center>
+                                            <Button type="button" variant="outline" size="sm" onClick={() => setBasisRow(row)}>
+                                                <Calculator className="mr-2 h-4 w-4" />
+                                                Cơ sở
+                                            </Button>
+                                        </Td>
+                                    </tr>
+                                ))}
                                 {!costsQuery.data?.items?.length && (
                                     <tr>
-                                        <td colSpan={17} className="p-6 text-center text-sm text-muted-foreground">
+                                        <td colSpan={18} className="p-6 text-center text-sm text-muted-foreground">
                                             Chưa có kết quả. Bấm Tính giá để sinh dữ liệu kỳ.
                                         </td>
                                     </tr>
@@ -428,25 +423,223 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                     />
                 </CardContent>
             </Card>
+            <CostBasisDialog
+                period={period}
+                row={basisRow}
+                open={basisRow !== null}
+                onOpenChange={(open) => {
+                    if (!open) setBasisRow(null)
+                }}
+            />
         </div>
     )
 }
 
-function CostBreakdownPanel({
-    lotRows,
-    productionRows,
-    isLotLoading,
-    isProductionLoading,
+function CostResultFilterButton({
+    active,
+    label,
+    count,
+    onClick,
 }: {
-    lotRows: LotCostAllocation[]
-    productionRows: ProductionCostResult[]
-    isLotLoading: boolean
-    isProductionLoading: boolean
+    active: boolean
+    label: string
+    count: number
+    onClick: () => void
 }) {
     return (
-        <div className="space-y-3">
-            <LotAllocationsPanel rows={lotRows} isLoading={isLotLoading} />
-            <ProductionCostsPanel rows={productionRows} isLoading={isProductionLoading} />
+        <button
+            type="button"
+            className={cn(
+                "inline-flex h-8 items-center gap-2 rounded px-3 text-sm font-medium transition",
+                active
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-background hover:text-foreground",
+            )}
+            onClick={onClick}
+        >
+            <span>{label}</span>
+            <span
+                className={cn(
+                    "rounded-full px-2 py-0.5 text-xs",
+                    active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-background text-foreground",
+                )}
+            >
+                {formatNumber(count)}
+            </span>
+        </button>
+    )
+}
+
+function CostingCalculationErrorPanel({
+    message,
+    details,
+    onClose,
+}: {
+    message: string
+    details: CostingCalculationError[]
+    onClose: () => void
+}) {
+    return (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-950">
+            <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-2">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <div className="min-w-0">
+                        <div className="font-semibold">Không tính được giá</div>
+                        <div className="mt-1 text-sm text-red-800">{message}</div>
+                    </div>
+                </div>
+                <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-red-900 hover:bg-red-100" onClick={onClose}>
+                    Đóng
+                </Button>
+            </div>
+            {details.length > 0 ? (
+                <div className="mt-3 max-h-[360px] overflow-auto rounded-md border border-red-200 bg-background">
+                    <table className="min-w-[1120px] w-full text-sm">
+                        <thead className="bg-red-50 text-muted-foreground">
+                            <tr>
+                                <th className="px-3 py-2 text-left">STT</th>
+                                <th className="px-3 py-2 text-left">Thành phẩm</th>
+                                <th className="px-3 py-2 text-left">Kho TP</th>
+                                <th className="px-3 py-2 text-left">Vật tư bị kẹt</th>
+                                <th className="px-3 py-2 text-left">Kho vật tư</th>
+                                <th className="px-3 py-2 text-right">SL vật tư</th>
+                                <th className="px-3 py-2 text-left">Lý do</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {details.map((item, index) => (
+                                <tr key={`${item.productionItemId || "row"}-${index}`} className="border-t border-red-100">
+                                    <td className="px-3 py-2 align-top">{index + 1}</td>
+                                    <td className="px-3 py-2 align-top">
+                                        <div className="font-medium">{item.outputProductName || "-"}</div>
+                                        <div className="text-xs text-muted-foreground">{item.outputProductCode || "-"}</div>
+                                    </td>
+                                    <td className="px-3 py-2 align-top text-muted-foreground">{item.outputWarehouse || "-"}</td>
+                                    <td className="px-3 py-2 align-top">
+                                        <div className="font-medium">{item.materialProductName || "-"}</div>
+                                        <div className="text-xs text-muted-foreground">{item.materialProductCode || "-"}</div>
+                                    </td>
+                                    <td className="px-3 py-2 align-top text-muted-foreground">{item.materialWarehouse || "-"}</td>
+                                    <td className="px-3 py-2 align-top text-right tabular-nums">{formatNumber(item.materialQuantity || 0)}</td>
+                                    <td className="px-3 py-2 align-top text-red-800">{item.reason || "-"}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <div className="mt-3 rounded-md border border-red-200 bg-background px-3 py-2 text-sm text-red-800">
+                    Backend chưa trả danh sách dòng chi tiết. Kiểm tra log hoặc dữ liệu kỳ tính giá.
+                </div>
+            )}
+        </div>
+    )
+}
+
+function CostBasisDialog({
+    period,
+    row,
+    open,
+    onOpenChange,
+}: {
+    period: CostPeriod
+    row: ProductPeriodCost | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+}) {
+    const query = useQuery({
+        queryKey: ["inventory-cost-basis", period.id, row?.product_id, row?.warehouse_id],
+        enabled: open && !!row,
+        queryFn: () => getCostBasis(period.id, row!.product_id, row!.warehouse_id),
+    })
+    const basis = query.data
+    const summary = basis?.summary || row || undefined
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="!flex max-h-[92vh] w-[min(96vw,1800px)] !max-w-none flex-col overflow-hidden p-0">
+                <DialogHeader className="border-b px-5 py-4">
+                    <DialogTitle>Cơ sở tính giá</DialogTitle>
+                    <DialogDescription>
+                        {row?.product_name || "-"} · {row?.product_code || "-"} · {row?.warehouse_name || "-"} · Kỳ {formatDate(period.from_date)} - {formatDate(period.to_date)}
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
+                    {query.isLoading ? (
+                        <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Đang tải cơ sở tính giá...
+                        </div>
+                    ) : query.isError ? (
+                        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                            Không tải được cơ sở tính giá.
+                        </div>
+                    ) : (
+                        <>
+                            <CostBasisSummaryPanel row={summary} />
+                            <LotAllocationsPanel rows={basis?.lot_allocations || []} isLoading={false} />
+                            <ProductionCostBasisPanel rows={basis?.production_costs || []} />
+                            <TransferInboundBasisPanel rows={basis?.transfer_inbounds || []} />
+                            {isEmptyCostBasis(basis) && (
+                                <div className="rounded-md border bg-muted/20 p-4 text-sm text-muted-foreground">
+                                    Chưa có chi tiết cơ sở tính giá cho dòng này. Dòng giá vẫn được tính từ số liệu tổng hợp của sổ kho trong kỳ.
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function isEmptyCostBasis(basis?: CostBasis) {
+    if (!basis) return false
+    return !basis.lot_allocations?.length && !basis.production_costs?.length && !basis.transfer_inbounds?.length
+}
+
+function CostBasisSummaryPanel({ row }: { row?: ProductPeriodCost }) {
+    if (!row) return null
+    const purchaseQuantity = Number(row.purchase_inbound_quantity || 0)
+    const purchaseValue = Number(row.purchase_inbound_value || 0)
+    const productionQuantity = Number(row.production_inbound_quantity || 0)
+    const productionValue = Number(row.production_inbound_value || 0)
+    const otherQuantity = Number(row.inbound_quantity || 0) - purchaseQuantity - productionQuantity
+    const otherValue = Number(row.inbound_value || 0) - purchaseValue - productionValue - Number(row.landed_cost_value || 0)
+    const rows = [
+        { label: "Tồn đầu kỳ", quantity: row.opening_quantity, value: row.opening_value },
+        { label: "Mua hàng / nhập kho có giá mua", quantity: purchaseQuantity, value: purchaseValue },
+        { label: "Phí lô hàng phân bổ", quantity: undefined, value: row.landed_cost_value },
+        { label: "Nhập thành phẩm sản xuất", quantity: productionQuantity, value: productionValue },
+        { label: "Nhập khác / trả lại / điều chỉnh", quantity: otherQuantity, value: otherValue },
+        { label: "Xuất trong kỳ", quantity: row.outbound_quantity, value: row.outbound_value },
+        { label: "Tồn cuối kỳ", quantity: row.closing_quantity, value: row.closing_value },
+    ]
+
+    return (
+        <div className="rounded-md border bg-background">
+            <div className="border-b px-3 py-2 text-sm font-semibold">Tổng hợp nguồn giá</div>
+            <div className="overflow-x-auto">
+                <table className="min-w-[760px] w-full text-sm">
+                    <thead className="bg-muted/40 text-muted-foreground">
+                        <tr>
+                            <th className="px-3 py-2 text-left">Nguồn</th>
+                            <th className="px-3 py-2 text-right">Số lượng</th>
+                            <th className="px-3 py-2 text-right">Giá trị</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((item) => (
+                            <tr key={item.label} className="border-t">
+                                <td className="px-3 py-2 font-medium">{item.label}</td>
+                                <td className="px-3 py-2 text-right tabular-nums">{item.quantity === undefined ? "-" : formatNumber(item.quantity)}</td>
+                                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(item.value || 0)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     )
 }
@@ -455,6 +648,7 @@ function LotAllocationsPanel({ rows, isLoading }: { rows: LotCostAllocation[]; i
     if (isLoading) {
         return <div className="rounded-md border bg-background p-4 text-sm text-muted-foreground">Đang tải phân bổ lô...</div>
     }
+    if (!rows.length) return null
 
     return (
         <div className="rounded-md border bg-background">
@@ -498,13 +692,6 @@ function LotAllocationsPanel({ rows, isLoading }: { rows: LotCostAllocation[]; i
                                 <Td number>{formatCurrency(row.final_amount)}</Td>
                             </tr>
                         ))}
-                        {!rows.length && (
-                            <tr>
-                                <td colSpan={11} className="p-4 text-center text-sm text-muted-foreground">
-                                    Chưa có phân bổ phí lô cho sản phẩm này trong kỳ.
-                                </td>
-                            </tr>
-                        )}
                     </>
                 )}
             />
@@ -512,16 +699,35 @@ function LotAllocationsPanel({ rows, isLoading }: { rows: LotCostAllocation[]; i
     )
 }
 
-function ProductionCostsPanel({ rows, isLoading }: { rows: ProductionCostResult[]; isLoading: boolean }) {
-    if (isLoading) {
-        return <div className="rounded-md border bg-background p-4 text-sm text-muted-foreground">Đang tải giá thành sản xuất...</div>
+function ProductionCostBasisPanel({ rows }: { rows: ProductionCostBasis[] }) {
+    const [expandedRows, setExpandedRows] = useState<Set<number>>(() => new Set())
+    if (!rows.length) return null
+    const hasLegacyLedgerRows = rows.some((row) => row.source_kind === "LEGACY_LEDGER")
+
+    const toggleRow = (rowId: number) => {
+        setExpandedRows((current) => {
+            const next = new Set(current)
+            if (next.has(rowId)) {
+                next.delete(rowId)
+            } else {
+                next.add(rowId)
+            }
+            return next
+        })
     }
 
     return (
         <div className="rounded-md border bg-background">
-            <div className="border-b px-3 py-2 text-sm font-semibold">Chi tiết giá thành sản xuất</div>
+            <div className="flex items-center gap-2 border-b px-3 py-2 text-sm font-semibold">
+                <span>Cơ sở giá thành sản xuất</span>
+                {hasLegacyLedgerRows && (
+                    <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200">
+                        Dữ liệu sổ kho cũ
+                    </span>
+                )}
+            </div>
             <StickyReportTable
-                columnWidths={[64, 180, 140, 220, 260, 150, 150, 150, 160]}
+                columnWidths={[82, 180, 140, 220, 260, 150, 150, 150, 160]}
                 tableClassName={cn("border-collapse", GRID_TABLE_CLASS)}
                 defaultPinnedUntil={-1}
                 renderHeader={() => (
@@ -539,29 +745,155 @@ function ProductionCostsPanel({ rows, isLoading }: { rows: ProductionCostResult[
                 )}
                 renderBody={() => (
                     <>
+                        {rows.map((row, index) => {
+                            const hasMaterials = !!row.materials?.length
+                            const isExpanded = expandedRows.has(row.id)
+                            return (
+                                <Fragment key={row.id}>
+                                <tr
+                                    key={`${row.id}-output`}
+                                    className={cn(
+                                        "border-t",
+                                        hasMaterials && "cursor-pointer hover:bg-slate-50",
+                                    )}
+                                    onClick={() => hasMaterials && toggleRow(row.id)}
+                                >
+                                    <Td center>
+                                        {hasMaterials ? (
+                                            <button
+                                                type="button"
+                                                className="inline-flex min-w-12 items-center justify-center gap-1 rounded px-1.5 py-1 hover:bg-muted"
+                                                onClick={(event) => {
+                                                    event.stopPropagation()
+                                                    toggleRow(row.id)
+                                                }}
+                                            >
+                                                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                                <span>{index + 1}</span>
+                                            </button>
+                                        ) : (
+                                            index + 1
+                                        )}
+                                    </Td>
+                                    <Td center className="font-medium">{row.production_no || "-"}</Td>
+                                    <Td center>{formatDate(row.production_date)}</Td>
+                                    <Td center className="font-mono">{row.output_lot_no || "-"}</Td>
+                                    <Td>
+                                        <div className="truncate font-medium">{row.warehouse_name || "-"}</div>
+                                        <div className="truncate text-xs text-muted-foreground">{row.warehouse_code || ""}</div>
+                                    </Td>
+                                    <Td number>{formatNumber(row.output_quantity)}</Td>
+                                    <Td number>{formatCurrency(row.material_cost)}</Td>
+                                    <Td number>{formatCurrency(row.unit_cost)}</Td>
+                                    <Td number>{formatCurrency(row.total_cost)}</Td>
+                                </tr>
+                                {hasMaterials && isExpanded && (
+                                    <tr key={`${row.id}-materials`} className="border-t bg-slate-50/80">
+                                        <td colSpan={9} className="px-3 py-3">
+                                            <ProductionMaterialsPanel rows={row.materials} />
+                                        </td>
+                                    </tr>
+                                )}
+                                </Fragment>
+                            )
+                        })}
+                    </>
+                )}
+            />
+        </div>
+    )
+}
+
+function ProductionMaterialsPanel({ rows }: { rows: ProductionCostBasis["materials"] }) {
+    if (!rows?.length) return null
+    return (
+        <div className="rounded-md border bg-background">
+            <div className="border-b px-3 py-2 text-xs font-semibold text-muted-foreground">Vật tư cấu thành lần nhập TP này</div>
+            <StickyReportTable
+                columnWidths={[64, 170, 300, 90, 240, 160, 140, 140, 150]}
+                tableClassName={cn("border-collapse", GRID_TABLE_CLASS)}
+                defaultPinnedUntil={-1}
+                renderHeader={() => (
+                    <tr>
+                        <Th>STT</Th>
+                        <Th>Mã vật tư</Th>
+                        <Th>Tên vật tư</Th>
+                        <Th>ĐVT</Th>
+                        <Th>Kho vật tư</Th>
+                        <Th>Số lô</Th>
+                        <Th>SL dùng</Th>
+                        <Th>Giá BQ</Th>
+                        <Th>Thành tiền</Th>
+                    </tr>
+                )}
+                renderBody={() => (
+                    <>
                         {rows.map((row, index) => (
-                            <tr key={row.id} className="border-t">
+                            <tr key={`${row.material_product_id || "material"}-${row.warehouse_id || "w"}-${row.lot_no || index}`} className="border-t">
                                 <Td center>{index + 1}</Td>
-                                <Td center className="font-medium">{row.production_no || "-"}</Td>
-                                <Td center>{formatDate(row.production_date)}</Td>
-                                <Td center className="font-mono">{row.output_lot_no || "-"}</Td>
+                                <Td center className="font-mono">{row.material_product_code || "-"}</Td>
+                                <Td className="font-medium">{row.material_product_name || "-"}</Td>
+                                <Td center>{row.unit || "-"}</Td>
                                 <Td>
                                     <div className="truncate font-medium">{row.warehouse_name || "-"}</div>
                                     <div className="truncate text-xs text-muted-foreground">{row.warehouse_code || ""}</div>
                                 </Td>
-                                <Td number>{formatNumber(row.output_quantity)}</Td>
-                                <Td number>{formatCurrency(row.material_cost)}</Td>
+                                <Td center className="font-mono">{row.lot_no || "-"}</Td>
+                                <Td number>{formatNumber(row.quantity)}</Td>
                                 <Td number>{formatCurrency(row.unit_cost)}</Td>
-                                <Td number>{formatCurrency(row.total_cost)}</Td>
+                                <Td number>{formatCurrency(row.amount)}</Td>
                             </tr>
                         ))}
-                        {!rows.length && (
-                            <tr>
-                                <td colSpan={9} className="p-4 text-center text-sm text-muted-foreground">
-                                    Chưa có dữ liệu nhập thành phẩm sản xuất cho sản phẩm này trong kỳ.
-                                </td>
+                    </>
+                )}
+            />
+        </div>
+    )
+}
+
+function TransferInboundBasisPanel({ rows }: { rows: TransferInboundCostBasis[] }) {
+    if (!rows.length) return null
+    return (
+        <div className="rounded-md border bg-background">
+            <div className="border-b px-3 py-2 text-sm font-semibold">Cơ sở giá chuyển kho vào</div>
+            <StickyReportTable
+                columnWidths={[64, 170, 140, 260, 260, 160, 130, 140, 150]}
+                tableClassName={cn("border-collapse", GRID_TABLE_CLASS)}
+                defaultPinnedUntil={-1}
+                renderHeader={() => (
+                    <tr>
+                        <Th>STT</Th>
+                        <Th>Chứng từ</Th>
+                        <Th>Ngày</Th>
+                        <Th>Kho xuất</Th>
+                        <Th>Kho nhập</Th>
+                        <Th>Số lô</Th>
+                        <Th>SL chuyển</Th>
+                        <Th>Giá kho xuất</Th>
+                        <Th>Giá trị chuyển</Th>
+                    </tr>
+                )}
+                renderBody={() => (
+                    <>
+                        {rows.map((row, index) => (
+                            <tr key={`${row.doc_no || "transfer"}-${index}`} className="border-t">
+                                <Td center>{index + 1}</Td>
+                                <Td center className="font-medium">{row.doc_no || "-"}</Td>
+                                <Td center>{formatDate(row.posting_date)}</Td>
+                                <Td>
+                                    <div className="truncate font-medium">{row.from_warehouse_name || "-"}</div>
+                                    <div className="truncate text-xs text-muted-foreground">{row.from_warehouse_code || ""}</div>
+                                </Td>
+                                <Td>
+                                    <div className="truncate font-medium">{row.to_warehouse_name || "-"}</div>
+                                    <div className="truncate text-xs text-muted-foreground">{row.to_warehouse_code || ""}</div>
+                                </Td>
+                                <Td center className="font-mono">{row.lot_no || "-"}</Td>
+                                <Td number>{formatNumber(row.quantity)}</Td>
+                                <Td number>{formatCurrency(row.unit_cost)}</Td>
+                                <Td number>{formatCurrency(row.amount)}</Td>
                             </tr>
-                        )}
+                        ))}
                     </>
                 )}
             />
