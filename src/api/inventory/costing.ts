@@ -38,6 +38,8 @@ export type ProductPeriodCost = {
     outbound_value: number
     closing_quantity: number
     closing_value: number
+    lot_allocation_count?: number
+    production_cost_count?: number
 }
 
 export type LandedCost = {
@@ -94,6 +96,61 @@ export type ProductionCostResult = {
     material_cost: number
     unit_cost: number
     total_cost: number
+    source_kind?: "PRODUCTION_ORDER" | "LEGACY_LEDGER"
+}
+
+export type ProductionCostMaterial = {
+    material_product_id?: number
+    material_product_code?: string
+    material_product_name?: string
+    unit?: string
+    warehouse_id?: number
+    warehouse_code?: string
+    warehouse_name?: string
+    lot_no?: string
+    quantity: number
+    unit_cost: number
+    amount: number
+    source_kind?: "PRODUCTION_ORDER" | "LEGACY_LEDGER"
+}
+
+export type ProductionCostBasis = ProductionCostResult & {
+    materials?: ProductionCostMaterial[]
+}
+
+export type TransferInboundCostBasis = {
+    doc_no?: string
+    posting_date?: string
+    from_warehouse_id?: number
+    from_warehouse_code?: string
+    from_warehouse_name?: string
+    to_warehouse_id?: number
+    to_warehouse_code?: string
+    to_warehouse_name?: string
+    lot_no?: string
+    quantity: number
+    unit_cost: number
+    amount: number
+}
+
+export type CostBasis = {
+    period?: CostPeriod
+    summary?: ProductPeriodCost
+    lot_allocations: LotCostAllocation[]
+    production_costs: ProductionCostBasis[]
+    transfer_inbounds: TransferInboundCostBasis[]
+}
+
+export type CostingCalculationError = {
+    productionItemId?: number
+    outputProductCode?: string
+    outputProductName?: string
+    outputWarehouse?: string
+    materialProductCode?: string
+    materialProductName?: string
+    materialWarehouse?: string
+    materialQuantity?: number
+    reason?: string
 }
 
 export type CostingImportResult = {
@@ -138,7 +195,14 @@ export function lockCostPeriod(id: number) {
 }
 
 export function listPeriodCosts(id: number, params: { page: number; size: number; keyword?: string; production_only?: boolean; lot_allocated_only?: boolean }) {
-    return apiGet<PagedResult<ProductPeriodCost> & { period: CostPeriod; totals?: Record<string, number>; production_product_count?: number }>(
+    return apiGet<PagedResult<ProductPeriodCost> & {
+        period: CostPeriod
+        totals?: Record<string, number>
+        all_count?: number
+        production_count?: number
+        production_product_count?: number
+        lot_allocated_count?: number
+    }>(
         `/inventory/costing/periods/${id}/costs`,
         params,
     )
@@ -153,6 +217,13 @@ export function listLotCostAllocations(id: number, productId: number) {
 export function listProductionCostResults(id: number, productId: number) {
     return apiGet<ProductionCostResult[]>(`/inventory/costing/periods/${id}/production-costs`, {
         product_id: productId,
+    })
+}
+
+export function getCostBasis(id: number, productId: number, warehouseId?: number | null) {
+    return apiGet<CostBasis>(`/inventory/costing/periods/${id}/cost-basis`, {
+        product_id: productId,
+        warehouse_id: warehouseId || undefined,
     })
 }
 
