@@ -19,6 +19,9 @@ export type ProductPeriodCost = {
     product_id: number
     product_code?: string
     product_name?: string
+    warehouse_id?: number | null
+    warehouse_code?: string
+    warehouse_name?: string
     unit?: string
     nature?: string
     opening_quantity: number
@@ -125,7 +128,7 @@ export function createCostPeriod(body: CreateCostPeriodRequest) {
 }
 
 export function calculateCostPeriod(id: number) {
-    return apiPost<{ period: CostPeriod; product_rows: number; lot_allocations: number; production_rows: number }>(
+    return apiPost<{ period: CostPeriod; product_rows: number; lot_allocations: number; production_rows: number; production_product_count: number }>(
         `/inventory/costing/periods/${id}/calculate`,
     )
 }
@@ -134,8 +137,8 @@ export function lockCostPeriod(id: number) {
     return apiPost<CostPeriod>(`/inventory/costing/periods/${id}/lock`)
 }
 
-export function listPeriodCosts(id: number, params: { page: number; size: number; keyword?: string }) {
-    return apiGet<PagedResult<ProductPeriodCost> & { period: CostPeriod; totals?: Record<string, number> }>(
+export function listPeriodCosts(id: number, params: { page: number; size: number; keyword?: string; production_only?: boolean; lot_allocated_only?: boolean }) {
+    return apiGet<PagedResult<ProductPeriodCost> & { period: CostPeriod; totals?: Record<string, number>; production_product_count?: number }>(
         `/inventory/costing/periods/${id}/costs`,
         params,
     )

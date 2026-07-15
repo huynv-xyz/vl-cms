@@ -20,6 +20,7 @@ export function WarehouseTreeFilter({ value, onChange, className }: WarehouseTre
     const [open, setOpen] = useState(false)
     const [draftValue, setDraftValue] = useState<number[]>(value)
     const [warehouseKeyword, setWarehouseKeyword] = useState("")
+    const [activePhysicalId, setActivePhysicalId] = useState<number>()
     const selected = useMemo(() => new Set(draftValue), [draftValue])
     const appliedSelected = useMemo(() => new Set(value), [value])
 
@@ -27,6 +28,7 @@ export function WarehouseTreeFilter({ value, onChange, className }: WarehouseTre
         if (open) {
             setDraftValue(value)
             setWarehouseKeyword("")
+            setActivePhysicalId(undefined)
         }
     }, [open, value])
 
@@ -85,14 +87,19 @@ export function WarehouseTreeFilter({ value, onChange, className }: WarehouseTre
         setSelected([...draftValue, warehouseId])
     }
 
+    const scopedWarehouses = useMemo(() => {
+        if (!activePhysicalId) return warehouses
+        return warehouses.filter((warehouse: any) => Number(warehouse.physical_warehouse_id || 0) === activePhysicalId)
+    }, [activePhysicalId, warehouses])
+
     const filteredWarehouses = useMemo(() => {
         const keyword = warehouseKeyword.trim().toLowerCase()
-        if (!keyword) return warehouses
-        return warehouses.filter((warehouse: any) => {
+        if (!keyword) return scopedWarehouses
+        return scopedWarehouses.filter((warehouse: any) => {
             const text = `${warehouse.code || ""} ${warehouse.name || ""}`.toLowerCase()
             return text.includes(keyword)
         })
-    }, [warehouses, warehouseKeyword])
+    }, [scopedWarehouses, warehouseKeyword])
 
     const allWarehouseIds = useMemo(() => warehouses.map((warehouse: any) => Number(warehouse.id)), [warehouses])
     const filteredWarehouseIds = useMemo(() => filteredWarehouses.map((warehouse: any) => Number(warehouse.id)), [filteredWarehouses])
@@ -146,22 +153,35 @@ export function WarehouseTreeFilter({ value, onChange, className }: WarehouseTre
                                 <div className="px-2 py-3 text-sm text-muted-foreground">Đang tải...</div>
                             ) : physicalWarehouses.length ? (
                                 physicalWarehouses.map((physical: any) => {
-                                    const childIds = (warehousesByPhysical.get(Number(physical.id)) || []).map((warehouse: any) => Number(warehouse.id))
+                                    const physicalId = Number(physical.id)
+                                    const childIds = (warehousesByPhysical.get(physicalId) || []).map((warehouse: any) => Number(warehouse.id))
                                     const checkedCount = childIds.filter((id) => selected.has(id)).length
                                     const checked = checkedCount === 0 ? false : checkedCount === childIds.length ? true : "indeterminate"
                                     return (
-                                        <label key={physical.id} className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-sm hover:bg-white">
+                                        <button
+                                            key={physical.id}
+                                            type="button"
+                                            className={cn(
+                                                "flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-white",
+                                                activePhysicalId === physicalId && "bg-white shadow-sm",
+                                            )}
+                                            onClick={() => {
+                                                setActivePhysicalId(physicalId)
+                                                setWarehouseKeyword("")
+                                            }}
+                                        >
                                             <Checkbox
                                                 checked={checked}
                                                 disabled={!childIds.length}
-                                                onCheckedChange={() => togglePhysical(Number(physical.id))}
+                                                onClick={(event) => event.stopPropagation()}
+                                                onCheckedChange={() => togglePhysical(physicalId)}
                                                 className="mt-0.5"
                                             />
                                             <span className="min-w-0">
                                                 <span className="block truncate font-medium">{physical.name}</span>
                                                 <span className="text-xs text-muted-foreground">{checkedCount}/{childIds.length} kho</span>
                                             </span>
-                                        </label>
+                                        </button>
                                     )
                                 })
                             ) : (

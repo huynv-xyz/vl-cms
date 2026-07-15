@@ -4,12 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import { CrudTable } from '@/components/crud/crud-table'
 import type { CustomerVip } from '../data/schema'
 import { customerVipColumns } from './customer-vip-columns'
-import { listCustomerVips, type CustomerVipListParams } from '@/api/customer-vip'
+import { listCustomerVips } from '@/api/customer-vip'
 import { listVipTiers } from '@/api/vip-tier'
 import { DatePicker } from '@/components/date-picker'
 import { SearchOnBlurInput } from '@/components/search-on-blur-input'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
     Command,
@@ -27,12 +26,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Check } from 'lucide-react'
 import { cn, formatCurrency } from '@/lib/utils'
-import { exportXlsx } from '@/lib/xlsx-export'
-import { toast } from 'sonner'
 import {
-    Download,
     Crown,
-    Loader2,
+    ChevronLeft,
+    ChevronRight,
     Users,
     TrendingUp,
     Wallet,
@@ -69,7 +66,8 @@ const getItems = (res: any): CustomerVip[] =>
 const getPagedItems = <T,>(res: any): T[] =>
     res?.items ?? res?.data?.items ?? []
 
-type Filters = {
+export type CustomerVipFilters = {
+    calc_year?: number
     regions?: string[]
     tier_codes?: string[]
     group_codes?: string[]
@@ -86,9 +84,10 @@ type CustomerVipTableProps = {
     pageCount: number
     keyword: string
     onKeywordChange: (value: string) => void
-    filters: Filters
-    onFiltersChange: (filters: Filters) => void
-    onDateRangeChange: (value: Pick<Filters, 'from_date' | 'to_date'>) => void
+    filters: CustomerVipFilters
+    onFiltersChange: (filters: CustomerVipFilters) => void
+    onCalcYearChange: (year: number) => void
+    onDateRangeChange: (value: Pick<CustomerVipFilters, 'from_date' | 'to_date'>) => void
 }
 
 export function CustomerVipTable({
@@ -100,9 +99,9 @@ export function CustomerVipTable({
     onKeywordChange,
     filters,
     onFiltersChange,
+    onCalcYearChange,
     onDateRangeChange,
 }: CustomerVipTableProps) {
-    const [isExporting, setIsExporting] = React.useState(false)
     const [tierFilterOpen, setTierFilterOpen] = React.useState(keepVipTierFilterOpen)
     const tierOptionsQuery = useQuery({
         queryKey: ['vip-tier-options'],
@@ -128,7 +127,7 @@ export function CustomerVipTable({
         ]
     }, [tierOptionsQuery.data])
     const summary = buildSummary(data)
-    const setFilter = (key: keyof Filters, value: string[] | undefined) =>
+    const setFilter = (key: keyof CustomerVipFilters, value: string[] | undefined) =>
         onFiltersChange({ ...filters, [key]: value })
     const setTierFilter = (value: string[] | undefined) => {
         keepVipTierFilterOpen = true
@@ -139,29 +138,8 @@ export function CustomerVipTable({
         keepVipTierFilterOpen = open
         setTierFilterOpen(open)
     }
-    const exportFilters = buildExportFilters(keyword, filters)
-
-    const handleExport = async () => {
-        try {
-            setIsExporting(true)
-            const rows = await fetchAllCustomerVips(exportFilters)
-            if (!rows.length) {
-                toast.warning('Không có dữ liệu để xuất')
-                return
-            }
-
-            exportCustomerVipXlsx(rows)
-            toast.success(`Đã xuất ${rows.length} khách hàng VIP`)
-        } catch (error) {
-            console.error(error)
-            toast.error(error instanceof Error ? error.message : 'Xuất Excel thất bại')
-        } finally {
-            setIsExporting(false)
-        }
-    }
-
     return (
-        <div className="space-y-5">
+        <div className="space-y-4">
             {(filters.from_date || filters.to_date) && (
                 <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
                     Đang xem số liệu tạm tính theo ngày chứng từ {formatDateRange(filters.from_date, filters.to_date)}. Dữ liệu này không ghi đè kết quả đã chốt năm.
@@ -169,7 +147,7 @@ export function CustomerVipTable({
             )}
 
             {/* ── SUMMARY CARDS ── */}
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                 <SummaryCard
                     icon={Users}
                     label="Khách hàng đang xem"
@@ -203,11 +181,11 @@ export function CustomerVipTable({
                         value={keyword}
                         onChange={onKeywordChange}
                         placeholder="Tìm theo mã hoặc tên khách hàng..."
-                        wrapperClassName="relative h-10 min-w-[280px] flex-[1.2_1_0]"
-                        className={cn(FILTER_CONTROL_CLASS, 'pl-10')}
+                        wrapperClassName="relative h-10 min-w-[280px] flex-[1.8_1_0]"
+                        className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
                     />
                     <AsyncMultiFilterDropdown
-                        className={cn(FILTER_CONTROL_CLASS, 'min-w-[260px] flex-[1.8_1_0]')}
+                        className={cn(FILTER_CONTROL_CLASS, 'min-w-[280px] flex-[1.8_1_0]')}
                         placeholder="Chọn khách hàng VIP..."
                         selected={filters.customer_codes ?? []}
                         onChange={(v) => setFilter('customer_codes', v)}
@@ -223,6 +201,10 @@ export function CustomerVipTable({
 
                 {/* ── FILTER ROW 2: dropdown filters ── */}
                 <div className="flex w-full flex-wrap items-center gap-2">
+                    <YearStepper
+                        value={Number(filters.calc_year || new Date().getFullYear())}
+                        onChange={onCalcYearChange}
+                    />
                     <FilterDropdown
                         label="Khu vực"
                         options={REGION_OPTIONS}
@@ -250,30 +232,17 @@ export function CustomerVipTable({
                         onChange={(v) => setFilter('group_codes', v)}
                     />
                     <DatePicker
-                        className="min-w-[180px] flex-1 [&_button]:h-10"
+                        className="min-w-[180px] flex-1 [&_button]:h-10 [&_button]:rounded-md [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
                         value={filters.from_date}
                         onChange={(value) => onDateRangeChange({ from_date: value, to_date: filters.to_date })}
                         placeholder="Từ ngày CT"
                     />
                     <DatePicker
-                        className="min-w-[180px] flex-1 [&_button]:h-10"
+                        className="min-w-[180px] flex-1 [&_button]:h-10 [&_button]:rounded-md [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
                         value={filters.to_date}
                         onChange={(value) => onDateRangeChange({ from_date: filters.from_date, to_date: value })}
                         placeholder="Đến ngày CT"
                     />
-                    <Button
-                        type="button"
-                        onClick={handleExport}
-                        disabled={isExporting}
-                        className="h-10 min-w-[130px] px-3"
-                    >
-                        {isExporting ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Download className="mr-2 h-4 w-4" />
-                        )}
-                        Xuất Excel
-                    </Button>
                 </div>
             </div>
 
@@ -286,6 +255,10 @@ export function CustomerVipTable({
                 onPaginationChange={onPaginationChange}
                 pageCount={pageCount}
                 showToolbar={false}
+                enableColumnResize
+                enableStickyHorizontalScroll
+                headerVariant="report"
+                footer={false}
             />
         </div>
     )
@@ -295,6 +268,42 @@ export function CustomerVipTable({
 // Popover + Command có debounce search + multi-select checkbox
 
 type AsyncOption = { value: string; label: string }
+
+function YearStepper({
+    value,
+    onChange,
+}: {
+    value: number
+    onChange: (year: number) => void
+}) {
+    return (
+        <div className={cn(FILTER_CONTROL_CLASS, 'flex min-w-[150px] items-center justify-between overflow-hidden px-1')}>
+            <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={() => onChange(value - 1)}
+                aria-label="Năm trước"
+            >
+                <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="min-w-0 flex-1 text-center text-sm font-semibold tabular-nums">
+                Năm {value}
+            </div>
+            <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={() => onChange(value + 1)}
+                aria-label="Năm sau"
+            >
+                <ChevronRight className="h-4 w-4" />
+            </Button>
+        </div>
+    )
+}
 
 function AsyncMultiFilterDropdown({
     placeholder = 'Chọn...',
@@ -571,28 +580,28 @@ function FilterDropdown({
 
 const SUMMARY_TONES = {
     info: {
-        ring: 'border-blue-200/60 dark:border-blue-900/40',
-        iconBg: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400',
-        value: '',
+        card: 'border-sky-200 bg-sky-50 text-sky-800',
+        iconBg: 'bg-white/75 text-sky-700',
+        value: 'text-sky-950',
     },
     primary: {
-        ring: 'border-primary/20 bg-primary/[0.02]',
-        iconBg: 'bg-primary/10 text-primary',
-        value: 'text-primary',
+        card: 'border-blue-200 bg-blue-50 text-blue-800',
+        iconBg: 'bg-white/75 text-blue-700',
+        value: 'text-blue-950',
     },
     success: {
-        ring: 'border-emerald-200/60 dark:border-emerald-900/40',
-        iconBg: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
-        value: '',
+        card: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+        iconBg: 'bg-white/75 text-emerald-700',
+        value: 'text-emerald-700',
     },
     warn: {
-        ring: 'border-amber-300/70 bg-amber-50/40 dark:border-amber-900/60 dark:bg-amber-950/20',
-        iconBg: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
-        value: 'text-amber-700 dark:text-amber-400',
+        card: 'border-amber-200 bg-amber-50 text-amber-800',
+        iconBg: 'bg-white/75 text-amber-700',
+        value: 'text-amber-700',
     },
     muted: {
-        ring: 'border-border/60',
-        iconBg: 'bg-muted text-muted-foreground',
+        card: 'border-slate-200 bg-slate-50 text-slate-700',
+        iconBg: 'bg-white/75 text-slate-600',
         value: 'text-muted-foreground',
     },
 } as const
@@ -610,21 +619,21 @@ function SummaryCard({
 }) {
     const styles = SUMMARY_TONES[tone]
     return (
-        <Card className={cn('gap-0 py-4 shadow-sm transition-shadow hover:shadow-md', styles.ring)}>
-            <CardContent className="flex items-center gap-3 px-4">
-                <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg', styles.iconBg)}>
-                    <Icon className="h-5 w-5" />
+        <div className={cn('rounded-lg border p-2.5 shadow-sm', styles.card)}>
+            <div className="flex items-center gap-2">
+                <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-md', styles.iconBg)}>
+                    <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <div className="text-center text-[11px] font-semibold uppercase leading-tight tracking-wide">
                         {label}
                     </div>
-                    <div className={cn('mt-1 truncate text-xl font-bold tabular-nums', styles.value)}>
+                    <div className={cn('mt-1 truncate text-right text-lg font-semibold tabular-nums', styles.value)}>
                         {value}
                     </div>
                 </div>
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     )
 }
 
@@ -641,102 +650,6 @@ function buildSummary(data: CustomerVip[]) {
         },
         { count: 0, totalPoints: 0, totalBonus: 0, missingCount: 0 }
     )
-}
-
-function buildExportFilters(keyword: string, filters: Filters): Omit<CustomerVipListParams, 'page' | 'size'> {
-    return {
-        keyword: keyword || undefined,
-        region: stringifyFilter(filters.regions),
-        tier_code: stringifyFilter(filters.tier_codes),
-        group_code: stringifyFilter(filters.group_codes),
-        customer_type: stringifyFilter(filters.customer_types),
-        customer_code: stringifyFilter(filters.customer_codes),
-        from_date: filters.from_date || undefined,
-        to_date: filters.to_date || undefined,
-    }
-}
-
-function stringifyFilter(values?: string[]) {
-    return values && values.length > 0 ? values.join(',') : undefined
-}
-
-async function fetchAllCustomerVips(filters: Omit<CustomerVipListParams, 'page' | 'size'>) {
-    const size = 200
-    const rows: CustomerVip[] = []
-    let page = 1
-
-    for (let guard = 0; guard < 300; guard += 1) {
-        const res = await listCustomerVips({
-            ...filters,
-            page,
-            size,
-        })
-        const items = getItems(res)
-        rows.push(...items)
-        if (page >= (res.total_page || 1) || items.length === 0) break
-        page += 1
-    }
-
-    return rows
-}
-
-function exportCustomerVipXlsx(rows: CustomerVip[]) {
-    const sheetRows: (string | number)[][] = [
-        ['DANH SÁCH KHÁCH HÀNG VIP'],
-        [`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`],
-        [],
-        [
-            'STT',
-            'Năm tính',
-            'Mã khách hàng',
-            'Tên khách hàng',
-            'Loại KH',
-            'Khu vực',
-            'Nhóm',
-            'Tổng điểm VIP',
-            'Điểm nhóm chung',
-            'Điểm MA VTHH',
-            'Điểm mã riêng',
-            'Hạng VIP',
-            'Hạng kế tiếp',
-            'Điểm còn thiếu',
-            'Thông báo còn thiếu',
-            'Thưởng / điểm',
-            'Tổng thưởng',
-            'Thưởng riêng',
-            'Thưởng cuối',
-            'Ghi chú',
-        ],
-    ]
-
-    rows.forEach((row, index) => {
-        sheetRows.push([
-            index + 1,
-            Number(row.calc_year || 0),
-            row.customer_code || '',
-            row.customer_name || '',
-            row.customer_type || '',
-            row.region || '',
-            row.group_code || '',
-            Number(row.total_vip_point || 0),
-            Number(row.common_group_point || 0),
-            Number(row.ma_vthh_point || 0),
-            Number(row.ma_rieng_point || 0),
-            row.tier_name || row.tier_code || '',
-            row.next_tier_name || row.next_tier_code || '',
-            Number(row.missing_point_to_next || 0),
-            row.missing_point_message || '',
-            Number(row.reward_amount || 0),
-            Number(row.total_reward_amount || 0),
-            Number(row.private_bonus_amount || 0),
-            Number(row.final_bonus_amount || 0),
-            row.note || '',
-        ])
-    })
-
-    exportXlsx(`khach-hang-vip-${new Date().toISOString().slice(0, 10)}.xlsx`, [
-        { name: 'Khách hàng VIP', rows: sheetRows },
-    ])
 }
 
 function formatNumber(value: number) {

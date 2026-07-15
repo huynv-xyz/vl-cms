@@ -1,6 +1,6 @@
 import { ShoppingCart } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { PageSection } from '@/components/page-section'
-import { usePaginatedList } from '@/hooks/use-paginated-list'
 import { OrderTable } from './components/order-table'
 import { OrderDialogs } from './components/order-dialogs'
 import { OrdersProvider } from './components/orders-provider'
@@ -48,8 +48,8 @@ export default function OrderPage() {
         order_date_sort: requestFilters.order_date_sort || "desc",
     }
 
-    const { data, isLoading, error } = usePaginatedList(
-        [
+    const { data, isLoading, error } = useQuery({
+        queryKey: [
             'orders',
             search.page,
             search.size,
@@ -61,9 +61,18 @@ export default function OrderPage() {
             singleFilters.to_date,
             singleFilters.order_date_sort,
         ],
-        listOrders,
-        orderListParams,
-    )
+        queryFn: () =>
+            listOrders({
+                page: pagination.pageIndex + 1,
+                size: pagination.pageSize,
+                ...orderListParams,
+            }),
+        staleTime: 0,
+        gcTime: 0,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        refetchOnMount: true,
+    })
 
     return (
         <OrdersProvider>

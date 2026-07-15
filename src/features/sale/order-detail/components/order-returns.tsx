@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Pencil, Plus, RotateCcw, Trash2 } from "lucide-react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table"
 
 import { CreateReturnDialog } from "../../return/components/create-return-dialog"
+import { getMyPermissions } from "@/api/auth/permission"
 import { deleteReturn, updateReturnStatus } from "@/api/sale/return"
 import { UpdateReturnDialog } from "../../return/components/update-return-dialog"
 import { ReturnDetailDialog } from "../../return/components/return-detail-dialog"
@@ -40,6 +41,13 @@ const statusVariant: Record<string, "default" | "secondary" | "outline" | "destr
 
 export function OrderReturns({ order, returns }: any) {
     const queryClient = useQueryClient()
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canChangeDoneStatus = permissions.some(
+        (p: any) => p.module === "sales.returns" && p.action === "status.after-done"
+    )
 
     const [createOpen, setCreateOpen] = useState(false)
     const [editRow, setEditRow] = useState<any>(null)
@@ -101,6 +109,7 @@ export function OrderReturns({ order, returns }: any) {
             ) : (
                 <div className="space-y-3 p-4">
                     {returns.map((r: any) => {
+                        const canChangeStatus = isEditable || (r.status === "DONE" && canChangeDoneStatus)
                         const isRowLocked = !isEditable || r.status === "DONE"
                         const totalQty = (r.items || []).reduce(
                             (s: number, i: any) => s + Number(i.quantity || 0),
@@ -142,7 +151,7 @@ export function OrderReturns({ order, returns }: any) {
                                             onValueChange={(v) =>
                                                 changeStatus({ id: r.id, status: v })
                                             }
-                                            disabled={isUpdating || isRowLocked}
+                                            disabled={isUpdating || !canChangeStatus}
                                         >
                                             <SelectTrigger className="h-8 w-[150px]">
                                                 <SelectValue>
@@ -158,7 +167,7 @@ export function OrderReturns({ order, returns }: any) {
                                                     <SelectItem
                                                         key={s.value}
                                                         value={s.value}
-                                                        disabled={isRowLocked}
+                                                        disabled={!canChangeStatus}
                                                     >
                                                         {s.label}
                                                     </SelectItem>

@@ -1,5 +1,5 @@
 import { createCrudApi } from "@/api/crud"
-import { apiGet, apiPost } from "@/api/client"
+import { apiGet, apiPost, apiPostMultipart } from "@/api/client"
 import type {
     InventoryLedger,
     InventoryLedgerReportRow,
@@ -128,6 +128,30 @@ export function previewSalesInventorySync(body: SalesInventorySyncRequest) {
 
 export function runSalesInventorySync(body: SalesInventorySyncRequest) {
     return apiPost<SalesInventorySyncResult>("/inventory/sales-sync/run", body)
+}
+
+export type ProductionCostObjectImportResult = {
+    total_rows?: number
+    totalRows?: number
+    success: number
+    failed: number
+    updated: number
+    already_correct?: number
+    alreadyCorrect?: number
+    skipped: number
+    errors: Array<{ row: number; message: string }>
+    skipped_doc_types?: Record<string, number>
+    skippedDocTypes?: Record<string, number>
+}
+
+export async function importProductionCostObjects(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<ProductionCostObjectImportResult>(
+        "/inventory/ledger/production-cost-objects/import",
+        formData
+    )
 }
 
 export type ProductionChronologyAuditRequest = {

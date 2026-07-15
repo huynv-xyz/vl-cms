@@ -9,6 +9,10 @@ import {
     importVthhDetail,
     type OpeningStockImportResult,
 } from "@/api/inventory/lot"
+import {
+    importProductionCostObjects,
+    type ProductionCostObjectImportResult,
+} from "@/api/inventory/ledger"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -69,6 +73,21 @@ const VTHH_DETAIL_REQUIRED_COLUMNS = [
     "Loại chứng từ",
 ]
 
+const PRODUCTION_COST_OBJECT_REQUIRED_COLUMNS = [
+    "Loại chứng từ",
+    "Ngày chứng từ",
+    "Số chứng từ",
+    "Mã hàng",
+    "Tên hàng",
+    "Mã kho",
+    "Tên kho",
+    "Số lô",
+    "Nhập",
+    "Xuất",
+    "Diễn giải",
+    "Mã đối tượng hoặc Mã VTHH",
+]
+
 type ImportGuide = {
     title: string
     description: string
@@ -79,7 +98,36 @@ type ImportGuide = {
 
 type ImportResultDialog = {
     title: string
-    result: OpeningStockImportResult
+    result: OpeningStockImportResult | ProductionCostObjectImportResult
+    mode?: "cost-object"
+}
+
+function readCostObjectResult(result: ProductionCostObjectImportResult | null) {
+    if (!result) {
+        return {
+            totalRows: 0,
+            updated: 0,
+            alreadyCorrect: 0,
+            skipped: 0,
+            failed: 0,
+            skippedDocTypes: {} as Record<string, number>,
+        }
+    }
+
+    const raw = result as ProductionCostObjectImportResult & {
+        totalRows?: number
+        alreadyCorrect?: number
+        skippedDocTypes?: Record<string, number>
+    }
+
+    return {
+        totalRows: raw.total_rows ?? raw.totalRows ?? 0,
+        updated: raw.updated ?? 0,
+        alreadyCorrect: raw.already_correct ?? raw.alreadyCorrect ?? 0,
+        skipped: raw.skipped ?? 0,
+        failed: raw.failed ?? raw.errors?.length ?? 0,
+        skippedDocTypes: raw.skipped_doc_types ?? raw.skippedDocTypes ?? {},
+    }
 }
 
 export function LedgerImportButtons() {
@@ -87,6 +135,7 @@ export function LedgerImportButtons() {
     const openingFileRef = useRef<HTMLInputElement>(null)
     const purchaseFileRef = useRef<HTMLInputElement>(null)
     const vthhDetailFileRef = useRef<HTMLInputElement>(null)
+    const productionCostObjectFileRef = useRef<HTMLInputElement>(null)
     const [guide, setGuide] = useState<ImportGuide | null>(null)
     const [importResultDialog, setImportResultDialog] = useState<ImportResultDialog | null>(null)
 
@@ -141,31 +190,55 @@ export function LedgerImportButtons() {
         onError: (error: any) => toast.error(error?.message || "Không thể import chi tiết VTHH"),
     })
 
-    const handleOpeningFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const importProductionCostObjectMutation = useMutation({
+        mutationFn: importProductionCostObjects,
+        onSuccess: async (res) => {
+            await invalidateInventoryQueries(queryClient)
+            await queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
+
+            const normalized = readCostObjectResult(res)
+            if (normalized.totalRows === 0) {
+                setImportResultDialog({
+                    title: "Lỗi import mã đối tượng SX",
+                    result: {
+                        ...res,
+                        failed: 1,
+                        errors: [
+                            {
+                                row: 0,
+                                message: "File không có dòng dữ liệu sau header. Kiểm tra đúng sheet dữ liệu và đúng các tiêu đề cột yêu cầu.",
+                            },
+                        ],
+                    },
+                    mode: "cost-object",
+                })
+                toast.warning("File import không có dòng dữ liệu để xử lý")
+                return
+            }
+
+            if (res.failed > 0 || res.errors?.length) {
+                setImportResultDialog({ title: "Lỗi import mã đối tượng SX", result: res, mode: "cost-object" })
+                toast.warning("Import mã đối tượng SX có lỗi, chưa cập nhật dữ liệu")
+                return
+            }
+
+            setImportResultDialog({ title: "Kết quả import mã đối tượng SX", result: res, mode: "cost-object" })
+            toast.success(`Đã cập nhật ${normalized.updated} dòng mã đối tượng SX`)
+        },
+        onError: (error: any) => toast.error(error?.message || "Không thể import mã đối tượng SX"),
+    })
+
+    const handleOpeningFileChange = (event: ChangeEvent<HTMLInputElement>) => handleFileChange(event, importOpeningMutation.mutate)
+    const handlePurchaseFileChange = (event: ChangeEvent<HTMLInputElement>) => handleFileChange(event, importPurchaseMutation.mutate)
+    const handleVthhDetailFileChange = (event: ChangeEvent<HTMLInputElement>) => handleFileChange(event, importVthhDetailMutation.mutate)
+    const handleProductionCostObjectFileChange = (event: ChangeEvent<HTMLInputElement>) => handleFileChange(event, importProductionCostObjectMutation.mutate)
+
+    const handleFileChange = (event: ChangeEvent<HTMLInputElement>, mutate: (file: File) => void) => {
         const file = event.target.files?.[0]
         event.target.value = ""
-
         if (!file) return
         setImportResultDialog(null)
-        importOpeningMutation.mutate(file)
-    }
-
-    const handlePurchaseFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0]
-        event.target.value = ""
-
-        if (!file) return
-        setImportResultDialog(null)
-        importPurchaseMutation.mutate(file)
-    }
-
-    const handleVthhDetailFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0]
-        event.target.value = ""
-
-        if (!file) return
-        setImportResultDialog(null)
-        importVthhDetailMutation.mutate(file)
+        mutate(file)
     }
 
     const openOpeningFilePicker = () => {
@@ -207,6 +280,24 @@ export function LedgerImportButtons() {
         })
     }
 
+    const openProductionCostObjectFilePicker = () => {
+        setGuide({
+            title: "Import mã đối tượng SX",
+            description: "File này chỉ bổ sung Mã đối tượng cho dòng Xuất kho sản xuất đã có trong Sổ kho, không tạo giao dịch mới.",
+            columns: PRODUCTION_COST_OBJECT_REQUIRED_COLUMNS,
+            notes: [
+                "Hệ thống chỉ xử lý Loại chứng từ: Xuất kho sản xuất và Nhập kho thành phẩm sản xuất. Các loại chứng từ khác sẽ được bỏ qua và báo số dòng bỏ qua.",
+                "Dòng Xuất kho sản xuất bắt buộc có Mã đối tượng. Nếu file kế toán đang dùng tên cột Mã VTHH thì hệ thống cũng hiểu đây là Mã đối tượng.",
+                "Trong cùng Ngày chứng từ phải có dòng Nhập kho thành phẩm sản xuất có Mã hàng bằng Mã đối tượng.",
+                "Nếu cùng ngày có nhiều dòng Nhập kho thành phẩm sản xuất cho cùng mã thành phẩm, hệ thống sẽ ghép theo mã lệnh trong cột Diễn giải dạng <01941>.",
+                "Nếu Diễn giải không có mã lệnh, hệ thống sẽ thử ghép theo thứ tự file: nhóm Xuất kho sản xuất đứng trước sẽ đi với dòng Nhập kho thành phẩm sản xuất đứng trước. Chỉ cập nhật khi danh sách NVL và tỷ lệ số lượng khớp rõ ràng.",
+                "Ngày chứng từ bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy.",
+                "Import nhiều lần cùng file sẽ không tạo trùng dữ liệu; dòng đã đúng sẽ được tính là đã đúng sẵn.",
+            ],
+            inputRef: productionCostObjectFileRef,
+        })
+    }
+
     const chooseFileFromGuide = () => {
         const inputRef = guide?.inputRef
         setGuide(null)
@@ -222,6 +313,12 @@ export function LedgerImportButtons() {
         await navigator.clipboard.writeText(text)
         toast.success("Đã copy danh sách lỗi")
     }
+
+    const result = importResultDialog?.result
+    const costObjectResult = importResultDialog?.mode === "cost-object"
+        ? result as ProductionCostObjectImportResult
+        : null
+    const normalizedCostObjectResult = readCostObjectResult(costObjectResult)
 
     return (
         <>
@@ -246,32 +343,34 @@ export function LedgerImportButtons() {
                 className="hidden"
                 onChange={handleVthhDetailFileChange}
             />
-            <Button
-                size="sm"
-                variant="outline"
-                disabled={importOpeningMutation.isPending}
-                onClick={openOpeningFilePicker}
-            >
+            <input
+                ref={productionCostObjectFileRef}
+                type="file"
+                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="hidden"
+                onChange={handleProductionCostObjectFileChange}
+            />
+
+            <Button size="sm" variant="outline" disabled={importOpeningMutation.isPending} onClick={openOpeningFilePicker}>
                 <Upload className="mr-2 h-4 w-4" />
                 {importOpeningMutation.isPending ? "Đang import..." : "Import tồn đầu kỳ"}
             </Button>
-            <Button
-                size="sm"
-                variant="outline"
-                disabled={importPurchaseMutation.isPending}
-                onClick={openPurchaseFilePicker}
-            >
+            <Button size="sm" variant="outline" disabled={importPurchaseMutation.isPending} onClick={openPurchaseFilePicker}>
                 <Upload className="mr-2 h-4 w-4" />
                 {importPurchaseMutation.isPending ? "Đang import..." : "Import mua hàng"}
+            </Button>
+            <Button size="sm" variant="outline" disabled={importVthhDetailMutation.isPending} onClick={openVthhDetailFilePicker}>
+                <Upload className="mr-2 h-4 w-4" />
+                {importVthhDetailMutation.isPending ? "Đang import..." : "Import chi tiết VTHH"}
             </Button>
             <Button
                 size="sm"
                 variant="outline"
-                disabled={importVthhDetailMutation.isPending}
-                onClick={openVthhDetailFilePicker}
+                disabled={importProductionCostObjectMutation.isPending}
+                onClick={openProductionCostObjectFilePicker}
             >
                 <Upload className="mr-2 h-4 w-4" />
-                {importVthhDetailMutation.isPending ? "Đang import..." : "Import chi tiết VTHH"}
+                {importProductionCostObjectMutation.isPending ? "Đang import..." : "Import mã đối tượng SX"}
             </Button>
 
             <Dialog open={!!guide} onOpenChange={(open) => !open && setGuide(null)}>
@@ -311,42 +410,71 @@ export function LedgerImportButtons() {
             </Dialog>
 
             <Dialog open={!!importResultDialog} onOpenChange={(open) => !open && setImportResultDialog(null)}>
-                <DialogContent className="max-w-4xl">
+                <DialogContent className="w-[calc(100vw-48px)] !max-w-[64rem]">
                     <DialogHeader>
                         <DialogTitle>{importResultDialog?.title}</DialogTitle>
                         <DialogDescription>
-                            Đã import {importResultDialog?.result.success ?? 0} dòng, lỗi {importResultDialog?.result.failed ?? 0} dòng.
-                            Kiểm tra lại các dòng dưới đây trong file rồi import lại.
+                            {costObjectResult ? (
+                                <>
+                                    Đọc {normalizedCostObjectResult.totalRows} dòng, cập nhật {normalizedCostObjectResult.updated} dòng,
+                                    đã đúng sẵn {normalizedCostObjectResult.alreadyCorrect} dòng, bỏ qua {normalizedCostObjectResult.skipped} dòng,
+                                    lỗi {normalizedCostObjectResult.failed} dòng.
+                                </>
+                            ) : (
+                                <>
+                                    Đã import {result?.success ?? 0} dòng, lỗi {result?.failed ?? 0} dòng.
+                                    Kiểm tra lại các dòng dưới đây trong file rồi import lại.
+                                </>
+                            )}
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="max-h-[520px] overflow-auto rounded-md border">
-                        <table className="w-full border-collapse text-sm">
-                            <thead className="sticky top-0 bg-muted text-muted-foreground">
-                                <tr>
-                                    <th className="w-24 border-b px-3 py-2 text-left font-medium">Dòng</th>
-                                    <th className="border-b px-3 py-2 text-left font-medium">Lý do lỗi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {(importResultDialog?.result.errors || []).map((error, index) => (
-                                    <tr key={`${error.row}-${index}`} className="border-b last:border-b-0">
-                                        <td className="px-3 py-2 align-top font-medium">{error.row}</td>
-                                        <td className="px-3 py-2 align-top text-muted-foreground">{error.message}</td>
-                                    </tr>
+                    {Object.keys(normalizedCostObjectResult.skippedDocTypes).length ? (
+                        <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                            <div className="mb-1 font-medium">Loại chứng từ đã bỏ qua</div>
+                            <div className="space-y-1 text-muted-foreground">
+                                {Object.entries(normalizedCostObjectResult.skippedDocTypes).map(([label, count]) => (
+                                    <div key={label}>{label || "(trống)"}: {count} dòng</div>
                                 ))}
-                            </tbody>
-                        </table>
-                    </div>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {(result?.errors || []).length ? (
+                        <div className="max-h-[520px] overflow-auto rounded-md border">
+                            <table className="w-full border-collapse text-sm">
+                                <thead className="sticky top-0 bg-muted text-muted-foreground">
+                                    <tr>
+                                        <th className="w-24 border-b px-3 py-2 text-left font-medium">Dòng</th>
+                                        <th className="border-b px-3 py-2 text-left font-medium">Lý do lỗi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(result?.errors || []).map((error, index) => (
+                                        <tr key={`${error.row}-${index}`} className="border-b last:border-b-0">
+                                            <td className="px-3 py-2 align-top font-medium">{error.row}</td>
+                                            <td className="px-3 py-2 align-top text-muted-foreground">{error.message}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <div className="rounded-md border bg-emerald-50 p-3 text-sm text-emerald-800">
+                            Import hoàn tất, không có lỗi.
+                        </div>
+                    )}
 
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setImportResultDialog(null)}>
                             Đóng
                         </Button>
-                        <Button variant="outline" onClick={copyImportErrors}>
-                            <Copy className="mr-2 h-4 w-4" />
-                            Copy lỗi
-                        </Button>
+                        {(result?.errors || []).length ? (
+                            <Button variant="outline" onClick={copyImportErrors}>
+                                <Copy className="mr-2 h-4 w-4" />
+                                Copy lỗi
+                            </Button>
+                        ) : null}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

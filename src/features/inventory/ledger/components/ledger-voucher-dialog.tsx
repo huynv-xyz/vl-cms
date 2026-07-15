@@ -1,9 +1,10 @@
 ﻿import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Plus, Save, Settings2, Trash2 } from "lucide-react"
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Plus, Save, SlidersHorizontal, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { createVoucher, listVoucherTypes, postVoucher, type CreateVoucherRequest, type InventoryVoucherType, type VoucherTypeCode } from "@/api/inventory/voucher"
+import { listInventoryLotRecords } from "@/api/inventory/lot"
 import { getProduct, listProducts } from "@/api/product"
 import { getPhysicalWarehouse, listPhysicalWarehouses } from "@/api/physical-warehouse"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
@@ -432,11 +433,11 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[1880px] text-sm">
+                            <table className="w-full min-w-[2020px] text-sm">
                                 <thead className="text-muted-foreground bg-muted/30 border-b text-xs">
                                     <tr>
                                         <th className="w-12 px-3 py-2 text-center">STT</th>
-                                        <th className="min-w-[420px] px-3 py-2 text-left">{productColumnLabel}</th>
+                                        <th className="min-w-[560px] px-3 py-2 text-left">{productColumnLabel}</th>
                                         <th className="w-64 px-3 py-2 text-left">{isTransfer ? "Kho xuất" : "Kho"}</th>
                                         {isTransfer ? <th className="w-64 px-3 py-2 text-left">Kho nhập</th> : null}
                                         <th className="w-20 px-3 py-2 text-left">ĐVT</th>
@@ -548,10 +549,13 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                             </td>
                                             {!isInbound ? (
                                                 <td className="px-3 py-2">
-                                                    <PreferredLotButton
-                                                        value={line.lot_code}
+                                                    <PreferredLotSelector
+                                                        productId={line.product_id}
+                                                        warehouseId={line.warehouse_id}
+                                                        lotId={line.lot_id}
+                                                        lotCode={line.lot_code}
                                                         disabled={!line.product_id || !line.warehouse_id}
-                                                        onChange={(lotNo) => updateLine(line.id, { lot_code: lotNo, lot_id: undefined })}
+                                                        onChange={(lotNo, lotId) => updateLine(line.id, { lot_code: lotNo || "", lot_id: lotId })}
                                                     />
                                                 </td>
                                             ) : null}
@@ -641,74 +645,96 @@ function extractVoucherError(error: any) {
     return message && message !== "Failed to fetch" ? message : null
 }
 
-function PreferredLotButton({
-    value,
+function PreferredLotSelector({
+    productId,
+    warehouseId,
+    lotId,
+    lotCode,
     disabled,
     onChange,
 }: {
-    value?: string
+    productId?: number
+    warehouseId?: number
+    lotId?: number
+    lotCode?: string
     disabled?: boolean
-    onChange: (lotNo: string) => void
+    onChange: (lotNo?: string, lotId?: number) => void
 }) {
-    const [open, setOpen] = useState(false)
-    const [draft, setDraft] = useState(value || "")
-
-    useEffect(() => {
-        if (open) {
-            setDraft(value || "")
-        }
-    }, [open, value])
-
-    const save = () => {
-        onChange(draft.trim())
-        setOpen(false)
-    }
-
-    const resetAuto = () => {
-        onChange("")
-        setOpen(false)
-    }
+    const { data, isLoading } = useQuery({
+        queryKey: ["inventory-voucher-lots", productId, warehouseId],
+        enabled: Boolean(productId && warehouseId && !disabled),
+        queryFn: () =>
+            listInventoryLotRecords({
+                page: 1,
+                size: 50,
+                product_id: Number(productId),
+                warehouse_id: Number(warehouseId),
+                only_remaining: true,
+            }),
+        staleTime: 30_000,
+    })
+    const lots = getPagedItems(data)
+    const selected = lotId ? `LOT:${lotId}` : lotCode ? `CODE:${lotCode}` : "AUTO"
+    const selectedLotInOptions = lotId
+        ? lots.some((lot: any) => Number(lot.id) === Number(lotId))
+        : false
 
     return (
-        <>
-            <Button
-                type="button"
-                size="sm"
-                variant={value ? "secondary" : "outline"}
-                disabled={disabled}
-                className="w-full justify-start"
-                onClick={() => setOpen(true)}
-            >
-                <Settings2 className="mr-2 h-4 w-4" />
-                {value || "Auto"}
-            </Button>
-            <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="sm:max-w-[460px]">
-                    <DialogHeader>
-                        <DialogTitle>Lô xuất ưu tiên</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-2">
-                        <Label>Số lô xuất ưu tiên</Label>
-                        <Input
-                            value={draft}
-                            onChange={(event) => setDraft(event.target.value)}
-                            placeholder="Bỏ trống để Auto FIFO"
-                        />
-                    </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                            Hủy
-                        </Button>
-                        <Button type="button" variant="outline" onClick={resetAuto}>
-                            Auto
-                        </Button>
-                        <Button type="button" onClick={save}>
-                            Lưu
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </>
+        <Select
+            value={selected}
+            disabled={disabled}
+            onValueChange={(value) => {
+                if (value === "AUTO") {
+                    onChange(undefined, undefined)
+                    return
+                }
+                if (value.startsWith("LOT:")) {
+                    const nextLotId = Number(value.slice(4))
+                    const lot = lots.find((item: any) => Number(item.id) === nextLotId)
+                    onChange(lot?.lot_no ? String(lot.lot_no) : undefined, nextLotId)
+                    return
+                }
+                if (value.startsWith("CODE:")) {
+                    onChange(value.slice(5), undefined)
+                }
+            }}
+        >
+            <SelectTrigger className="h-9 min-w-[190px]">
+                <SelectValue placeholder="Auto" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="AUTO">
+                    <span className="inline-flex items-center gap-1.5">
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                        Auto
+                    </span>
+                </SelectItem>
+                {isLoading ? <SelectItem value="LOADING" disabled>Đang tải...</SelectItem> : null}
+                {lotCode && !lotId ? <SelectItem value={`CODE:${lotCode}`}>{lotCode}</SelectItem> : null}
+                {lotId && !selectedLotInOptions && lotCode ? <SelectItem value={`LOT:${lotId}`}>{lotCode}</SelectItem> : null}
+                {lots.map((lot: any) => {
+                    const nextLotNo = String(lot.lot_no || "")
+                    if (!nextLotNo) return null
+                    return (
+                        <SelectItem key={`${lot.id}-${nextLotNo}`} value={`LOT:${lot.id}`}>
+                            {nextLotNo} - còn {formatNumber(resolveLotRemaining(lot))}
+                        </SelectItem>
+                    )
+                })}
+            </SelectContent>
+        </Select>
     )
+}
+
+function resolveLotRemaining(lot: any) {
+    return lot?.quantity_remaining ?? lot?.closing_quantity ?? lot?.total_quantity ?? 0
+}
+
+function getPagedItems(data: any) {
+    return data?.items ?? data?.data?.items ?? []
+}
+
+function formatNumber(value: unknown) {
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(Number(value || 0))
 }
 

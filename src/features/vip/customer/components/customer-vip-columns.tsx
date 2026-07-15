@@ -1,36 +1,108 @@
 import { type ColumnDef } from "@tanstack/react-table"
-import { DataTableColumnHeader } from "@/components/table/column-header"
-import type { CustomerVip } from "../data/schema"
-import { buildIndexColumn } from "@/components/crud/build-index-column"
-import { buildNumberColumn } from "@/components/crud/build-number-column"
 import { Link } from "@tanstack/react-router"
+import { Crown } from "lucide-react"
+import { DataTableColumnHeader } from "@/components/table/column-header"
+import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { formatCurrency } from "@/lib/utils"
-import { Crown, CalendarDays, MapPin, ArrowRight, ShieldCheck } from "lucide-react"
+import type { CustomerVip } from "../data/schema"
+
+const CENTER_CELL = "overflow-hidden text-center align-middle whitespace-nowrap"
+const RIGHT_CELL = "overflow-hidden text-right align-middle whitespace-nowrap"
+
+function formatNumber(value: number | string | null | undefined) {
+    return new Intl.NumberFormat("vi-VN").format(Number(value || 0))
+}
+
+function buildTextColumn<T>(opts: {
+    accessorKey: keyof T & string
+    title: string
+    width: number
+    fallback?: string
+}): ColumnDef<T> {
+    return {
+        accessorKey: opts.accessorKey,
+        enableSorting: false,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={opts.title} />,
+        cell: ({ row }) => {
+            const value = row.getValue(opts.accessorKey)
+            const text = value == null || value === "" ? (opts.fallback ?? "-") : String(value)
+            return (
+                <span className="block min-w-0 truncate text-center text-sm" title={text}>
+                    {text}
+                </span>
+            )
+        },
+        size: opts.width,
+        minSize: Math.min(opts.width, 120),
+        meta: {
+            thClassName: `w-[${opts.width}px] whitespace-nowrap text-center`,
+            tdClassName: `w-[${opts.width}px] ${CENTER_CELL}`,
+        },
+    }
+}
+
+function buildVipNumberColumn<T>(opts: {
+    accessorKey: keyof T & string
+    title: string
+    width: number
+    highlight?: "success" | "warning"
+}): ColumnDef<T> {
+    return {
+        accessorKey: opts.accessorKey,
+        enableSorting: false,
+        header: ({ column }) => <DataTableColumnHeader column={column} title={opts.title} />,
+        cell: ({ row }) => {
+            const value = Number(row.getValue(opts.accessorKey) ?? 0)
+            const tone = opts.highlight === "success"
+                ? "text-emerald-600 dark:text-emerald-400"
+                : opts.highlight === "warning" && value > 0
+                    ? "text-amber-600 dark:text-amber-400"
+                    : ""
+
+            return (
+                <span className={`block min-w-0 truncate text-right text-sm font-semibold tabular-nums ${tone}`} title={formatNumber(value)}>
+                    {formatNumber(value)}
+                </span>
+            )
+        },
+        size: opts.width,
+        minSize: Math.min(opts.width, 120),
+        meta: {
+            className: "text-right",
+            thClassName: `w-[${opts.width}px] whitespace-nowrap text-right`,
+            tdClassName: `w-[${opts.width}px] ${RIGHT_CELL}`,
+        },
+    }
+}
 
 function buildCurrencyColumn<T>(opts: {
     accessorKey: keyof T & string
     title: string
-    width?: number
+    width: number
     highlight?: boolean
 }): ColumnDef<T> {
     return {
         accessorKey: opts.accessorKey,
         enableSorting: false,
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title={opts.title} />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title={opts.title} />,
         cell: ({ row }) => {
-            const value = row.getValue(opts.accessorKey)
+            const value = Number(row.getValue(opts.accessorKey) ?? 0)
+            const text = formatCurrency(value)
             return (
-                <span className={`block text-right tabular-nums text-sm ${opts.highlight ? "font-bold text-emerald-600 dark:text-emerald-400" : "font-medium"}`}>
-                    {formatCurrency(Number(value ?? 0))}
+                <span
+                    className={`block min-w-0 truncate text-right text-sm tabular-nums ${opts.highlight ? "font-bold text-emerald-600 dark:text-emerald-400" : "font-medium"}`}
+                    title={text}
+                >
+                    {text}
                 </span>
             )
         },
-        size: opts.width ?? 140,
+        size: opts.width,
+        minSize: Math.min(opts.width, 120),
         meta: {
             className: "text-right",
-            tdClassName: "text-right",
+            thClassName: `w-[${opts.width}px] whitespace-nowrap text-right`,
+            tdClassName: `w-[${opts.width}px] ${RIGHT_CELL}`,
         },
     }
 }
@@ -38,174 +110,138 @@ function buildCurrencyColumn<T>(opts: {
 export const customerVipColumns: ColumnDef<CustomerVip>[] = [
     {
         ...buildIndexColumn<CustomerVip>(),
-        size: 56,
+        size: 64,
+        minSize: 56,
         meta: {
-            thClassName: "w-14 whitespace-nowrap",
-            tdClassName: "w-14 ps-3 whitespace-nowrap",
+            thClassName: `w-16 whitespace-nowrap ${CENTER_CELL}`,
+            tdClassName: `w-16 ${CENTER_CELL}`,
         },
     },
-
-    // ── Khách hàng (combined: link + name + type/region) ──────────────
     {
         accessorKey: "customer_code",
         enableSorting: false,
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Khách hàng" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Mã khách hàng" />,
         cell: ({ row }) => {
-            const { id, customer_code, customer_name, customer_type, region, calc_year } = row.original
+            const { id, customer_code } = row.original
             return (
-                <div className="min-w-[200px]">
-                    <Link
-                        to="/vip/customer/$id"
-                        params={{ id }}
-                        search={(prev: { from_date?: string; to_date?: string; as_of_date?: string }) => ({
-                            from_date: prev.from_date,
-                            to_date: prev.to_date,
-                            as_of_date: prev.as_of_date,
-                        })}
-                        className="text-primary hover:bg-primary/10 group inline-flex items-center gap-1.5 rounded-md font-mono text-sm font-bold transition-colors"
-                    >
-                        <Crown className="h-3.5 w-3.5 opacity-70 transition-opacity group-hover:opacity-100" />
-                        <span className="group-hover:underline">{customer_code}</span>
-                    </Link>
-                    <div className="mt-0.5 truncate text-sm font-medium text-foreground">
-                        {customer_name || "—"}
-                    </div>
-                    <Link
-                        to="/vip/customer/$id"
-                        params={{ id }}
-                        search={(prev: { from_date?: string; to_date?: string; as_of_date?: string }) => ({
-                            from_date: prev.from_date,
-                            to_date: prev.to_date,
-                            as_of_date: prev.as_of_date,
-                        })}
-                        hash="vip-audit"
-                        className="mt-1 inline-flex items-center gap-1 rounded-md text-xs font-semibold text-blue-600 hover:underline"
-                    >
-                        <ShieldCheck className="h-3 w-3" />
-                        Audit điểm VIP
-                    </Link>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-                        {customer_type && <span>{customer_type}</span>}
-                        {region && (
-                            <span className="inline-flex items-center gap-0.5">
-                                <MapPin className="h-3 w-3" />
-                                {region}
-                            </span>
-                        )}
-                        <span className="inline-flex items-center gap-0.5">
-                            <CalendarDays className="h-3 w-3" />
-                            {calc_year}
-                        </span>
-                    </div>
-                </div>
+                <Link
+                    to="/vip/customer/$id"
+                    params={{ id }}
+                    search={(prev: { from_date?: string; to_date?: string; as_of_date?: string }) => ({
+                        from_date: prev.from_date,
+                        to_date: prev.to_date,
+                        as_of_date: prev.as_of_date,
+                    })}
+                    className="text-primary hover:bg-primary/10 group mx-auto flex min-w-0 max-w-full items-center justify-center gap-1.5 rounded-md font-mono text-sm font-bold transition-colors"
+                    title={customer_code}
+                >
+                    <Crown className="h-3.5 w-3.5 shrink-0 opacity-70 transition-opacity group-hover:opacity-100" />
+                    <span className="min-w-0 truncate group-hover:underline">{customer_code}</span>
+                </Link>
             )
         },
-        size: 220,
+        size: 170,
+        minSize: 140,
+        meta: {
+            thClassName: `w-[170px] whitespace-nowrap text-center`,
+            tdClassName: `w-[170px] ${CENTER_CELL}`,
+        },
     },
-
-    // ── Tổng điểm VIP ────────────────────────────────────────────────
-    buildNumberColumn<CustomerVip>({
+    buildTextColumn<CustomerVip>({
+        accessorKey: "customer_name",
+        title: "Tên khách hàng",
+        width: 280,
+    }),
+    buildVipNumberColumn<CustomerVip>({
         accessorKey: "total_vip_point",
         title: "Tổng điểm VIP",
-        width: 130,
+        width: 160,
     }),
-
-    buildNumberColumn<CustomerVip>({
+    buildVipNumberColumn<CustomerVip>({
         accessorKey: "common_group_point",
-        title: "Điểm quy tắc chung",
-        width: 140,
+        title: "Điểm nhóm chung",
+        width: 170,
     }),
-
-    buildNumberColumn<CustomerVip>({
+    buildVipNumberColumn<CustomerVip>({
         accessorKey: "ma_rieng_point",
         title: "Điểm mã riêng",
-        width: 130,
+        width: 160,
     }),
-
-    // ── Hạng VIP (tier + next tier arrow) ────────────────────────────
     {
         accessorKey: "tier_name",
         enableSorting: false,
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Hạng VIP" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Hạng hiện tại" />,
         cell: ({ row }) => {
-            const { tier_name, next_tier_name } = row.original
+            const { tier_name } = row.original
             return (
-                <div className="space-y-1">
+                <div className="mx-auto min-w-0 space-y-1 text-center">
                     {tier_name ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
-                            <Crown className="h-3 w-3" />
-                            {tier_name}
+                        <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                            <Crown className="h-3 w-3 shrink-0" />
+                            <span className="min-w-0 truncate">{tier_name}</span>
                         </span>
                     ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
-                    )}
-                    {next_tier_name && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <ArrowRight className="h-3 w-3" />
-                            {next_tier_name}
-                        </div>
+                        <span className="text-muted-foreground text-sm">-</span>
                     )}
                 </div>
             )
         },
-        size: 160,
+        size: 180,
+        minSize: 150,
+        meta: {
+            thClassName: `w-[180px] whitespace-nowrap text-center`,
+            tdClassName: `w-[180px] ${CENTER_CELL}`,
+        },
     },
-
-    // ── Điểm còn thiếu + ghi chú ─────────────────────────────────────
     {
         accessorKey: "missing_point_to_next",
         enableSorting: false,
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Điểm còn thiếu" />
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Điểm còn thiếu" />,
         cell: ({ row }) => {
-            const { missing_point_to_next, missing_point_message } = row.original
-            const val = Number(missing_point_to_next ?? 0)
+            const { missing_point_to_next, next_tier_name } = row.original
+            const value = Number(missing_point_to_next ?? 0)
+            const text = formatNumber(value)
+            const message = next_tier_name ? `Để lên hạng ${next_tier_name}` : ""
             return (
-                <div className="min-w-[120px] text-right">
-                    <div className={`tabular-nums text-sm font-semibold ${val > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                        {new Intl.NumberFormat("vi-VN").format(val)}
+                <div className="min-w-0 text-right" title={message || text}>
+                    <div className={`truncate text-sm font-semibold tabular-nums ${value > 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                        {text}
                     </div>
-                    {missing_point_message && (
+                    {message && (
                         <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                            {missing_point_message}
+                            Để lên hạng <span className="font-semibold text-foreground">{next_tier_name}</span>
                         </div>
                     )}
                 </div>
             )
         },
-        size: 160,
-        meta: { className: "text-right", tdClassName: "text-right" },
+        size: 180,
+        minSize: 150,
+        meta: {
+            className: "text-right",
+            thClassName: `w-[180px] whitespace-nowrap text-right`,
+            tdClassName: `w-[180px] ${RIGHT_CELL}`,
+        },
     },
-
-    // ── Thưởng / điểm ────────────────────────────────────────────────
     buildCurrencyColumn<CustomerVip>({
         accessorKey: "reward_amount",
         title: "Thưởng / điểm",
-        width: 140,
+        width: 160,
     }),
-
     buildCurrencyColumn<CustomerVip>({
         accessorKey: "total_reward_amount",
         title: "Tổng thưởng",
-        width: 140,
+        width: 160,
     }),
-
     buildCurrencyColumn<CustomerVip>({
         accessorKey: "private_bonus_amount",
         title: "Thưởng riêng",
-        width: 130,
+        width: 160,
     }),
-
-    // ── Thưởng cuối (highlighted) ─────────────────────────────────────
     buildCurrencyColumn<CustomerVip>({
         accessorKey: "final_bonus_amount",
         title: "Thưởng cuối",
-        width: 150,
+        width: 160,
         highlight: true,
     }),
 ]

@@ -1,6 +1,6 @@
 import { Row } from "@tanstack/react-table"
 import { Link } from "@tanstack/react-router"
-import { CalendarDays } from "lucide-react"
+import { CalendarDays, Wrench } from "lucide-react"
 import { useState } from "react"
 import { CrudRowActions } from "@/components/crud/crud-row-actions"
 import type { Production } from "../data/schema"
@@ -8,6 +8,7 @@ import { useProductions } from "../components/productions-provider"
 import { deleteProduction } from "@/api/production/order"
 import { useCrudDelete } from "@/hooks/use-crud-delete"
 import { ChangeProductionDateDialog } from "./change-production-date-dialog"
+import { AdjustProductionDialog } from "./adjust-production-dialog"
 import { useProductionPermissions } from "../hooks/use-production-permissions"
 import {
     DropdownMenuItem,
@@ -23,6 +24,7 @@ export function ProductionRowActions({ row }: Props) {
     const { openEdit } = useProductions()
     const permissions = useProductionPermissions()
     const [changeDateOpen, setChangeDateOpen] = useState(false)
+    const [adjustOpen, setAdjustOpen] = useState(false)
     const canEdit = canEditProduction(row.original)
     const canDelete = canDeleteProduction(row.original)
 
@@ -60,6 +62,18 @@ export function ProductionRowActions({ row }: Props) {
                             </DropdownMenuItem>
                         )}
 
+                        {permissions.canAdjustDone && statusOf(production) === "DONE" && (
+                            <DropdownMenuItem
+                                onSelect={(event) => {
+                                    event.preventDefault()
+                                    setAdjustOpen(true)
+                                }}
+                            >
+                                <Wrench className="mr-2 h-4 w-4" />
+                                Điều chỉnh
+                            </DropdownMenuItem>
+                        )}
+
                         {!canEdit && (
                             <>
                                 <DropdownMenuSeparator />
@@ -75,6 +89,11 @@ export function ProductionRowActions({ row }: Props) {
                 production={row.original}
                 open={changeDateOpen}
                 onOpenChange={setChangeDateOpen}
+            />
+            <AdjustProductionDialog
+                production={row.original}
+                open={adjustOpen}
+                onOpenChange={setAdjustOpen}
             />
         </>
     )
