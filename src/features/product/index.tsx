@@ -25,12 +25,14 @@ export default function ProductPage() {
         setKeyword,
         singleFilters,
         setSingleFilters,
+        multiFilters,
+        setMultiFilters,
         requestFilters,
     } = useUrlListFilters(
         search,
         navigate,
-        [],
-        ["status", "nature", "group_code", "default_warehouse_id", "inventory_account_code"]
+        ["nature"],
+        ["status", "group_code", "default_warehouse_id", "inventory_account_code"]
     )
 
     const requestParams = {
@@ -51,7 +53,7 @@ export default function ProductPage() {
             search.size,
             keyword,
             singleFilters.status,
-            singleFilters.nature,
+            multiFilters.nature,
             singleFilters.group_code,
             singleFilters.default_warehouse_id,
             singleFilters.inventory_account_code,
@@ -69,7 +71,7 @@ export default function ProductPage() {
             "product-summary",
             keyword,
             singleFilters.status,
-            singleFilters.nature,
+            multiFilters.nature,
             singleFilters.group_code,
             singleFilters.default_warehouse_id,
             singleFilters.inventory_account_code,
@@ -119,7 +121,7 @@ export default function ProductPage() {
                             }}
                             filters={{
                                 status: singleFilters.status,
-                                nature: singleFilters.nature,
+                                nature: multiFilters.nature,
                                 group_code: singleFilters.group_code,
                                 default_warehouse_id: singleFilters.default_warehouse_id
                                     ? Number(singleFilters.default_warehouse_id)
@@ -130,12 +132,14 @@ export default function ProductPage() {
                                 setPagination((p) => ({ ...p, pageIndex: 0 }))
                                 setSingleFilters({
                                     status: next.status,
-                                    nature: next.nature,
                                     group_code: next.group_code,
                                     default_warehouse_id: next.default_warehouse_id
                                         ? String(next.default_warehouse_id)
                                         : undefined,
                                     inventory_account_code: next.inventory_account_code,
+                                })
+                                setMultiFilters({
+                                    nature: next.nature ?? [],
                                 })
                             }}
                         />

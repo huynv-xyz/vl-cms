@@ -1,8 +1,11 @@
 ﻿import { useState } from "react"
 import type React from "react"
+import { useEffect, useMemo } from "react"
+import { useQuery } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { AlertTriangle, CalendarClock, Clock3, Funnel, HelpCircle, Package, TrendingDown, TrendingUp, Warehouse, X } from "lucide-react"
 
+import { listProductNatureLookups } from "@/api/app-lookup"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
 import { ProductMultiFilter } from "@/features/inventory/components/product-multi-filter"
@@ -14,6 +17,7 @@ import { CardPagination } from "@/components/table/card-pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -44,6 +48,7 @@ export type LotFilters = {
     quote_text?: string
     quote_text_op?: TextFilterOp
     unit?: string
+    nature?: string
     lot_text?: string
     lot_text_op?: TextFilterOp
     lot_warning?: string
@@ -105,6 +110,26 @@ const LOT_WARNING_OPTIONS = [
     { value: "STALE", label: "Nhập 6 tháng chưa xuất" },
 ]
 
+function splitFilterValues(value?: string) {
+    if (!value) return []
+    return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+}
+
+function joinFilterValues(values: string[]) {
+    return values.length ? values.join(",") : undefined
+}
+
+function filterValueLabels(value: string | undefined, options: Array<{ value: string; label: string }>) {
+    const selected = splitFilterValues(value)
+    if (!selected.length) return ""
+    return selected
+        .map((item) => options.find((option) => option.value === item)?.label || item)
+        .join(", ")
+}
+
 export function InventoryLotTable({
     data,
     totals,
@@ -116,6 +141,16 @@ export function InventoryLotTable({
     filters,
     onFiltersChange,
 }: Props) {
+    const { data: natureLookupPage } = useQuery({
+        queryKey: ["inventory-lot-product-nature-lookups"],
+        queryFn: () => listProductNatureLookups({ page: 1, size: 200 }),
+    })
+    const natureOptions = useMemo(
+        () => (natureLookupPage?.items || []).map((item: any) => ({ value: item.code, label: item.name || item.code })),
+        [natureLookupPage],
+    )
+    const natureLabelMap = useMemo(() => new Map(natureOptions.map((item) => [item.value, item.label])), [natureOptions])
+
     const setFilter = <K extends keyof LotFilters>(key: K, value: LotFilters[K] | undefined) => {
         onFiltersChange({
             ...filters,
@@ -228,11 +263,24 @@ export function InventoryLotTable({
                 onClear: () => clearTextFilter("quote_text", "quote_text_op"),
             }
             : null,
-        filters.unit ? { key: "unit", label: `ĐVT: ${filters.unit}`, onClear: () => setFilter("unit", undefined) } : null,
+        filters.unit
+            ? {
+                key: "unit",
+                label: `ĐVT: ${filterValueLabels(filters.unit, UNIT_OPTIONS.map((unit) => ({ value: unit, label: unit })))}`,
+                onClear: () => setFilter("unit", undefined),
+            }
+            : null,
+        filters.nature
+            ? {
+                key: "nature",
+                label: `Tính chất: ${filterValueLabels(filters.nature, natureOptions)}`,
+                onClear: () => setFilter("nature", undefined),
+            }
+            : null,
         filters.lot_warning
             ? {
                 key: "lot_warning",
-                label: `Cảnh báo: ${LOT_WARNING_OPTIONS.find((item) => item.value === filters.lot_warning)?.label || filters.lot_warning}`,
+                label: `Cảnh báo: ${filterValueLabels(filters.lot_warning, LOT_WARNING_OPTIONS)}`,
                 onClear: () => setFilter("lot_warning", undefined),
             }
             : null,
@@ -390,11 +438,11 @@ export function InventoryLotTable({
                                         />
                                     </Th>
                                     <Th rowSpan={2}>
-                                        <ColumnSelectFilter
+                                        <ColumnMultiSelectFilter
                                             label="ĐVT"
                                             value={filters.unit}
                                             options={UNIT_OPTIONS.map((unit) => ({ value: unit, label: unit }))}
-                                            onChange={(value) => setFilter("unit", value)}
+                                            onApply={(value) => setFilter("unit", value)}
                                         />
                                     </Th>
                                     <Th rowSpan={2} className="min-w-[150px]">
@@ -429,7 +477,7 @@ export function InventoryLotTable({
                                     <Th rowSpan={2}>
                                         <WarningHeader
                                             value={filters.lot_warning}
-                                            onChange={(value) => setFilter("lot_warning", value)}
+                                            onApply={(value) => setFilter("lot_warning", value)}
                                         />
                                     </Th>
                                     <Th rowSpan={2}>Đơn giá mua</Th>
@@ -449,7 +497,14 @@ export function InventoryLotTable({
                                             onClear={() => clearTextFilter("quote_text", "quote_text_op")}
                                         />
                                     </Th>
-                                    <Th rowSpan={2}>Tính chất</Th>
+                                    <Th rowSpan={2}>
+                                        <ColumnMultiSelectFilter
+                                            label="Tính chất"
+                                            value={filters.nature}
+                                            options={natureOptions}
+                                            onApply={(value) => setFilter("nature", value)}
+                                        />
+                                    </Th>
                                     <Th rowSpan={2}>Dạng hàng</Th>
                                 </tr>
                                 <tr>
@@ -479,6 +534,7 @@ export function InventoryLotTable({
                                         key={`${item.id}-${index}`}
                                         index={pagination.pageIndex * pagination.pageSize + index + 1}
                                         item={item}
+                                        natureLabelMap={natureLabelMap}
                                     />
                                 ))}
                             </>
@@ -505,7 +561,7 @@ export function InventoryLotTable({
     )
 }
 
-function InventoryLotRow({ index, item }: { index: number; item: InventoryLot }) {
+function InventoryLotRow({ index, item, natureLabelMap }: { index: number; item: InventoryLot; natureLabelMap: Map<string, string> }) {
     const openingQuantity = reportNumber(item, "opening_quantity")
     const openingValue = reportNumber(item, "opening_value")
     const inboundQuantity = reportNumber(item, "inbound_quantity")
@@ -518,7 +574,8 @@ function InventoryLotRow({ index, item }: { index: number; item: InventoryLot })
     const productCode = reportString(item, "product_code") || item.product?.code || "-"
     const productUnit = reportString(item, "unit") || item.product?.unit || "-"
     const quoteName = reportString(item, "quote_name") || item.product?.quote_name || "-"
-    const nature = reportString(item, "nature") || item.product?.nature || "-"
+    const natureCode = reportString(item, "nature") || item.product?.nature || ""
+    const nature = natureLabelMap.get(natureCode) || natureCode || "-"
     const warehouseName = reportString(item, "warehouse_name") || item.warehouse?.name || "-"
     const warehouseCode = reportString(item, "warehouse_code") || item.warehouse?.code || "-"
     const lotNo = reportString(item, "lot_no") || item.lot_no || "-"
@@ -564,8 +621,22 @@ function InventoryLotRow({ index, item }: { index: number; item: InventoryLot })
     )
 }
 
-function WarningHeader({ value, onChange }: { value?: string; onChange: (value: string | undefined) => void }) {
-    const active = Boolean(value)
+function WarningHeader({ value, onApply }: { value?: string; onApply: (value: string | undefined) => void }) {
+    const [open, setOpen] = useState(false)
+    const [selected, setSelected] = useState<string[]>(splitFilterValues(value))
+    const active = splitFilterValues(value).length > 0
+
+    useEffect(() => {
+        if (open) setSelected(splitFilterValues(value))
+    }, [open, value])
+
+    const toggleValue = (next: string) => {
+        setSelected((current) =>
+            current.includes(next)
+                ? current.filter((item) => item !== next)
+                : [...current, next],
+        )
+    }
 
     return (
         <div className="flex items-center justify-center gap-1">
@@ -580,7 +651,7 @@ function WarningHeader({ value, onChange }: { value?: string; onChange: (value: 
                     Cảnh báo gồm: Còn 6 tháng hết hạn, Nhập 6 tháng chưa xuất, Hết hạn.
                 </TooltipContent>
             </Tooltip>
-            <Popover>
+            <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <Button
                         type="button"
@@ -591,20 +662,45 @@ function WarningHeader({ value, onChange }: { value?: string; onChange: (value: 
                         <Funnel className="h-3.5 w-3.5" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-56 p-2">
+                <PopoverContent align="start" className="w-64 space-y-2 p-3">
                     <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Lọc cảnh báo</div>
-                    <FilterOptionButton active={!value} onClick={() => onChange(undefined)}>
-                        Tất cả
-                    </FilterOptionButton>
                     {LOT_WARNING_OPTIONS.map((item) => (
-                        <FilterOptionButton key={item.value} active={item.value === value} onClick={() => onChange(item.value)}>
-                            {item.label}
-                        </FilterOptionButton>
+                        <label key={item.value} className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted">
+                            <Checkbox
+                                checked={selected.includes(item.value)}
+                                onCheckedChange={() => toggleValue(item.value)}
+                            />
+                            <span>{item.label}</span>
+                        </label>
                     ))}
+                    <div className="flex justify-end gap-2 pt-1">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                setSelected([])
+                                onApply(undefined)
+                                setOpen(false)
+                            }}
+                        >
+                            Xóa
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                                onApply(joinFilterValues(selected))
+                                setOpen(false)
+                            }}
+                        >
+                            Áp dụng
+                        </Button>
+                    </div>
                 </PopoverContent>
             </Popover>
             {active && (
-                <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => onChange(undefined)}>
+                <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => onApply(undefined)}>
                     <X className="h-3 w-3" />
                 </Button>
             )}
@@ -876,6 +972,95 @@ function ColumnWarehouseFilter({
             </Popover>
             {active && (
                 <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => onChange(undefined)}>
+                    <X className="h-3 w-3" />
+                </Button>
+            )}
+        </div>
+    )
+}
+
+function ColumnMultiSelectFilter({
+    label,
+    value,
+    options,
+    onApply,
+}: {
+    label: string
+    value?: string
+    options: Array<{ value: string; label: string }>
+    onApply: (value: string | undefined) => void
+}) {
+    const [open, setOpen] = useState(false)
+    const [selected, setSelected] = useState<string[]>(splitFilterValues(value))
+    const active = splitFilterValues(value).length > 0
+
+    useEffect(() => {
+        if (open) setSelected(splitFilterValues(value))
+    }, [open, value])
+
+    const toggleValue = (next: string) => {
+        setSelected((current) =>
+            current.includes(next)
+                ? current.filter((item) => item !== next)
+                : [...current, next],
+        )
+    }
+
+    return (
+        <div className="flex items-center justify-center gap-1">
+            <span>{label}</span>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-6 w-6", active && "bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800")}
+                    >
+                        <Funnel className="h-3.5 w-3.5" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-64 space-y-2 p-3">
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">Lọc {label.toLowerCase()}</div>
+                    <div className="max-h-64 overflow-y-auto">
+                        {options.map((item) => (
+                            <label key={item.value} className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted">
+                                <Checkbox
+                                    checked={selected.includes(item.value)}
+                                    onCheckedChange={() => toggleValue(item.value)}
+                                />
+                                <span>{item.label}</span>
+                            </label>
+                        ))}
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                setSelected([])
+                                onApply(undefined)
+                                setOpen(false)
+                            }}
+                        >
+                            Xóa
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                                onApply(joinFilterValues(selected))
+                                setOpen(false)
+                            }}
+                        >
+                            Áp dụng
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
+            {active && (
+                <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => onApply(undefined)}>
                     <X className="h-3 w-3" />
                 </Button>
             )}

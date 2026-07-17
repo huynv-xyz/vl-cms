@@ -55,6 +55,7 @@ const currentTime = () => {
 }
 
 const normalizeTime = (value?: string) => (value ? value.slice(0, 5) : currentTime())
+const normalizeExistingTime = (value?: string | null) => (value ? value.slice(0, 5) : "")
 
 export function ChangeProductionDateDialog({
     production,
@@ -264,7 +265,7 @@ export function ChangeProductionDateDialog({
                     <div className="grid min-w-0 gap-3 rounded-md border bg-muted/20 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                         <InfoItem label="Lệnh SX" value={production?.production_no || `#${production?.id}`} />
                         <InfoItem label="Trạng thái" value={production?.status || "-"} />
-                        <InfoItem label="Ngày hiện tại" value={formatDate(production?.production_date)} />
+                        <InfoItem label="Ngày giờ hiện tại" value={formatDateTime(production?.production_date, production?.production_time)} />
                         <div className="min-w-0 space-y-2">
                             <label className="text-sm font-medium">Ngày mới</label>
                             <DatePicker
@@ -579,7 +580,8 @@ function panelLabel(type: ResultPanel["type"]) {
 
 function validateDate(newDate?: string, currentDate?: string, newTime?: string, currentTimeValue?: string) {
     if (!newDate) return "Ng\u00e0y m\u1edbi l\u00e0 b\u1eaft bu\u1ed9c"
-    if (currentDate && newDate === currentDate && normalizeTime(newTime) === normalizeTime(currentTimeValue)) {
+    const existingTime = normalizeExistingTime(currentTimeValue)
+    if (currentDate && newDate === currentDate && existingTime && normalizeTime(newTime) === existingTime) {
         return "Ng\u00e0y gi\u1edd m\u1edbi kh\u00f4ng \u0111\u01b0\u1ee3c b\u1eb1ng ng\u00e0y gi\u1edd hi\u1ec7n t\u1ea1i c\u1ee7a l\u1ec7nh"
     }
     const date = new Date(newDate)
@@ -594,6 +596,12 @@ function formatDate(value?: string | null) {
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return value
     return date.toLocaleDateString("vi-VN")
+}
+
+function formatDateTime(dateValue?: string | null, timeValue?: string | null) {
+    if (!dateValue) return "-"
+    const time = normalizeExistingTime(timeValue)
+    return time ? `${formatDate(dateValue)} ${time}` : `${formatDate(dateValue)} - Ch\u01b0a c\u00f3 gi\u1edd`
 }
 
 function formatNumber(value?: number | string | null) {

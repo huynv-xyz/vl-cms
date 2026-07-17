@@ -1,9 +1,11 @@
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { Boxes, CheckCircle2, Layers, Warehouse as WarehouseIcon, type LucideIcon } from "lucide-react"
 
+import { getProductNatureLookup, listProductNatureLookups } from "@/api/app-lookup"
 import { listProductGroups } from "@/api/product-group"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { CrudTable } from "@/components/crud/crud-table"
+import { AsyncMultiSelect } from "@/components/rjsf/async-multi-select"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import {
@@ -20,7 +22,7 @@ import { productColumns } from "./product-columns"
 
 type ProductFilters = {
     status?: string
-    nature?: string
+    nature?: string[]
     group_code?: string
     default_warehouse_id?: number
     inventory_account_code?: string
@@ -45,14 +47,6 @@ type ProductTableProps = {
     filters: ProductFilters
     onFiltersChange: (filters: ProductFilters) => void
 }
-
-const NATURE_OPTIONS = [
-    "Thành phẩm",
-    "Nguyên vật liệu",
-    "Bao bì",
-    "Công cụ dụng cụ",
-    "Hàng hóa",
-]
 
 export function ProductTable({
     data,
@@ -99,28 +93,25 @@ export function ProductTable({
                         </SelectContent>
                     </Select>
 
-                    <Select
-                        value={filters.nature || "all"}
-                        onValueChange={(value) =>
+                    <AsyncMultiSelect
+                        className={filterControlClass("min-w-[180px] flex-1")}
+                        value={filters.nature ?? []}
+                        onChange={(value: string[]) =>
                             onFiltersChange({
                                 ...filters,
-                                nature: value === "all" ? undefined : value,
+                                nature: value.length ? value : undefined,
                             })
                         }
-                    >
-                        <SelectTrigger className={filterControlClass("min-w-[180px] flex-1")}>
-                            <SelectValue placeholder="Tính chất" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Tất cả tính chất</SelectItem>
-                            {NATURE_OPTIONS.map((item) => (
-                                <SelectItem key={item} value={item}>
-                                    {item}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
+                        placeholder="Tính chất"
+                        searchPlaceholder="Tìm tính chất..."
+                        dataSource={{
+                            getList: listProductNatureLookups,
+                            getById: getProductNatureLookup,
+                            params: { page: 1, size: 50 },
+                        }}
+                        mapOption={lookupOption}
+                        deferChange
+                    />                </div>
 
                 <div className="flex w-full flex-wrap items-center gap-2">
                     <AsyncSelect
@@ -294,4 +285,11 @@ function MetricCard({
 
 function filterControlClass(className?: string) {
     return `h-10 rounded-md border-slate-300 bg-white shadow-xs ${className ?? ""}`
+}
+
+function lookupOption(item: any) {
+    return {
+        value: item.code,
+        label: item.name || item.code || "",
+    }
 }

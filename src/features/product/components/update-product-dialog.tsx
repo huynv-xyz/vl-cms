@@ -4,7 +4,7 @@ import { getProductGroup } from "@/api/product-group"
 import { getWarehouse } from "@/api/warehouse"
 import type { Product } from "../data/schema"
 import { productSchema, productUiSchema } from "./product-form-schema"
-import { formatProductNature, toProductNatureValue } from "./product-nature"
+import { toProductNatureValue } from "./product-nature"
 import type { ProductFormValues } from "./types"
 import { useEffect, useRef } from "react"
 
@@ -34,7 +34,7 @@ export function UpdateProductDialog({ product, open, onOpenChange }: any) {
                 quote_code: product.quote_code ?? "",
                 misa_material_code: product.misa_material_code ?? "",
                 unit: product.unit ?? "",
-                nature: product.nature ? formatProductNature(product.nature) : "",
+                nature: product.nature ? toProductNatureValue(product.nature) : "",
                 group_id: product.group_id,
                 pricing_group_id: product.pricing_group_id,
                 base_unit_code: product.base_unit_code ?? "KG",

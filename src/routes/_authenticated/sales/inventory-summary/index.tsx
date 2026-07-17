@@ -78,10 +78,13 @@ function normalizeTextOp(value: unknown) {
 }
 
 function normalizeSummaryStatus(value: unknown) {
-    return typeof value === "string" &&
-        ["NEGATIVE", "OUT_OF_STOCK", "DECREASE", "INCREASE", "STABLE"].includes(value)
-        ? value
-        : undefined
+    if (typeof value !== "string") return undefined
+    const allowed = new Set(["NEGATIVE", "OUT_OF_STOCK", "DECREASE", "INCREASE", "STABLE"])
+    const values = value
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => allowed.has(item))
+    return values.length ? Array.from(new Set(values)).join(",") : undefined
 }
 
 function normalizeNumberOp(value: unknown) {

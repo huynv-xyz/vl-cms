@@ -17,7 +17,8 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { listInventorySummaryNatureOptions, listInventorySummarys, type SummaryListParams } from "@/api/inventory/summary"
+import { listProductNatureLookups } from "@/api/app-lookup"
+import { listInventorySummarys, type SummaryListParams } from "@/api/inventory/summary"
 import { listPhysicalWarehouses } from "@/api/physical-warehouse"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
@@ -212,10 +213,19 @@ export function SummaryTable({
     onFiltersChange,
     showValues = true,
 }: Props) {
-    const { data: natureOptions = [] } = useQuery({
-        queryKey: ["inventory-summary-nature-options"],
-        queryFn: listInventorySummaryNatureOptions,
+    const { data: natureLookupPage } = useQuery({
+        queryKey: ["inventory-summary-product-nature-lookups"],
+        queryFn: () => listProductNatureLookups({ page: 1, size: 200 }),
     })
+    const natureOptions = useMemo(
+        () =>
+            (natureLookupPage?.items ?? []).map((item) => ({
+                value: item.code,
+                label: item.name || item.code,
+            })),
+        [natureLookupPage]
+    )
+    const natureLabelMap = useMemo(() => new Map(natureOptions.map((item) => [item.value, item.label])), [natureOptions])
 
     const summaryTotals = normalizeTotals(totals)
     const today = todayYmd()
@@ -347,21 +357,21 @@ export function SummaryTable({
         filters.unit
             ? {
                 key: "unit",
-                label: `ĐVT: ${filters.unit}`,
+                label: `ĐVT: ${filterValueLabels(filters.unit, UNIT_OPTIONS.map((unit) => ({ value: unit, label: unit })))}`,
                 onClear: () => setFilter("unit", undefined),
             }
             : null,
         filters.nature
             ? {
                 key: "nature",
-                label: `Tính chất: ${natureOptions.find((item) => item.value === filters.nature)?.label || filters.nature}`,
+                label: `Tính chất: ${filterValueLabels(filters.nature, natureOptions)}`,
                 onClear: () => setFilter("nature", undefined),
             }
             : null,
         filters.summary_status
             ? {
                 key: "summary_status",
-                label: `Tình trạng: ${SUMMARY_STATUS_OPTIONS.find((item) => item.value === filters.summary_status)?.label || filters.summary_status}`,
+                label: `Tình trạng: ${filterValueLabels(filters.summary_status, SUMMARY_STATUS_OPTIONS)}`,
                 onClear: () => setFilter("summary_status", undefined),
             }
             : null,
@@ -552,11 +562,11 @@ export function SummaryTable({
                                         />
                                     </Th>
                                     <Th rowSpan={showValues ? 2 : 1}>
-                                        <ColumnSelectFilter
+                                        <ColumnMultiSelectFilter
                                             label="ĐVT"
                                             value={filters.unit}
                                             options={UNIT_OPTIONS.map((unit) => ({ value: unit, label: unit }))}
-                                            onChange={(value) => setFilter("unit", value)}
+                                            onApply={(value) => setFilter("unit", value)}
                                         />
                                     </Th>
                                     <Th rowSpan={showValues ? 2 : 1} className="min-w-[150px]">
@@ -603,19 +613,19 @@ export function SummaryTable({
                                         />
                                     </Th>
                                     <Th rowSpan={showValues ? 2 : 1}>
-                                        <ColumnSelectFilter
+                                        <ColumnMultiSelectFilter
                                             label="Tính chất"
                                             value={filters.nature}
                                             options={natureOptions}
-                                            onChange={(value) => setFilter("nature", value)}
+                                            onApply={(value) => setFilter("nature", value)}
                                         />
                                     </Th>
                                     <Th rowSpan={showValues ? 2 : 1}>
-                                        <ColumnSelectFilter
+                                        <ColumnMultiSelectFilter
                                             label="Tình trạng"
                                             value={filters.summary_status}
                                             options={SUMMARY_STATUS_OPTIONS}
-                                            onChange={(value) => setFilter("summary_status", value)}
+                                            onApply={(value) => setFilter("summary_status", value)}
                                         />
                                     </Th>
                                     <Th rowSpan={showValues ? 2 : 1}>Dạng hàng</Th>
@@ -651,6 +661,7 @@ export function SummaryTable({
                                         index={pagination.pageIndex * pagination.pageSize + index + 1}
                                         item={item}
                                         showValues={showValues}
+                                        natureLabelMap={natureLabelMap}
                                     />
                                 ))}
                             </>
@@ -707,7 +718,17 @@ export function SummaryTable({
     )
 }
 
-function SummaryRow({ index, item, showValues }: { index: number; item: InventorySummary; showValues: boolean }) {
+function SummaryRow({
+    index,
+    item,
+    showValues,
+    natureLabelMap,
+}: {
+    index: number
+    item: InventorySummary
+    showValues: boolean
+    natureLabelMap: Map<string, string>
+}) {
     const status = getInventoryStatus(item)
 
     return (
@@ -750,7 +771,7 @@ function SummaryRow({ index, item, showValues }: { index: number; item: Inventor
             <Td className="text-center text-xs">
                 {item.quote_name || "-"}
             </Td>
-            <Td className="text-center text-xs">{item.nature || "-"}</Td>
+            <Td className="text-center text-xs">{natureLabelMap.get(item.nature || "") || item.nature || "-"}</Td>
             <Td className="text-center">
                 <Badge variant={status.variant} className={cn("inline-flex items-center gap-1.5 whitespace-nowrap", status.className)}>
                     <status.icon className="h-3.5 w-3.5 shrink-0" />
@@ -1310,6 +1331,110 @@ function ColumnSelectFilter({
     )
 }
 
+function ColumnMultiSelectFilter({
+    label,
+    value,
+    options,
+    onApply,
+}: {
+    label: string
+    value?: string
+    options: Array<{ value: string; label: string }>
+    onApply: (value: string | undefined) => void
+}) {
+    const selectedValues = useMemo(() => splitFilterValues(value), [value])
+    const [open, setOpen] = useState(false)
+    const [draftValues, setDraftValues] = useState<string[]>(selectedValues)
+    const active = selectedValues.length > 0
+
+    useEffect(() => {
+        if (open) {
+            setDraftValues(selectedValues)
+        }
+    }, [open, selectedValues])
+
+    const toggleValue = (nextValue: string) => {
+        setDraftValues((current) =>
+            current.includes(nextValue)
+                ? current.filter((item) => item !== nextValue)
+                : [...current, nextValue]
+        )
+    }
+
+    return (
+        <div className="flex items-center justify-center gap-1">
+            <span>{label}</span>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-6 w-6", active && "bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800")}
+                    >
+                        <Funnel className="h-3.5 w-3.5" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="text-sm font-semibold text-foreground">Lọc {label.toLowerCase()}</div>
+                        {draftValues.length > 0 ? (
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setDraftValues([])}>
+                                Xóa chọn
+                            </Button>
+                        ) : null}
+                    </div>
+                    <div className="max-h-64 space-y-1 overflow-auto pr-1">
+                        {options.map((item) => (
+                            <label
+                                key={item.value}
+                                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted"
+                            >
+                                <Checkbox
+                                    checked={draftValues.includes(item.value)}
+                                    onCheckedChange={() => toggleValue(item.value)}
+                                />
+                                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                            </label>
+                        ))}
+                        {options.length === 0 ? (
+                            <div className="px-2 py-3 text-sm text-muted-foreground">Chưa có dữ liệu tính chất.</div>
+                        ) : null}
+                    </div>
+                    <div className="mt-3 flex justify-end gap-2 border-t pt-3">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                setDraftValues(selectedValues)
+                                setOpen(false)
+                            }}
+                        >
+                            Hủy
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                                onApply(joinFilterValues(draftValues))
+                                setOpen(false)
+                            }}
+                        >
+                            Áp dụng
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
+            {active && (
+                <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => onApply(undefined)}>
+                    <X className="h-3 w-3" />
+                </Button>
+            )}
+        </div>
+    )
+}
+
 function FilterOptionButton({
     active,
     onClick,
@@ -1331,6 +1456,28 @@ function FilterOptionButton({
             {children}
         </button>
     )
+}
+
+function splitFilterValues(value?: string) {
+    return (value ?? "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+}
+
+function joinFilterValues(values: string[]) {
+    const next = Array.from(new Set(values.map((item) => item.trim()).filter(Boolean)))
+    return next.length > 0 ? next.join(",") : undefined
+}
+
+function filterValueLabels(value: string | undefined, options: Array<{ value: string; label: string }>) {
+    const selectedValues = splitFilterValues(value)
+    if (selectedValues.length === 0) {
+        return ""
+    }
+    return selectedValues
+        .map((item) => options.find((option) => option.value === item)?.label || item)
+        .join(", ")
 }
 
 function SummaryMetric({
@@ -1391,6 +1538,14 @@ export function ExportInventorySummaryButton({
     listFn?: (params: SummaryListParams) => Promise<any>
 }) {
     const [loading, setLoading] = useState(false)
+    const { data: natureLookupPage } = useQuery({
+        queryKey: ["inventory-summary-export-product-nature-lookups"],
+        queryFn: () => listProductNatureLookups({ page: 1, size: 200 }),
+    })
+    const natureLabelMap = useMemo(
+        () => new Map((natureLookupPage?.items ?? []).map((item) => [item.code, item.name || item.code])),
+        [natureLookupPage],
+    )
 
     const handleExport = async () => {
         try {
@@ -1429,7 +1584,11 @@ export function ExportInventorySummaryButton({
                 return
             }
 
-            await exportSummaryXlsx(rows, filters, showValues)
+            const exportRows = rows.map((row) => ({
+                ...row,
+                nature: natureLabelMap.get(row.nature || "") || row.nature,
+            }))
+            await exportSummaryXlsx(exportRows, filters, showValues)
             toast.success(`Đã xuất ${formatNumber(rows.length)} dòng nhập xuất tồn`)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Xuất Excel thất bại")
