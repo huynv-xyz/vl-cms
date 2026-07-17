@@ -38,11 +38,16 @@ const newRow = (): Row => ({
 })
 
 const today = () => new Date().toISOString().slice(0, 10)
+const currentTime = () => {
+    const d = new Date()
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+}
 
 export function CreateProductionDialog({ open, onOpenChange }: Props) {
     const queryClient = useQueryClient()
 
     const [productionDate, setProductionDate] = useState(today())
+    const [productionTime, setProductionTime] = useState(currentTime())
     const [physicalWarehouseId, setPhysicalWarehouseId] = useState<number>()
     const [warehouseId, setWarehouseId] = useState<number>()
     const [packingCode, setPackingCode] = useState("")
@@ -81,6 +86,7 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
 
     const resetForm = () => {
         setProductionDate(today())
+        setProductionTime(currentTime())
         setPhysicalWarehouseId(undefined)
         setWarehouseId(undefined)
         setPackingCode("")
@@ -123,6 +129,7 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
             physical_warehouse_id: physicalWarehouseId,
             warehouse_id: warehouseId,
             production_date: productionDate,
+            production_time: productionTime || undefined,
             packing_code: packingCode || undefined,
             note: note || undefined,
             items: items.map((item) => ({
@@ -147,7 +154,7 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
                 <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
                     <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
                         <section className="space-y-4">
-                            <div className="grid gap-3 md:grid-cols-3">
+                            <div className="grid gap-3 md:grid-cols-4">
                                 <Field label="Mã lệnh SX">
                                     <Input value="Auto" disabled />
                                 </Field>
@@ -179,6 +186,14 @@ export function CreateProductionDialog({ open, onOpenChange }: Props) {
                                         })}
                                         optionWrapLabel
                                         popoverContentClassName="w-[460px] max-w-[calc(100vw-2rem)]"
+                                    />
+                                </Field>
+
+                                <Field label={"Gi\u1edd l\u1ec7nh"} required>
+                                    <Input
+                                        type="time"
+                                        value={productionTime}
+                                        onChange={(event) => setProductionTime(event.target.value)}
                                     />
                                 </Field>
 

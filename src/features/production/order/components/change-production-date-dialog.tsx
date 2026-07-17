@@ -25,6 +25,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import type { Production } from "../data/schema"
 
@@ -48,6 +49,13 @@ type ResultPanel = {
     conflictRows?: ProductionDateChangeDetail[]
 }
 
+const currentTime = () => {
+    const d = new Date()
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+}
+
+const normalizeTime = (value?: string) => (value ? value.slice(0, 5) : currentTime())
+
 export function ChangeProductionDateDialog({
     production,
     open,
@@ -55,14 +63,18 @@ export function ChangeProductionDateDialog({
 }: Props) {
     const queryClient = useQueryClient()
     const [newDate, setNewDate] = useState("")
+    const [newTime, setNewTime] = useState(currentTime())
     const [checkResult, setCheckResult] = useState<ProductionDateChangeResult | null>(null)
+    const [checkedTime, setCheckedTime] = useState("")
     const [resultPanel, setResultPanel] = useState<ResultPanel>(initialPanel())
     const [applied, setApplied] = useState(false)
 
     useEffect(() => {
         if (open && production) {
             setNewDate(production.production_date || "")
+            setNewTime(normalizeTime(production.production_time))
             setCheckResult(null)
+            setCheckedTime("")
             setResultPanel(initialPanel())
             setApplied(false)
         }
@@ -74,12 +86,18 @@ export function ChangeProductionDateDialog({
         return value
     }, [])
 
-    const validationMessage = validateDate(newDate, production?.production_date)
+    const validationMessage = validateDate(
+        newDate,
+        production?.production_date,
+        newTime,
+        production?.production_time
+    )
 
     const checkMutation = useMutation({
         mutationFn: () =>
             checkProductionDateChange(Number(production?.id), {
                 production_date: newDate,
+                production_time: newTime || undefined,
             }),
         onMutate: () => {
             setResultPanel({
@@ -90,6 +108,7 @@ export function ChangeProductionDateDialog({
         },
         onSuccess: (result) => {
             setCheckResult(result.success ? result : null)
+            setCheckedTime(result.success ? newTime : "")
             setResultPanel({
                 type: result.success ? "success" : "error",
                 title: result.details?.length
@@ -119,6 +138,7 @@ export function ChangeProductionDateDialog({
         mutationFn: () =>
             changeProductionDate(Number(production?.id), {
                 production_date: newDate,
+                production_time: newTime || undefined,
             }),
         onMutate: () => {
             setResultPanel({
@@ -155,6 +175,14 @@ export function ChangeProductionDateDialog({
     function handleDateChange(value?: string) {
         setNewDate(value || "")
         setCheckResult(null)
+        setCheckedTime("")
+        setResultPanel(initialPanel())
+    }
+
+    function handleTimeChange(value: string) {
+        setNewTime(value)
+        setCheckResult(null)
+        setCheckedTime("")
         setResultPanel(initialPanel())
     }
 
@@ -191,7 +219,7 @@ export function ChangeProductionDateDialog({
             })
             return
         }
-        if (!checkResult?.success || checkResult.new_date !== newDate) {
+        if (!checkResult?.success || checkResult.new_date !== newDate || checkedTime !== newTime) {
             setResultPanel({
                 type: "error",
                 title: "Cần kiểm tra lại",
@@ -246,6 +274,14 @@ export function ChangeProductionDateDialog({
                                 placeholder="Chọn ngày mới"
                                 disabled={(date) => date > today}
                             />
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">{"Gi\u1edd m\u1edbi"}</label>
+                                <Input
+                                    type="time"
+                                    value={newTime}
+                                    onChange={(event) => handleTimeChange(event.target.value)}
+                                />
+                            </div>
                             {validationMessage && (
                                 <div className="text-xs text-destructive">{validationMessage}</div>
                             )}
@@ -541,19 +577,18 @@ function panelLabel(type: ResultPanel["type"]) {
     }
 }
 
-function validateDate(newDate?: string, currentDate?: string) {
-    if (!newDate) return "Ngày mới là bắt buộc"
-    if (currentDate && newDate === currentDate) {
-        return "Ngày mới không được bằng ngày hiện tại của lệnh"
+function validateDate(newDate?: string, currentDate?: string, newTime?: string, currentTimeValue?: string) {
+    if (!newDate) return "Ng\u00e0y m\u1edbi l\u00e0 b\u1eaft bu\u1ed9c"
+    if (currentDate && newDate === currentDate && normalizeTime(newTime) === normalizeTime(currentTimeValue)) {
+        return "Ng\u00e0y gi\u1edd m\u1edbi kh\u00f4ng \u0111\u01b0\u1ee3c b\u1eb1ng ng\u00e0y gi\u1edd hi\u1ec7n t\u1ea1i c\u1ee7a l\u1ec7nh"
     }
     const date = new Date(newDate)
-    if (Number.isNaN(date.getTime())) return "Ngày mới không hợp lệ"
+    if (Number.isNaN(date.getTime())) return "Ng\u00e0y m\u1edbi kh\u00f4ng h\u1ee3p l\u1ec7"
     const today = new Date()
     today.setHours(23, 59, 59, 999)
-    if (date > today) return "Ngày mới không được lớn hơn ngày hiện tại"
+    if (date > today) return "Ng\u00e0y m\u1edbi kh\u00f4ng \u0111\u01b0\u1ee3c l\u1edbn h\u01a1n ng\u00e0y hi\u1ec7n t\u1ea1i"
     return ""
 }
-
 function formatDate(value?: string | null) {
     if (!value) return "-"
     const date = new Date(value)
