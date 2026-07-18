@@ -1,8 +1,8 @@
 import type { RJSFSchema, UiSchema } from "@rjsf/utils"
+import { getProductNatureLookup, listProductNatureLookups } from "@/api/app-lookup"
 import { getProductGroup, listProductGroups } from "@/api/product-group"
 import { pricingGroupsApi } from "@/api/pricing"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
-import { PRODUCT_NATURE_OPTIONS } from "./product-nature"
 
 export const productSchema: RJSFSchema = {
     type: "object",
@@ -37,13 +37,6 @@ export const productSchema: RJSFSchema = {
         nature: {
             type: "string",
             title: "Tính chất",
-            oneOf: [
-                { const: "Thành phẩm", title: "Thành phẩm" },
-                { const: "Nguyên vật liệu", title: "Nguyên vật liệu" },
-                { const: "Bao bì", title: "Bao bì" },
-                { const: "Công cụ dụng cụ", title: "Công cụ dụng cụ" },
-                { const: "Hàng hóa", title: "Hàng hóa" },
-            ],
         },
         group_id: {
             type: "integer",
@@ -182,8 +175,21 @@ export const productUiSchema: UiSchema = {
         "ui:widget": "select",
     },
     nature: {
-        "ui:widget": "select",
+        "ui:widget": "asyncSelect",
         "ui:placeholder": "Chọn tính chất",
+        "ui:options": {
+            placeholder: "Chọn tính chất",
+            searchPlaceholder: "Tìm mã hoặc tên tính chất...",
+            dataSource: {
+                getList: listProductNatureLookups,
+                getById: getProductNatureLookup,
+                params: { page: 1, size: 50 },
+            },
+            mapOption: (item: any) => ({
+                value: item.code,
+                label: item.name || item.code || "",
+            }),
+        },
     },
     group_id: {
         "ui:widget": "asyncSelect",

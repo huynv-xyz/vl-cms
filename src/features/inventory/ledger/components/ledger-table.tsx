@@ -1,5 +1,5 @@
 ﻿import type React from "react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { Funnel, Printer, X } from "lucide-react"
@@ -15,6 +15,7 @@ import { CardPagination } from "@/components/table/card-pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
     Dialog,
     DialogContent,
@@ -80,6 +81,25 @@ const TEXT_FILTER_OPERATORS: Array<{ value: TextFilterOp; label: string }> = [
 ]
 
 const UNIT_OPTIONS = ["Kg", "Lít", "Bao", "Cái", "Thùng", "Mét"]
+
+function splitFilterValues(value?: string) {
+    return (value || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+}
+
+function joinFilterValues(values: string[]) {
+    const unique = Array.from(new Set(values.map((item) => item.trim()).filter(Boolean)))
+    return unique.length ? unique.join(",") : undefined
+}
+
+function filterValueLabels(value: string | undefined, options: Array<{ value: string; label: string }>) {
+    const optionMap = new Map(options.map((option) => [option.value, option.label]))
+    return splitFilterValues(value)
+        .map((item) => optionMap.get(item) || item)
+        .join(", ")
+}
 
 export function InventoryLedgerTable({
     data,
@@ -214,7 +234,11 @@ export function InventoryLedgerTable({
             }
             : null,
         filters.unit
-            ? { key: "unit", label: `ĐVT: ${filters.unit}`, onClear: () => setFilter("unit", undefined) }
+            ? {
+                key: "unit",
+                label: `ĐVT: ${filterValueLabels(filters.unit, UNIT_OPTIONS.map((unit) => ({ value: unit, label: unit })))}`,
+                onClear: () => setFilter("unit", undefined),
+            }
             : null,
         filters.lot_text
             ? {
@@ -429,11 +453,11 @@ export function InventoryLedgerTable({
                                     />
                                 </Th>
                                 <Th className="min-w-[80px]">
-                                    <ColumnSelectFilter
+                                    <ColumnMultiSelectFilter
                                         label="ĐVT"
                                         value={filters.unit}
                                         options={UNIT_OPTIONS.map((unit) => ({ value: unit, label: unit }))}
-                                        onChange={(value) => setFilter("unit", value)}
+                                        onApply={(value) => setFilter("unit", value)}
                                     />
                                 </Th>
                                 <Th className="min-w-[140px]">
@@ -673,6 +697,100 @@ function ColumnSelectFilter({
                     type="button"
                     className="text-muted-foreground hover:text-foreground"
                     onClick={() => onChange(undefined)}
+                    aria-label={`Xóa lọc ${label}`}
+                >
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            ) : null}
+        </div>
+    )
+}
+
+function ColumnMultiSelectFilter({
+    label,
+    value,
+    options,
+    onApply,
+}: {
+    label: string
+    value?: string
+    options: Array<{ value: string; label: string }>
+    onApply: (value: string | undefined) => void
+}) {
+    const [open, setOpen] = useState(false)
+    const [selected, setSelected] = useState<string[]>(() => splitFilterValues(value))
+    const active = splitFilterValues(value).length > 0
+
+    useEffect(() => {
+        if (!open) setSelected(splitFilterValues(value))
+    }, [open, value])
+
+    const toggle = (optionValue: string) => {
+        setSelected((current) =>
+            current.includes(optionValue)
+                ? current.filter((item) => item !== optionValue)
+                : [...current, optionValue],
+        )
+    }
+
+    const apply = () => {
+        onApply(joinFilterValues(selected))
+        setOpen(false)
+    }
+
+    const clear = () => {
+        setSelected([])
+        onApply(undefined)
+        setOpen(false)
+    }
+
+    return (
+        <div className="flex items-center justify-center gap-1.5">
+            <span>{label}</span>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className={cn(
+                            "inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent",
+                            active ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                        )}
+                        aria-label={`Lọc ${label}`}
+                    >
+                        <Funnel className="h-4 w-4" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-56 p-2">
+                    <div className="px-2 pb-2 font-semibold text-foreground">Lọc {label}</div>
+                    <div className="space-y-1">
+                        {options.map((option) => (
+                            <label
+                                key={option.value}
+                                className="hover:bg-muted flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                            >
+                                <Checkbox
+                                    checked={selected.includes(option.value)}
+                                    onCheckedChange={() => toggle(option.value)}
+                                />
+                                <span>{option.label}</span>
+                            </label>
+                        ))}
+                    </div>
+                    <div className="mt-3 flex justify-end gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={clear}>
+                            Xóa
+                        </Button>
+                        <Button type="button" size="sm" onClick={apply}>
+                            Áp dụng
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
+            {active ? (
+                <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => onApply(undefined)}
                     aria-label={`Xóa lọc ${label}`}
                 >
                     <X className="h-3.5 w-3.5" />

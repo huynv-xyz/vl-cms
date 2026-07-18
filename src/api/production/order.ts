@@ -18,6 +18,7 @@ export type CreateProductionRequest = {
     physical_warehouse_id: number
     warehouse_id?: number
     production_date: string
+    production_time?: string
     packing_code?: string
     note?: string
     items: {
@@ -36,6 +37,7 @@ export type UpdateProductionRequest = {
     physical_warehouse_id?: number
     warehouse_id?: number
     production_date?: string
+    production_time?: string
     packing_code?: string
     status?: string
     note?: string
@@ -107,6 +109,7 @@ export const unpostProduction = (id: number, reason?: string) =>
 
 export type ChangeProductionDateRequest = {
     production_date: string
+    production_time?: string
 }
 
 export type ProductionDateChangeResult = {

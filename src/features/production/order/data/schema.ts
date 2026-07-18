@@ -2,6 +2,7 @@ export type Production = {
     id: number
     production_no?: string
     production_date?: string
+    production_time?: string
     costing_period?: string
     daily_sequence?: number
     physical_warehouse_id?: number

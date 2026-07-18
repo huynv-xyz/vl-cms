@@ -1,7 +1,9 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Download, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
+import { listProductNatureLookups } from "@/api/app-lookup"
 import { listInventoryLots, type InventoryLotListParams } from "@/api/inventory/lot"
 import { Button } from "@/components/ui/button"
 import type { InventoryLot } from "../data/schema"
@@ -30,6 +32,7 @@ type Props = {
         | "quote_text"
         | "quote_text_op"
         | "unit"
+        | "nature"
         | "lot_text"
         | "lot_text_op"
         | "lot_warning"
@@ -77,6 +80,14 @@ const COLUMNS: ExportColumn[] = [
 
 export function ExportInventoryLotsButton({ keyword, filters }: Props) {
     const [loading, setLoading] = useState(false)
+    const { data: natureLookupPage } = useQuery({
+        queryKey: ["inventory-lot-export-product-nature-lookups"],
+        queryFn: () => listProductNatureLookups({ page: 1, size: 200 }),
+    })
+    const natureLabelMap = useMemo(
+        () => new Map((natureLookupPage?.items || []).map((item: any) => [item.code, item.name || item.code])),
+        [natureLookupPage],
+    )
 
     const handleExport = async () => {
         try {
@@ -104,6 +115,7 @@ export function ExportInventoryLotsButton({ keyword, filters }: Props) {
                 quote_text: filters.quote_text,
                 quote_text_op: filters.quote_text_op,
                 unit: filters.unit,
+                nature: filters.nature,
                 lot_text: filters.lot_text,
                 lot_text_op: filters.lot_text_op,
                 lot_warning: filters.lot_warning,
@@ -117,7 +129,11 @@ export function ExportInventoryLotsButton({ keyword, filters }: Props) {
                 return
             }
 
-            await exportInventoryLotsXlsx(rows)
+            const exportRows = rows.map((row) => {
+                const natureCode = rowString(row, "nature") || row.product?.nature
+                return natureCode ? { ...row, nature: natureLabelMap.get(natureCode) || natureCode } as InventoryLot : row
+            })
+            await exportInventoryLotsXlsx(exportRows)
             toast.success(`Đã xuất ${rows.length} dòng tồn kho theo lô`)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Xuất Excel thất bại")

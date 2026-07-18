@@ -40,6 +40,13 @@ const newRow = (): Row => ({
     quantity_done: 1,
 })
 
+const currentTime = () => {
+    const d = new Date()
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+}
+
+const normalizeTime = (value?: string) => (value ? value.slice(0, 5) : currentTime())
+
 export function UpdateProductionDialog({
     production,
     open,
@@ -48,6 +55,7 @@ export function UpdateProductionDialog({
     const queryClient = useQueryClient()
 
     const [productionDate, setProductionDate] = useState("")
+    const [productionTime, setProductionTime] = useState(currentTime())
     const [physicalWarehouseId, setPhysicalWarehouseId] = useState<number>()
     const [warehouseId, setWarehouseId] = useState<number>()
     const [packingCode, setPackingCode] = useState("")
@@ -58,6 +66,7 @@ export function UpdateProductionDialog({
         if (!production || !open) return
 
         setProductionDate(production.production_date || "")
+        setProductionTime(normalizeTime(production.production_time))
         setNote(production.note || "")
         setPhysicalWarehouseId(production.physical_warehouse_id)
         setWarehouseId(production.items?.[0]?.warehouse_id)
@@ -136,6 +145,7 @@ export function UpdateProductionDialog({
             physical_warehouse_id: physicalWarehouseId,
             warehouse_id: warehouseId,
             production_date: productionDate,
+            production_time: productionTime || undefined,
             packing_code: packingCode || undefined,
             status: production.status,
             note,
@@ -161,7 +171,7 @@ export function UpdateProductionDialog({
                 <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
                     <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
                         <section className="space-y-4">
-                            <div className="grid gap-3 md:grid-cols-3">
+                            <div className="grid gap-3 md:grid-cols-4">
                                 <Field label="Mã lệnh SX">
                                     <Input value={production.production_no || ""} disabled />
                                 </Field>
@@ -193,6 +203,14 @@ export function UpdateProductionDialog({
                                         })}
                                         optionWrapLabel
                                         popoverContentClassName="w-[460px] max-w-[calc(100vw-2rem)]"
+                                    />
+                                </Field>
+
+                                <Field label={"Gi\u1edd l\u1ec7nh"} required>
+                                    <Input
+                                        type="time"
+                                        value={productionTime}
+                                        onChange={(event) => setProductionTime(event.target.value)}
                                     />
                                 </Field>
 

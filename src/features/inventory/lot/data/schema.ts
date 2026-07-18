@@ -35,6 +35,7 @@ export type InventoryLot = {
     expiry_status?: InventoryLotExpiryStatus
     days_to_expiry?: number | null
     expiry_message?: string
+    nature?: string | null
 
     created_at?: string
     updated_at?: string

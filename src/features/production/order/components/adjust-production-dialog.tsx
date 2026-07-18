@@ -310,15 +310,7 @@ export function AdjustProductionDialog({ production, open, onOpenChange }: Props
         },
         onError: (error: any) => {
             setApplied(false)
-            setResult({
-                success: false,
-                message: error?.message || "Kiểm tra điều chỉnh thất bại",
-                details: [{
-                    category: "Kiểm tra",
-                    status: "Lỗi",
-                    message: error?.message || "Không thể kiểm tra điều chỉnh",
-                }],
-            })
+            setResult(toAdjustmentErrorResult(error, "Không thể kiểm tra điều chỉnh"))
         },
     })
 
@@ -333,15 +325,7 @@ export function AdjustProductionDialog({ production, open, onOpenChange }: Props
         },
         onError: (error: any) => {
             setApplied(false)
-            setResult({
-                success: false,
-                message: error?.message || "Điều chỉnh thất bại, đã rollback",
-                details: [{
-                    category: "Chạy điều chỉnh",
-                    status: "Lỗi",
-                    message: error?.message || "Không thể điều chỉnh lệnh sản xuất",
-                }],
-            })
+            setResult(toAdjustmentErrorResult(error, "Điều chỉnh thất bại, đã rollback toàn bộ"))
         },
     })
 
@@ -516,13 +500,20 @@ export function AdjustProductionDialog({ production, open, onOpenChange }: Props
         : result?.success
             ? "Kiểm tra hợp lệ"
             : "Không thể điều chỉnh"
+    const resultDetails = result?.success ? [] : result?.details || []
+    const resultIssues = useMemo(() => buildAdjustmentIssues(resultDetails), [resultDetails])
+    const mappedResultIssueCount = useMemo(
+        () => resultIssues.filter((issue) => issueMatchesAnyRow(issue, rows)).length,
+        [resultIssues, rows],
+    )
+    const firstUnmappedIssue = resultIssues.find((issue) => !issueMatchesAnyRow(issue, rows))
     const resultMessage = result?.success
         ? applied
             ? "Đã chạy điều chỉnh thành công."
             : "An toàn, có thể điều chỉnh."
-        : "Không thể điều chỉnh. Xem các dòng lỗi bên dưới."
-    const resultDetails = result?.success ? [] : result?.details || []
-    const resultIssues = useMemo(() => buildAdjustmentIssues(resultDetails), [resultDetails])
+        : mappedResultIssueCount > 0
+            ? "Không thể điều chỉnh. Xem các dòng lỗi bên dưới."
+            : formatIssueMessage(firstUnmappedIssue?.message || result?.message || "Không thể điều chỉnh.")
     const checkButtonLabel = checkMutation.isPending ? "Đang kiểm tra..." : "Kiểm tra"
     const applyButtonLabel = applyMutation.isPending ? "Đang điều chỉnh..." : "Chạy điều chỉnh"
 
@@ -1344,9 +1335,33 @@ function MetaItem({
     )
 }
 
+function toAdjustmentErrorResult(error: any, fallbackMessage: string): ProductionAdjustmentResult {
+    const data = error?.data
+    if (data && typeof data === "object") {
+        return {
+            success: false,
+            message: data.message || error?.message || fallbackMessage,
+            production_id: data.production_id,
+            production_no: data.production_no,
+            production_date: data.production_date,
+            status: data.status,
+            issue_voucher_found: data.issue_voucher_found,
+            receive_voucher_found: data.receive_voucher_found,
+            allocation_rows: data.allocation_rows,
+            details: Array.isArray(data.details) ? data.details : [],
+        }
+    }
+    return {
+        success: false,
+        message: error?.message || fallbackMessage,
+        details: [],
+    }
+}
+
 function isResultError(status?: string | null) {
     const value = String(status || "").trim().toLowerCase()
-    return value === "lỗi" || value === "loi" || value.includes("error")
+    const normalized = value.normalize("NFD").replace(/\p{Diacritic}/gu, "")
+    return normalized === "loi" || value.includes("error")
 }
 
 function buildAdjustmentIssues(details: NonNullable<ProductionAdjustmentResult["details"]>): AdjustmentIssue[] {
@@ -1364,6 +1379,7 @@ function buildAdjustmentIssues(details: NonNullable<ProductionAdjustmentResult["
 
 function formatIssueMessage(message: string) {
     return message.replace(/(^|[^A-Za-z0-9_.-])(\d+(?:\.\d+)?)(?=$|[^A-Za-z0-9_.-])/g, (match, prefix, raw) => {
+        if (String(prefix || "").endsWith("#")) return match
         const value = Number(raw)
         if (!Number.isFinite(value)) return match
         if (Math.abs(value) < 1000 && !raw.includes(".")) return match
@@ -1387,6 +1403,13 @@ function findMaterialIssues(issues: AdjustmentIssue[], material: MaterialRow) {
         if (issue.warehouse_code && warehouseCode && issue.warehouse_code !== warehouseCode) return false
         if (issue.lot_code && lotCode && issue.lot_code !== lotCode) return false
         return true
+    })
+}
+
+function issueMatchesAnyRow(issue: AdjustmentIssue, rows: Row[]) {
+    return rows.some((row) => {
+        if (findRowIssues([issue], row).length) return true
+        return (row.materials || []).some((material) => findMaterialIssues([issue], material).length > 0)
     })
 }
 
@@ -1496,7 +1519,7 @@ function Td({ children, number, mono, className = "" }: { children: React.ReactN
 
 function formatNumber(value?: number | null) {
     if (value == null) return "-"
-    return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 3 }).format(Number(value || 0))
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 }).format(Number(value || 0))
 }
 
 function formatDate(value?: string) {

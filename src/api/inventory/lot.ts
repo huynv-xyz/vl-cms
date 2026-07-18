@@ -31,6 +31,7 @@ export type InventoryLotListParams = {
     quote_text?: string
     quote_text_op?: LotTextFilterOp
     unit?: string
+    nature?: string
     lot_text?: string
     lot_text_op?: LotTextFilterOp
     lot_warning?: string

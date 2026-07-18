@@ -50,6 +50,7 @@ export const Route = createFileRoute("/_authenticated/inventory/lots/")({
             quote_text: typeof search.quote_text === "string" ? search.quote_text : undefined,
             quote_text_op: normalizeTextOp(search.quote_text_op),
             unit: typeof search.unit === "string" ? search.unit : undefined,
+            nature: typeof search.nature === "string" ? search.nature : undefined,
             lot_text: typeof search.lot_text === "string" ? search.lot_text : undefined,
             lot_text_op: normalizeTextOp(search.lot_text_op),
             lot_warning: normalizeLotWarning(search.lot_warning),
@@ -90,10 +91,13 @@ function normalizeTextOp(value: unknown) {
 }
 
 function normalizeLotWarning(value: unknown) {
-    return typeof value === "string" &&
-        ["EXPIRED", "NEAR_EXPIRY", "STALE"].includes(value)
-        ? value
-        : undefined
+    if (typeof value !== "string") return undefined
+    const allowed = new Set(["EXPIRED", "NEAR_EXPIRY", "STALE", "VALID", "NO_EXPIRY"])
+    const values = value
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => allowed.has(item))
+    return values.length ? values.join(",") : undefined
 }
 
 function normalizeNumberOp(value: unknown) {
