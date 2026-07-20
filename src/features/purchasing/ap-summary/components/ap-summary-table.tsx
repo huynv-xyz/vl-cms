@@ -58,13 +58,14 @@ const columns: ColumnDef<Contract>[] = [
 
     buildTextColumn<Contract>({
         title: "Nhà cung cấp",
+        width: 240,
         render: (row) => (
-            <div className="min-w-[180px]">
-                <div className="font-medium">
+            <div className="w-full min-w-0">
+                <div className="line-clamp-2 font-medium leading-snug">
                     {row.supplier?.name || `NCC #${row.supplier_id}`}
                 </div>
                 {row.supplier?.code ? (
-                    <div className="mt-0.5 font-mono text-xs text-muted-foreground">
+                    <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
                         {row.supplier.code}
                     </div>
                 ) : null}
@@ -75,16 +76,17 @@ const columns: ColumnDef<Contract>[] = [
     buildTextColumn<Contract>({
         accessorKey: "code",
         title: "Số HĐ / Ngày ký",
+        width: 190,
         render: (row) => (
-            <div className="min-w-[180px]">
+            <div className="w-full min-w-0">
                 <Link
                     to="/purchasing/contracts/$id"
                     params={{ id: String(row.id) }}
-                    className="font-semibold text-primary hover:underline"
+                    className="block truncate font-semibold text-primary hover:underline"
                 >
                     {row.code || `HĐ #${row.id}`}
                 </Link>
-                <div className="mt-0.5 text-xs text-muted-foreground">
+                <div className="mt-0.5 truncate text-xs text-muted-foreground">
                     Ký {formatDate(row.signed_date)}
                 </div>
             </div>
@@ -93,13 +95,14 @@ const columns: ColumnDef<Contract>[] = [
 
     buildTextColumn<Contract>({
         title: "Giá trị HĐ",
+        width: 170,
         render: (row) => (
-            <div className="min-w-[140px] text-right">
-                <div className="font-semibold tabular-nums">
+            <div className="w-full min-w-0 text-right">
+                <div className="truncate font-semibold tabular-nums">
                     {formatCurrency(row.total_amount_vnd)}
                 </div>
                 {row.exchange_rate && row.total_amount ? (
-                    <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                    <div className="mt-0.5 truncate text-xs text-muted-foreground tabular-nums">
                         {formatNumber(row.total_amount)}{" "}
                         {row.currency?.code || ""}
                     </div>
@@ -110,14 +113,15 @@ const columns: ColumnDef<Contract>[] = [
 
     buildTextColumn<Contract>({
         title: "Cọc dự kiến",
+        width: 175,
         render: (row) => {
             const expected = calcExpectedDeposit(row)
             return (
-                <div className="min-w-[150px] text-right">
-                    <div className="font-medium tabular-nums">
+                <div className="w-full min-w-0 text-right">
+                    <div className="truncate font-medium tabular-nums">
                         {formatCurrency(expected)}
                     </div>
-                    <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                    <div className="mt-0.5 truncate text-xs text-muted-foreground tabular-nums">
                         Tỷ lệ {formatPercent(row.deposit_rate)} ·{" "}
                         {formatDate(row.deposit_date)}
                     </div>
@@ -128,6 +132,7 @@ const columns: ColumnDef<Contract>[] = [
 
     buildTextColumn<Contract>({
         title: "Đã thanh toán",
+        width: 220,
         render: (row) => {
             // So sánh trên cùng đơn vị VND: paid_vnd vs total_amount_vnd
             const paidVnd = getPaidAmountVnd(row)
@@ -147,17 +152,17 @@ const columns: ColumnDef<Contract>[] = [
                             ? `${ratio.toFixed(1)}%`
                             : `${Math.round(ratio)}%`
             return (
-                <div className="min-w-[180px]">
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="font-semibold tabular-nums text-emerald-700">
+                <div className="w-full min-w-0">
+                    <div className="flex min-w-0 items-center justify-between gap-3 text-sm">
+                        <span className="min-w-0 truncate font-semibold tabular-nums text-emerald-700">
                             {formatCurrency(paidVnd)}
                         </span>
-                        <span className="text-xs text-muted-foreground tabular-nums">
+                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                             {percentLabel}
                         </span>
                     </div>
                     {paidRaw > 0 && currencyCode && currencyCode !== "VND" ? (
-                        <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                        <div className="mt-0.5 truncate text-xs text-muted-foreground tabular-nums">
                             ≈ {formatNumber(paidRaw)} {currencyCode}
                         </div>
                     ) : null}
@@ -174,13 +179,14 @@ const columns: ColumnDef<Contract>[] = [
 
     buildTextColumn<Contract>({
         title: "Còn phải TT",
+        width: 170,
         render: (row) => {
             const remaining = calcRemainingAmount(row)
             const status = getContractPaymentStatus(row)
             return (
-                <div className="min-w-[140px] text-right">
+                <div className="w-full min-w-0 text-right">
                     <div
-                        className={`font-semibold tabular-nums ${
+                        className={`truncate font-semibold tabular-nums ${
                             status === "FULL"
                                 ? "text-muted-foreground"
                                 : "text-amber-700"
@@ -189,7 +195,7 @@ const columns: ColumnDef<Contract>[] = [
                         {formatCurrency(remaining)}
                     </div>
                     {status === "OVER" ? (
-                        <div className="mt-0.5 text-xs font-medium text-rose-700">
+                        <div className="mt-0.5 truncate text-xs font-medium text-rose-700">
                             Vượt{" "}
                             {formatCurrency(
                                 getPaidAmountVnd(row) -
@@ -204,11 +210,12 @@ const columns: ColumnDef<Contract>[] = [
 
     buildTextColumn<Contract>({
         title: "Trạng thái TT",
+        width: 150,
         render: (row) => {
             const status = getContractPaymentStatus(row)
             return (
                 <span
-                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${PAYMENT_STATUS_BADGE_CLASS[status]}`}
+                    className={`inline-flex max-w-full items-center truncate rounded-full border px-2.5 py-0.5 text-xs font-medium ${PAYMENT_STATUS_BADGE_CLASS[status]}`}
                 >
                     {PAYMENT_STATUS_LABEL[status]}
                 </span>

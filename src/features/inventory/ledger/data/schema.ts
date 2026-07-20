@@ -74,6 +74,7 @@ export type InventoryLedgerReportRow = {
     unit?: string | null
     unit_price?: number | null
     amount?: number | null
+    lot_id?: number | null
     lot_code?: string | null
     quantity_in: number
     quantity_out: number

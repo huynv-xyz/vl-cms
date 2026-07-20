@@ -3,6 +3,9 @@ import { useNavigate } from '@tanstack/react-router'
 import { ArrowRight, ChevronRight, Laptop, Moon, Sun } from 'lucide-react'
 import { useSearch } from '@/context/search-provider'
 import { useTheme } from '@/context/theme-provider'
+import { useQuery } from '@tanstack/react-query'
+import { getMyPermissions } from '@/api/auth/permission'
+import { filterSidebarByPermissions } from '@/lib/navigation-permissions'
 import {
     CommandDialog,
     CommandEmpty,
@@ -19,6 +22,14 @@ export function CommandMenu() {
     const navigate = useNavigate()
     const { setTheme } = useTheme()
     const { open, setOpen } = useSearch()
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const navigationData = React.useMemo(
+        () => filterSidebarByPermissions(sidebarData, permissions),
+        [permissions]
+    )
 
     const runCommand = React.useCallback(
         (command: () => unknown) => {
@@ -34,7 +45,7 @@ export function CommandMenu() {
             <CommandList>
                 <ScrollArea type='hover' className='h-72 pe-1'>
                     <CommandEmpty>Không tìm thấy kết quả nào.</CommandEmpty>
-                    {sidebarData.navGroups.map((group) => (
+                    {navigationData.navGroups.map((group) => (
                         <CommandGroup key={group.title} heading={group.title}>
                             {group.items.map((navItem, i) => {
                                 if (navItem.url)

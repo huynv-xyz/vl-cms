@@ -1,5 +1,5 @@
 import { createCrudApi } from "@/api/crud"
-import { apiGet, apiPostMultipart } from "@/api/client"
+import { apiGet, apiPost, apiPostMultipart } from "@/api/client"
 import type {
     InventoryLedger,
     InventoryLedgerReportRow,
@@ -77,6 +77,46 @@ export type ProductionCostObjectImportResult = {
     errors: Array<{ row: number; message: string }>
     skipped_doc_types?: Record<string, number>
     skippedDocTypes?: Record<string, number>
+}
+
+export type PurchaseLotChangeResult = {
+    valid: boolean
+    applied: boolean
+    mode: "RENAME" | "MERGE" | string
+    mode_label: string
+    message: string
+    ledger_id: number
+    product_id: number
+    warehouse_id: number
+    product_code: string
+    product_name: string
+    warehouse_code?: string | null
+    warehouse_name: string
+    doc_no?: string | null
+    doc_type?: string | null
+    posting_date?: string | null
+    old_lot_no: string
+    new_lot_no: string
+    old_lot_ids: number[]
+    target_lot_ids: number[]
+    target_lot_id: number
+    counts: Record<string, number>
+    old_stock: Record<string, number>
+    target_stock: Record<string, number>
+    warnings: string[]
+    changes: Record<string, number>
+}
+
+export function checkPurchaseLotChange(ledgerId: number, newLotNo: string) {
+    return apiPost<PurchaseLotChangeResult>(`/inventory/ledger/${ledgerId}/purchase-lot-change/check`, {
+        newLotNo,
+    })
+}
+
+export function applyPurchaseLotChange(ledgerId: number, newLotNo: string) {
+    return apiPost<PurchaseLotChangeResult>(`/inventory/ledger/${ledgerId}/purchase-lot-change/apply`, {
+        newLotNo,
+    })
 }
 
 export async function importProductionCostObjects(file: File) {

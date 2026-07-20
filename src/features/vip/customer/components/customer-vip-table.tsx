@@ -259,6 +259,7 @@ export function CustomerVipTable({
                 enableStickyHorizontalScroll
                 headerVariant="report"
                 footer={false}
+                className="[&_tbody_td]:border-r [&_tbody_td]:border-slate-200 [&_tbody_td:last-child]:border-r-0 [&_tbody_tr]:border-b"
             />
         </div>
     )
