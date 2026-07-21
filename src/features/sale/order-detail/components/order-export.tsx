@@ -1,20 +1,21 @@
-import { useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useEffect, useState } from "react"
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
     AlertTriangle,
     CalendarDays,
     CheckCircle2,
+    Clock,
     Eye,
+    Pencil,
     PackageCheck,
-    ShieldCheck,
     SlidersHorizontal,
     Warehouse,
 } from "lucide-react"
 import { toast } from "sonner"
 
 import { getMyPermissions } from "@/api/auth/permission"
-import { listInventoryLotRecords } from "@/api/inventory/lot"
-import { finishExportSalesOnly, updateExportItemLot, updateExportItemWarehouse, updateExportStatus } from "@/api/sale/export"
+import { getAvailableLotsAt } from "@/api/inventory/lot"
+import { updateExportItemLot, updateExportItemWarehouse, updateExportStatus, updateExportTime } from "@/api/sale/export"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Badge } from "@/components/ui/badge"
@@ -55,6 +56,9 @@ const exportStatusMeta: Record<
 export function OrderExports({ exports, order }: any) {
     const queryClient = useQueryClient()
     const [selectedId, setSelectedId] = useState<number | null>(null)
+    const [exportTimes, setExportTimes] = useState<Record<number, string>>({})
+    const [draftExportTimes, setDraftExportTimes] = useState<Record<number, string>>({})
+    const [editingExportTimeId, setEditingExportTimeId] = useState<number | null>(null)
     const totalExportAmount = (exports ?? []).reduce(
         (sum: number, exportDoc: any) =>
             sum + sumExportAmount(exportDoc.items ?? [], order?.items ?? []),
@@ -69,15 +73,22 @@ export function OrderExports({ exports, order }: any) {
             permission.module === "sales.exports" &&
             (permission.action === "status.update" || permission.action === "update")
     )
-    const canFinishSalesOnly = permissions.some(
-        (permission: any) =>
-            permission.module === "sales.exports" &&
-            permission.action === "sales-only-done"
-    )
+    useEffect(() => {
+        setExportTimes((prev) => {
+            const next = { ...prev }
+            let changed = false
+            for (const exportDoc of exports ?? []) {
+                if (!exportDoc?.id || next[exportDoc.id]) continue
+                next[exportDoc.id] = normalizeTimeForInput(exportDoc.export_time) ?? currentTimeForInput()
+                changed = true
+            }
+            return changed ? next : prev
+        })
+    }, [exports])
 
     const { mutate: changeStatus, isPending } = useMutation({
-        mutationFn: ({ id, status }: any) => updateExportStatus(id, status),
-        onMutate: async ({ id, status }) => {
+        mutationFn: ({ id, status, exportTime }: any) => updateExportStatus(id, status, exportTime),
+        onMutate: async ({ id, status, exportTime }) => {
             await queryClient.cancelQueries({ queryKey: ["order-detail", order.id] })
             const prev = queryClient.getQueryData(["order-detail", order.id])
 
@@ -86,7 +97,7 @@ export function OrderExports({ exports, order }: any) {
                 return {
                     ...old,
                     exports: old.exports.map((item: any) =>
-                        item.id === id ? { ...item, status } : item
+                        item.id === id ? { ...item, status, export_time: exportTime ?? item.export_time } : item
                     ),
                 }
             })
@@ -106,32 +117,23 @@ export function OrderExports({ exports, order }: any) {
         },
     })
 
-    const { mutate: finishSalesOnly, isPending: isFinishingSalesOnly } = useMutation({
-        mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
-            finishExportSalesOnly(id, reason),
-        onSuccess: () => toast.success("Đã chốt phiếu xuất không ghi kho"),
-        onError: (error: any) => toast.error(error?.message || "Chốt phiếu xuất không ghi kho thất bại"),
+    const { mutate: saveExportTime, isPending: isSavingExportTime } = useMutation({
+        mutationFn: ({ id, exportTime }: { id: number; exportTime: string }) =>
+            updateExportTime(id, exportTime),
+        onSuccess: (_data, variables) => {
+            setExportTimes((prev) => ({ ...prev, [variables.id]: variables.exportTime }))
+            setDraftExportTimes((prev) => ({ ...prev, [variables.id]: variables.exportTime }))
+            setEditingExportTimeId(null)
+            toast.success("Đã áp dụng giờ xuất")
+        },
+        onError: (error: any) => toast.error(error?.message || "Cập nhật giờ xuất thất bại"),
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] })
             queryClient.invalidateQueries({ queryKey: ["exports"] })
-            queryClient.invalidateQueries({ queryKey: ["deliveries"] })
-            queryClient.invalidateQueries({ queryKey: ["orders"] })
+            queryClient.invalidateQueries({ queryKey: ["export-item-lots"] })
+            queryClient.invalidateQueries({ queryKey: ["export-item-availability"] })
         },
     })
-
-    const handleFinishSalesOnly = (exportDoc: any) => {
-        const ok = window.confirm(
-            "Chức năng tạm dành cho ADMIN.\n\n" +
-            "Phiếu xuất sẽ được chuyển Hoàn thành, ghi công nợ và dữ liệu bán hàng, nhưng KHÔNG ghi sổ kho/không trừ tồn kho.\n\n" +
-            "Chỉ dùng khi tồn kho đã được chốt/import trước đó. Bạn chắc chắn muốn tiếp tục?"
-        )
-        if (!ok) return
-
-        finishSalesOnly({
-            id: exportDoc.id,
-            reason: "Xu ly tam: chi ghi nghiep vu ban hang, khong ghi kho.",
-        })
-    }
 
     return (
         <div className="overflow-hidden rounded-xl border bg-background shadow-sm">
@@ -179,15 +181,25 @@ export function OrderExports({ exports, order }: any) {
                         const totalAmount = sumExportAmount(exportDoc.items ?? [], order?.items ?? [])
                         const physicalWarehouseLabel = resolvePhysicalWarehouseLabel(exportDoc.items ?? [])
                         const physicalWarehouseId = resolveSinglePhysicalWarehouseId(exportDoc.items ?? [])
+                        const exportTime = exportTimes[exportDoc.id] ?? normalizeTimeForInput(exportDoc.export_time) ?? currentTimeForInput()
+                        const draftExportTime = draftExportTimes[exportDoc.id] ?? exportTime
+                        const isEditingExportTime = editingExportTimeId === exportDoc.id
                         const missingWarehouseRows = (exportDoc.items ?? []).filter(
                             (item: any) => exportDoc.status === "NEW" && !item?.warehouse_id
                         ).length
-                        const stockShortageRows = (exportDoc.items ?? []).filter(
-                            (item: any) =>
-                                exportDoc.status === "NEW" &&
-                                item?.warehouse_id &&
-                                Number(item?.available_quantity || 0) < Number(item?.quantity || 0)
-                        ).length
+                        const stockShortageRows = (exportDoc.items ?? []).filter((item: any) => {
+                            if (exportDoc.status !== "NEW" || !item?.warehouse_id) return false
+                            const quantity = Number(item?.quantity || 0)
+                            return getPayloadAvailableQuantity(item) < quantity
+                        }).length
+                        const statusDisabledReason =
+                            missingWarehouseRows > 0
+                                ? "Chưa có kho xuất, không thể chuyển trạng thái"
+                                : stockShortageRows > 0
+                                    ? "Không đủ tồn kho, không thể chuyển Hoàn thành"
+                                    : !canUpdateStatus
+                                        ? "Bạn không có quyền đổi trạng thái phiếu xuất"
+                                        : undefined
 
                         return (
                             <div
@@ -203,10 +215,64 @@ export function OrderExports({ exports, order }: any) {
                                             {exportDoc.export_no}
                                         </button>
                                         <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                            <span className="flex items-center gap-1">
-                                                <CalendarDays className="h-3.5 w-3.5" />
-                                                {formatDate(exportDoc.export_date)}
-                                            </span>
+                                             <span className="flex items-center gap-1">
+                                                 <CalendarDays className="h-3.5 w-3.5" />
+                                                 {formatDate(exportDoc.export_date)}
+                                             </span>
+                                             <span className="flex items-center gap-1">
+                                                 <Clock className="h-3.5 w-3.5" />
+                                                  {exportDoc.status === "NEW" ? (
+                                                      <span className="flex items-center gap-1.5">
+                                                          {isEditingExportTime ? (
+                                                              <>
+                                                                  <input
+                                                                      type="time"
+                                                                      step="1"
+                                                                      value={draftExportTime}
+                                                                      disabled={isSavingExportTime || !canUpdateStatus}
+                                                                      className="h-7 rounded-md border bg-background px-2 text-xs text-foreground shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                                                      onChange={(event) =>
+                                                                          setDraftExportTimes((prev) => ({
+                                                                              ...prev,
+                                                                              [exportDoc.id]: event.target.value,
+                                                                          }))
+                                                                      }
+                                                                  />
+                                                                  <Button
+                                                                      type="button"
+                                                                      size="sm"
+                                                                      variant="outline"
+                                                                      className="h-7 px-2 text-xs"
+                                                                      disabled={isSavingExportTime || !canUpdateStatus || !draftExportTime}
+                                                                      onClick={() => saveExportTime({ id: exportDoc.id, exportTime: draftExportTime })}
+                                                                  >
+                                                                      Áp dụng
+                                                                  </Button>
+                                                              </>
+                                                          ) : (
+                                                              <>
+                                                                  <span className="font-medium text-foreground">{exportTime}</span>
+                                                                  <Button
+                                                                      type="button"
+                                                                      size="icon"
+                                                                      variant="ghost"
+                                                                      className="h-6 w-6"
+                                                                      disabled={!canUpdateStatus}
+                                                                      title="Đổi giờ xuất"
+                                                                      onClick={() => {
+                                                                          setDraftExportTimes((prev) => ({ ...prev, [exportDoc.id]: exportTime }))
+                                                                          setEditingExportTimeId(exportDoc.id)
+                                                                      }}
+                                                                  >
+                                                                      <Pencil className="h-3.5 w-3.5" />
+                                                                  </Button>
+                                                              </>
+                                                          )}
+                                                      </span>
+                                                  ) : (
+                                                      <span>{normalizeTimeForInput(exportDoc.export_time) || "-"}</span>
+                                                  )}
+                                             </span>
                                             {exportDoc.delivery?.delivery_no && (
                                                 <span className="flex items-center gap-1">
                                                     <PackageCheck className="h-3.5 w-3.5" />
@@ -227,6 +293,12 @@ export function OrderExports({ exports, order }: any) {
                                                 Chưa có kho xuất ({missingWarehouseRows} dòng)
                                             </Badge>
                                         )}
+                                        {stockShortageRows > 0 && (
+                                            <Badge variant="destructive" className="gap-1 font-normal">
+                                                <AlertTriangle className="h-3.5 w-3.5" />
+                                                Thiếu tồn ({stockShortageRows} dòng)
+                                            </Badge>
+                                        )}
                                         <Badge variant="outline" className="font-normal">
                                             {formatNumber(exportDoc.items?.length || 0)} dòng
                                         </Badge>
@@ -237,28 +309,20 @@ export function OrderExports({ exports, order }: any) {
                                             Thành tiền: {formatCurrency(totalAmount)}
                                         </Badge>
 
-                                        <Select
-                                            value={exportDoc.status || "NEW"}
-                                            onValueChange={(status) => changeStatus({ id: exportDoc.id, status })}
+                                         <Select
+                                             value={exportDoc.status || "NEW"}
+                                             onValueChange={(status) => changeStatus({ id: exportDoc.id, status, exportTime })}
                                             disabled={
-                                                isPending ||
-                                                isRowLocked ||
-                                                missingWarehouseRows > 0 ||
-                                                stockShortageRows > 0 ||
-                                                !canUpdateStatus
-                                            }
+                                                  isPending ||
+                                                  isRowLocked ||
+                                                  missingWarehouseRows > 0 ||
+                                                  stockShortageRows > 0 ||
+                                                  !canUpdateStatus
+                                              }
                                         >
                                             <SelectTrigger
                                                 className="h-8 w-[150px]"
-                                                title={
-                                                    missingWarehouseRows > 0
-                                                        ? "Chưa có kho xuất, không thể chuyển trạng thái"
-                                                        : stockShortageRows > 0
-                                                            ? "Có dòng không đủ tồn trong kho xuất, không thể chuyển trạng thái"
-                                                            : !canUpdateStatus
-                                                                ? "Bạn không có quyền đổi trạng thái phiếu xuất"
-                                                                : undefined
-                                                }
+                                                title={statusDisabledReason}
                                             >
                                                 <SelectValue>
                                                     <Badge variant={meta.variant}>{meta.label}</Badge>
@@ -280,24 +344,6 @@ export function OrderExports({ exports, order }: any) {
                                             </SelectContent>
                                         </Select>
 
-                                        {canFinishSalesOnly && exportDoc.status === "NEW" && (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="h-8 gap-1.5 border-amber-300 bg-amber-50 px-2.5 text-xs font-medium text-amber-700 hover:bg-amber-100 hover:text-amber-800"
-                                                disabled={isFinishingSalesOnly || missingWarehouseRows > 0}
-                                                title={
-                                                    missingWarehouseRows > 0
-                                                        ? "Cần chọn kho xuất cho tất cả dòng trước khi xử lý"
-                                                        : "Chốt bán hàng không ghi kho"
-                                                }
-                                                onClick={() => handleFinishSalesOnly(exportDoc)}
-                                            >
-                                                <ShieldCheck className="h-3.5 w-3.5" />
-                                                Không ghi kho
-                                            </Button>
-                                        )}
-
                                         <Button
                                             size="icon"
                                             variant="ghost"
@@ -315,17 +361,11 @@ export function OrderExports({ exports, order }: any) {
                                         Một số dòng chưa có kho xuất, không thể chuyển trạng thái cho tới khi chọn đủ kho.
                                     </div>
                                 )}
-                                {stockShortageRows > 0 && (
-                                    <div className="flex items-center gap-1.5 border-b bg-rose-50 px-4 py-2 text-xs font-medium text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
-                                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                        Có {formatNumber(stockShortageRows)} dòng không đủ tồn trong kho xuất. Kiểm tra cột Tồn kho trước khi hoàn thành phiếu.
-                                    </div>
-                                )}
-
-                                <ItemsTable
-                                    items={exportDoc.items ?? []}
-                                    exportDoc={exportDoc}
-                                    order={order}
+                                     <ItemsTable
+                                         items={exportDoc.items ?? []}
+                                         exportDoc={exportDoc}
+                                         exportTime={exportTime}
+                                         order={order}
                                     orderId={order.id}
                                     physicalWarehouseId={physicalWarehouseId}
                                 />
@@ -347,12 +387,14 @@ export function OrderExports({ exports, order }: any) {
 function ItemsTable({
     items,
     exportDoc,
+    exportTime,
     order,
     orderId,
     physicalWarehouseId,
 }: {
     items: any[]
     exportDoc: any
+    exportTime?: string
     order: any
     orderId: number
     physicalWarehouseId?: number
@@ -379,6 +421,64 @@ function ItemsTable({
         onError: () => toast.error("Cập nhật lô xuất thất bại"),
     })
 
+    const isNew = exportDoc?.status === "NEW"
+    const postingDate = normalizeDateParam(exportDoc?.export_date) ?? new Date().toISOString().slice(0, 10)
+    const postingTime = normalizeTimeForInput(exportTime)
+    const payloadExportTime = normalizeTimeForInput(exportDoc?.export_time)
+    const canUsePayloadAvailability = !payloadExportTime || payloadExportTime === postingTime
+    const availabilityQueries = useQueries({
+        queries: items.map((item) => {
+            const productId = resolveItemProductId(item)
+            const warehouseId = resolveItemWarehouseId(item)
+            return ({
+            queryKey: [
+                "export-item-availability",
+                exportDoc.id,
+                item.id,
+                productId,
+                warehouseId,
+                postingDate,
+                postingTime,
+            ],
+            enabled: Boolean(isNew && productId && warehouseId && postingTime),
+            queryFn: () =>
+                getAvailableLotsAt({
+                    product_id: Number(productId),
+                    warehouse_id: Number(warehouseId),
+                    posting_date: postingDate,
+                    posting_time: postingTime,
+                }),
+            staleTime: 15_000,
+            })
+        }),
+    })
+    const orderItemById = new Map<number, any>()
+    const orderItemByProductId = new Map<number, any>()
+    for (const orderItem of order?.items ?? []) {
+        if (orderItem?.id != null) orderItemById.set(Number(orderItem.id), orderItem)
+        if (orderItem?.product_id != null) orderItemByProductId.set(Number(orderItem.product_id), orderItem)
+    }
+    const getLiveAvailableQuantity = (item: any, index: number) => {
+        const productId = resolveItemProductId(item)
+        const warehouseId = resolveItemWarehouseId(item)
+        if (!isNew || !warehouseId || !productId) {
+            return Number(item?.available_quantity || 0)
+        }
+        if (canUsePayloadAvailability && Array.isArray(item?.available_lots)) {
+            return sumBy(item.available_lots, resolveLotRemaining)
+        }
+        const query = availabilityQueries[index]
+        if (!query || query.isError || (query.isLoading && !query.data)) {
+            return Number(item?.available_quantity || 0)
+        }
+        return sumBy(getPagedItems(query.data), resolveLotRemaining)
+    }
+    const stockShortageRows = items.filter((item, index) => {
+        const quantity = Number(item?.quantity || 0)
+        const availableQuantity = getLiveAvailableQuantity(item, index)
+        return isNew && resolveItemWarehouseId(item) && availableQuantity < quantity
+    }).length
+
     if (!items.length) {
         return (
             <div className="px-4 py-5 text-center text-xs text-muted-foreground">
@@ -387,17 +487,16 @@ function ItemsTable({
         )
     }
 
-    const isNew = exportDoc?.status === "NEW"
-    const orderItemById = new Map<number, any>()
-    const orderItemByProductId = new Map<number, any>()
-    for (const orderItem of order?.items ?? []) {
-        if (orderItem?.id != null) orderItemById.set(Number(orderItem.id), orderItem)
-        if (orderItem?.product_id != null) orderItemByProductId.set(Number(orderItem.product_id), orderItem)
-    }
-
     return (
-        <div className="overflow-x-auto">
-            <Table>
+        <div>
+            {stockShortageRows > 0 && (
+                <div className="flex items-center gap-1.5 border-b bg-rose-50 px-4 py-2 text-xs font-medium text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    Có {formatNumber(stockShortageRows)} dòng không đủ tồn trong kho xuất theo giờ xuất đang áp dụng.
+                </div>
+            )}
+            <div className="overflow-x-auto">
+                <Table>
                 <TableHeader className="bg-muted/30">
                     <TableRow className="hover:bg-transparent">
                         <TableHead className="w-[56px] text-center text-xs font-semibold uppercase">#</TableHead>
@@ -417,10 +516,20 @@ function ItemsTable({
 
                 <TableBody>
                     {items.map((item, idx) => {
-                        const missingWarehouse = isNew && !item?.warehouse_id
+                        const productId = resolveItemProductId(item)
+                        const warehouseId = resolveItemWarehouseId(item)
+                        const lotCode = resolveItemLotCode(item)
+                        const missingWarehouse = isNew && !warehouseId
                         const quantity = Number(item.quantity || 0)
-                        const availableQuantity = Number(item.available_quantity || 0)
-                        const stockShortage = isNew && item?.warehouse_id && availableQuantity < quantity
+                        const availableQuantity = getLiveAvailableQuantity(item, idx)
+                        const availabilityData = availabilityQueries[idx]?.data
+                        const availableLots = canUsePayloadAvailability && Array.isArray(item?.available_lots)
+                            ? item.available_lots
+                            : availabilityData
+                                ? getPagedItems(availabilityData)
+                                : undefined
+                        const lotsLoading = Boolean(availabilityQueries[idx]?.isLoading && !availabilityData)
+                        const stockShortage = isNew && warehouseId && availableQuantity < quantity
                         const orderItem = resolveOrderItem(item, orderItemById, orderItemByProductId)
                         const unitPrice = resolveUnitPrice(orderItem)
                         const discount = resolveProratedDiscount(orderItem, quantity)
@@ -458,10 +567,10 @@ function ItemsTable({
                                     {formatNumber(quantity)}
                                 </TableCell>
                                 <TableCell className={stockShortage ? "text-right font-semibold tabular-nums text-rose-600" : "text-right font-medium tabular-nums text-muted-foreground"}>
-                                    {item.warehouse_id ? formatNumber(availableQuantity) : "-"}
+                                    {warehouseId ? formatNumber(availableQuantity) : "-"}
                                 </TableCell>
                                 <TableCell className="text-center">
-                                    {item.warehouse_id ? (
+                                    {warehouseId ? (
                                         <span className={`inline-flex items-center gap-1 text-xs font-medium ${stockShortage ? "text-rose-600" : "text-emerald-600"}`}>
                                             {stockShortage ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                                             {stockShortage ? "Vượt tồn" : "Đạt tồn"}
@@ -483,7 +592,7 @@ function ItemsTable({
                                                 className="h-9 min-h-9 items-center bg-white px-3 py-0 [&>span]:truncate"
                                                 placeholder="Chọn kho xuất"
                                                 searchPlaceholder="Tìm kho"
-                                                value={item.warehouse_id}
+                                                value={warehouseId}
                                                 disabled={isPending}
                                                 onChange={(value: any) => {
                                                     if (value) {
@@ -521,8 +630,15 @@ function ItemsTable({
                                 <TableCell>
                                     <ExportLotSelector
                                         item={item}
+                                        productId={productId}
+                                        warehouseId={warehouseId}
+                                        lotCode={lotCode}
+                                        exportDate={exportDoc.export_date}
+                                        exportTime={exportTime}
+                                        availableLots={availableLots}
+                                        lotsLoading={lotsLoading}
                                         isNew={isNew}
-                                        disabled={isChangingLot || !item.warehouse_id || !item.product_id}
+                                        disabled={isChangingLot || !warehouseId || !productId}
                                         onChange={(lotCode) => changeLot({ itemId: item.id, lotCode })}
                                     />
                                 </TableCell>
@@ -542,40 +658,55 @@ function ItemsTable({
                         )
                     })}
                 </TableBody>
-            </Table>
+                </Table>
+            </div>
         </div>
     )
 }
 
 function ExportLotSelector({
     item,
+    productId,
+    warehouseId,
+    lotCode,
+    exportDate,
+    exportTime,
+    availableLots,
+    lotsLoading,
     isNew,
     disabled,
     onChange,
 }: {
     item: any
+    productId?: number
+    warehouseId?: number
+    lotCode?: string
+    exportDate?: string
+    exportTime?: string
+    availableLots?: any[]
+    lotsLoading?: boolean
     isNew: boolean
     disabled?: boolean
     onChange: (lotCode?: string) => void
 }) {
+    const hasParentLots = availableLots !== undefined
     const { data, isLoading } = useQuery({
-        queryKey: ["export-item-lots", item.product_id, item.warehouse_id],
-        enabled: Boolean(isNew && item.product_id && item.warehouse_id),
+        queryKey: ["export-item-lots", productId, warehouseId, normalizeDateParam(exportDate), normalizeTimeForInput(exportTime), lotCode],
+        enabled: Boolean(isNew && productId && warehouseId && !hasParentLots),
         queryFn: () =>
-            listInventoryLotRecords({
-                page: 1,
-                size: 50,
-                product_id: Number(item.product_id),
-                warehouse_id: Number(item.warehouse_id),
-                only_remaining: true,
+            getAvailableLotsAt({
+                product_id: Number(productId),
+                warehouse_id: Number(warehouseId),
+                posting_date: normalizeDateParam(exportDate) ?? new Date().toISOString().slice(0, 10),
+                posting_time: normalizeTimeForInput(exportTime),
             }),
         staleTime: 30_000,
     })
-    const lots = getPagedItems(data)
-    const selected = item.lot_code || "AUTO"
+    const lots = hasParentLots ? availableLots ?? [] : getPagedItems(data)
+    const selected = lotCode && lots.some((lot: any) => lot?.lot_no === lotCode) ? lotCode : "AUTO"
 
     if (!isNew) {
-        return <span className="text-sm text-muted-foreground">{item.lot_code || item.lot_no || item.lot_nos || "Auto"}</span>
+        return <span className="text-sm text-muted-foreground">{lotCode || item.lot_no || item.lot_nos || "Auto"}</span>
     }
 
     return (
@@ -584,22 +715,22 @@ function ExportLotSelector({
             disabled={disabled}
             onValueChange={(value) => onChange(value === "AUTO" ? undefined : value)}
         >
-            <SelectTrigger className="h-8 min-w-[150px]">
+            <SelectTrigger className="h-8 min-w-[220px]">
                 <SelectValue placeholder="Auto" />
             </SelectTrigger>
             <SelectContent>
-                <SelectItem value="AUTO">
+                <SelectItem value="AUTO" textValue="Auto">
                     <span className="inline-flex items-center gap-1.5">
                         <SlidersHorizontal className="h-3.5 w-3.5" />
                         Auto
                     </span>
                 </SelectItem>
-                {isLoading && <SelectItem value="LOADING" disabled>Đang tải...</SelectItem>}
+                {(lotsLoading || isLoading) && <SelectItem value="LOADING" disabled>Đang tải...</SelectItem>}
                 {lots.map((lot: any) => {
-                    const lotNo = String(lot.lot_no || "")
+                    const lotNo = lot?.lot_no ? String(lot.lot_no) : ""
                     if (!lotNo) return null
                     return (
-                        <SelectItem key={`${lot.id}-${lotNo}`} value={lotNo}>
+                        <SelectItem key={`${lot.id}-${lotNo}`} value={lotNo} textValue={lotNo}>
                             {lotNo} - còn {formatNumber(resolveLotRemaining(lot))}
                         </SelectItem>
                     )
@@ -638,6 +769,13 @@ function getExportStatusMeta(status?: string) {
 
 function sumBy(items: any[], fn: (item: any) => unknown) {
     return items.reduce((sum, item) => sum + Number(fn(item) || 0), 0)
+}
+
+function getPayloadAvailableQuantity(item: any) {
+    if (Array.isArray(item?.available_lots)) {
+        return sumBy(item.available_lots, resolveLotRemaining)
+    }
+    return Number(item?.available_quantity || 0)
 }
 
 function sumExportAmount(items: any[], orderItems: any[]) {
@@ -730,10 +868,51 @@ function warehouseNameOption(warehouse: any) {
 }
 
 function resolveLotRemaining(lot: any) {
-    return lot?.quantity_remaining ?? lot?.closing_quantity ?? lot?.total_quantity ?? 0
+    return lot?.closing_quantity ?? lot?.quantity_remaining ?? lot?.total_quantity ?? 0
+}
+
+function resolveItemProductId(item: any) {
+    const value = item?.product_id ?? item?.productId ?? item?.product?.id
+    return value != null ? Number(value) : undefined
+}
+
+function resolveItemWarehouseId(item: any) {
+    const value = item?.warehouse_id ?? item?.warehouseId ?? item?.warehouse?.id
+    return value != null ? Number(value) : undefined
+}
+
+function resolveItemLotCode(item: any) {
+    return item?.lot_code
+}
+
+function normalizeDateParam(value?: string) {
+    if (!value) return undefined
+    const [date] = value.split("T")
+    return date || undefined
+}
+
+function normalizeTimeForInput(value?: string) {
+    if (!value) return undefined
+    const rawTime = value.includes("T") ? value.split("T")[1] : value
+    if (!rawTime) return undefined
+    const time = rawTime.split(/[.+-]/)[0]
+    if (!time) return undefined
+    const parts = time.split(":")
+    if (parts.length >= 3) return `${parts[0]}:${parts[1]}:${parts[2]}`
+    if (parts.length === 2) return `${parts[0]}:${parts[1]}:00`
+    return undefined
+}
+
+function currentTimeForInput() {
+    const now = new Date()
+    const hh = String(now.getHours()).padStart(2, "0")
+    const mm = String(now.getMinutes()).padStart(2, "0")
+    const ss = String(now.getSeconds()).padStart(2, "0")
+    return `${hh}:${mm}:${ss}`
 }
 
 function getPagedItems(data: any) {
+    if (Array.isArray(data)) return data
     return data?.items ?? data?.data?.items ?? []
 }
 

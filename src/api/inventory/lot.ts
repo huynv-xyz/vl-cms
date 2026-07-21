@@ -130,6 +130,16 @@ export async function getStockLots(params: {
     return apiGet<StockRow[]>(`/inventory/lots/stock?${query}`)
 }
 
+export async function getAvailableLotsAt(params: {
+    product_id: number
+    warehouse_id: number
+    posting_date: string
+    posting_time?: string
+    lot_no?: string
+}) {
+    return apiGet<any[]>("/inventory/lots/available-at", params)
+}
+
 export async function importOpeningStock(file: File) {
     const formData = new FormData()
     formData.append("file", file)
