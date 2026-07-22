@@ -9,10 +9,13 @@ import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { ProfileDropdown } from '@/components/profile-dropdown'
+import { getMyPermissions } from '@/api/auth/permission'
+import { hasViewPermissionForPath } from '@/lib/navigation-permissions'
 
 export const Route = createFileRoute('/_authenticated')({
     beforeLoad: async ({ location }) => {
         const { state, actions } = useAuthStore.getState()
+        const allowWithoutViewPermission = location.pathname === '/' || location.pathname === '/user'
 
         if (!state.initialized) {
             await actions.init()
@@ -29,6 +32,13 @@ export const Route = createFileRoute('/_authenticated')({
         }
 
         // ĐÃ login hợp lệ -> cho vào, không cần setUser nữa
+        if (!allowWithoutViewPermission) {
+            const permissions = await getMyPermissions()
+            if (!hasViewPermissionForPath(location.pathname, permissions)) {
+                throw redirect({ to: '/403' })
+            }
+        }
+
         return null
     },
     component: AuthenticatedLayout,

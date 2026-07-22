@@ -1,10 +1,12 @@
 ﻿import type React from "react"
 import { useEffect, useMemo, useState } from "react"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { Funnel, Printer, X } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Funnel, Loader2, Pencil, Printer, X } from "lucide-react"
 import { toast } from "sonner"
 
+import { getMyPermissions } from "@/api/auth/permission"
+import { applyPurchaseLotChange, checkPurchaseLotChange, type PurchaseLotChangeResult } from "@/api/inventory/ledger"
 import { getVoucherPrintDetail, listVoucherTypes, VOUCHER_TYPE_LABEL, type InventoryVoucherPrintDetail } from "@/api/inventory/voucher"
 import { DatePicker } from "@/components/date-picker"
 import { ProductMultiFilter } from "@/features/inventory/components/product-multi-filter"
@@ -114,6 +116,8 @@ export function InventoryLedgerTable({
     showValues = true,
 }: Props) {
     const [detailVoucherId, setDetailVoucherId] = useState<number | null>(null)
+    const [lotChangeRow, setLotChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const queryClient = useQueryClient()
     const { data: inboundDocTypes = [] } = useQuery({
         queryKey: ["inventory-voucher-types", "I"],
         queryFn: () => listVoucherTypes("I"),
@@ -124,6 +128,14 @@ export function InventoryLedgerTable({
     })
     const inboundDocValues = useMemo(() => new Set(inboundDocTypes.map((type) => type.code)), [inboundDocTypes])
     const outboundDocValues = useMemo(() => new Set(outboundDocTypes.map((type) => type.code)), [outboundDocTypes])
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canChangePurchaseLot = useMemo(
+        () => hasPermission(permissions, "inventory.ledgers", "lot.change"),
+        [permissions],
+    )
 
     const setFilter = (key: keyof Props["filters"], value: any) => {
         onFiltersChange({
@@ -514,6 +526,7 @@ export function InventoryLedgerTable({
                                     index={pagination.pageIndex * pagination.pageSize + index + 1}
                                     item={item}
                                     onOpenVoucher={setDetailVoucherId}
+                                    onChangeLot={canChangePurchaseLot ? setLotChangeRow : undefined}
                                     showValues={showValues}
                                     direction={direction}
                                 />
@@ -542,6 +555,16 @@ export function InventoryLedgerTable({
                 open={!!detailVoucherId}
                 onOpenChange={(open) => {
                     if (!open) setDetailVoucherId(null)
+                }}
+            />
+            <PurchaseLotChangeDialog
+                row={lotChangeRow}
+                open={!!lotChangeRow}
+                onOpenChange={(open) => {
+                    if (!open) setLotChangeRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
                 }}
             />
         </Card>
@@ -828,12 +851,14 @@ function LedgerRow({
     index,
     item,
     onOpenVoucher,
+    onChangeLot,
     showValues,
     direction,
 }: {
     index: number
     item: InventoryLedgerReportRow
     onOpenVoucher: (voucherId: number) => void
+    onChangeLot?: (row: InventoryLedgerReportRow) => void
     showValues: boolean
     direction?: "IN" | "OUT"
 }) {
@@ -842,6 +867,7 @@ function LedgerRow({
     const quantityOut = Number(item.quantity_out || 0)
     const openingBalance = Number(item.balance_quantity || 0) - quantityIn + quantityOut
     const centerVoucherFields = Boolean(direction)
+    const canChangeLot = Boolean(onChangeLot && isPurchaseInboundLedger(item))
 
     return (
         <tr className="hover:bg-muted/30 border-b">
@@ -886,8 +912,20 @@ function LedgerRow({
             <Td className="text-muted-foreground text-center">
                 {item.unit || "-"}
             </Td>
-            <Td className="text-center">
-                <LedgerText value={item.lot_code} className="text-center font-mono" />
+            <Td className="group/lot-change relative text-center">
+                <div className={cn("min-w-0", canChangeLot && "pr-6")}>
+                    <LedgerText value={item.lot_code} className="min-w-0 text-center font-mono" />
+                    {canChangeLot ? (
+                        <button
+                            type="button"
+                            className="absolute right-1 top-1 inline-flex h-5 w-5 items-center justify-center rounded border bg-white text-muted-foreground opacity-0 shadow-xs transition-opacity hover:text-primary focus-visible:opacity-100 group-hover/lot-change:opacity-100"
+                            title="Đổi số lô"
+                            onClick={() => onChangeLot?.(item)}
+                        >
+                            <Pencil className="h-3 w-3" />
+                        </button>
+                    ) : null}
+                </div>
             </Td>
             <Td className="text-center">
                 <LedgerText value={item.warehouse_code} className="text-center font-mono" />
@@ -924,6 +962,191 @@ function LedgerRow({
                 <LedgerText value={item.supplier_name} />
             </Td>
         </tr>
+    )
+}
+
+function PurchaseLotChangeDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [newLotNo, setNewLotNo] = useState("")
+    const [result, setResult] = useState<PurchaseLotChangeResult | null>(null)
+    const [errorMessage, setErrorMessage] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setNewLotNo(row.lot_code || "")
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [open, row])
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkPurchaseLotChange(Number(row?.id), newLotNo),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorMessage(error?.message || "Không kiểm tra được số lô.")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applyPurchaseLotChange(Number(row?.id), newLotNo),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            onChanged()
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không đổi được số lô.")
+        },
+    })
+
+    const trimmedNewLotNo = newLotNo.trim()
+    const unchanged = trimmedNewLotNo === String(row?.lot_code || "").trim()
+    const busy = checkMutation.isPending || applyMutation.isPending
+    const canApply = Boolean(result && !result.applied && !unchanged && !busy)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="flex max-h-[92vh] flex-col overflow-hidden"
+                style={{ width: "min(980px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
+            >
+                <DialogHeader>
+                    <DialogTitle>Đổi số lô mua hàng</DialogTitle>
+                    <DialogDescription>
+                        Chỉ đổi mã lô, không thay đổi số lượng và giá trị giao dịch.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {row ? (
+                    <div className="space-y-4 overflow-y-auto pr-1">
+                        <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                            <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                            <InfoItem label="Ngày chứng từ" value={formatDate(row.posting_date)} />
+                            <InfoItem label="Kho" value={row.warehouse_name} />
+                            <InfoItem label="Hàng hóa" value={`${row.product_code} - ${row.product_name}`} />
+                            <InfoItem label="Lô hiện tại" value={row.lot_code || "-"} />
+                            <InfoItem label="Số lượng nhập" value={formatNumber(Number(row.quantity_in || 0))} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Số lô mới</label>
+                            <Input
+                                value={newLotNo}
+                                onChange={(event) => {
+                                    setNewLotNo(event.target.value)
+                                    setResult(null)
+                                    setErrorMessage("")
+                                }}
+                                placeholder="Nhập số lô mới"
+                                className="h-10"
+                            />
+                            {unchanged ? (
+                                <div className="text-sm text-destructive">Số lô mới phải khác số lô hiện tại.</div>
+                            ) : null}
+                        </div>
+
+                        {errorMessage ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <div className="flex items-start gap-2 font-semibold">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4" />
+                                    Không thể đổi số lô
+                                </div>
+                                <div className="mt-1 pl-6">{errorMessage}</div>
+                            </div>
+                        ) : null}
+
+                        {result ? <PurchaseLotChangeResultPanel result={result} /> : null}
+                    </div>
+                ) : null}
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={busy || unchanged || !trimmedNewLotNo}
+                        onClick={() => checkMutation.mutate()}
+                    >
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button
+                        type="button"
+                        disabled={!canApply}
+                        onClick={() => applyMutation.mutate()}
+                    >
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Đổi lô
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function PurchaseLotChangeResultPanel({ result }: { result: PurchaseLotChangeResult }) {
+    const applied = Boolean(result.applied)
+    const isMerge = result.mode === "MERGE"
+    const counts = result.counts || {}
+    const changes = result.changes || {}
+
+    return (
+        <div className={cn(
+            "rounded-md border p-3 text-sm",
+            applied
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : isMerge
+                    ? "border-amber-200 bg-amber-50 text-amber-900"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-800",
+        )}>
+            <div className="flex items-start gap-2 font-semibold">
+                <CheckCircle2 className="mt-0.5 h-4 w-4" />
+                <span>{applied ? "Đã đổi số lô" : result.mode_label}</span>
+            </div>
+            <div className="mt-1 pl-6">{result.message}</div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+                <ResultInfo label="Lô hiện tại" value={result.old_lot_no} />
+                <ResultInfo label="Lô sau khi đổi" value={result.new_lot_no} />
+                <ResultInfo label="Dòng sổ kho ảnh hưởng" value={formatNumber(Number(counts.ledger_rows || 0))} />
+                <ResultInfo label="Dòng phiếu kho ảnh hưởng" value={formatNumber(Number(counts.voucher_items || 0))} />
+                <ResultInfo label="Dòng FIFO ảnh hưởng" value={formatNumber(Number(counts.fifo_rows || 0))} />
+                <ResultInfo label="Dòng tính giá ảnh hưởng" value={formatNumber(Number(counts.cost_rows || 0))} />
+                {applied ? <ResultInfo label="Lô cũ đã xóa/gom" value={formatNumber(Number(changes.deleted_lots || 0))} /> : null}
+            </div>
+
+            {result.warnings?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2">
+                    {result.warnings.map((warning, index) => (
+                        <div key={index}>- {warning}</div>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+function ResultInfo({ label, value }: { label: string; value?: React.ReactNode }) {
+    return (
+        <div className="rounded-md border bg-white/80 p-2">
+            <div className="text-muted-foreground text-xs">{label}</div>
+            <div className="font-semibold text-foreground">{value || "-"}</div>
+        </div>
     )
 }
 
@@ -1238,6 +1461,17 @@ function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement
 
 function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
     return <td className={cn("overflow-hidden text-ellipsis border-r px-3 py-1.5 align-middle last:border-r-0", className)} {...props} />
+}
+
+function hasPermission(permissions: any[], module: string, action: string) {
+    return permissions.some((permission) => permission.module === module && permission.action === action)
+}
+
+function isPurchaseInboundLedger(item: InventoryLedgerReportRow) {
+    const docType = String(item.doc_type || "").toUpperCase()
+    return ["IMPORT_PURCHASE", "DOMESTIC_PURCHASE", "PURCHASE"].includes(docType)
+        && Number(item.quantity_in || 0) > 0
+        && Boolean(item.lot_code)
 }
 
 function formatDate(value?: string) {

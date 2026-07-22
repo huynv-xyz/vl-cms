@@ -42,6 +42,7 @@ type CrudTableProps<T> = {
     enableColumnResize?: boolean
     enableStickyHorizontalScroll?: boolean
     headerVariant?: "default" | "report"
+    className?: string
 }
 
 export function CrudTable<T>({
@@ -66,6 +67,7 @@ export function CrudTable<T>({
     enableColumnResize,
     enableStickyHorizontalScroll,
     headerVariant,
+    className,
 }: CrudTableProps<T>) {
     return (
         <BaseDataTable<T>
@@ -90,6 +92,7 @@ export function CrudTable<T>({
             enableColumnResize={enableColumnResize}
             enableStickyHorizontalScroll={enableStickyHorizontalScroll}
             headerVariant={headerVariant}
+            className={className}
         />
     )
 }

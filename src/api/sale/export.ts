@@ -28,12 +28,12 @@ export const createExport = exportApi.create
 export const updateExport = exportApi.update
 export const deleteExport = exportApi.delete
 
-export function updateExportStatus(id: number, status: string) {
-    return apiPut(`/sales/exports/${id}/status`, { status })
+export function updateExportStatus(id: number, status: string, exportTime?: string) {
+    return apiPut(`/sales/exports/${id}/status`, { status, export_time: exportTime })
 }
 
-export function finishExportSalesOnly(id: number, reason?: string) {
-    return apiPut(`/sales/exports/${id}/sales-only-done`, { reason })
+export function updateExportTime(id: number, exportTime: string) {
+    return apiPut(`/sales/exports/${id}/export-time`, { export_time: exportTime })
 }
 
 export function updateExportItemWarehouse(

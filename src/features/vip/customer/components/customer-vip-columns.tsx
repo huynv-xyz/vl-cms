@@ -18,7 +18,9 @@ function buildTextColumn<T>(opts: {
     title: string
     width: number
     fallback?: string
+    align?: "left" | "center"
 }): ColumnDef<T> {
+    const isLeft = opts.align === "left"
     return {
         accessorKey: opts.accessorKey,
         enableSorting: false,
@@ -27,7 +29,7 @@ function buildTextColumn<T>(opts: {
             const value = row.getValue(opts.accessorKey)
             const text = value == null || value === "" ? (opts.fallback ?? "-") : String(value)
             return (
-                <span className="block min-w-0 truncate text-center text-sm" title={text}>
+                <span className={`block min-w-0 truncate text-sm ${isLeft ? "text-left" : "text-center"}`} title={text}>
                     {text}
                 </span>
             )
@@ -35,8 +37,8 @@ function buildTextColumn<T>(opts: {
         size: opts.width,
         minSize: Math.min(opts.width, 120),
         meta: {
-            thClassName: `w-[${opts.width}px] whitespace-nowrap text-center`,
-            tdClassName: `w-[${opts.width}px] ${CENTER_CELL}`,
+            thClassName: `w-[${opts.width}px] whitespace-nowrap ${isLeft ? "text-left" : "text-center"}`,
+            tdClassName: `w-[${opts.width}px] ${isLeft ? "overflow-hidden text-left align-middle whitespace-nowrap" : CENTER_CELL}`,
         },
     }
 }
@@ -135,7 +137,6 @@ export const customerVipColumns: ColumnDef<CustomerVip>[] = [
                     className="text-primary hover:bg-primary/10 group mx-auto flex min-w-0 max-w-full items-center justify-center gap-1.5 rounded-md font-mono text-sm font-bold transition-colors"
                     title={customer_code}
                 >
-                    <Crown className="h-3.5 w-3.5 shrink-0 opacity-70 transition-opacity group-hover:opacity-100" />
                     <span className="min-w-0 truncate group-hover:underline">{customer_code}</span>
                 </Link>
             )
@@ -151,6 +152,7 @@ export const customerVipColumns: ColumnDef<CustomerVip>[] = [
         accessorKey: "customer_name",
         title: "Tên khách hàng",
         width: 280,
+        align: "left",
     }),
     buildVipNumberColumn<CustomerVip>({
         accessorKey: "total_vip_point",
