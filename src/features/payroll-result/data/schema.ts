@@ -8,7 +8,9 @@ export type PayrollResultItem = {
   total_allowance: number
   sales_salary_amount: number
   total_bonus: number
+  b2b_salary: number
   support_amount: number
+  monthly_income_amount: number
   gross_total: number
   luong_dong_bh: number
   bhxh_nv: number

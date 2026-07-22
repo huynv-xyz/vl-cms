@@ -11,7 +11,9 @@ export type PayrollResultItem = {
   total_allowance: number
   sales_salary_amount: number
   total_bonus: number
+  b2b_salary: number
   support_amount: number
+  monthly_income_amount: number
   gross_total: number
   luong_dong_bh: number
   bhxh_nv: number
@@ -139,6 +141,32 @@ export type PayrollBudgetDetail = {
   has_asm: number
 }
 
+export type PayrollB2bBreakdownDetail = {
+  pp_type: "PPN.C" | "PPH" | "PPL" | "PPN.K"
+  row_count: number
+  quantity: number
+  unit_rate: number
+  amount: number
+}
+
+export type PayrollB2bLineDetail = {
+  transaction_id?: number
+  document_date?: string | null
+  document_no?: string | null
+  customer_code?: string | null
+  customer_name?: string | null
+  product_code?: string | null
+  product_name?: string | null
+  vthh_con?: string | null
+  npp?: string | null
+  customer_type?: string | null
+  pp_type: "PPN.C" | "PPH" | "PPL" | "PPN.K"
+  quantity: number
+  quantity_source: "SL_L_B2B" | "SL_BAN_TRU_TRA"
+  unit_rate: number
+  amount: number
+}
+
 export type PayrollDetailResult = {
   payroll: PayrollResultItem & {
     period: string
@@ -155,6 +183,8 @@ export type PayrollDetailResult = {
   tax_brackets: PayrollTaxBracketDetail[]
   tax_exemptions: PayrollTaxExemptionDetail[]
   performance: PayrollPerformanceDetail
+  b2b_breakdown: PayrollB2bBreakdownDetail[]
+  b2b_lines: PayrollB2bLineDetail[]
   annual_bonus: PayrollAnnualBonusDetail[]
   budgets: PayrollBudgetDetail[]
 }

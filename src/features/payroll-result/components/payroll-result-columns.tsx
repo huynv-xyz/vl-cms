@@ -101,10 +101,17 @@ export function buildPayrollResultColumns(period: string): ColumnDef<PayrollResu
       size: 120,
     },
     {
-      id: "sales_salary_amount",
+      id: "b2b_salary",
       header: "Lương B2B",
-      accessorFn: (row) => row.sales_salary_amount,
-      cell: ({ row }) => amountCell(row.original.sales_salary_amount),
+      accessorFn: (row) => row.b2b_salary,
+      cell: ({ row }) => amountCell(row.original.b2b_salary),
+      size: 130,
+    },
+    {
+      id: "total_bonus",
+      header: "Thưởng",
+      accessorFn: (row) => row.total_bonus,
+      cell: ({ row }) => amountCell(row.original.total_bonus),
       size: 130,
     },
     {
@@ -115,10 +122,10 @@ export function buildPayrollResultColumns(period: string): ColumnDef<PayrollResu
       size: 120,
     },
     {
-      id: "total_bonus",
+      id: "monthly_income_amount",
       header: "Thu nhập khác",
-      accessorFn: (row) => row.total_bonus,
-      cell: ({ row }) => amountCell(row.original.total_bonus),
+      accessorFn: (row) => row.monthly_income_amount,
+      cell: ({ row }) => amountCell(row.original.monthly_income_amount),
       size: 140,
     },
     {

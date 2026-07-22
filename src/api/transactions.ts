@@ -1,5 +1,5 @@
 import { createCrudApi } from "@/api/crud"
-import { apiGet, apiPostMultipart, type PagedResult } from "@/api/client"
+import { apiGet, apiPostMultipart, apiPut, type PagedResult } from "@/api/client"
 import type { Transaction } from "@/features/transactions/data/schema"
 
 export type TransactionListParams = {
@@ -25,7 +25,7 @@ export type TransactionListParams = {
 export type TransactionOptionParams = Omit<TransactionListParams, "page" | "size"> & {
     page?: number
     size?: number
-    field: "customer_code" | "customer_name" | "product_code" | "product_name" | "product_group_name" | "region"
+    field: "customer_code" | "customer_name" | "product_code" | "product_name" | "product_group_name" | "region" | "npp"
 }
 
 export type TransactionColumnOption = {
@@ -81,3 +81,7 @@ export function importTransactionsFile(file: File) {
 }
 
 export const importTransactionsCsv = importTransactionsFile
+
+export function updateTransactionNpp(id: number, npp: string) {
+    return apiPut<Transaction>(`/transactions/${id}/npp`, { npp })
+}

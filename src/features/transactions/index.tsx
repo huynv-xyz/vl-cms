@@ -28,7 +28,7 @@ export default function TransactionPage() {
     } = useUrlListFilters(
         search,
         navigate,
-        ['customer_type', 'hdn_status', 'customer_code', 'customer_name', 'product_code', 'product_name', 'product_group_name'],
+        ['customer_type', 'npp', 'hdn_status', 'customer_code', 'customer_name', 'product_code', 'product_name', 'product_group_name'],
         ['region', 'document_date_from', 'document_date_to'],
     )
 
@@ -44,6 +44,7 @@ export default function TransactionPage() {
             multiFilters.product_name,
             multiFilters.product_group_name,
             multiFilters.customer_type,
+            multiFilters.npp,
             multiFilters.hdn_status,
             singleFilters.region,
             singleFilters.document_date_from,
@@ -60,6 +61,7 @@ export default function TransactionPage() {
             product_name: requestFilters.product_name,
             product_group_name: requestFilters.product_group_name,
             customer_type: requestFilters.customer_type,
+            npp: requestFilters.npp,
             hdn_status: requestFilters.hdn_status,
             region: requestFilters.region,
             document_date_from: requestFilters.document_date_from,
@@ -75,6 +77,7 @@ export default function TransactionPage() {
         product_name: requestFilters.product_name,
         product_group_name: requestFilters.product_group_name,
         customer_type: requestFilters.customer_type,
+        npp: requestFilters.npp,
         hdn_status: requestFilters.hdn_status,
         region: requestFilters.region,
         document_date_from: requestFilters.document_date_from,
@@ -91,6 +94,7 @@ export default function TransactionPage() {
             multiFilters.product_name,
             multiFilters.product_group_name,
             multiFilters.customer_type,
+            multiFilters.npp,
             multiFilters.hdn_status,
             singleFilters.region,
             singleFilters.document_date_from,
@@ -120,6 +124,7 @@ export default function TransactionPage() {
                         keyword={keyword}
                         filters={{
                             customer_type: requestFilters.customer_type,
+                            npp: requestFilters.npp,
                             customer_code: requestFilters.customer_code,
                             customer_name: requestFilters.customer_name,
                             product_code: requestFilters.product_code,
@@ -166,6 +171,7 @@ export default function TransactionPage() {
 
                         filters={{
                             customer_type: multiFilters.customer_type,
+                            npp: multiFilters.npp,
                             customer_code: multiFilters.customer_code,
                             customer_name: multiFilters.customer_name,
                             product_code: multiFilters.product_code,
@@ -182,6 +188,7 @@ export default function TransactionPage() {
 
                             setMultiFilters({
                                 customer_type: next.customer_type,
+                                npp: next.npp,
                                 customer_code: next.customer_code,
                                 customer_name: next.customer_name,
                                 product_code: next.product_code,

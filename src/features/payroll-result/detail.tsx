@@ -1,11 +1,13 @@
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import type { ReactNode } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import { getPayrollResultDetail } from "@/api/salary/payroll-result"
+import { updateTransactionNpp } from "@/api/transactions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { toast } from "sonner"
 import {
   ArrowLeft,
   Banknote,
@@ -32,6 +34,11 @@ const progressPct = (value?: number | null) =>
 
 function money(value?: number | null) {
   return `${fmt(value)} đ`
+}
+
+function shortDate(value?: string | null) {
+  if (!value) return "-"
+  return value.slice(0, 10)
 }
 
 function productUnit(name: string) {
@@ -66,6 +73,13 @@ function completionBadge(value?: number | null, hasActualData = false) {
   if ((value ?? 0) >= 0.8) return "bg-amber-600"
   return "bg-rose-600"
 }
+
+const b2bRateRows = [
+  { ppType: "PPN.C", rate: 20 },
+  { ppType: "PPH", rate: 10 },
+  { ppType: "PPL", rate: 3000 },
+  { ppType: "PPN.K", rate: 20 },
+] as const
 
 function MetricCard({
   label,
@@ -148,10 +162,30 @@ function Progress({ value }: { value: number }) {
 }
 
 export default function PayrollDetailPage({ employeeId, period }: Props) {
+  const queryClient = useQueryClient()
+  const [b2bLineKeyword, setB2bLineKeyword] = useState("")
+  const [b2bLinePp, setB2bLinePp] = useState("ALL")
+  const [b2bLineSource, setB2bLineSource] = useState("ALL")
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["payroll-result-detail", period, employeeId],
     queryFn: () => getPayrollResultDetail(period, employeeId),
     enabled: !!period && employeeId > 0,
+  })
+  const clearB2bMutation = useMutation({
+    mutationFn: (transactionId: number) => {
+      if (!Number.isFinite(transactionId) || transactionId <= 0) {
+        throw new Error("Dòng này chưa có transaction_id. Cần restart backend để lấy dữ liệu mới.")
+      }
+      return updateTransactionNpp(transactionId, "")
+    },
+    onSuccess: () => {
+      toast.success("Đã loại dòng khỏi B2B")
+      queryClient.invalidateQueries({ queryKey: ["payroll-result-detail", period, employeeId] })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Loại dòng khỏi B2B thất bại")
+    },
   })
 
   const payroll = data?.payroll
@@ -165,6 +199,38 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
   const hasTransactions = (performance?.source_transaction_count ?? 0) > 0
   const hasTargetData = (performance?.target_row_count ?? 0) > 0
   const salesSalaryFromScopes = data?.scopes.reduce((sum, scope) => sum + (scope.sales_salary_amount ?? 0), 0) ?? 0
+  const b2bLines = data?.b2b_lines ?? []
+  const filteredB2bLines = useMemo(() => {
+    const keyword = b2bLineKeyword.trim().toLowerCase()
+    return b2bLines.filter((item) => {
+      const matchPp = b2bLinePp === "ALL" || item.pp_type === b2bLinePp
+      const matchSource = b2bLineSource === "ALL" || item.quantity_source === b2bLineSource
+      const haystack = [
+        item.document_date,
+        item.document_no,
+        item.customer_code,
+        item.customer_name,
+        item.product_code,
+        item.product_name,
+        item.vthh_con,
+        item.npp,
+        item.customer_type,
+        item.pp_type,
+      ].filter(Boolean).join(" ").toLowerCase()
+      return matchPp && matchSource && (!keyword || haystack.includes(keyword))
+    })
+  }, [b2bLineKeyword, b2bLinePp, b2bLineSource, b2bLines])
+  const filteredB2bQuantity = filteredB2bLines.reduce((sum, item) => sum + (item.quantity ?? 0), 0)
+  const filteredB2bAmount = filteredB2bLines.reduce((sum, item) => sum + (item.amount ?? 0), 0)
+  const b2bFormulaRows = b2bRateRows.map(({ ppType, rate }) => {
+    const row = data?.b2b_breakdown.find((item) => item.pp_type === ppType)
+    return {
+      ppType,
+      quantity: row?.quantity ?? 0,
+      rate: row?.unit_rate ?? rate,
+      amount: row?.amount ?? 0,
+    }
+  })
 
   const totalDeductions = payroll
     ? payroll.social_insurance + payroll.personal_income_tax + payroll.tam_ung + payroll.khau_tru_khac
@@ -172,9 +238,9 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
   const incomeFormulaTotal = payroll
     ? payroll.total_base_salary
       + payroll.total_allowance
-      + payroll.sales_salary_amount
-      + payroll.total_bonus
+      + payroll.b2b_salary
       + payroll.support_amount
+      + payroll.monthly_income_amount
     : 0
   const isPayrollStale = payroll ? Math.abs(incomeFormulaTotal - payroll.gross_total) > 1 : false
 
@@ -252,20 +318,57 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
                 </div>
               </div>
               <Separator className="my-5" />
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <div className="text-xs text-muted-foreground">Lương hồ sơ + doanh số</div>
+                  <div className="text-xs text-muted-foreground">Lương hồ sơ + B2B</div>
                   <div className="mt-1 font-semibold tabular-nums">
-                    {money(payroll.total_base_salary + payroll.total_allowance + payroll.sales_salary_amount)}
+                    {money(payroll.total_base_salary + payroll.total_allowance + payroll.b2b_salary)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-muted-foreground">Thưởng</div>
-                  <div className="mt-1 font-semibold tabular-nums">{money(payroll.total_bonus + annualBonusTotal)}</div>
+                  <div className="text-xs text-muted-foreground">Hỗ trợ</div>
+                  <div className="mt-1 font-semibold tabular-nums">{money(payroll.support_amount)}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-muted-foreground">Hỗ trợ/phát sinh</div>
-                  <div className="mt-1 font-semibold tabular-nums">{money(payroll.support_amount)}</div>
+                  <div className="text-xs text-muted-foreground">Thu nhập phát sinh</div>
+                  <div className="mt-1 font-semibold tabular-nums">{money(payroll.monthly_income_amount)}</div>
+                </div>
+              </div>
+              <div className="mt-5 border-t pt-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-xs font-medium uppercase text-muted-foreground">Lương B2B</div>
+                    <div className="mt-1 text-lg font-semibold text-emerald-700 tabular-nums">{money(payroll.b2b_salary)}</div>
+                  </div>
+                  <Badge variant="outline">{b2bFormulaRows.filter((item) => item.amount !== 0).length} nhóm phát sinh</Badge>
+                </div>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full min-w-[520px] text-xs">
+                    <thead className="border-y bg-muted/40 text-left text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Nhóm PP</th>
+                        <th className="px-3 py-2 text-right font-medium">Số lượng</th>
+                        <th className="px-3 py-2 text-right font-medium">Đơn giá</th>
+                        <th className="px-3 py-2 text-right font-medium">Thành tiền</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {b2bFormulaRows.map((item) => (
+                        <tr key={item.ppType} className="border-b last:border-b-0">
+                          <td className="px-3 py-2 font-semibold text-foreground">{item.ppType}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{fmt(item.quantity)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{fmt(item.rate)}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-emerald-700 tabular-nums">{money(item.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t bg-emerald-50/70">
+                        <td className="px-3 py-2 font-semibold text-emerald-800" colSpan={3}>Tổng lương B2B</td>
+                        <td className="px-3 py-2 text-right font-semibold text-emerald-800 tabular-nums">{money(payroll.b2b_salary)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
               </div>
             </section>
@@ -279,9 +382,9 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
                   <div className="mb-2 text-xs font-medium uppercase text-muted-foreground">Thu nhập</div>
                   <AmountRow label="Lương cơ bản" value={money(payroll.total_base_salary)} sign="+" />
                   <AmountRow label="Phụ cấp" value={money(payroll.total_allowance)} sign="+" />
-                  <AmountRow label="Lương doanh số" value={money(payroll.sales_salary_amount)} sign="+" />
-                  <AmountRow label="Thưởng 20%" value={money(payroll.total_bonus)} sign="+" />
-                  <AmountRow label="Hỗ trợ + phát sinh" value={money(payroll.support_amount)} sign="+" />
+                  <AmountRow label="Lương B2B" value={money(payroll.b2b_salary)} sign="+" />
+                  <AmountRow label="Hỗ trợ" value={money(payroll.support_amount)} sign="+" />
+                  <AmountRow label="Thu nhập phát sinh" value={money(payroll.monthly_income_amount)} sign="+" />
                   <AmountRow label="Tổng thu nhập" value={money(payroll.gross_total)} tone="text-blue-700" />
                 </div>
                 <div className="hidden w-px bg-border lg:block" />
@@ -327,6 +430,199 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
               tone="text-slate-700"
             />
           </div>
+
+          <Section
+            title="Chi tiết lương B2B"
+            right={<Badge variant="outline">{money(payroll.b2b_salary)}</Badge>}
+          >
+            <div className="space-y-4">
+              {data.b2b_breakdown.length === 0 ? (
+                <EmptyState
+                  title="Không có lương B2B"
+                  description={
+                    performance.source_transaction_count === 0
+                      ? `Kỳ này chưa có dòng bán hàng nào gắn sale ${payroll.emp_code || ""} trong dữ liệu transaction.`
+                      : "Có giao dịch bán hàng nhưng chưa có dòng nào resolve ra PPN.C, PPH, PPL hoặc PPN.K cho nhân viên."
+                  }
+                />
+              ) : (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-4">
+                    {data.b2b_breakdown.map((item) => (
+                      <div key={item.pp_type} className="rounded-md border bg-white px-4 py-3 shadow-sm">
+                        <div className="text-xs font-medium uppercase text-muted-foreground">{item.pp_type}</div>
+                        <div className="mt-2 text-xl font-semibold text-emerald-700 tabular-nums">{money(item.amount)}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {fmt(item.quantity)} x {money(item.unit_rate)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="overflow-hidden rounded-md border">
+                    <table className="w-full min-w-[640px] text-sm">
+                      <thead className="bg-muted/40 text-left">
+                        <tr>
+                          <th className="px-3 py-2">Tình trạng PP</th>
+                          <th className="px-3 py-2 text-right">Số dòng</th>
+                          <th className="px-3 py-2 text-right">Số lượng</th>
+                          <th className="px-3 py-2 text-right">Đơn giá</th>
+                          <th className="px-3 py-2 text-right">Thành tiền</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.b2b_breakdown.map((item) => (
+                          <tr key={item.pp_type} className="border-t">
+                            <td className="px-3 py-2 font-medium">{item.pp_type}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{item.row_count}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{fmt(item.quantity)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{money(item.unit_rate)}</td>
+                            <td className="px-3 py-2 text-right font-semibold text-emerald-700 tabular-nums">{money(item.amount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              <div className="overflow-hidden rounded-md border">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/20 px-3 py-2">
+                  <div className="font-medium">Dòng bán hàng cấu thành số lượng</div>
+                  <Badge variant="outline">{filteredB2bLines.length} / {b2bLines.length} dòng</Badge>
+                </div>
+                {b2bLines.length === 0 ? (
+                  <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                    {performance.source_transaction_count === 0
+                      ? `Không có dòng transaction nào trong kỳ ${period} gắn sale ${payroll.emp_code || ""}.`
+                      : "Không có dòng bán hàng nguồn resolve ra nhóm PP để tính lương B2B."}
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid gap-2 border-b bg-white px-3 py-3 md:grid-cols-[1fr_160px_180px]">
+                      <input
+                        value={b2bLineKeyword}
+                        onChange={(event) => setB2bLineKeyword(event.target.value)}
+                        placeholder="Tìm chứng từ, khách hàng, mã hàng, VTHH_CON..."
+                        className="h-9 rounded-md border bg-background px-3 text-sm outline-none focus:border-ring"
+                      />
+                      <select
+                        value={b2bLinePp}
+                        onChange={(event) => setB2bLinePp(event.target.value)}
+                        className="h-9 rounded-md border bg-background px-3 text-sm outline-none focus:border-ring"
+                      >
+                        <option value="ALL">Tất cả PP</option>
+                        {b2bRateRows.map((item) => (
+                          <option key={item.ppType} value={item.ppType}>{item.ppType}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={b2bLineSource}
+                        onChange={(event) => setB2bLineSource(event.target.value)}
+                        className="h-9 rounded-md border bg-background px-3 text-sm outline-none focus:border-ring"
+                      >
+                        <option value="ALL">Tất cả nguồn SL</option>
+                        <option value="SL_L_B2B">SL_L_B2B</option>
+                        <option value="SL_BAN_TRU_TRA">SL bán - SL trả</option>
+                      </select>
+                    </div>
+                    <div className="max-h-[420px] overflow-auto">
+                    <table className="w-full min-w-[1280px] text-xs">
+                        <thead className="sticky top-0 bg-muted/60 text-left text-muted-foreground">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Ngày CT</th>
+                          <th className="px-3 py-2 font-medium">Số CT</th>
+                          <th className="px-3 py-2 font-medium">Khách hàng</th>
+                          <th className="px-3 py-2 font-medium">Mã hàng</th>
+                          <th className="px-3 py-2 font-medium">VTHH_CON</th>
+                          <th className="px-3 py-2 font-medium">PP</th>
+                          <th className="px-3 py-2 font-medium">Nguồn SL</th>
+                          <th className="px-3 py-2 text-right font-medium">Số lượng</th>
+                          <th className="px-3 py-2 text-right font-medium">Đơn giá</th>
+                          <th className="px-3 py-2 text-right font-medium">Thành tiền</th>
+                          <th className="px-3 py-2 text-right font-medium">Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredB2bLines.map((item, index) => (
+                          <tr key={`${item.document_no}-${item.product_code}-${item.pp_type}-${index}`} className="border-t">
+                            <td className="px-3 py-2 whitespace-nowrap">{shortDate(item.document_date)}</td>
+                            <td className="px-3 py-2 whitespace-nowrap">{item.document_no || "-"}</td>
+                            <td className="px-3 py-2">
+                              <div className="max-w-[240px] truncate font-medium" title={`${item.customer_code || ""} ${item.customer_name || ""}`.trim()}>
+                                {item.customer_code || "-"}
+                              </div>
+                              <div className="max-w-[240px] truncate text-muted-foreground" title={item.customer_name || ""}>
+                                {item.customer_name || "-"}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="max-w-[220px] truncate font-medium" title={`${item.product_code || ""} ${item.product_name || ""}`.trim()}>
+                                {item.product_code || "-"}
+                              </div>
+                              <div className="max-w-[220px] truncate text-muted-foreground" title={item.product_name || ""}>
+                                {item.product_name || "-"}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">{item.vthh_con || "-"}</td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              <Badge variant="outline">{item.pp_type}</Badge>
+                              <div className="mt-1 text-[11px] text-muted-foreground">
+                                NPP {item.npp || "-"} · PLKH {item.customer_type || "-"}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+                              {item.quantity_source === "SL_L_B2B" ? "SL_L_B2B" : "SL bán - SL trả"}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums">{fmt(item.quantity)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{money(item.unit_rate)}</td>
+                            <td className="px-3 py-2 text-right font-semibold text-emerald-700 tabular-nums">{money(item.amount)}</td>
+                          <td className="px-3 py-2 text-right">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                                disabled={clearB2bMutation.isPending || !item.transaction_id}
+                                title={!item.transaction_id ? "Cần restart backend để API trả transaction_id" : "Xóa NPP để loại dòng khỏi B2B"}
+                                onClick={() => {
+                                  if (!item.transaction_id) {
+                                    toast.error("Dòng này chưa có transaction_id. Cần restart backend để lấy dữ liệu mới.")
+                                    return
+                                  }
+                                  clearB2bMutation.mutate(item.transaction_id)
+                                }}
+                            >
+                              Loại khỏi B2B
+                            </Button>
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredB2bLines.length === 0 ? (
+                          <tr>
+                            <td className="px-3 py-8 text-center text-muted-foreground" colSpan={11}>
+                              Không có dòng phù hợp với bộ lọc hiện tại.
+                            </td>
+                          </tr>
+                        ) : null}
+                      </tbody>
+                      <tfoot className="sticky bottom-0 border-t bg-emerald-50/95">
+                        <tr>
+                          <td className="px-3 py-2 font-semibold text-emerald-800" colSpan={7}>
+                            Tổng theo bộ lọc
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-emerald-800 tabular-nums">{fmt(filteredB2bQuantity)}</td>
+                          <td className="px-3 py-2 text-right text-muted-foreground">-</td>
+                          <td className="px-3 py-2 text-right font-semibold text-emerald-800 tabular-nums">{money(filteredB2bAmount)}</td>
+                          <td className="px-3 py-2" />
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </Section>
 
           <Section
             title="Giải thích lương doanh số tháng"

@@ -4,6 +4,13 @@ import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { DataTableColumnHeader } from "@/components/table/column-header"
 import { Button } from "@/components/ui/button"
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import {
     Command,
     CommandEmpty,
     CommandGroup,
@@ -19,7 +26,8 @@ import {
 } from "@/components/ui/popover"
 import { cn, formatCurrency } from "@/lib/utils"
 import { Check, Funnel, X } from "lucide-react"
-import { listTransactionOptions } from "@/api/transactions"
+import { toast } from "sonner"
+import { listTransactionOptions, updateTransactionNpp } from "@/api/transactions"
 import type { Transaction } from "../data/schema"
 
 type TextColumnKey = keyof Transaction
@@ -31,6 +39,7 @@ export type TransactionColumnFilters = {
     product_name?: string[]
     product_group_name?: string[]
     customer_type?: string[]
+    npp?: string[]
     hdn_status?: string[]
     region?: string
     document_date_from?: string
@@ -236,6 +245,57 @@ function dateColumn(
     }
 }
 
+function NppCell({ row }: { row: Transaction }) {
+    const [value, setValue] = useState(row.npp || "")
+    const [saving, setSaving] = useState(false)
+
+    useEffect(() => {
+        setValue(row.npp || "")
+    }, [row.id, row.npp])
+
+    const save = async (next: string) => {
+        const previous = value
+        setValue(next)
+        setSaving(true)
+        try {
+            await updateTransactionNpp(row.id, next)
+            toast.success(next ? "Đã cập nhật NPP" : "Đã xóa NPP")
+        } catch (error) {
+            setValue(previous)
+            toast.error(error instanceof Error ? error.message : "Cập nhật NPP thất bại")
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    return (
+        <div className="flex items-center gap-1">
+            <Select value={value || undefined} onValueChange={save} disabled={saving}>
+                <SelectTrigger size="sm" className="h-8 w-[92px] bg-white px-2">
+                    <SelectValue placeholder="-" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="PPH">PPH</SelectItem>
+                    <SelectItem value="PPL">PPL</SelectItem>
+                    <SelectItem value="PPN.C">PPN.C</SelectItem>
+                    <SelectItem value="PPN.K">PPN.K</SelectItem>
+                </SelectContent>
+            </Select>
+            <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                disabled={saving || !value}
+                onClick={() => save("")}
+                title="Xóa NPP"
+            >
+                <X className="h-4 w-4" />
+            </Button>
+        </div>
+    )
+}
+
 export function buildTransactionColumns(
     filters: TransactionColumnFilters,
     onFiltersChange: (filters: TransactionColumnFilters) => void,
@@ -353,7 +413,18 @@ export function buildTransactionColumns(
         numberColumn("sl_hdn", "SL_HDN", 110),
         numberColumn("diem_hdn", "DIEM_HDN", 120),
         numberColumn("process_month", "THANG_XU_LY", 130),
-        textColumn("npp", "NPP", 120),
+        {
+            accessorKey: "npp",
+            enableSorting: false,
+            minSize: 140,
+            size: 150,
+            header: ({ column }) => <DataTableColumnHeader column={column} title="NPP" />,
+            cell: ({ row }) => <NppCell row={row.original} />,
+            meta: {
+                thClassName: "w-[150px] whitespace-nowrap",
+                tdClassName: "w-[150px] whitespace-nowrap",
+            },
+        },
         textColumn("valid_code", "MA_HOP _LE", 130),
         textColumn("hdn_status", "TINH_TRANG_HDN", 160),
         textColumn("common_group", "NHÓM-CHUNG", 150),

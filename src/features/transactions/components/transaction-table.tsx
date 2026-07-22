@@ -24,6 +24,7 @@ type TransactionFilters = {
     product_name?: string[]
     product_group_name?: string[]
     customer_type?: string[]
+    npp?: string[]
     hdn_status?: string[]
     region?: string
     document_date_from?: string
@@ -48,9 +49,16 @@ type TransactionTableProps = {
 }
 
 const CUSTOMER_TYPE_OPTIONS = [
-    { value: "PP", label: "PP" },
+    { value: "B2B", label: "B2B" },
+    { value: "B2C", label: "B2C" },
+    { value: "MB_B2B", label: "MB B2B" },
+]
+
+const NPP_OPTIONS = [
+    { value: "PPH", label: "PPH" },
+    { value: "PPL", label: "PPL" },
+    { value: "PPN.C", label: "PPN.C" },
     { value: "PPN.K", label: "PPN.K" },
-    { value: "DAI_LY", label: "Dai ly" },
 ]
 
 const HDN_STATUS_OPTIONS = [
@@ -107,6 +115,15 @@ export function TransactionTable({
                         onChange={(v) => setFilter("customer_type", v)}
                         options={CUSTOMER_TYPE_OPTIONS}
                         className="min-w-[160px] flex-1"
+                    />
+
+                    <MultiSelectFilter
+                        icon={ClipboardList}
+                        label="NPP"
+                        value={filters.npp}
+                        onChange={(v) => setFilter("npp", v)}
+                        options={NPP_OPTIONS}
+                        className="min-w-[150px] flex-1"
                     />
 
                     <MultiSelectFilter
