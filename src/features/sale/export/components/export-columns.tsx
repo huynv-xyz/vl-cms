@@ -31,8 +31,8 @@ export function useExportColumns() {
             (p.action === "status.update" || p.action === "update")
     )
     const { mutate: changeStatus, isPending } = useMutation({
-        mutationFn: ({ id, status }: { id: number; status: string; orderId?: number }) =>
-            updateExportStatus(id, status),
+        mutationFn: ({ id, status, exportTime }: { id: number; status: string; exportTime?: string; orderId?: number }) =>
+            updateExportStatus(id, status, exportTime),
         onError: (error: any) => {
             toast.error(error?.message || "Cập nhật trạng thái phiếu xuất thất bại")
         },
@@ -161,6 +161,7 @@ export function useExportColumns() {
                             changeStatus({
                                 id: row.original.id,
                                 status: next,
+                                exportTime: normalizeTimeForInput(row.original.export_time) ?? currentTimeForInput(),
                                 orderId: row.original.order_id,
                             })
                         }
@@ -195,5 +196,23 @@ export function useExportColumns() {
     ]
 
     return { columns }
+}
+
+function normalizeTimeForInput(value?: string | null) {
+    if (!value) return null
+    const match = String(value).match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/)
+    if (!match) return null
+    const hour = match[1].padStart(2, "0")
+    const minute = match[2].padStart(2, "0")
+    const second = (match[3] ?? "00").padStart(2, "0")
+    return `${hour}:${minute}:${second}`
+}
+
+function currentTimeForInput() {
+    const now = new Date()
+    const hour = String(now.getHours()).padStart(2, "0")
+    const minute = String(now.getMinutes()).padStart(2, "0")
+    const second = String(now.getSeconds()).padStart(2, "0")
+    return `${hour}:${minute}:${second}`
 }
 
