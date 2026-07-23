@@ -119,6 +119,89 @@ export function applyPurchaseLotChange(ledgerId: number, newLotNo: string) {
     })
 }
 
+export type ReturnWarehouseChangeResult = {
+    valid: boolean
+    applied: boolean
+    mode: string
+    mode_label: string
+    message: string
+    ledger_id: number
+    voucher_id?: number | null
+    voucher_item_id?: number | null
+    product_id: number
+    product_code: string
+    product_name: string
+    doc_no?: string | null
+    posting_date?: string | null
+    lot_no?: string | null
+    old_warehouse_id: number
+    old_warehouse_code?: string | null
+    old_warehouse_name: string
+    new_warehouse_id: number
+    new_warehouse_code?: string | null
+    new_warehouse_name: string
+    voucher_item_count: number
+    same_physical_required: boolean
+    target_lot_id?: number | null
+    errors: string[]
+    warnings: string[]
+    changes: Record<string, number>
+}
+
+export function checkReturnWarehouseChange(ledgerId: number, newWarehouseId: number) {
+    return apiPost<ReturnWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/return-warehouse-change/check`, {
+        newWarehouseId,
+    })
+}
+
+export function applyReturnWarehouseChange(ledgerId: number, newWarehouseId: number) {
+    return apiPost<ReturnWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/return-warehouse-change/apply`, {
+        newWarehouseId,
+    })
+}
+
+export type PurchaseQuantityChangeResult = {
+    valid: boolean
+    applied: boolean
+    message: string
+    ledger_id: number
+    voucher_id?: number | null
+    voucher_item_id?: number | null
+    product_id: number
+    product_code: string
+    product_name: string
+    warehouse_id: number
+    warehouse_code?: string | null
+    warehouse_name: string
+    doc_no?: string | null
+    doc_type?: string | null
+    posting_date?: string | null
+    lot_id?: number | null
+    lot_no?: string | null
+    old_quantity: number
+    new_quantity: number
+    delta_quantity: number
+    unit_price: number
+    old_amount: number
+    new_amount: number
+    delta_amount: number
+    errors: string[]
+    warnings: string[]
+    changes: Record<string, number>
+}
+
+export function checkPurchaseQuantityChange(ledgerId: number, newQuantity: number) {
+    return apiPost<PurchaseQuantityChangeResult>(`/inventory/ledger/${ledgerId}/purchase-quantity-change/check`, {
+        newQuantity,
+    })
+}
+
+export function applyPurchaseQuantityChange(ledgerId: number, newQuantity: number) {
+    return apiPost<PurchaseQuantityChangeResult>(`/inventory/ledger/${ledgerId}/purchase-quantity-change/apply`, {
+        newQuantity,
+    })
+}
+
 export async function importProductionCostObjects(file: File) {
     const formData = new FormData()
     formData.append("file", file)
