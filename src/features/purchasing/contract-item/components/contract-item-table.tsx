@@ -12,6 +12,7 @@ type Props = {
     data?: ContractItem[]
     keyword?: string
     onKeywordChange?: (value: string) => void
+    currencyCode?: string
 }
 
 export function ContractItemTable(props: Props) {
@@ -52,7 +53,12 @@ export function ContractItemTable(props: Props) {
                     </div>
                 ) : (
                     data.map((item, index) => (
-                        <ContractItemCard key={item.id} item={item} index={index + 1} />
+                        <ContractItemCard
+                            key={item.id}
+                            item={item}
+                            index={index + 1}
+                            currencyCode={props.currencyCode}
+                        />
                     ))
                 )}
             </div>
@@ -60,7 +66,15 @@ export function ContractItemTable(props: Props) {
     )
 }
 
-function ContractItemCard({ item, index }: { item: ContractItem; index: number }) {
+function ContractItemCard({
+    item,
+    index,
+    currencyCode,
+}: {
+    item: ContractItem
+    index: number
+    currencyCode?: string
+}) {
     const { openEdit } = useContractItems()
     const { deleteById } = useCrudDelete(deleteContractItem, ["contract-items"])
 
@@ -71,7 +85,7 @@ function ContractItemCard({ item, index }: { item: ContractItem; index: number }
     const basePrice = item.base_price ?? calcBasePrice(item)
     const totalAmount = getTotalAmount(item)
     const totalAmountVnd = getTotalAmountVnd(item)
-    const currency = "EUR"
+    const currency = currencyCode || "-"
 
     return (
         <div className="overflow-hidden rounded-lg border border-[#d8d5c9] bg-[#fbfaf2] shadow-xs">

@@ -42,6 +42,7 @@ export function ContractItemsTab({ contract }: Props) {
                             data={data.items}
                             keyword={keyword}
                             onKeywordChange={setKeyword}
+                            currencyCode={contract.currency?.code}
                         />
 
                         <ContractItemDialogs contractId={contract.id} />
