@@ -25,6 +25,7 @@ export type Export = {
     id: number
     export_no: string
     export_date: string
+    export_time?: string
 
     delivery_id: number
     delivery?: Delivery
