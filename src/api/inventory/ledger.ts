@@ -175,15 +175,18 @@ export type PurchaseQuantityChangeResult = {
     warehouse_name: string
     doc_no?: string | null
     doc_type?: string | null
+    direction?: "IN" | "OUT" | string
     posting_date?: string | null
     lot_id?: number | null
     lot_no?: string | null
     old_quantity: number
     new_quantity: number
+    signed_new_quantity?: number
     delta_quantity: number
     unit_price: number
     old_amount: number
     new_amount: number
+    voucher_item_amount?: number
     delta_amount: number
     errors: string[]
     warnings: string[]

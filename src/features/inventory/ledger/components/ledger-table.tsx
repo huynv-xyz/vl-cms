@@ -1014,7 +1014,7 @@ function LedgerCorrectionActions({
 }) {
     const canChangeLot = Boolean(onChangeLot && isPurchaseInboundLedger(item))
     const canChangeReturnWarehouse = Boolean(onChangeReturnWarehouse && isSalesReturnInboundLedger(item))
-    const canChangePurchaseQuantity = Boolean(onChangePurchaseQuantity && isImportPurchaseInboundLedger(item))
+    const canChangePurchaseQuantity = Boolean(onChangePurchaseQuantity && isQuantityCorrectionLedger(item))
 
     if (!canChangeLot && !canChangeReturnWarehouse && !canChangePurchaseQuantity) {
         return <span className="text-muted-foreground">-</span>
@@ -1039,8 +1039,8 @@ function LedgerCorrectionActions({
                     >
                         <Pencil className="mt-0.5 h-4 w-4 text-primary" />
                         <span>
-                            <span className="block font-medium">Đổi số lô mua hàng</span>
-                            <span className="block text-xs text-muted-foreground">Áp dụng cho dòng nhập mua hàng.</span>
+                            <span className="block font-medium">Đổi số lô nhập hàng</span>
+                            <span className="block text-xs text-muted-foreground">Áp dụng cho dòng nhập mua hàng hoặc nhập kho khác.</span>
                         </span>
                     </button>
                 ) : null}
@@ -1052,8 +1052,8 @@ function LedgerCorrectionActions({
                     >
                         <Pencil className="mt-0.5 h-4 w-4 text-primary" />
                         <span>
-                            <span className="block font-medium">Sửa số lượng nhập</span>
-                            <span className="block text-xs text-muted-foreground">Áp dụng cho mua hàng nhập khẩu nhập kho.</span>
+                            <span className="block font-medium">Sửa số lượng</span>
+                            <span className="block text-xs text-muted-foreground">Áp dụng cho mua hàng nhập khẩu, nhập kho khác hoặc xuất kho khác.</span>
                         </span>
                     </button>
                 ) : null}
@@ -1134,7 +1134,7 @@ function PurchaseLotChangeDialog({
                 style={{ width: "min(980px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
             >
                 <DialogHeader>
-                    <DialogTitle>Đổi số lô mua hàng</DialogTitle>
+                    <DialogTitle>Đổi số lô nhập hàng</DialogTitle>
                     <DialogDescription>
                         Chỉ đổi mã lô, không thay đổi số lượng và giá trị giao dịch.
                     </DialogDescription>
@@ -1509,17 +1509,19 @@ function PurchaseQuantityChangeDialog({
     const [newQuantity, setNewQuantity] = useState("")
     const [result, setResult] = useState<PurchaseQuantityChangeResult | null>(null)
     const [errorMessage, setErrorMessage] = useState("")
+    const direction = String(row?.doc_type || "").toUpperCase() === "OTHER_EXPORT" ? "OUT" : "IN"
+    const directionLabel = direction === "OUT" ? "xuất" : "nhập"
 
     useEffect(() => {
         if (open && row) {
-            setNewQuantity(String(Number(row.quantity_in || 0)))
+            setNewQuantity(String(Number(direction === "OUT" ? row.quantity_out || 0 : row.quantity_in || 0)))
             setResult(null)
             setErrorMessage("")
         }
-    }, [open, row])
+    }, [direction, open, row])
 
     const parsedQuantity = Number(newQuantity)
-    const oldQuantity = Number(row?.quantity_in || 0)
+    const oldQuantity = Number(direction === "OUT" ? row?.quantity_out || 0 : row?.quantity_in || 0)
     const invalidQuantity = !Number.isFinite(parsedQuantity) || parsedQuantity <= 0
     const unchanged = !invalidQuantity && parsedQuantity === oldQuantity
     const busy = false
@@ -1532,7 +1534,7 @@ function PurchaseQuantityChangeDialog({
         },
         onError: (error: any) => {
             setResult(null)
-            setErrorMessage(error?.message || "Không kiểm tra được số lượng nhập.")
+            setErrorMessage(error?.message || "Không kiểm tra được số lượng.")
         },
     })
 
@@ -1544,7 +1546,7 @@ function PurchaseQuantityChangeDialog({
             onChanged()
         },
         onError: (error: any) => {
-            setErrorMessage(error?.message || "Không sửa được số lượng nhập.")
+            setErrorMessage(error?.message || "Không sửa được số lượng.")
         },
     })
 
@@ -1558,9 +1560,9 @@ function PurchaseQuantityChangeDialog({
                 style={{ width: "min(1040px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
             >
                 <DialogHeader>
-                    <DialogTitle>Sửa số lượng nhập mua hàng</DialogTitle>
+                    <DialogTitle>Sửa số lượng sổ kho</DialogTitle>
                     <DialogDescription>
-                        Chỉ sửa số lượng của dòng mua hàng nhập khẩu nhập kho. Hệ thống sẽ kiểm tra lịch sử tồn trước khi ghi thật.
+                        Chỉ sửa số lượng cho dòng nghiệp vụ được phép. Hệ thống sẽ kiểm tra lịch sử tồn trước khi ghi thật.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -1572,13 +1574,13 @@ function PurchaseQuantityChangeDialog({
                             <InfoItem label="Kho" value={row.warehouse_name} />
                             <InfoItem label="Hàng hóa" value={`${row.product_code} - ${row.product_name}`} />
                             <InfoItem label="Số lô" value={row.lot_code || "-"} />
-                            <InfoItem label="Số lượng hiện tại" value={formatNumber(oldQuantity)} />
+                            <InfoItem label={`Số lượng ${directionLabel} hiện tại`} value={formatNumber(oldQuantity)} />
                             <InfoItem label="Đơn giá hiện tại" value={formatNumber(Number(row.unit_price || 0))} />
                             <InfoItem label="Thành tiền hiện tại" value={formatNumber(Number(row.amount || 0))} />
                         </div>
 
                         <div className="grid gap-2 md:max-w-sm">
-                            <label className="text-sm font-medium">Số lượng nhập mới</label>
+                            <label className="text-sm font-medium">Số lượng mới</label>
                             <Input
                                 type="number"
                                 step="0.001"
@@ -1593,9 +1595,9 @@ function PurchaseQuantityChangeDialog({
                                 className="h-10 text-right tabular-nums"
                             />
                             {invalidQuantity ? (
-                                <div className="text-sm text-destructive">Số lượng nhập mới phải lớn hơn 0.</div>
+                                <div className="text-sm text-destructive">Số lượng mới phải lớn hơn 0.</div>
                             ) : unchanged ? (
-                                <div className="text-sm text-destructive">Số lượng nhập mới phải khác số lượng hiện tại.</div>
+                                <div className="text-sm text-destructive">Số lượng mới phải khác số lượng hiện tại.</div>
                             ) : null}
                         </div>
 
@@ -1603,7 +1605,7 @@ function PurchaseQuantityChangeDialog({
                             <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                                 <div className="flex items-start gap-2 font-semibold">
                                     <AlertTriangle className="mt-0.5 h-4 w-4" />
-                                    Không thể sửa số lượng nhập
+                                    Không thể sửa số lượng
                                 </div>
                                 <div className="mt-1 pl-6">{errorMessage}</div>
                             </div>
@@ -1654,7 +1656,7 @@ function PurchaseQuantityChangeResultPanel({ result }: { result: PurchaseQuantit
         )}>
             <div className="flex items-start gap-2 font-semibold">
                 {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
-                <span>{applied ? "Đã sửa số lượng nhập" : valid ? "Có thể sửa số lượng nhập" : "Không thể sửa số lượng nhập"}</span>
+                <span>{applied ? "Đã sửa số lượng" : valid ? "Có thể sửa số lượng" : "Không thể sửa số lượng"}</span>
             </div>
             <div className="mt-1 pl-6">{result.message}</div>
 
@@ -2017,7 +2019,7 @@ function hasPermission(permissions: any[], module: string, action: string) {
 
 function isPurchaseInboundLedger(item: InventoryLedgerReportRow) {
     const docType = String(item.doc_type || "").toUpperCase()
-    return ["IMPORT_PURCHASE", "DOMESTIC_PURCHASE", "PURCHASE"].includes(docType)
+    return ["IMPORT_PURCHASE", "DOMESTIC_PURCHASE", "OTHER_INBOUND", "PURCHASE"].includes(docType)
         && Number(item.quantity_in || 0) > 0
         && Boolean(item.lot_code)
 }
@@ -2030,10 +2032,15 @@ function isSalesReturnInboundLedger(item: InventoryLedgerReportRow) {
         && Boolean(item.lot_code)
 }
 
-function isImportPurchaseInboundLedger(item: InventoryLedgerReportRow) {
-    return String(item.doc_type || "").toUpperCase() === "IMPORT_PURCHASE"
-        && Number(item.quantity_in || 0) > 0
-        && Boolean(item.lot_code)
+function isQuantityCorrectionLedger(item: InventoryLedgerReportRow) {
+    const docType = String(item.doc_type || "").toUpperCase()
+    if (["IMPORT_PURCHASE", "OTHER_INBOUND"].includes(docType)) {
+        return Number(item.quantity_in || 0) > 0 && Boolean(item.lot_code)
+    }
+    if (docType === "OTHER_EXPORT") {
+        return Number(item.quantity_out || 0) > 0 && Boolean(item.lot_code)
+    }
+    return false
 }
 
 function formatDate(value?: string) {
