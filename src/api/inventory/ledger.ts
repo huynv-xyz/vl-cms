@@ -79,6 +79,8 @@ export type ProductionCostObjectImportResult = {
     skippedDocTypes?: Record<string, number>
 }
 
+export type InventoryLedgerPriceImportResult = ProductionCostObjectImportResult
+
 export type PurchaseLotChangeResult = {
     valid: boolean
     applied: boolean
@@ -211,6 +213,16 @@ export async function importProductionCostObjects(file: File) {
 
     return apiPostMultipart<ProductionCostObjectImportResult>(
         "/inventory/ledger/production-cost-objects/import",
+        formData
+    )
+}
+
+export async function importInventoryLedgerPrices(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<InventoryLedgerPriceImportResult>(
+        "/inventory/ledger/prices/import",
         formData
     )
 }

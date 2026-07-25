@@ -5,6 +5,7 @@ import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { AlertTriangle, CheckCircle2, Funnel, Loader2, MoreHorizontal, Pencil, Printer, Warehouse as WarehouseIcon, X } from "lucide-react"
 import { toast } from "sonner"
 
+import { listProductUnitLookups } from "@/api/app-lookup"
 import { getMyPermissions } from "@/api/auth/permission"
 import {
     applyPurchaseLotChange,
@@ -17,7 +18,7 @@ import {
     type PurchaseQuantityChangeResult,
     type ReturnWarehouseChangeResult,
 } from "@/api/inventory/ledger"
-import { getVoucherPrintDetail, listVoucherTypes, VOUCHER_TYPE_LABEL, type InventoryVoucherPrintDetail } from "@/api/inventory/voucher"
+import { getVoucherPrintDetail, listVoucherTypes, VOUCHER_TYPE_LABEL, type InventoryVoucherPrintDetail, type InventoryVoucherType } from "@/api/inventory/voucher"
 import { listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
 import { ProductMultiFilter } from "@/features/inventory/components/product-multi-filter"
@@ -94,8 +95,6 @@ const TEXT_FILTER_OPERATORS: Array<{ value: TextFilterOp; label: string }> = [
     { value: "not_contains", label: "Không chứa" },
 ]
 
-const UNIT_OPTIONS = ["Kg", "Lít", "Bao", "Cái", "Thùng", "Mét"]
-
 function splitFilterValues(value?: string) {
     return (value || "")
         .split(",")
@@ -113,6 +112,17 @@ function filterValueLabels(value: string | undefined, options: Array<{ value: st
     return splitFilterValues(value)
         .map((item) => optionMap.get(item) || item)
         .join(", ")
+}
+
+function uniqueOptions(options: Array<{ value: string; label: string }>) {
+    const map = new Map<string, { value: string; label: string }>()
+    options.forEach((option) => {
+        const value = option.value.trim()
+        if (value && !map.has(value)) {
+            map.set(value, { value, label: option.label.trim() || value })
+        }
+    })
+    return Array.from(map.values())
 }
 
 export function InventoryLedgerTable({
@@ -140,8 +150,22 @@ export function InventoryLedgerTable({
         queryKey: ["inventory-voucher-types", "O"],
         queryFn: () => listVoucherTypes("O"),
     })
-    const inboundDocValues = useMemo(() => new Set(inboundDocTypes.map((type) => type.code)), [inboundDocTypes])
-    const outboundDocValues = useMemo(() => new Set(outboundDocTypes.map((type) => type.code)), [outboundDocTypes])
+    const allDocTypeOptions = useMemo(
+        () => [...inboundDocTypes, ...outboundDocTypes].map((type) => ({ value: type.code, label: type.name })),
+        [inboundDocTypes, outboundDocTypes],
+    )
+    const { data: unitLookupPage } = useQuery({
+        queryKey: ["inventory-ledger-product-unit-lookups"],
+        queryFn: () => listProductUnitLookups({ page: 1, size: 200 }),
+    })
+    const unitOptions = useMemo(() => {
+        const selected = splitFilterValues(filters.unit).map((unit) => ({ value: unit, label: unit }))
+        const fromLookup = (unitLookupPage?.items ?? []).map((item) => ({
+            value: item.name || item.code,
+            label: item.name || item.code,
+        }))
+        return uniqueOptions([...selected, ...fromLookup])
+    }, [filters.unit, unitLookupPage])
     const { data: permissions = [] } = useQuery({
         queryKey: ["my-permissions"],
         queryFn: getMyPermissions,
@@ -190,18 +214,16 @@ export function InventoryLedgerTable({
         }))
     }
 
-    const inboundValue =
-        filters.doc_type && inboundDocValues.has(filters.doc_type as any)
-            ? filters.doc_type
-            : "ALL"
-    const outboundValue =
-        filters.doc_type && outboundDocValues.has(filters.doc_type as any)
-            ? filters.doc_type
-            : "ALL"
-
     const activeFilterChips = [
         keyword
             ? { key: "keyword", label: `Tìm kiếm "${keyword}"`, onClear: () => onKeywordChange("") }
+            : null,
+        filters.doc_type
+            ? {
+                key: "doc_type",
+                label: `Loại chứng từ: ${filterValueLabels(filters.doc_type, allDocTypeOptions)}`,
+                onClear: () => setFilter("doc_type", undefined),
+            }
             : null,
         filters.doc_text
             ? {
@@ -262,7 +284,7 @@ export function InventoryLedgerTable({
         filters.unit
             ? {
                 key: "unit",
-                label: `ĐVT: ${filterValueLabels(filters.unit, UNIT_OPTIONS.map((unit) => ({ value: unit, label: unit })))}`,
+                label: `ĐVT: ${filterValueLabels(filters.unit, unitOptions)}`,
                 onClear: () => setFilter("unit", undefined),
             }
             : null,
@@ -282,6 +304,7 @@ export function InventoryLedgerTable({
             warehouse_id: undefined,
             warehouse_ids: undefined,
             product_ids: undefined,
+            doc_type: undefined,
             doc_text: undefined,
             doc_text_op: undefined,
             description_text: undefined,
@@ -339,43 +362,12 @@ export function InventoryLedgerTable({
                         className="min-w-[240px] flex-[1_1_280px] xl:max-w-[360px]"
                     />
 
-                    {direction !== "OUT" ? (
-                        <Select
-                            value={inboundValue}
-                            onValueChange={(value) => setFilter("doc_type", value === "ALL" ? undefined : value)}
-                        >
-                            <SelectTrigger className={cn(controlClass, "min-w-[180px] flex-[0.9_1_210px] xl:max-w-[260px]")}>
-                                <SelectValue placeholder="Chứng từ nhập" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">Tất cả chứng từ nhập</SelectItem>
-                                {inboundDocTypes.map((type) => (
-                                    <SelectItem key={type.code} value={type.code}>
-                                        {type.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    ) : null}
-
-                    {direction !== "IN" ? (
-                        <Select
-                            value={outboundValue}
-                            onValueChange={(value) => setFilter("doc_type", value === "ALL" ? undefined : value)}
-                        >
-                            <SelectTrigger className={cn(controlClass, "min-w-[180px] flex-[0.9_1_210px] xl:max-w-[260px]")}>
-                                <SelectValue placeholder="Chứng từ xuất" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">Tất cả chứng từ xuất</SelectItem>
-                                {outboundDocTypes.map((type) => (
-                                    <SelectItem key={type.code} value={type.code}>
-                                        {type.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    ) : null}
+                    <LedgerDocTypeFilter
+                        value={filters.doc_type}
+                        inboundTypes={direction === "OUT" ? [] : inboundDocTypes}
+                        outboundTypes={direction === "IN" ? [] : outboundDocTypes}
+                        onApply={(value) => setFilter("doc_type", value)}
+                    />
 
                     <DatePicker
                         className="min-w-[180px] flex-[0_1_190px] [&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
@@ -482,7 +474,7 @@ export function InventoryLedgerTable({
                                     <ColumnMultiSelectFilter
                                         label="ĐVT"
                                         value={filters.unit}
-                                        options={UNIT_OPTIONS.map((unit) => ({ value: unit, label: unit }))}
+                                        options={unitOptions}
                                         onApply={(value) => setFilter("unit", value)}
                                     />
                                 </Th>
@@ -519,7 +511,15 @@ export function InventoryLedgerTable({
                                 <Th className="min-w-[110px]">Xuất</Th>
                                 <Th className="min-w-[120px]">Tồn sau</Th>
                                 {showValues ? <Th className="min-w-[140px]">{"Th\u00e0nh ti\u1ec1n"}</Th> : null}
-                                <Th className="min-w-[260px]">Loại</Th>
+                                <Th className="min-w-[260px]">
+                                    <LedgerDocTypeFilter
+                                        value={filters.doc_type}
+                                        inboundTypes={direction === "OUT" ? [] : inboundDocTypes}
+                                        outboundTypes={direction === "IN" ? [] : outboundDocTypes}
+                                        onApply={(value) => setFilter("doc_type", value)}
+                                        variant="column"
+                                    />
+                                </Th>
                                 <Th className="min-w-[260px]">
                                     <ColumnTextFilter
                                         label="Tên nhà cung cấp"
@@ -762,6 +762,209 @@ function ColumnSelectFilter({
                     <X className="h-3.5 w-3.5" />
                 </button>
             ) : null}
+        </div>
+    )
+}
+
+function LedgerDocTypeFilter({
+    value,
+    inboundTypes,
+    outboundTypes,
+    onApply,
+    variant = "toolbar",
+}: {
+    value?: string
+    inboundTypes: InventoryVoucherType[]
+    outboundTypes: InventoryVoucherType[]
+    onApply: (value: string | undefined) => void
+    variant?: "toolbar" | "column"
+}) {
+    const [open, setOpen] = useState(false)
+    const [selected, setSelected] = useState<string[]>(() => splitFilterValues(value))
+    const active = splitFilterValues(value).length > 0
+    const groupCount = (inboundTypes.length ? 1 : 0) + (outboundTypes.length ? 1 : 0)
+    const inboundCodes = useMemo(() => inboundTypes.map((type) => type.code), [inboundTypes])
+    const outboundCodes = useMemo(() => outboundTypes.map((type) => type.code), [outboundTypes])
+    const inboundChecked = inboundCodes.length > 0 && inboundCodes.every((code) => selected.includes(code))
+    const outboundChecked = outboundCodes.length > 0 && outboundCodes.every((code) => selected.includes(code))
+
+    useEffect(() => {
+        if (!open) setSelected(splitFilterValues(value))
+    }, [open, value])
+
+    const toggle = (code: string) => {
+        setSelected((current) =>
+            current.includes(code)
+                ? current.filter((item) => item !== code)
+                : [...current, code],
+        )
+    }
+
+    const toggleMany = (codes: string[], checked: boolean) => {
+        setSelected((current) => {
+            const next = new Set(current)
+            codes.forEach((code) => {
+                if (checked) next.add(code)
+                else next.delete(code)
+            })
+            return Array.from(next)
+        })
+    }
+
+    const apply = () => {
+        onApply(joinFilterValues(selected))
+        setOpen(false)
+    }
+
+    const clear = () => {
+        setSelected([])
+        onApply(undefined)
+        setOpen(false)
+    }
+
+    const trigger =
+        variant === "column" ? (
+            <button
+                type="button"
+                className={cn(
+                    "inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent",
+                    active ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                )}
+                aria-label="Lọc loại chứng từ"
+            >
+                <Funnel className="h-4 w-4" />
+            </button>
+        ) : (
+            <Button
+                type="button"
+                variant="outline"
+                className={cn(
+                    controlClass,
+                    "min-w-[190px] flex-[0.9_1_230px] justify-between px-3 xl:max-w-[280px]",
+                    active ? "border-primary/40 bg-primary/5 text-primary" : "",
+                )}
+            >
+                <span className="truncate">
+                    {active ? `Loại chứng từ (${splitFilterValues(value).length})` : "Loại chứng từ"}
+                </span>
+                <Funnel className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </Button>
+        )
+
+    return (
+        <div className={cn(variant === "column" ? "flex items-center justify-center gap-1.5" : "")}>
+            {variant === "column" ? <span>Loại</span> : null}
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                {trigger}
+            </PopoverTrigger>
+            <PopoverContent
+                align="start"
+                className={cn(
+                    "max-w-[calc(100vw-2rem)] p-3",
+                    groupCount > 1 ? "w-[680px]" : "w-[420px]",
+                )}
+            >
+                <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="font-semibold text-foreground">Lọc loại chứng từ</div>
+                    {active ? (
+                        <Button type="button" variant="ghost" size="sm" onClick={clear}>
+                            Xóa chọn
+                        </Button>
+                    ) : null}
+                </div>
+                <div className={cn("grid gap-3", groupCount > 1 ? "md:grid-cols-2" : "")}>
+                    {inboundTypes.length ? (
+                        <DocTypeColumn
+                            title="Chứng từ nhập"
+                            allLabel="Chọn tất cả chứng từ nhập"
+                            checked={inboundChecked}
+                            types={inboundTypes}
+                            selected={selected}
+                            onToggleAll={(checked) => toggleMany(inboundCodes, checked)}
+                            onToggle={toggle}
+                        />
+                    ) : null}
+                    {outboundTypes.length ? (
+                        <DocTypeColumn
+                            title="Chứng từ xuất"
+                            allLabel="Chọn tất cả chứng từ xuất"
+                            checked={outboundChecked}
+                            types={outboundTypes}
+                            selected={selected}
+                            onToggleAll={(checked) => toggleMany(outboundCodes, checked)}
+                            onToggle={toggle}
+                        />
+                    ) : null}
+                </div>
+                {!inboundTypes.length && !outboundTypes.length ? (
+                    <div className="rounded-md border bg-muted/40 px-3 py-4 text-sm text-muted-foreground">
+                        Chưa có danh mục loại chứng từ.
+                    </div>
+                ) : null}
+                <div className="mt-3 flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                        Hủy
+                    </Button>
+                    <Button type="button" onClick={apply}>
+                        Áp dụng
+                    </Button>
+                </div>
+            </PopoverContent>
+        </Popover>
+            {variant === "column" && active ? (
+                <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => onApply(undefined)}
+                    aria-label="Xóa lọc loại chứng từ"
+                >
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            ) : null}
+        </div>
+    )
+}
+
+function DocTypeColumn({
+    title,
+    allLabel,
+    checked,
+    types,
+    selected,
+    onToggleAll,
+    onToggle,
+}: {
+    title: string
+    allLabel: string
+    checked: boolean
+    types: InventoryVoucherType[]
+    selected: string[]
+    onToggleAll: (checked: boolean) => void
+    onToggle: (code: string) => void
+}) {
+    return (
+        <div className="rounded-lg border">
+            <div className="border-b bg-muted/40 px-3 py-2 font-semibold">{title}</div>
+            <label className="flex cursor-pointer items-center gap-2 border-b px-3 py-2 text-sm font-medium">
+                <Checkbox checked={checked} onCheckedChange={(value) => onToggleAll(value === true)} />
+                <span>{allLabel}</span>
+            </label>
+            <div className="max-h-72 overflow-y-auto p-1">
+                {types.map((type) => (
+                    <label
+                        key={type.code}
+                        className="hover:bg-muted flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-sm"
+                    >
+                        <Checkbox
+                            className="mt-0.5"
+                            checked={selected.includes(type.code)}
+                            onCheckedChange={() => onToggle(type.code)}
+                        />
+                        <span className="leading-5">{type.name}</span>
+                    </label>
+                ))}
+            </div>
         </div>
     )
 }

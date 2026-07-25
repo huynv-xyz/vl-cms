@@ -15,6 +15,7 @@ type Props = {
         | "product_code"
         | "product_name"
         | "product_group_name"
+        | "unit"
         | "customer_type"
         | "npp"
         | "hdn_status"
@@ -97,6 +98,7 @@ export function ExportTransactionButton({ keyword, filters }: Props) {
                 product_code: filters.product_code || undefined,
                 product_name: filters.product_name || undefined,
                 product_group_name: filters.product_group_name || undefined,
+                unit: filters.unit || undefined,
                 customer_type: filters.customer_type || undefined,
                 npp: filters.npp || undefined,
                 hdn_status: filters.hdn_status || undefined,

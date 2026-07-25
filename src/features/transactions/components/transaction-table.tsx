@@ -23,6 +23,7 @@ type TransactionFilters = {
     product_code?: string[]
     product_name?: string[]
     product_group_name?: string[]
+    unit?: string[]
     customer_type?: string[]
     npp?: string[]
     hdn_status?: string[]

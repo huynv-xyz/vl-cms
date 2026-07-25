@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { AlertTriangle, CalendarClock, Clock3, Funnel, HelpCircle, Package, TrendingDown, TrendingUp, Warehouse, X } from "lucide-react"
 
-import { listProductNatureLookups } from "@/api/app-lookup"
+import { listProductNatureLookups, listProductUnitLookups } from "@/api/app-lookup"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
 import { ProductMultiFilter } from "@/features/inventory/components/product-multi-filter"
@@ -102,8 +102,6 @@ const NUMBER_FILTER_OPERATORS: Array<{ value: NumberFilterOp; label: string; chi
     { value: "gte", label: "Lớn hơn hoặc bằng (>=)", chipLabel: ">=" },
 ]
 
-const UNIT_OPTIONS = ["Kg", "Lít", "Bao", "Cái", "Thùng", "Mét"]
-
 const LOT_WARNING_OPTIONS = [
     { value: "EXPIRED", label: "Hết hạn" },
     { value: "NEAR_EXPIRY", label: "Cận HSD 6 tháng" },
@@ -130,6 +128,17 @@ function filterValueLabels(value: string | undefined, options: Array<{ value: st
         .join(", ")
 }
 
+function uniqueOptions(options: Array<{ value: string; label: string }>) {
+    const map = new Map<string, { value: string; label: string }>()
+    options.forEach((option) => {
+        const value = option.value.trim()
+        if (value && !map.has(value)) {
+            map.set(value, { value, label: option.label.trim() || value })
+        }
+    })
+    return Array.from(map.values())
+}
+
 export function InventoryLotTable({
     data,
     totals,
@@ -145,6 +154,18 @@ export function InventoryLotTable({
         queryKey: ["inventory-lot-product-nature-lookups"],
         queryFn: () => listProductNatureLookups({ page: 1, size: 200 }),
     })
+    const { data: unitLookupPage } = useQuery({
+        queryKey: ["inventory-lot-product-unit-lookups"],
+        queryFn: () => listProductUnitLookups({ page: 1, size: 200 }),
+    })
+    const unitOptions = useMemo(() => {
+        const selected = splitFilterValues(filters.unit).map((unit) => ({ value: unit, label: unit }))
+        const fromLookup = (unitLookupPage?.items ?? []).map((item) => ({
+            value: item.name || item.code,
+            label: item.name || item.code,
+        }))
+        return uniqueOptions([...selected, ...fromLookup])
+    }, [filters.unit, unitLookupPage])
     const natureOptions = useMemo(
         () => (natureLookupPage?.items || []).map((item: any) => ({ value: item.code, label: item.name || item.code })),
         [natureLookupPage],
@@ -266,7 +287,7 @@ export function InventoryLotTable({
         filters.unit
             ? {
                 key: "unit",
-                label: `ĐVT: ${filterValueLabels(filters.unit, UNIT_OPTIONS.map((unit) => ({ value: unit, label: unit })))}`,
+                label: `ĐVT: ${filterValueLabels(filters.unit, unitOptions)}`,
                 onClear: () => setFilter("unit", undefined),
             }
             : null,
@@ -441,7 +462,7 @@ export function InventoryLotTable({
                                         <ColumnMultiSelectFilter
                                             label="ĐVT"
                                             value={filters.unit}
-                                            options={UNIT_OPTIONS.map((unit) => ({ value: unit, label: unit }))}
+                                            options={unitOptions}
                                             onApply={(value) => setFilter("unit", value)}
                                         />
                                     </Th>
