@@ -10,7 +10,9 @@ import {
     type OpeningStockImportResult,
 } from "@/api/inventory/lot"
 import {
+    importInventoryLedgerPrices,
     importProductionCostObjects,
+    type InventoryLedgerPriceImportResult,
     type ProductionCostObjectImportResult,
 } from "@/api/inventory/ledger"
 import { Button } from "@/components/ui/button"
@@ -88,6 +90,18 @@ const PRODUCTION_COST_OBJECT_REQUIRED_COLUMNS = [
     "Mã đối tượng hoặc Mã VTHH",
 ]
 
+const LEDGER_PRICE_IMPORT_REQUIRED_COLUMNS = [
+    "Loại chứng từ",
+    "Ngày chứng từ",
+    "Số chứng từ",
+    "Mã hàng",
+    "Mã kho",
+    "Số lô",
+    "Nhập",
+    "Xuất",
+    "Đơn giá",
+]
+
 type ImportGuide = {
     title: string
     description: string
@@ -98,11 +112,11 @@ type ImportGuide = {
 
 type ImportResultDialog = {
     title: string
-    result: OpeningStockImportResult | ProductionCostObjectImportResult
-    mode?: "cost-object"
+    result: OpeningStockImportResult | ProductionCostObjectImportResult | InventoryLedgerPriceImportResult
+    mode?: "cost-object" | "ledger-price"
 }
 
-function readCostObjectResult(result: ProductionCostObjectImportResult | null) {
+function readCostObjectResult(result: ProductionCostObjectImportResult | InventoryLedgerPriceImportResult | null) {
     if (!result) {
         return {
             totalRows: 0,
@@ -114,7 +128,7 @@ function readCostObjectResult(result: ProductionCostObjectImportResult | null) {
         }
     }
 
-    const raw = result as ProductionCostObjectImportResult & {
+    const raw = result as (ProductionCostObjectImportResult | InventoryLedgerPriceImportResult) & {
         totalRows?: number
         alreadyCorrect?: number
         skippedDocTypes?: Record<string, number>
@@ -136,6 +150,7 @@ export function LedgerImportButtons() {
     const purchaseFileRef = useRef<HTMLInputElement>(null)
     const vthhDetailFileRef = useRef<HTMLInputElement>(null)
     const productionCostObjectFileRef = useRef<HTMLInputElement>(null)
+    const ledgerPriceFileRef = useRef<HTMLInputElement>(null)
     const [guide, setGuide] = useState<ImportGuide | null>(null)
     const [importResultDialog, setImportResultDialog] = useState<ImportResultDialog | null>(null)
 
@@ -228,10 +243,49 @@ export function LedgerImportButtons() {
         onError: (error: any) => toast.error(error?.message || "Không thể import mã đối tượng SX"),
     })
 
+    const importLedgerPriceMutation = useMutation({
+        mutationFn: importInventoryLedgerPrices,
+        onSuccess: async (res) => {
+            await invalidateInventoryQueries(queryClient)
+            await queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
+
+            const normalized = readCostObjectResult(res)
+            if (normalized.totalRows === 0) {
+                setImportResultDialog({
+                    title: "Lỗi import giá nhập/xuất khác",
+                    result: {
+                        ...res,
+                        failed: 1,
+                        errors: [
+                            {
+                                row: 0,
+                                message: "File không có dòng dữ liệu sau header. Kiểm tra đúng sheet dữ liệu và đúng các tiêu đề cột yêu cầu.",
+                            },
+                        ],
+                    },
+                    mode: "ledger-price",
+                })
+                toast.warning("File import không có dòng dữ liệu để xử lý")
+                return
+            }
+
+            if (res.failed > 0 || res.errors?.length) {
+                setImportResultDialog({ title: "Lỗi import giá nhập/xuất khác", result: res, mode: "ledger-price" })
+                toast.warning("Import giá nhập/xuất khác có lỗi, chưa cập nhật dữ liệu")
+                return
+            }
+
+            setImportResultDialog({ title: "Kết quả import giá nhập/xuất khác", result: res, mode: "ledger-price" })
+            toast.success(`Đã cập nhật ${normalized.updated} dòng giá nhập/xuất khác`)
+        },
+        onError: (error: any) => toast.error(error?.message || "Không thể import giá nhập/xuất khác"),
+    })
+
     const handleOpeningFileChange = (event: ChangeEvent<HTMLInputElement>) => handleFileChange(event, importOpeningMutation.mutate)
     const handlePurchaseFileChange = (event: ChangeEvent<HTMLInputElement>) => handleFileChange(event, importPurchaseMutation.mutate)
     const handleVthhDetailFileChange = (event: ChangeEvent<HTMLInputElement>) => handleFileChange(event, importVthhDetailMutation.mutate)
     const handleProductionCostObjectFileChange = (event: ChangeEvent<HTMLInputElement>) => handleFileChange(event, importProductionCostObjectMutation.mutate)
+    const handleLedgerPriceFileChange = (event: ChangeEvent<HTMLInputElement>) => handleFileChange(event, importLedgerPriceMutation.mutate)
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>, mutate: (file: File) => void) => {
         const file = event.target.files?.[0]
@@ -298,6 +352,22 @@ export function LedgerImportButtons() {
         })
     }
 
+    const openLedgerPriceFilePicker = () => {
+        setGuide({
+            title: "Import giá nhập/xuất khác",
+            description: "File này chỉ cập nhật đơn giá và thành tiền cho các dòng Sổ kho đã có, không tạo giao dịch mới.",
+            columns: LEDGER_PRICE_IMPORT_REQUIRED_COLUMNS,
+            notes: [
+                "Chỉ xử lý các loại chứng từ: Hàng mua trả lại - Giảm trừ công nợ, Nhập kho khác, Nhập kho từ hàng bán trả lại, Xuất chuyển kho nội bộ, Xuất kho khác.",
+                "Dòng nhập lấy số lượng ở cột Nhập; dòng xuất lấy số lượng ở cột Xuất. Riêng Xuất chuyển kho nội bộ có thể có cả dòng Nhập và dòng Xuất tương ứng.",
+                "Ngày chứng từ bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy.",
+                "Hệ thống chỉ cập nhật khi đơn giá hiện tại trong Sổ kho đang bằng 0. Nếu dòng đã có đơn giá khác, import sẽ báo lỗi và rollback toàn bộ.",
+                "Không cập nhật giá trong Tồn theo lô; chỉ cập nhật inventory_ledger và chi tiết phiếu nếu dòng sổ kho có liên kết phiếu.",
+            ],
+            inputRef: ledgerPriceFileRef,
+        })
+    }
+
     const chooseFileFromGuide = () => {
         const inputRef = guide?.inputRef
         setGuide(null)
@@ -315,8 +385,8 @@ export function LedgerImportButtons() {
     }
 
     const result = importResultDialog?.result
-    const costObjectResult = importResultDialog?.mode === "cost-object"
-        ? result as ProductionCostObjectImportResult
+    const costObjectResult = importResultDialog?.mode === "cost-object" || importResultDialog?.mode === "ledger-price"
+        ? result as ProductionCostObjectImportResult | InventoryLedgerPriceImportResult
         : null
     const normalizedCostObjectResult = readCostObjectResult(costObjectResult)
 
@@ -350,6 +420,13 @@ export function LedgerImportButtons() {
                 className="hidden"
                 onChange={handleProductionCostObjectFileChange}
             />
+            <input
+                ref={ledgerPriceFileRef}
+                type="file"
+                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="hidden"
+                onChange={handleLedgerPriceFileChange}
+            />
 
             <Button size="sm" variant="outline" disabled={importOpeningMutation.isPending} onClick={openOpeningFilePicker}>
                 <Upload className="mr-2 h-4 w-4" />
@@ -371,6 +448,15 @@ export function LedgerImportButtons() {
             >
                 <Upload className="mr-2 h-4 w-4" />
                 {importProductionCostObjectMutation.isPending ? "Đang import..." : "Import mã đối tượng SX"}
+            </Button>
+            <Button
+                size="sm"
+                variant="outline"
+                disabled={importLedgerPriceMutation.isPending}
+                onClick={openLedgerPriceFilePicker}
+            >
+                <Upload className="mr-2 h-4 w-4" />
+                {importLedgerPriceMutation.isPending ? "Đang import..." : "Import giá nhập/xuất khác"}
             </Button>
 
             <Dialog open={!!guide} onOpenChange={(open) => !open && setGuide(null)}>

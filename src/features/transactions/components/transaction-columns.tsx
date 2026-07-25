@@ -1,8 +1,11 @@
 import { type ColumnDef } from "@tanstack/react-table"
+import { useQuery } from "@tanstack/react-query"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { listProductUnitLookups } from "@/api/app-lookup"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { DataTableColumnHeader } from "@/components/table/column-header"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
     Select,
     SelectContent,
@@ -38,6 +41,7 @@ export type TransactionColumnFilters = {
     product_code?: string[]
     product_name?: string[]
     product_group_name?: string[]
+    unit?: string[]
     customer_type?: string[]
     npp?: string[]
     hdn_status?: string[]
@@ -47,6 +51,7 @@ export type TransactionColumnFilters = {
 }
 
 type FilterableColumnKey = "customer_code" | "customer_name" | "product_code" | "product_name"
+type ColumnMultiFilterKey = FilterableColumnKey | "unit"
 
 function textColumn(
     accessorKey: TextColumnKey,
@@ -308,7 +313,7 @@ export function buildTransactionColumns(
         actualQty: 0,
     },
 ): ColumnDef<Transaction>[] {
-    const setColumnFilter = (key: FilterableColumnKey, value?: string[]) => {
+    const setColumnFilter = (key: ColumnMultiFilterKey, value?: string[]) => {
         onFiltersChange({
             ...filters,
             [key]: value?.length ? value : undefined,
@@ -342,7 +347,13 @@ export function buildTransactionColumns(
         textColumn("customer_address", "Địa chỉ", 300),
         textColumn("product_code", "Mã hàng", 180, () => filterHeader("product_code", "Mã hàng")),
         textColumn("product_name", "Tên hàng trên chứng từ", 300, () => filterHeader("product_name", "Tên hàng trên chứng từ")),
-        textColumn("unit", "Đơn vị chính (ĐVC)", 140),
+        textColumn("unit", "Đơn vị chính (ĐVC)", 140, () => (
+            <UnitColumnFilterHeader
+                title="Đơn vị chính (ĐVC)"
+                value={filters.unit}
+                onChange={(value) => setColumnFilter("unit", value)}
+            />
+        )),
         numberColumn(
             "sale_qty",
             "Tổng SL bán theo ĐVC",
@@ -625,6 +636,7 @@ function buildOptionParams(filters: TransactionColumnFilters, currentField: Filt
         customer_name: currentField === "customer_name" ? undefined : encodeMulti(filters.customer_name),
         product_code: currentField === "product_code" ? undefined : encodeMulti(filters.product_code),
         product_name: currentField === "product_name" ? undefined : encodeMulti(filters.product_name),
+        unit: encodeMulti(filters.unit),
         product_group_name: encodeMulti(filters.product_group_name),
         customer_type: encodeMulti(filters.customer_type),
         hdn_status: encodeMulti(filters.hdn_status),
@@ -636,6 +648,129 @@ function buildOptionParams(filters: TransactionColumnFilters, currentField: Filt
 
 function encodeMulti(value?: string[]) {
     return value?.length ? value.join(",") : undefined
+}
+
+function UnitColumnFilterHeader({
+    title,
+    value,
+    onChange,
+}: {
+    title: string
+    value?: string[]
+    onChange: (value?: string[]) => void
+}) {
+    const selected = useMemo(() => value ?? [], [value])
+    const [open, setOpen] = useState(false)
+    const [draftSelected, setDraftSelected] = useState<string[]>(selected)
+    const active = selected.length > 0
+    const { data: unitLookupPage } = useQuery({
+        queryKey: ["transactions-product-unit-lookups"],
+        queryFn: () => listProductUnitLookups({ page: 1, size: 200 }),
+    })
+
+    const options = useMemo(() => {
+        const fromSelected = selected.map((unit) => ({ value: unit, label: unit }))
+        const fromLookup = (unitLookupPage?.items ?? []).map((item) => ({
+            value: item.name || item.code,
+            label: item.name || item.code,
+        }))
+        return uniqueOptions([...fromSelected, ...fromLookup])
+    }, [selected, unitLookupPage])
+
+    useEffect(() => {
+        if (open) {
+            setDraftSelected(selected)
+        }
+    }, [open, selected])
+
+    const toggle = (optionValue: string) => {
+        setDraftSelected((current) =>
+            current.includes(optionValue)
+                ? current.filter((item) => item !== optionValue)
+                : [...current, optionValue],
+        )
+    }
+
+    const apply = () => {
+        onChange(draftSelected.length ? draftSelected : undefined)
+        setOpen(false)
+    }
+
+    const clear = () => {
+        setDraftSelected([])
+        onChange(undefined)
+        setOpen(false)
+    }
+
+    return (
+        <div className="flex min-w-0 items-center justify-center gap-1.5">
+            <span className="truncate">{title}</span>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className={cn(
+                            "inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent",
+                            active ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                        )}
+                        aria-label={`Lọc ${title}`}
+                    >
+                        <Funnel className="h-4 w-4" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-64 p-2">
+                    <div className="px-2 pb-2 font-semibold text-foreground">Lọc {title}</div>
+                    <div className="max-h-[320px] space-y-1 overflow-y-auto">
+                        {options.length ? options.map((option) => (
+                            <label
+                                key={option.value}
+                                className="hover:bg-muted flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                            >
+                                <Checkbox
+                                    checked={draftSelected.includes(option.value)}
+                                    onCheckedChange={() => toggle(option.value)}
+                                />
+                                <span className="truncate">{option.label}</span>
+                            </label>
+                        )) : (
+                            <div className="px-2 py-3 text-sm text-muted-foreground">
+                                Chưa có danh mục đơn vị tính.
+                            </div>
+                        )}
+                    </div>
+                    <div className="mt-3 flex justify-end gap-2 border-t pt-2">
+                        <Button type="button" variant="outline" size="sm" onClick={clear}>
+                            Xóa
+                        </Button>
+                        <Button type="button" size="sm" onClick={apply}>
+                            Áp dụng
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
+            {active ? (
+                <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => onChange(undefined)}
+                    aria-label={`Xóa lọc ${title}`}
+                >
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            ) : null}
+        </div>
+    )
+}
+
+function uniqueOptions(options: Option[]) {
+    const map = new Map<string, Option>()
+    options.forEach((option) => {
+        const value = option.value.trim()
+        if (value && !map.has(value)) {
+            map.set(value, { value, label: option.label.trim() || value })
+        }
+    })
+    return Array.from(map.values())
 }
 
 function formatNumber(value: number) {

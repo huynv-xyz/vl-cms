@@ -56,3 +56,6 @@ export type InventorySummaryOption = { value: string; label: string }
 
 export const listInventorySummaryNatureOptions = () =>
     apiGet<InventorySummaryOption[]>("/inventory/summary/nature-options")
+
+export const listInventorySummaryQuoteNameOptions = () =>
+    apiGet<InventorySummaryOption[]>("/inventory/summary/quote-name-options")

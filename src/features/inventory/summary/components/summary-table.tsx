@@ -17,8 +17,12 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { listProductNatureLookups } from "@/api/app-lookup"
-import { listInventorySummarys, type SummaryListParams } from "@/api/inventory/summary"
+import { listProductNatureLookups, listProductUnitLookups } from "@/api/app-lookup"
+import {
+    listInventorySummaryQuoteNameOptions,
+    listInventorySummarys,
+    type SummaryListParams,
+} from "@/api/inventory/summary"
 import { listPhysicalWarehouses } from "@/api/physical-warehouse"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
@@ -110,8 +114,6 @@ const NUMBER_FILTER_OPERATORS: Array<{ value: NumberFilterOp; label: string; chi
     { value: "gt", label: "Lớn hơn (>)", chipLabel: ">" },
     { value: "gte", label: "Lớn hơn hoặc bằng (>=)", chipLabel: ">=" },
 ]
-
-const UNIT_OPTIONS = ["Kg", "Lít", "Bao", "Cái", "Thùng", "Mét"]
 
 const SUMMARY_STATUS_OPTIONS = [
     { value: "NEGATIVE", label: "Âm tồn" },
@@ -217,6 +219,22 @@ export function SummaryTable({
         queryKey: ["inventory-summary-product-nature-lookups"],
         queryFn: () => listProductNatureLookups({ page: 1, size: 200 }),
     })
+    const { data: unitLookupPage } = useQuery({
+        queryKey: ["inventory-summary-product-unit-lookups"],
+        queryFn: () => listProductUnitLookups({ page: 1, size: 200 }),
+    })
+    const { data: productQuoteNames } = useQuery({
+        queryKey: ["inventory-summary-product-quote-names"],
+        queryFn: listInventorySummaryQuoteNameOptions,
+    })
+    const unitOptions = useMemo(() => {
+        const selected = splitFilterValues(filters.unit).map((unit) => ({ value: unit, label: unit }))
+        const fromLookup = (unitLookupPage?.items ?? []).map((item) => ({
+            value: item.name || item.code,
+            label: item.name || item.code,
+        }))
+        return uniqueOptions([...selected, ...fromLookup])
+    }, [filters.unit, unitLookupPage])
     const natureOptions = useMemo(
         () =>
             (natureLookupPage?.items ?? []).map((item) => ({
@@ -226,6 +244,20 @@ export function SummaryTable({
         [natureLookupPage]
     )
     const natureLabelMap = useMemo(() => new Map(natureOptions.map((item) => [item.value, item.label])), [natureOptions])
+    const quoteOptions = useMemo(() => {
+        const selected = splitFilterValues(filters.quote_text).map((name) => ({ value: name, label: name }))
+        const fromProducts = (productQuoteNames ?? [])
+            .map((item) => ({
+                value: item.value?.trim(),
+                label: item.label?.trim() || item.value?.trim(),
+            }))
+            .filter((item): item is { value: string; label: string } => Boolean(item.value && item.label))
+        const fromRows = data
+            .map((item) => item.quote_name?.trim())
+            .filter(Boolean)
+            .map((name) => ({ value: name as string, label: name as string }))
+        return uniqueOptions([...selected, ...fromProducts, ...fromRows]).sort((a, b) => a.label.localeCompare(b.label, "vi"))
+    }, [data, filters.quote_text, productQuoteNames])
 
     const summaryTotals = normalizeTotals(totals)
     const today = todayYmd()
@@ -350,14 +382,14 @@ export function SummaryTable({
         filters.quote_text
             ? {
                 key: "quote_text",
-                label: textFilterDescription("Nhóm hàng", filters.quote_text_op, filters.quote_text),
+                label: `Nhóm hàng: ${filterValueLabels(filters.quote_text, quoteOptions)}`,
                 onClear: () => clearTextFilter("quote_text", "quote_text_op"),
             }
             : null,
         filters.unit
             ? {
                 key: "unit",
-                label: `ĐVT: ${filterValueLabels(filters.unit, UNIT_OPTIONS.map((unit) => ({ value: unit, label: unit })))}`,
+                label: `ĐVT: ${filterValueLabels(filters.unit, unitOptions)}`,
                 onClear: () => setFilter("unit", undefined),
             }
             : null,
@@ -565,7 +597,7 @@ export function SummaryTable({
                                         <ColumnMultiSelectFilter
                                             label="ĐVT"
                                             value={filters.unit}
-                                            options={UNIT_OPTIONS.map((unit) => ({ value: unit, label: unit }))}
+                                            options={unitOptions}
                                             onApply={(value) => setFilter("unit", value)}
                                         />
                                     </Th>
@@ -604,12 +636,17 @@ export function SummaryTable({
                                         )}
                                     </Th>
                                     <Th rowSpan={showValues ? 2 : 1}>
-                                        <ColumnTextFilter
+                                        <ColumnSearchMultiSelectFilter
                                             label="Nhóm hàng"
                                             value={filters.quote_text}
-                                            op={filters.quote_text_op}
-                                            onApply={(value, op) => setTextFilter("quote_text", "quote_text_op", value, op)}
-                                            onClear={() => clearTextFilter("quote_text", "quote_text_op")}
+                                            options={quoteOptions}
+                                            onApply={(value) =>
+                                                onFiltersChange({
+                                                    ...filters,
+                                                    quote_text: value,
+                                                    quote_text_op: value ? "equals" : undefined,
+                                                })
+                                            }
                                         />
                                     </Th>
                                     <Th rowSpan={showValues ? 2 : 1}>
@@ -1435,6 +1472,125 @@ function ColumnMultiSelectFilter({
     )
 }
 
+function ColumnSearchMultiSelectFilter({
+    label,
+    value,
+    options,
+    onApply,
+}: {
+    label: string
+    value?: string
+    options: Array<{ value: string; label: string }>
+    onApply: (value: string | undefined) => void
+}) {
+    const selectedValues = useMemo(() => splitFilterValues(value), [value])
+    const [open, setOpen] = useState(false)
+    const [keyword, setKeyword] = useState("")
+    const [draftValues, setDraftValues] = useState<string[]>(selectedValues)
+    const active = selectedValues.length > 0
+    const normalizedKeyword = normalizeText(keyword)
+
+    useEffect(() => {
+        if (open) {
+            setDraftValues(selectedValues)
+            setKeyword("")
+        }
+    }, [open, selectedValues])
+
+    const visibleOptions = useMemo(() => {
+        if (!normalizedKeyword) return options
+        return options.filter((item) => normalizeText(`${item.label} ${item.value}`).includes(normalizedKeyword))
+    }, [normalizedKeyword, options])
+
+    const toggleValue = (nextValue: string) => {
+        setDraftValues((current) =>
+            current.includes(nextValue)
+                ? current.filter((item) => item !== nextValue)
+                : [...current, nextValue],
+        )
+    }
+
+    return (
+        <div className="flex items-center justify-center gap-1">
+            <span>{label}</span>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-6 w-6", active && "bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800")}
+                    >
+                        <Funnel className="h-3.5 w-3.5" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-96 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="text-sm font-semibold text-foreground">Lọc {label.toLowerCase()}</div>
+                        {draftValues.length > 0 ? (
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setDraftValues([])}>
+                                Xóa chọn
+                            </Button>
+                        ) : null}
+                    </div>
+                    <Input
+                        autoFocus
+                        value={keyword}
+                        onChange={(event) => setKeyword(event.target.value)}
+                        placeholder={`Tìm ${label.toLowerCase()}`}
+                        className="mb-2 h-9"
+                    />
+                    <div className="max-h-72 space-y-1 overflow-auto pr-1">
+                        {visibleOptions.map((item) => (
+                            <label
+                                key={item.value}
+                                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted"
+                            >
+                                <Checkbox
+                                    checked={draftValues.includes(item.value)}
+                                    onCheckedChange={() => toggleValue(item.value)}
+                                />
+                                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                            </label>
+                        ))}
+                        {visibleOptions.length === 0 ? (
+                            <div className="px-2 py-3 text-sm text-muted-foreground">Không có nhóm hàng phù hợp.</div>
+                        ) : null}
+                    </div>
+                    <div className="mt-3 flex justify-end gap-2 border-t pt-3">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                setDraftValues(selectedValues)
+                                setOpen(false)
+                            }}
+                        >
+                            Hủy
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                                onApply(joinFilterValues(draftValues))
+                                setOpen(false)
+                            }}
+                        >
+                            Áp dụng
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
+            {active && (
+                <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => onApply(undefined)}>
+                    <X className="h-3 w-3" />
+                </Button>
+            )}
+        </div>
+    )
+}
+
 function FilterOptionButton({
     active,
     onClick,
@@ -1478,6 +1634,26 @@ function filterValueLabels(value: string | undefined, options: Array<{ value: st
     return selectedValues
         .map((item) => options.find((option) => option.value === item)?.label || item)
         .join(", ")
+}
+
+function uniqueOptions(options: Array<{ value: string; label: string }>) {
+    const seen = new Set<string>()
+    const result: Array<{ value: string; label: string }> = []
+    for (const option of options) {
+        const key = option.value.trim()
+        if (!key || seen.has(key)) continue
+        seen.add(key)
+        result.push({ value: key, label: option.label.trim() || key })
+    }
+    return result
+}
+
+function normalizeText(value: string) {
+    return value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim()
 }
 
 function SummaryMetric({
