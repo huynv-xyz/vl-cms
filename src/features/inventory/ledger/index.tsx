@@ -1,11 +1,12 @@
 ﻿import type React from "react"
 import { useState } from "react"
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Package, TrendingDown, TrendingUp, Warehouse, type LucideIcon } from "lucide-react"
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronDown, Package, PackageOpen, RefreshCw, TrendingDown, TrendingUp, Warehouse, type LucideIcon } from "lucide-react"
 
 import { listInventoryLedgerReport } from "@/api/inventory/ledger"
 import { PageSection } from "@/components/page-section"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { useUrlListFilters } from "@/hooks/use-url-list-filters"
 import { useUrlPagination } from "@/hooks/use-url-pagination"
@@ -33,7 +34,7 @@ export function InventoryLedgerReportPage({
     const search = route.useSearch()
     const navigate = route.useNavigate()
     const { pagination, setPagination } = useUrlPagination(search, navigate)
-    const [voucherDialog, setVoucherDialog] = useState<"in" | "out" | "transfer" | null>(null)
+    const [voucherDialog, setVoucherDialog] = useState<"in" | "out" | "transfer" | "repack" | "conversion" | null>(null)
     const direction = mode === "in" ? "IN" : mode === "out" ? "OUT" : undefined
     const showValues = mode === "all"
     const pageTitle = mode === "in" ? "Nhập kho" : mode === "out" ? "Xuất kho" : "Sổ kho"
@@ -75,8 +76,10 @@ export function InventoryLedgerReportPage({
             "unit",
             "lot_text",
             "lot_text_op",
+            "time_sort",
         ],
     )
+    const timeSort = singleFilters.time_sort === "desc" ? "desc" : "asc"
 
     const { data, isLoading, error } = usePaginatedList(
         [
@@ -109,6 +112,7 @@ export function InventoryLedgerReportPage({
             singleFilters.unit,
             singleFilters.lot_text,
             singleFilters.lot_text_op,
+            timeSort,
             direction,
             showValues,
         ],
@@ -142,6 +146,7 @@ export function InventoryLedgerReportPage({
             unit: requestFilters.unit,
             lot_text: requestFilters.lot_text,
             lot_text_op: requestFilters.lot_text_op,
+            time_sort: timeSort,
             direction,
             show_values: showValues,
         },
@@ -187,27 +192,39 @@ export function InventoryLedgerReportPage({
                             unit: requestFilters.unit,
                             lot_text: requestFilters.lot_text,
                             lot_text_op: requestFilters.lot_text_op,
+                            time_sort: timeSort,
                             direction,
                             show_values: showValues,
                         }}
                     />
-                    {mode !== "out" ? (
-                        <Button size="sm" variant="outline" onClick={() => setVoucherDialog("in")}>
-                            <ArrowDownLeft className="mr-2 h-4 w-4 text-emerald-600" />
-                            Nhập hàng
-                        </Button>
-                    ) : null}
-                    {mode !== "in" ? (
-                        <Button size="sm" variant="outline" onClick={() => setVoucherDialog("out")}>
-                            <ArrowUpRight className="mr-2 h-4 w-4 text-rose-600" />
-                            Xuất hàng
-                        </Button>
-                    ) : null}
-                    {mode !== "in" ? (
-                        <Button size="sm" variant="outline" onClick={() => setVoucherDialog("transfer")}>
-                            <ArrowLeftRight className="mr-2 h-4 w-4 text-blue-600" />
-                            Chuyển kho
-                        </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline">
+                                <PackageOpen className="mr-2 h-4 w-4" />
+                                Giao dịch kho
+                                <ChevronDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52">
+                            {mode !== "out" ? <DropdownMenuItem onSelect={() => setVoucherDialog("in")}><ArrowDownLeft className="text-emerald-600" />Nhập hàng</DropdownMenuItem> : null}
+                            {mode !== "in" ? <DropdownMenuItem onSelect={() => setVoucherDialog("out")}><ArrowUpRight className="text-rose-600" />Xuất hàng</DropdownMenuItem> : null}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    {mode === "all" ? (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button size="sm" variant="outline">
+                                    <RefreshCw className="mr-2 h-4 w-4 text-blue-600" />
+                                    Tiện ích kho
+                                    <ChevronDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuItem onSelect={() => setVoucherDialog("transfer")}><ArrowLeftRight className="text-blue-600" />Chuyển kho</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setVoucherDialog("repack")}><Package className="text-amber-600" />Sang bao</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setVoucherDialog("conversion")}><RefreshCw className="text-violet-600" />Chuyển mã</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     ) : null}
                 </div>
             }
@@ -251,6 +268,7 @@ export function InventoryLedgerReportPage({
                             unit: singleFilters.unit,
                             lot_text: singleFilters.lot_text,
                             lot_text_op: singleFilters.lot_text_op,
+                            time_sort: timeSort,
                         }}
                         onFiltersChange={(next) =>
                         {
@@ -282,6 +300,7 @@ export function InventoryLedgerReportPage({
                                 unit: next.unit,
                                 lot_text: next.lot_text,
                                 lot_text_op: next.lot_text_op,
+                                time_sort: next.time_sort === "desc" ? "desc" : "asc",
                             })
                         }}
                     />
@@ -300,6 +319,16 @@ export function InventoryLedgerReportPage({
                         mode="transfer"
                         open={voucherDialog === "transfer"}
                         onOpenChange={(open) => setVoucherDialog(open ? "transfer" : null)}
+                    />
+                    <LedgerVoucherDialog
+                        mode="repack"
+                        open={voucherDialog === "repack"}
+                        onOpenChange={(open) => setVoucherDialog(open ? "repack" : null)}
+                    />
+                    <LedgerVoucherDialog
+                        mode="conversion"
+                        open={voucherDialog === "conversion"}
+                        onOpenChange={(open) => setVoucherDialog(open ? "conversion" : null)}
                     />
                 </div>
             )}

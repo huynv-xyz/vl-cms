@@ -20,6 +20,7 @@ export type InventorySummary = {
     outbound_value: number
     closing_quantity: number
     closing_value: number
+    cost_period_label?: string | null
 }
 
 export type InventorySummaryTotals = {

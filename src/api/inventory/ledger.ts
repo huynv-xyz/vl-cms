@@ -36,6 +36,7 @@ export type InventoryLedgerListParams = {
     unit?: string
     lot_text?: string
     lot_text_op?: string
+    time_sort?: "asc" | "desc" | string
     direction?: "IN" | "OUT" | string
     show_values?: boolean
 }
@@ -207,6 +208,51 @@ export function applyPurchaseQuantityChange(ledgerId: number, newQuantity: numbe
     })
 }
 
+export type PurchasePostingDateTimeChangeResult = {
+    valid: boolean
+    applied: boolean
+    message: string
+    ledger_id: number
+    voucher_id?: number | null
+    doc_no?: string | null
+    doc_type?: string | null
+    doc_type_name?: string | null
+    old_posting_date?: string | null
+    old_posting_time?: string | null
+    new_posting_date?: string | null
+    new_posting_time?: string | null
+    date_changed?: boolean
+    time_changed?: boolean
+    line_count?: number
+    affected_lot_count?: number
+    lines?: Array<{
+        ledger_id?: number
+        product_code?: string | null
+        product_name?: string | null
+        warehouse_code?: string | null
+        warehouse_name?: string | null
+        lot_no?: string | null
+        quantity?: number
+    }>
+    errors: string[]
+    warnings: string[]
+    changes: Record<string, number>
+}
+
+export function checkPurchasePostingDateTimeChange(ledgerId: number, newPostingDate: string, newPostingTime: string) {
+    return apiPost<PurchasePostingDateTimeChangeResult>(`/inventory/ledger/${ledgerId}/purchase-posting-datetime-change/check`, {
+        newPostingDate,
+        newPostingTime,
+    })
+}
+
+export function applyPurchasePostingDateTimeChange(ledgerId: number, newPostingDate: string, newPostingTime: string) {
+    return apiPost<PurchasePostingDateTimeChangeResult>(`/inventory/ledger/${ledgerId}/purchase-posting-datetime-change/apply`, {
+        newPostingDate,
+        newPostingTime,
+    })
+}
+
 export async function importProductionCostObjects(file: File) {
     const formData = new FormData()
     formData.append("file", file)
@@ -223,6 +269,16 @@ export async function importInventoryLedgerPrices(file: File) {
 
     return apiPostMultipart<InventoryLedgerPriceImportResult>(
         "/inventory/ledger/prices/import",
+        formData
+    )
+}
+
+export async function importPurchaseBasePrices(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<InventoryLedgerPriceImportResult>(
+        "/inventory/ledger/purchase-base-prices/import",
         formData
     )
 }

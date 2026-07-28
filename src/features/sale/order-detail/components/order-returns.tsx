@@ -48,6 +48,17 @@ export function OrderReturns({ order, returns }: any) {
     const canChangeDoneStatus = permissions.some(
         (p: any) => p.module === "sales.returns" && p.action === "status.after-done"
     )
+    const canCreateReturn = permissions.some(
+        (p: any) => p.module === "sales.returns" && p.action === "create"
+    )
+    const canUpdateReturn = permissions.some(
+        (p: any) => p.module === "sales.returns" && p.action === "update"
+    )
+    const canUpdateReturnStatus = permissions.some(
+        (p: any) =>
+            p.module === "sales.returns" &&
+            (p.action === "status.update" || p.action === "update")
+    )
 
     const [createOpen, setCreateOpen] = useState(false)
     const [editRow, setEditRow] = useState<any>(null)
@@ -93,7 +104,7 @@ export function OrderReturns({ order, returns }: any) {
                     </div>
                 </div>
 
-                {isEditable && (
+                {isEditable && canCreateReturn && (
                     <Button size="sm" onClick={() => setCreateOpen(true)}>
                         <Plus className="mr-1.5 h-4 w-4" />
                         Tạo phiếu trả
@@ -109,8 +120,10 @@ export function OrderReturns({ order, returns }: any) {
             ) : (
                 <div className="space-y-3 p-4">
                     {returns.map((r: any) => {
-                        const canChangeStatus = isEditable || (r.status === "DONE" && canChangeDoneStatus)
-                        const isRowLocked = !isEditable || r.status === "DONE"
+                        const canChangeStatus =
+                            (isEditable && canUpdateReturnStatus) ||
+                            (r.status === "DONE" && canChangeDoneStatus)
+                        const isRowLocked = !isEditable || r.status === "DONE" || !canUpdateReturn
                         const totalQty = (r.items || []).reduce(
                             (s: number, i: any) => s + Number(i.quantity || 0),
                             0
@@ -212,7 +225,7 @@ export function OrderReturns({ order, returns }: any) {
             )}
 
             {/* CREATE */}
-            {isEditable && (
+            {isEditable && canCreateReturn && (
                 <CreateReturnDialog
                     order={order}
                     open={createOpen}

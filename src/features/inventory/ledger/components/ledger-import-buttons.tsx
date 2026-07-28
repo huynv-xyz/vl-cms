@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent, type RefObject } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Copy, Upload } from "lucide-react"
+import { ChevronDown, Copy, Database, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -12,10 +12,17 @@ import {
 import {
     importInventoryLedgerPrices,
     importProductionCostObjects,
+    importPurchaseBasePrices,
     type InventoryLedgerPriceImportResult,
     type ProductionCostObjectImportResult,
 } from "@/api/inventory/ledger"
 import { Button } from "@/components/ui/button"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
     Dialog,
     DialogContent,
@@ -49,8 +56,6 @@ const PURCHASE_STOCK_REQUIRED_COLUMNS = [
     "Số lượng trả lại",
     "Mã kho",
     "Đơn giá",
-    "Phí hàng về kho",
-    "Đơn giá bao gồm PLH",
     "Diễn giải",
     "Tên nhà cung cấp",
     "TK Nợ",
@@ -110,13 +115,15 @@ type ImportGuide = {
     inputRef: RefObject<HTMLInputElement | null>
 }
 
+type ImportResult = OpeningStockImportResult | ProductionCostObjectImportResult | InventoryLedgerPriceImportResult
+
 type ImportResultDialog = {
     title: string
-    result: OpeningStockImportResult | ProductionCostObjectImportResult | InventoryLedgerPriceImportResult
-    mode?: "cost-object" | "ledger-price"
+    result: ImportResult
+    mode?: "opening" | "cost-object" | "ledger-price" | "purchase-base-price"
 }
 
-function readCostObjectResult(result: ProductionCostObjectImportResult | InventoryLedgerPriceImportResult | null) {
+function readStructuredResult(result: ProductionCostObjectImportResult | InventoryLedgerPriceImportResult | null) {
     if (!result) {
         return {
             totalRows: 0,
@@ -128,7 +135,7 @@ function readCostObjectResult(result: ProductionCostObjectImportResult | Invento
         }
     }
 
-    const raw = result as (ProductionCostObjectImportResult | InventoryLedgerPriceImportResult) & {
+    const raw = result as ProductionCostObjectImportResult & {
         totalRows?: number
         alreadyCorrect?: number
         skippedDocTypes?: Record<string, number>
@@ -148,6 +155,7 @@ export function LedgerImportButtons() {
     const queryClient = useQueryClient()
     const openingFileRef = useRef<HTMLInputElement>(null)
     const purchaseFileRef = useRef<HTMLInputElement>(null)
+    const purchaseBasePriceFileRef = useRef<HTMLInputElement>(null)
     const vthhDetailFileRef = useRef<HTMLInputElement>(null)
     const productionCostObjectFileRef = useRef<HTMLInputElement>(null)
     const ledgerPriceFileRef = useRef<HTMLInputElement>(null)
@@ -158,13 +166,12 @@ export function LedgerImportButtons() {
         mutationFn: importOpeningStock,
         onSuccess: async (res) => {
             await invalidateInventoryQueries(queryClient)
-            setImportResultDialog(res.failed > 0 ? { title: "Lỗi import tồn đầu kỳ", result: res } : null)
-
             if (res.failed > 0) {
+                setImportResultDialog({ title: "Lỗi import tồn đầu kỳ", result: res, mode: "opening" })
                 toast.warning(`Import tồn đầu kỳ xong ${res.success} dòng, lỗi ${res.failed} dòng`)
                 return
             }
-
+            setImportResultDialog(null)
             toast.success(`Đã import ${res.success} dòng tồn đầu kỳ`)
         },
         onError: (error: any) => toast.error(error?.message || "Không thể import tồn đầu kỳ"),
@@ -174,31 +181,65 @@ export function LedgerImportButtons() {
         mutationFn: importPurchaseStock,
         onSuccess: async (res) => {
             await invalidateInventoryQueries(queryClient)
-
             const skippedText = res.skipped ? `, bỏ qua ${res.skipped} dòng` : ""
             if (res.failed > 0) {
-                setImportResultDialog({ title: "Lỗi import mua hàng", result: res })
+                setImportResultDialog({ title: "Lỗi import mua hàng", result: res, mode: "opening" })
                 toast.warning(`Import mua hàng xong ${res.success} dòng${skippedText}, lỗi ${res.failed} dòng`)
                 return
             }
-
             setImportResultDialog(null)
             toast.success(`Đã import ${res.success} dòng mua hàng${skippedText}`)
         },
         onError: (error: any) => toast.error(error?.message || "Không thể import mua hàng"),
     })
 
+    const importPurchaseBasePriceMutation = useMutation({
+        mutationFn: importPurchaseBasePrices,
+        onSuccess: async (res) => {
+            await invalidateInventoryQueries(queryClient)
+            await queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
+            const normalized = readStructuredResult(res)
+
+            if (normalized.totalRows === 0) {
+                setImportResultDialog({
+                    title: "Lỗi sửa đơn giá vốn",
+                    result: {
+                        ...res,
+                        failed: 1,
+                        errors: [
+                            {
+                                row: 0,
+                                message: "File không có dòng dữ liệu sau header. Kiểm tra đúng sheet dữ liệu và đúng tiêu đề cột yêu cầu.",
+                            },
+                        ],
+                    },
+                    mode: "purchase-base-price",
+                })
+                toast.warning("File import không có dòng dữ liệu để xử lý")
+                return
+            }
+
+            if (res.failed > 0 || res.errors?.length) {
+                setImportResultDialog({ title: "Lỗi sửa đơn giá vốn", result: res, mode: "purchase-base-price" })
+                toast.warning("Sửa đơn giá vốn có lỗi, chưa cập nhật dữ liệu")
+                return
+            }
+
+            setImportResultDialog({ title: "Kết quả sửa đơn giá vốn", result: res, mode: "purchase-base-price" })
+            toast.success(`Đã cập nhật ${normalized.updated} dòng đơn giá vốn`)
+        },
+        onError: (error: any) => toast.error(error?.message || "Không thể sửa đơn giá vốn"),
+    })
+
     const importVthhDetailMutation = useMutation({
         mutationFn: importVthhDetail,
         onSuccess: async (res) => {
             await invalidateInventoryQueries(queryClient)
-
             if (res.failed > 0) {
-                setImportResultDialog({ title: "Lỗi import chi tiết VTHH", result: res })
+                setImportResultDialog({ title: "Lỗi import chi tiết VTHH", result: res, mode: "opening" })
                 toast.warning(`Import chi tiết VTHH xong ${res.success} dòng, lỗi ${res.failed} dòng`)
                 return
             }
-
             setImportResultDialog(null)
             toast.success(`Đã import ${res.success} dòng chi tiết VTHH`)
         },
@@ -210,35 +251,7 @@ export function LedgerImportButtons() {
         onSuccess: async (res) => {
             await invalidateInventoryQueries(queryClient)
             await queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
-
-            const normalized = readCostObjectResult(res)
-            if (normalized.totalRows === 0) {
-                setImportResultDialog({
-                    title: "Lỗi import mã đối tượng SX",
-                    result: {
-                        ...res,
-                        failed: 1,
-                        errors: [
-                            {
-                                row: 0,
-                                message: "File không có dòng dữ liệu sau header. Kiểm tra đúng sheet dữ liệu và đúng các tiêu đề cột yêu cầu.",
-                            },
-                        ],
-                    },
-                    mode: "cost-object",
-                })
-                toast.warning("File import không có dòng dữ liệu để xử lý")
-                return
-            }
-
-            if (res.failed > 0 || res.errors?.length) {
-                setImportResultDialog({ title: "Lỗi import mã đối tượng SX", result: res, mode: "cost-object" })
-                toast.warning("Import mã đối tượng SX có lỗi, chưa cập nhật dữ liệu")
-                return
-            }
-
-            setImportResultDialog({ title: "Kết quả import mã đối tượng SX", result: res, mode: "cost-object" })
-            toast.success(`Đã cập nhật ${normalized.updated} dòng mã đối tượng SX`)
+            handleStructuredResult(res, "mã đối tượng SX", "cost-object")
         },
         onError: (error: any) => toast.error(error?.message || "Không thể import mã đối tượng SX"),
     })
@@ -248,44 +261,43 @@ export function LedgerImportButtons() {
         onSuccess: async (res) => {
             await invalidateInventoryQueries(queryClient)
             await queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
-
-            const normalized = readCostObjectResult(res)
-            if (normalized.totalRows === 0) {
-                setImportResultDialog({
-                    title: "Lỗi import giá nhập/xuất khác",
-                    result: {
-                        ...res,
-                        failed: 1,
-                        errors: [
-                            {
-                                row: 0,
-                                message: "File không có dòng dữ liệu sau header. Kiểm tra đúng sheet dữ liệu và đúng các tiêu đề cột yêu cầu.",
-                            },
-                        ],
-                    },
-                    mode: "ledger-price",
-                })
-                toast.warning("File import không có dòng dữ liệu để xử lý")
-                return
-            }
-
-            if (res.failed > 0 || res.errors?.length) {
-                setImportResultDialog({ title: "Lỗi import giá nhập/xuất khác", result: res, mode: "ledger-price" })
-                toast.warning("Import giá nhập/xuất khác có lỗi, chưa cập nhật dữ liệu")
-                return
-            }
-
-            setImportResultDialog({ title: "Kết quả import giá nhập/xuất khác", result: res, mode: "ledger-price" })
-            toast.success(`Đã cập nhật ${normalized.updated} dòng giá nhập/xuất khác`)
+            handleStructuredResult(res, "giá nhập/xuất khác", "ledger-price")
         },
         onError: (error: any) => toast.error(error?.message || "Không thể import giá nhập/xuất khác"),
     })
 
-    const handleOpeningFileChange = (event: ChangeEvent<HTMLInputElement>) => handleFileChange(event, importOpeningMutation.mutate)
-    const handlePurchaseFileChange = (event: ChangeEvent<HTMLInputElement>) => handleFileChange(event, importPurchaseMutation.mutate)
-    const handleVthhDetailFileChange = (event: ChangeEvent<HTMLInputElement>) => handleFileChange(event, importVthhDetailMutation.mutate)
-    const handleProductionCostObjectFileChange = (event: ChangeEvent<HTMLInputElement>) => handleFileChange(event, importProductionCostObjectMutation.mutate)
-    const handleLedgerPriceFileChange = (event: ChangeEvent<HTMLInputElement>) => handleFileChange(event, importLedgerPriceMutation.mutate)
+    const handleStructuredResult = (
+        res: ProductionCostObjectImportResult | InventoryLedgerPriceImportResult,
+        label: string,
+        mode: "cost-object" | "ledger-price"
+    ) => {
+        const normalized = readStructuredResult(res)
+        if (normalized.totalRows === 0) {
+            setImportResultDialog({
+                title: `Lỗi import ${label}`,
+                result: {
+                    ...res,
+                    failed: 1,
+                    errors: [
+                        {
+                            row: 0,
+                            message: "File không có dòng dữ liệu sau header. Kiểm tra đúng sheet dữ liệu và đúng tiêu đề cột yêu cầu.",
+                        },
+                    ],
+                },
+                mode,
+            })
+            toast.warning("File import không có dòng dữ liệu để xử lý")
+            return
+        }
+        if (res.failed > 0 || res.errors?.length) {
+            setImportResultDialog({ title: `Lỗi import ${label}`, result: res, mode })
+            toast.warning(`Import ${label} có lỗi, chưa cập nhật dữ liệu`)
+            return
+        }
+        setImportResultDialog({ title: `Kết quả import ${label}`, result: res, mode })
+        toast.success(`Đã cập nhật ${normalized.updated} dòng ${label}`)
+    }
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>, mutate: (file: File) => void) => {
         const file = event.target.files?.[0]
@@ -293,79 +305,6 @@ export function LedgerImportButtons() {
         if (!file) return
         setImportResultDialog(null)
         mutate(file)
-    }
-
-    const openOpeningFilePicker = () => {
-        setGuide({
-            title: "Import tồn đầu kỳ",
-            description: "File import tồn đầu kỳ cần có đủ các cột sau.",
-            columns: OPENING_STOCK_REQUIRED_COLUMNS,
-            notes: [
-                "Hạn sử dụng bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy, ví dụ 24/10/2028 hoặc 24-10-2028.",
-            ],
-            inputRef: openingFileRef,
-        })
-    }
-
-    const openPurchaseFilePicker = () => {
-        setGuide({
-            title: "Import mua hàng",
-            description: "File import mua hàng cần có đủ các cột sau.",
-            columns: PURCHASE_STOCK_REQUIRED_COLUMNS,
-            notes: [
-                "Hạn sử dụng và Ngày hạch toán bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy, ví dụ 24/10/2028 hoặc 24-10-2028.",
-                "Dòng có Mã hàng bắt đầu bằng PHI hoặc Mã hàng chưa có trong danh mục sản phẩm sẽ được bỏ qua.",
-                "Nếu có Đơn giá bao gồm PLH thì hệ thống dùng trực tiếp làm giá vốn lô. Nếu không có, Phí hàng về kho sẽ được phân bổ theo số lượng nhập của lô.",
-            ],
-            inputRef: purchaseFileRef,
-        })
-    }
-
-    const openVthhDetailFilePicker = () => {
-        setGuide({
-            title: "Import chi tiết VTHH",
-            description: "File import chi tiết VTHH cần có đủ các cột sau.",
-            columns: VTHH_DETAIL_REQUIRED_COLUMNS,
-            notes: [
-                "Loại chứng từ nhập đúng tên tiếng Việt, ví dụ: Nhập kho khác, Xuất kho khác, Xuất kho sản xuất.",
-                "Ngày chứng từ và Hạn sử dụng bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy, ví dụ 24/10/2028 hoặc 24-10-2028.",
-            ],
-            inputRef: vthhDetailFileRef,
-        })
-    }
-
-    const openProductionCostObjectFilePicker = () => {
-        setGuide({
-            title: "Import mã đối tượng SX",
-            description: "File này chỉ bổ sung Mã đối tượng cho dòng Xuất kho sản xuất đã có trong Sổ kho, không tạo giao dịch mới.",
-            columns: PRODUCTION_COST_OBJECT_REQUIRED_COLUMNS,
-            notes: [
-                "Hệ thống chỉ xử lý Loại chứng từ: Xuất kho sản xuất và Nhập kho thành phẩm sản xuất. Các loại chứng từ khác sẽ được bỏ qua và báo số dòng bỏ qua.",
-                "Dòng Xuất kho sản xuất bắt buộc có Mã đối tượng. Nếu file kế toán đang dùng tên cột Mã VTHH thì hệ thống cũng hiểu đây là Mã đối tượng.",
-                "Trong cùng Ngày chứng từ phải có dòng Nhập kho thành phẩm sản xuất có Mã hàng bằng Mã đối tượng.",
-                "Nếu cùng ngày có nhiều dòng Nhập kho thành phẩm sản xuất cho cùng mã thành phẩm, hệ thống sẽ ghép theo mã lệnh trong cột Diễn giải dạng <01941>.",
-                "Nếu Diễn giải không có mã lệnh, hệ thống sẽ thử ghép theo thứ tự file: nhóm Xuất kho sản xuất đứng trước sẽ đi với dòng Nhập kho thành phẩm sản xuất đứng trước. Chỉ cập nhật khi danh sách NVL và tỷ lệ số lượng khớp rõ ràng.",
-                "Ngày chứng từ bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy.",
-                "Import nhiều lần cùng file sẽ không tạo trùng dữ liệu; dòng đã đúng sẽ được tính là đã đúng sẵn.",
-            ],
-            inputRef: productionCostObjectFileRef,
-        })
-    }
-
-    const openLedgerPriceFilePicker = () => {
-        setGuide({
-            title: "Import giá nhập/xuất khác",
-            description: "File này chỉ cập nhật đơn giá và thành tiền cho các dòng Sổ kho đã có, không tạo giao dịch mới.",
-            columns: LEDGER_PRICE_IMPORT_REQUIRED_COLUMNS,
-            notes: [
-                "Chỉ xử lý các loại chứng từ: Hàng mua trả lại - Giảm trừ công nợ, Nhập kho khác, Nhập kho từ hàng bán trả lại, Xuất chuyển kho nội bộ, Xuất kho khác.",
-                "Dòng nhập lấy số lượng ở cột Nhập; dòng xuất lấy số lượng ở cột Xuất. Riêng Xuất chuyển kho nội bộ có thể có cả dòng Nhập và dòng Xuất tương ứng.",
-                "Ngày chứng từ bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy.",
-                "Hệ thống chỉ cập nhật khi đơn giá hiện tại trong Sổ kho đang bằng 0. Nếu dòng đã có đơn giá khác, import sẽ báo lỗi và rollback toàn bộ.",
-                "Không cập nhật giá trong Tồn theo lô; chỉ cập nhật inventory_ledger và chi tiết phiếu nếu dòng sổ kho có liên kết phiếu.",
-            ],
-            inputRef: ledgerPriceFileRef,
-        })
     }
 
     const chooseFileFromGuide = () => {
@@ -379,85 +318,62 @@ export function LedgerImportButtons() {
         const text = importResultDialog.result.errors
             .map((error) => `Dòng ${error.row}: ${error.message}`)
             .join("\n")
-
         await navigator.clipboard.writeText(text)
         toast.success("Đã copy danh sách lỗi")
     }
 
     const result = importResultDialog?.result
-    const costObjectResult = importResultDialog?.mode === "cost-object" || importResultDialog?.mode === "ledger-price"
+    const structuredResult = importResultDialog?.mode === "cost-object"
+        || importResultDialog?.mode === "ledger-price"
+        || importResultDialog?.mode === "purchase-base-price"
         ? result as ProductionCostObjectImportResult | InventoryLedgerPriceImportResult
         : null
-    const normalizedCostObjectResult = readCostObjectResult(costObjectResult)
+    const normalized = readStructuredResult(structuredResult)
 
     return (
         <>
-            <input
-                ref={openingFileRef}
-                type="file"
-                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                className="hidden"
-                onChange={handleOpeningFileChange}
-            />
-            <input
-                ref={purchaseFileRef}
-                type="file"
-                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                className="hidden"
-                onChange={handlePurchaseFileChange}
-            />
-            <input
-                ref={vthhDetailFileRef}
-                type="file"
-                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                className="hidden"
-                onChange={handleVthhDetailFileChange}
-            />
-            <input
-                ref={productionCostObjectFileRef}
-                type="file"
-                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                className="hidden"
-                onChange={handleProductionCostObjectFileChange}
-            />
-            <input
-                ref={ledgerPriceFileRef}
-                type="file"
-                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                className="hidden"
-                onChange={handleLedgerPriceFileChange}
-            />
+            <ImportFileInput inputRef={openingFileRef} onChange={(event) => handleFileChange(event, importOpeningMutation.mutate)} />
+            <ImportFileInput inputRef={purchaseFileRef} onChange={(event) => handleFileChange(event, importPurchaseMutation.mutate)} />
+            <ImportFileInput inputRef={purchaseBasePriceFileRef} onChange={(event) => handleFileChange(event, importPurchaseBasePriceMutation.mutate)} />
+            <ImportFileInput inputRef={vthhDetailFileRef} onChange={(event) => handleFileChange(event, importVthhDetailMutation.mutate)} />
+            <ImportFileInput inputRef={productionCostObjectFileRef} onChange={(event) => handleFileChange(event, importProductionCostObjectMutation.mutate)} />
+            <ImportFileInput inputRef={ledgerPriceFileRef} onChange={(event) => handleFileChange(event, importLedgerPriceMutation.mutate)} />
 
-            <Button size="sm" variant="outline" disabled={importOpeningMutation.isPending} onClick={openOpeningFilePicker}>
-                <Upload className="mr-2 h-4 w-4" />
-                {importOpeningMutation.isPending ? "Đang import..." : "Import tồn đầu kỳ"}
-            </Button>
-            <Button size="sm" variant="outline" disabled={importPurchaseMutation.isPending} onClick={openPurchaseFilePicker}>
-                <Upload className="mr-2 h-4 w-4" />
-                {importPurchaseMutation.isPending ? "Đang import..." : "Import mua hàng"}
-            </Button>
-            <Button size="sm" variant="outline" disabled={importVthhDetailMutation.isPending} onClick={openVthhDetailFilePicker}>
-                <Upload className="mr-2 h-4 w-4" />
-                {importVthhDetailMutation.isPending ? "Đang import..." : "Import chi tiết VTHH"}
-            </Button>
-            <Button
-                size="sm"
-                variant="outline"
-                disabled={importProductionCostObjectMutation.isPending}
-                onClick={openProductionCostObjectFilePicker}
-            >
-                <Upload className="mr-2 h-4 w-4" />
-                {importProductionCostObjectMutation.isPending ? "Đang import..." : "Import mã đối tượng SX"}
-            </Button>
-            <Button
-                size="sm"
-                variant="outline"
-                disabled={importLedgerPriceMutation.isPending}
-                onClick={openLedgerPriceFilePicker}
-            >
-                <Upload className="mr-2 h-4 w-4" />
-                {importLedgerPriceMutation.isPending ? "Đang import..." : "Import giá nhập/xuất khác"}
-            </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="outline">
+                        <Database className="mr-2 h-4 w-4" />
+                        Dữ liệu
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                    <DropdownMenuItem disabled={importOpeningMutation.isPending} onSelect={() => setGuide(openingGuide(openingFileRef))}>
+                        <Upload className="h-4 w-4" />
+                        {importOpeningMutation.isPending ? "Đang import..." : "Import tồn đầu kỳ"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={importPurchaseMutation.isPending} onSelect={() => setGuide(purchaseGuide(purchaseFileRef))}>
+                        <Upload className="h-4 w-4" />
+                        {importPurchaseMutation.isPending ? "Đang import..." : "Import mua hàng"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={importPurchaseBasePriceMutation.isPending} onSelect={() => setGuide(purchaseBasePriceGuide(purchaseBasePriceFileRef))}>
+                        <Upload className="h-4 w-4" />
+                        {importPurchaseBasePriceMutation.isPending ? "Đang sửa..." : "Sửa đơn giá vốn"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={importVthhDetailMutation.isPending} onSelect={() => setGuide(vthhGuide(vthhDetailFileRef))}>
+                        <Upload className="h-4 w-4" />
+                        {importVthhDetailMutation.isPending ? "Đang import..." : "Import chi tiết VTHH"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={importProductionCostObjectMutation.isPending} onSelect={() => setGuide(productionCostObjectGuide(productionCostObjectFileRef))}>
+                        <Upload className="h-4 w-4" />
+                        {importProductionCostObjectMutation.isPending ? "Đang import..." : "Import mã đối tượng SX"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={importLedgerPriceMutation.isPending} onSelect={() => setGuide(ledgerPriceGuide(ledgerPriceFileRef))}>
+                        <Upload className="h-4 w-4" />
+                        {importLedgerPriceMutation.isPending ? "Đang import..." : "Import giá nhập/xuất khác"}
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
 
             <Dialog open={!!guide} onOpenChange={(open) => !open && setGuide(null)}>
                 <DialogContent className="max-w-2xl">
@@ -465,7 +381,6 @@ export function LedgerImportButtons() {
                         <DialogTitle>{guide?.title}</DialogTitle>
                         <DialogDescription>{guide?.description}</DialogDescription>
                     </DialogHeader>
-
                     <div className="space-y-4">
                         <div className="rounded-md border bg-muted/30 p-3">
                             <div className="mb-2 text-sm font-medium">Tiêu đề cột cần có</div>
@@ -473,7 +388,6 @@ export function LedgerImportButtons() {
                                 {(guide?.columns || []).join("\n")}
                             </pre>
                         </div>
-
                         {guide?.notes?.length ? (
                             <div className="space-y-1 text-sm text-muted-foreground">
                                 {guide.notes.map((note) => (
@@ -482,11 +396,8 @@ export function LedgerImportButtons() {
                             </div>
                         ) : null}
                     </div>
-
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setGuide(null)}>
-                            Đóng
-                        </Button>
+                        <Button variant="outline" onClick={() => setGuide(null)}>Đóng</Button>
                         <Button onClick={chooseFileFromGuide}>
                             <Upload className="mr-2 h-4 w-4" />
                             Chọn file import
@@ -500,11 +411,11 @@ export function LedgerImportButtons() {
                     <DialogHeader>
                         <DialogTitle>{importResultDialog?.title}</DialogTitle>
                         <DialogDescription>
-                            {costObjectResult ? (
+                            {structuredResult ? (
                                 <>
-                                    Đọc {normalizedCostObjectResult.totalRows} dòng, cập nhật {normalizedCostObjectResult.updated} dòng,
-                                    đã đúng sẵn {normalizedCostObjectResult.alreadyCorrect} dòng, bỏ qua {normalizedCostObjectResult.skipped} dòng,
-                                    lỗi {normalizedCostObjectResult.failed} dòng.
+                                    Đọc {normalized.totalRows} dòng, cập nhật {normalized.updated} dòng,
+                                    đã đúng sẵn {normalized.alreadyCorrect} dòng, bỏ qua {normalized.skipped} dòng,
+                                    lỗi {normalized.failed} dòng.
                                 </>
                             ) : (
                                 <>
@@ -515,11 +426,11 @@ export function LedgerImportButtons() {
                         </DialogDescription>
                     </DialogHeader>
 
-                    {Object.keys(normalizedCostObjectResult.skippedDocTypes).length ? (
+                    {Object.keys(normalized.skippedDocTypes).length ? (
                         <div className="rounded-md border bg-muted/30 p-3 text-sm">
                             <div className="mb-1 font-medium">Loại chứng từ đã bỏ qua</div>
                             <div className="space-y-1 text-muted-foreground">
-                                {Object.entries(normalizedCostObjectResult.skippedDocTypes).map(([label, count]) => (
+                                {Object.entries(normalized.skippedDocTypes).map(([label, count]) => (
                                     <div key={label}>{label || "(trống)"}: {count} dòng</div>
                                 ))}
                             </div>
@@ -552,9 +463,7 @@ export function LedgerImportButtons() {
                     )}
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setImportResultDialog(null)}>
-                            Đóng
-                        </Button>
+                        <Button variant="outline" onClick={() => setImportResultDialog(null)}>Đóng</Button>
                         {(result?.errors || []).length ? (
                             <Button variant="outline" onClick={copyImportErrors}>
                                 <Copy className="mr-2 h-4 w-4" />
@@ -566,6 +475,108 @@ export function LedgerImportButtons() {
             </Dialog>
         </>
     )
+}
+
+function ImportFileInput({ inputRef, onChange }: { inputRef: RefObject<HTMLInputElement | null>; onChange: (event: ChangeEvent<HTMLInputElement>) => void }) {
+    return (
+        <input
+            ref={inputRef}
+            type="file"
+            accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            className="hidden"
+            onChange={onChange}
+        />
+    )
+}
+
+function openingGuide(inputRef: RefObject<HTMLInputElement | null>): ImportGuide {
+    return {
+        title: "Import tồn đầu kỳ",
+        description: "File import tồn đầu kỳ cần có đủ các cột sau.",
+        columns: OPENING_STOCK_REQUIRED_COLUMNS,
+        notes: [
+            "Hạn sử dụng bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy, ví dụ 24/10/2028 hoặc 24-10-2028.",
+            "Đơn giá của tồn đầu kỳ được hiểu là giá vốn đầu kỳ đã chốt tại thời điểm mở sổ, không phải đơn giá mua gốc và không cộng thêm phí lô hàng lịch sử.",
+        ],
+        inputRef,
+    }
+}
+
+function purchaseGuide(inputRef: RefObject<HTMLInputElement | null>): ImportGuide {
+    return {
+        title: "Import mua hàng",
+        description: "File import mua hàng cần có đủ các cột sau.",
+        columns: PURCHASE_STOCK_REQUIRED_COLUMNS,
+        notes: [
+            "Hạn sử dụng và Ngày hạch toán bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy, ví dụ 24/10/2028 hoặc 24-10-2028.",
+            "Dòng có Mã hàng bắt đầu bằng PHI hoặc dòng không có Mã kho sẽ được bỏ qua. Mã hàng khác nếu chưa có trong danh mục sản phẩm sẽ báo lỗi.",
+            "Đơn giá được hiểu là đơn giá mua gốc, chưa bao gồm phí lô hàng. Phí hàng về kho và đơn giá sau phí sẽ được tính ở chức năng Tính giá tồn kho.",
+            "Import lại cùng file không tạo trùng giao dịch. Nếu dòng mua hàng đã tồn tại nhưng đơn giá khác, dùng nút Sửa đơn giá vốn.",
+        ],
+        inputRef,
+    }
+}
+
+function purchaseBasePriceGuide(inputRef: RefObject<HTMLInputElement | null>): ImportGuide {
+    return {
+        title: "Sửa đơn giá vốn",
+        description: "File này dùng để cập nhật lại đơn giá mua gốc cho các dòng mua hàng đã có trong Sổ kho.",
+        columns: PURCHASE_STOCK_REQUIRED_COLUMNS,
+        notes: [
+            "File dùng lại format của Import mua hàng.",
+            "Đơn giá mới sẽ ghi vào inventory_ledger.unit_price và inventory_ledger.amount theo đơn giá mua gốc. Đơn giá cũ được backup vào legacy_unit_price nếu chưa có.",
+            "Nếu dòng sổ kho không tìm thấy hoặc số dòng trùng khóa giữa DB và Excel không khớp, hệ thống báo lỗi và rollback toàn bộ.",
+            "Sau khi cập nhật sổ kho, hệ thống tính lại inventory_lots.unit_cost theo bình quân các dòng mua hàng dương của lô đó.",
+        ],
+        inputRef,
+    }
+}
+
+function vthhGuide(inputRef: RefObject<HTMLInputElement | null>): ImportGuide {
+    return {
+        title: "Import chi tiết VTHH",
+        description: "File import chi tiết VTHH cần có đủ các cột sau.",
+        columns: VTHH_DETAIL_REQUIRED_COLUMNS,
+        notes: [
+            "Loại chứng từ nhập đúng tên tiếng Việt, ví dụ: Nhập kho khác, Xuất kho khác, Xuất kho sản xuất.",
+            "Ngày chứng từ và Hạn sử dụng bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy, ví dụ 24/10/2028 hoặc 24-10-2028.",
+        ],
+        inputRef,
+    }
+}
+
+function productionCostObjectGuide(inputRef: RefObject<HTMLInputElement | null>): ImportGuide {
+    return {
+        title: "Import mã đối tượng SX",
+        description: "File này chỉ bổ sung Mã đối tượng cho dòng Xuất kho sản xuất đã có trong Sổ kho, không tạo giao dịch mới.",
+        columns: PRODUCTION_COST_OBJECT_REQUIRED_COLUMNS,
+        notes: [
+            "Hệ thống chỉ xử lý Loại chứng từ: Xuất kho sản xuất và Nhập kho thành phẩm sản xuất. Các loại chứng từ khác sẽ được bỏ qua và báo số dòng bỏ qua.",
+            "Dòng Xuất kho sản xuất bắt buộc có Mã đối tượng. Nếu file kế toán đang dùng tên cột Mã VTHH thì hệ thống cũng hiểu đây là Mã đối tượng.",
+            "Trong cùng Ngày chứng từ phải có dòng Nhập kho thành phẩm sản xuất có Mã hàng bằng Mã đối tượng.",
+            "Nếu cùng ngày có nhiều dòng Nhập kho thành phẩm sản xuất cho cùng mã thành phẩm, hệ thống sẽ ghép theo mã lệnh trong cột Diễn giải dạng <01941>.",
+            "Nếu Diễn giải không có mã lệnh, hệ thống sẽ thử ghép theo thứ tự file. Chỉ cập nhật khi danh sách NVL và tỷ lệ số lượng khớp rõ ràng.",
+            "Ngày chứng từ bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy.",
+            "Import nhiều lần cùng file sẽ không tạo trùng dữ liệu; dòng đã đúng sẽ được tính là đã đúng sẵn.",
+        ],
+        inputRef,
+    }
+}
+
+function ledgerPriceGuide(inputRef: RefObject<HTMLInputElement | null>): ImportGuide {
+    return {
+        title: "Import giá nhập/xuất khác",
+        description: "File này chỉ cập nhật đơn giá và thành tiền cho các dòng Sổ kho đã có, không tạo giao dịch mới.",
+        columns: LEDGER_PRICE_IMPORT_REQUIRED_COLUMNS,
+        notes: [
+            "Chỉ xử lý các loại chứng từ: Hàng mua trả lại - Giảm trừ công nợ, Nhập kho khác, Nhập kho từ hàng bán trả lại, Xuất chuyển kho nội bộ, Xuất kho khác.",
+            "Dòng nhập lấy số lượng ở cột Nhập; dòng xuất lấy số lượng ở cột Xuất. Riêng Xuất chuyển kho nội bộ có thể có cả dòng Nhập và dòng Xuất tương ứng.",
+            "Ngày chứng từ bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy.",
+            "Hệ thống chỉ cập nhật khi đơn giá hiện tại trong Sổ kho đang bằng 0. Nếu dòng đã có đơn giá khác, import sẽ báo lỗi và rollback toàn bộ.",
+            "Không cập nhật giá trong Tồn theo lô; chỉ cập nhật inventory_ledger và chi tiết phiếu nếu dòng sổ kho có liên kết phiếu.",
+        ],
+        inputRef,
+    }
 }
 
 async function invalidateInventoryQueries(queryClient: ReturnType<typeof useQueryClient>) {

@@ -794,7 +794,12 @@ function SummaryRow({
             ) : null}
             <NumberTd>{item.outbound_quantity}</NumberTd>
             {showValues ? (
-            <MoneyTd>{item.avg_issue_unit_cost ?? 0}</MoneyTd>
+            <Td className="tabular-nums">
+                    <div className="flex items-center gap-1.5">
+                        <CostPeriodIcon label={item.cost_period_label} />
+                        <span className="ml-auto text-right">{formatCurrency(Number(item.avg_issue_unit_cost ?? 0))}</span>
+                    </div>
+                </Td>
             ) : null}
             {showValues ? (
             <MoneyTd>{item.outbound_value}</MoneyTd>
@@ -1873,6 +1878,26 @@ async function exportSummaryXlsx(rows: InventorySummary[], filters: SummaryFilte
 
     const buffer = await workbook.xlsx.writeBuffer()
     downloadBlob(buffer, `nhap-xuat-ton-${todayYmd()}.xlsx`)
+}
+
+function CostPeriodIcon({ label }: { label?: string | null }) {
+    const hasPeriod = Boolean(label && label.trim())
+    const title = hasPeriod ? `Đã lấy từ kỳ tính giá: ${label}` : "Chưa có kỳ tính giá"
+
+    return (
+        <span
+            className={cn(
+                "inline-flex size-4 shrink-0 items-center justify-center rounded-full border",
+                hasPeriod
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-amber-200 bg-amber-50 text-amber-700",
+            )}
+            title={title}
+            aria-label={title}
+        >
+            {hasPeriod ? <CircleCheck className="size-3" /> : <AlertTriangle className="size-3" />}
+        </span>
+    )
 }
 
 function getInventoryStatus(row: InventorySummary) {

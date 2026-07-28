@@ -235,7 +235,10 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
         mutationFn: () => calculateCostPeriod(period.id),
         onSuccess: (result) => {
             setCalculationError(null)
-            toast.success(`Đã tính giá: ${result.product_rows} dòng, ${result.production_product_count} thành phẩm, ${result.lot_allocations} phân bổ phí lô`)
+            const staleNotice = result.stale_periods > 0
+                ? `; ${result.stale_periods} kỳ sau cần tính lại`
+                : ""
+            toast.success(`Đã tính giá: ${result.product_rows} dòng, ${result.production_product_count} thành phẩm, ${result.lot_allocations} phân bổ phí lô${staleNotice}`)
             queryClient.invalidateQueries({ queryKey: ["inventory-cost-periods"] })
             queryClient.invalidateQueries({ queryKey: ["inventory-cost-period-costs", period.id] })
             queryClient.invalidateQueries({ queryKey: ["inventory-cost-lot-allocations", period.id] })
@@ -1325,14 +1328,21 @@ function CountMetricCard({ title, label, value }: { title: string; label: string
 }
 
 function StatusBadge({ status }: { status?: string }) {
-    const label = status === "LOCKED" ? "Đã khóa" : status === "CALCULATED" ? "Đã tính" : "Nháp"
+    const label = status === "LOCKED"
+        ? "Đã khóa"
+        : status === "CALCULATED"
+            ? "Đã tính"
+            : status === "STALE"
+                ? "Cần tính lại"
+                : "Nháp"
     return (
         <span
             className={cn(
                 "rounded-full px-2 py-0.5 text-xs font-medium",
                 status === "LOCKED" && "bg-slate-900 text-white",
                 status === "CALCULATED" && "bg-teal-100 text-teal-700",
-                status !== "LOCKED" && status !== "CALCULATED" && "bg-slate-100 text-slate-600",
+                status === "STALE" && "bg-amber-100 text-amber-800",
+                status !== "LOCKED" && status !== "CALCULATED" && status !== "STALE" && "bg-slate-100 text-slate-600",
             )}
         >
             {label}

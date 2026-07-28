@@ -24,11 +24,25 @@ export const listAppLookups = (params: AppLookupListParams) =>
         limit: params.size,
     })
 
-export const getAppLookupByCode = (typeCode: string, code: string) =>
-    apiGet<AppLookup>("/app-lookups/by-code", {
+const normalizeLookupCode = (value: unknown) => {
+    if (typeof value === "string" || typeof value === "number") return String(value).trim()
+    if (value && typeof value === "object") {
+        const record = value as Record<string, unknown>
+        const candidate = record.code ?? record.value ?? record.id
+        return candidate == null ? "" : String(candidate).trim()
+    }
+    return ""
+}
+
+export const getAppLookupByCode = (typeCode: string, code: unknown) => {
+    const normalizedCode = normalizeLookupCode(code)
+    if (!normalizedCode) return Promise.resolve(null)
+
+    return apiGet<AppLookup>("/app-lookups/by-code", {
         type_code: typeCode,
-        code,
+        code: normalizedCode,
     })
+}
 
 export const listProductNatureLookups = (params: Omit<AppLookupListParams, "type_code">) =>
     listAppLookups({
@@ -44,5 +58,5 @@ export const listProductUnitLookups = (params: Omit<AppLookupListParams, "type_c
         status: params.status ?? "ACTIVE",
     })
 
-export const getProductNatureLookup = (code: string) =>
+export const getProductNatureLookup = (code: unknown) =>
     getAppLookupByCode("PRODUCT_NATURE", code)

@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Plus, Save, SlidersHorizontal, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
-import { createVoucher, listVoucherTypes, postVoucher, type CreateVoucherRequest, type InventoryVoucherType, type VoucherTypeCode } from "@/api/inventory/voucher"
+import { listAppLookups } from "@/api/app-lookup"
+import { createAndPostVoucher, listVoucherTypes, type CreateVoucherRequest, type InventoryVoucherType, type VoucherTypeCode } from "@/api/inventory/voucher"
 import { listInventoryLotRecords } from "@/api/inventory/lot"
 import { getProduct, listProducts } from "@/api/product"
 import { getPhysicalWarehouse, listPhysicalWarehouses } from "@/api/physical-warehouse"
@@ -23,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
-type VoucherMode = "in" | "out" | "transfer"
+type VoucherMode = "in" | "out" | "transfer" | "repack" | "conversion"
 
 type VoucherLine = {
     id: string
@@ -40,6 +41,7 @@ type VoucherLine = {
     tk_no: string
     tk_co: string
     note: string
+    direction?: "I" | "O"
 }
 
 type Props = {
@@ -56,7 +58,7 @@ function createId() {
         : `${Date.now()}-${Math.random()}`
 }
 
-function createEmptyLine(): VoucherLine {
+function createEmptyLine(direction?: "I" | "O"): VoucherLine {
     return {
         id: createId(),
         quantity: "",
@@ -66,7 +68,12 @@ function createEmptyLine(): VoucherLine {
         tk_no: "",
         tk_co: "",
         note: "",
+        direction,
     }
+}
+
+function createPairedLines(): VoucherLine[] {
+    return [createEmptyLine("O"), createEmptyLine("I")]
 }
 
 function today() {
@@ -100,47 +107,79 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     const queryClient = useQueryClient()
     const isInbound = mode === "in"
     const isTransfer = mode === "transfer"
+    const isPaired = mode === "repack" || mode === "conversion"
     const { data: voucherTypes = [], isLoading: isLoadingTypes } = useQuery({
-        queryKey: ["inventory-voucher-types", isInbound ? "I" : "O", mode],
-        queryFn: () => listVoucherTypes(isInbound ? "I" : "O", 1),
+        queryKey: ["inventory-voucher-types", isInbound || isPaired ? "I" : "O", mode],
+        queryFn: () => listVoucherTypes(isInbound || isPaired ? "I" : "O", 1, 1),
         enabled: open,
     })
     const selectableVoucherTypes = useMemo(
         () => voucherTypes.filter((type) => {
             if (isTransfer) return type.code === "TRANSFER_EXPORT"
+            if (isPaired) return type.code === "OTHER_INBOUND"
             return mode !== "out" || type.code !== "TRANSFER_EXPORT"
         }),
-        [isTransfer, mode, voucherTypes],
+        [isPaired, isTransfer, mode, voucherTypes],
     )
     const [voucherType, setVoucherType] = useState<VoucherTypeCode | "">("")
+    const [operationCode, setOperationCode] = useState("")
     const [postingDate, setPostingDate] = useState(today())
     const [physicalWarehouseId, setPhysicalWarehouseId] = useState<number | undefined>()
     const [toPhysicalWarehouseId, setToPhysicalWarehouseId] = useState<number | undefined>()
     const [description, setDescription] = useState("")
-    const [lines, setLines] = useState<VoucherLine[]>([createEmptyLine()])
+    const [lines, setLines] = useState<VoucherLine[]>(isPaired ? createPairedLines() : [createEmptyLine()])
 
-    const title = isTransfer ? "Tạo phiếu chuyển kho" : isInbound ? "Tạo phiếu nhập kho" : "Tạo phiếu xuất kho"
+    const title = mode === "repack" ? "Tạo phiếu sang bao" : mode === "conversion" ? "Tạo phiếu chuyển mã" : isTransfer ? "Tạo phiếu chuyển kho" : isInbound ? "Tạo phiếu nhập kho" : "Tạo phiếu xuất kho"
     const Icon = isTransfer ? ArrowLeftRight : isInbound ? ArrowDownLeft : ArrowUpRight
     const warehouseLabel = isTransfer ? "Địa điểm kho xuất" : "Địa điểm kho"
     const warehousePlaceholder = isTransfer ? "Chọn địa điểm kho xuất" : "Chọn địa điểm kho"
     const descriptionLabel = isTransfer ? "Diễn giải" : "Ghi chú"
-    const descriptionPlaceholder = isTransfer ? "Diễn giải phiếu chuyển kho" : "Ghi chú chung của phiếu"
-    const itemListTitle = isTransfer ? "Danh sách hàng chuyển" : "Danh sách sản phẩm"
+    const descriptionPlaceholder = mode === "repack" ? "Diễn giải nghiệp vụ sang bao" : mode === "conversion" ? "Diễn giải nghiệp vụ chuyển mã" : isTransfer ? "Diễn giải phiếu chuyển kho" : "Ghi chú chung của phiếu"
+    const itemListTitle = mode === "repack" ? "Hàng xuất và hàng nhập sau sang bao" : mode === "conversion" ? "Hàng xuất và hàng nhập sau chuyển mã" : isTransfer ? "Danh sách hàng chuyển" : "Danh sách sản phẩm"
     const productColumnLabel = isTransfer ? "Hàng hóa" : "Sản phẩm"
     const selectedVoucherType = useMemo(
         () => selectableVoucherTypes.find((type) => type.code === voucherType),
         [selectableVoucherTypes, voucherType],
     )
+    const operationLookupType = isPaired ? "" : voucherType === "OTHER_INBOUND"
+        ? "INVENTORY_OTHER_IN_OPERATION"
+        : voucherType === "OTHER_EXPORT"
+            ? "INVENTORY_OTHER_OUT_OPERATION"
+            : ""
+    const operationQuery = useQuery({
+        queryKey: ["inventory-voucher-operations", operationLookupType],
+        queryFn: () => listAppLookups({
+            page: 1,
+            size: 100,
+            type_code: operationLookupType,
+            status: "ACTIVE",
+        }),
+        enabled: open && Boolean(operationLookupType),
+    })
+    const operationOptions = operationQuery.data?.items ?? []
     useEffect(() => {
         if (!open) return
-        setVoucherType(isTransfer ? "TRANSFER_EXPORT" : "")
+        setVoucherType(isTransfer ? "TRANSFER_EXPORT" : isPaired ? "OTHER_INBOUND" : "")
+        setOperationCode(isPaired ? (mode === "repack" ? "REPACK" : "PRODUCT_CONVERSION") : "")
         setToPhysicalWarehouseId(undefined)
-    }, [mode, open])
+        setLines(isPaired ? createPairedLines() : [createEmptyLine()])
+    }, [isPaired, isTransfer, mode, open])
 
     useEffect(() => {
-        if (!open || isTransfer || voucherType || !selectableVoucherTypes.length) return
+        if (!open || isTransfer || isPaired || voucherType || !selectableVoucherTypes.length) return
         setVoucherType(selectableVoucherTypes[0].code as VoucherTypeCode)
-    }, [isTransfer, open, selectableVoucherTypes, voucherType])
+    }, [isPaired, isTransfer, open, selectableVoucherTypes, voucherType])
+
+    useEffect(() => {
+        if (!operationLookupType) {
+            setOperationCode("")
+            return
+        }
+        if (!operationOptions.length) return
+        setOperationCode((current) => operationOptions.some((item) => item.code === current)
+            ? current
+            : operationOptions.find((item) => item.code === "GENERAL")?.code || operationOptions[0].code)
+    }, [operationLookupType, operationOptions])
 
     useEffect(() => {
         if (!open || !selectedVoucherType) return
@@ -153,24 +192,15 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     const mutation = useMutation({
         mutationFn: async () => {
             const payload = buildPayload()
-            let voucher
             try {
-                voucher = await createVoucher(payload)
+                return await createAndPostVoucher(payload)
             } catch (error: any) {
-                console.error("[inventory voucher] create draft failed", { payload, error })
+                console.error("[inventory voucher] create and post failed", { payload, error })
                 throw error
             }
-
-            try {
-                await postVoucher(voucher.id)
-            } catch (error: any) {
-                console.error("[inventory voucher] post voucher failed", { voucher, error })
-                throw error
-            }
-            return voucher
         },
         onSuccess: async () => {
-            toast.success(isTransfer ? "Đã tạo phiếu chuyển kho" : isInbound ? "Đã tạo phiếu nhập kho" : "Đã tạo phiếu xuất kho")
+            toast.success(isPaired ? `Đã tạo phiếu ${mode === "repack" ? "sang bao" : "chuyển mã"}` : isTransfer ? "Đã tạo phiếu chuyển kho" : isInbound ? "Đã tạo phiếu nhập kho" : "Đã tạo phiếu xuất kho")
             await queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
             await queryClient.invalidateQueries({ queryKey: ["inventory-lots"] })
             await queryClient.invalidateQueries({ queryKey: ["inventory-summary"] })
@@ -231,7 +261,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         })
     }
 
-    const addLine = () => setLines((current) => [...current, createEmptyLine()])
+    const addLine = (direction?: "I" | "O") => setLines((current) => [...current, createEmptyLine(direction)])
 
     const removeLine = (id: string) => {
         setLines((current) => (current.length <= 1 ? current : current.filter((line) => line.id !== id)))
@@ -239,11 +269,12 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
 
     const resetForm = () => {
         setVoucherType((selectableVoucherTypes[0]?.code as VoucherTypeCode) || "")
+        setOperationCode(isPaired ? (mode === "repack" ? "REPACK" : "PRODUCT_CONVERSION") : "")
         setPostingDate(today())
         setPhysicalWarehouseId(undefined)
         setToPhysicalWarehouseId(undefined)
         setDescription("")
-        setLines([createEmptyLine()])
+        setLines(isPaired ? createPairedLines() : [createEmptyLine()])
     }
 
     const buildPayload = (): CreateVoucherRequest => {
@@ -259,8 +290,25 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         if (!isTransfer && !voucherType) {
             throw new Error("Chọn loại chứng từ")
         }
+        if (operationLookupType && !operationCode) {
+            throw new Error("Chọn nghiệp vụ nhập/xuất kho khác")
+        }
         if (!validLines.length) {
             throw new Error("Thêm ít nhất 1 dòng sản phẩm có số lượng")
+        }
+        if (isPaired) {
+            const sourceLines = validLines.filter((line) => line.direction === "O")
+            const targetLines = validLines.filter((line) => line.direction === "I")
+            if (!sourceLines.length || !targetLines.length) {
+                throw new Error("Nghiệp vụ phải có ít nhất một dòng xuất nguồn và một dòng nhập đích")
+            }
+            if (mode === "conversion") {
+                const sourceQuantity = sourceLines.reduce((sum, line) => sum + Number(line.quantity), 0)
+                const targetQuantity = targetLines.reduce((sum, line) => sum + Number(line.quantity), 0)
+                if (Math.abs(sourceQuantity - targetQuantity) > 0.0005) {
+                    throw new Error("Chuyển mã phải giữ nguyên tổng số lượng xuất và nhập")
+                }
+            }
         }
         const invalidWarehouseLine = validLines.find((line) => !line.warehouse_id)
         if (invalidWarehouseLine) {
@@ -279,29 +327,34 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
 
         return {
             voucher_type_code: isTransfer ? "TRANSFER_EXPORT" : voucherType,
+            operation_code: isPaired ? (mode === "repack" ? "REPACK" : "PRODUCT_CONVERSION") : operationLookupType ? operationCode : undefined,
             posting_date: postingDate,
             document_date: postingDate,
             physical_warehouse_id: !isTransfer ? physicalWarehouseId : undefined,
             from_physical_warehouse_id: isTransfer ? physicalWarehouseId : undefined,
             to_physical_warehouse_id: isTransfer ? toPhysicalWarehouseId : undefined,
             description: description.trim() || undefined,
-            source_type: isTransfer ? "TRANSFER_EXPORT" : voucherType,
+            source_type: isPaired ? (mode === "repack" ? "REPACK" : "PRODUCT_CONVERSION") : isTransfer ? "TRANSFER_EXPORT" : voucherType,
             items: validLines.map((line, index) => {
                 const quantity = Number(line.quantity)
-                const unitPrice = isTransfer ? 0 : Number(line.unit_price || 0)
+                const lineInbound = isPaired ? line.direction === "I" : isInbound
+                const unitPrice = isTransfer || isPaired ? 0 : Number(line.unit_price || 0)
 
                 return {
                     line_no: index + 1,
+                    direction: isPaired ? line.direction : undefined,
+                    item_role: isPaired ? (line.direction === "O" ? "SOURCE" : "TARGET") : undefined,
+                    movement_group: isPaired ? "MAIN" : undefined,
                     product_id: Number(line.product_id),
                     warehouse_id: Number(line.warehouse_id),
                     to_warehouse_id: isTransfer && line.to_warehouse_id ? Number(line.to_warehouse_id) : undefined,
-                    lot_id: !isInbound && line.lot_id ? Number(line.lot_id) : undefined,
+                    lot_id: !lineInbound && line.lot_id ? Number(line.lot_id) : undefined,
                     quantity,
                     unit: line.unit,
                     unit_price: unitPrice,
                     amount: quantity * unitPrice,
                     lot_code: line.lot_code.trim() ? line.lot_code.trim() : undefined,
-                    expiry_date: isInbound && line.expiry_date ? line.expiry_date : undefined,
+                    expiry_date: lineInbound && line.expiry_date ? line.expiry_date : undefined,
                     tk_no: line.tk_no.trim() ? line.tk_no.trim() : undefined,
                     tk_co: line.tk_co.trim() ? line.tk_co.trim() : undefined,
                     note: line.note.trim() || undefined,
@@ -334,8 +387,8 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                 </DialogHeader>
 
                 <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-                    <div className="grid gap-3 xl:grid-cols-[minmax(320px,1fr)_minmax(360px,1.2fr)_minmax(360px,1.2fr)]">
-                        {!isTransfer ? (
+                    <div className="grid gap-3 xl:grid-cols-4">
+                        {!isTransfer && !isPaired ? (
                             <div className="min-w-0 space-y-1.5">
                                 <Label>Loại chứng từ</Label>
                                 <Select value={voucherType} onValueChange={(value) => setVoucherType(value as VoucherTypeCode)}>
@@ -346,6 +399,24 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                         {selectableVoucherTypes.map((type) => (
                                             <SelectItem key={type.code} value={type.code}>
                                                 {type.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        ) : null}
+
+                        {operationLookupType ? (
+                            <div className="min-w-0 space-y-1.5">
+                                <Label>Nghiệp vụ</Label>
+                                <Select value={operationCode} onValueChange={setOperationCode}>
+                                    <SelectTrigger className="w-full min-w-0">
+                                        <SelectValue placeholder={operationQuery.isLoading ? "Đang tải..." : "Chọn nghiệp vụ"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {operationOptions.map((item) => (
+                                            <SelectItem key={item.code} value={item.code}>
+                                                {item.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -412,7 +483,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                             </div>
                         ) : null}
 
-                        <div className="space-y-1.5 xl:col-span-3">
+                        <div className="space-y-1.5 xl:col-span-4">
                             <Label>{descriptionLabel}</Label>
                             <Textarea
                                 value={description}
@@ -426,10 +497,23 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                     <div className="overflow-hidden rounded-md border">
                         <div className="bg-muted/50 flex items-center justify-between border-b px-3 py-2">
                             <div className="font-semibold">{itemListTitle}</div>
-                            <Button type="button" size="sm" variant="outline" onClick={addLine}>
-                                <Plus className="mr-1 h-4 w-4" />
-                                Thêm dòng
-                            </Button>
+                            {isPaired ? (
+                                <div className="flex items-center gap-2">
+                                    <Button type="button" size="sm" variant="outline" onClick={() => addLine("O")}>
+                                        <ArrowUpRight className="mr-1 h-4 w-4 text-rose-600" />
+                                        Thêm hàng xuất
+                                    </Button>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => addLine("I")}>
+                                        <ArrowDownLeft className="mr-1 h-4 w-4 text-emerald-600" />
+                                        Thêm hàng nhập
+                                    </Button>
+                                </div>
+                            ) : (
+                                <Button type="button" size="sm" variant="outline" onClick={() => addLine()}>
+                                    <Plus className="mr-1 h-4 w-4" />
+                                    Thêm dòng
+                                </Button>
+                            )}
                         </div>
 
                         <div className="overflow-x-auto">
@@ -437,6 +521,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                 <thead className="text-muted-foreground bg-muted/30 border-b text-xs">
                                     <tr>
                                         <th className="w-12 px-3 py-2 text-center">STT</th>
+                                        {isPaired ? <th className="w-32 px-3 py-2 text-left">Vai trò</th> : null}
                                         <th className="min-w-[560px] px-3 py-2 text-left">{productColumnLabel}</th>
                                         <th className="w-64 px-3 py-2 text-left">{isTransfer ? "Kho xuất" : "Kho"}</th>
                                         {isTransfer ? <th className="w-64 px-3 py-2 text-left">Kho nhập</th> : null}
@@ -444,10 +529,10 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                         <th className="w-32 px-3 py-2 text-left">TK Nợ</th>
                                         <th className="w-32 px-3 py-2 text-left">TK Có</th>
                                         <th className="w-32 px-3 py-2 text-right">Số lượng</th>
-                                        {!isInbound ? <th className="w-52 px-3 py-2 text-left">Lô xuất</th> : null}
-                                        {isInbound ? <th className="w-36 px-3 py-2 text-left">Số lô</th> : null}
-                                        {isInbound ? <th className="w-36 px-3 py-2 text-left">HSD</th> : null}
-                                        {!isTransfer ? <th className="w-36 px-3 py-2 text-right">Đơn giá</th> : null}
+                                        {isPaired ? <th className="w-52 px-3 py-2 text-left">Số lô</th> : !isInbound ? <th className="w-52 px-3 py-2 text-left">Lô xuất</th> : null}
+                                        {!isPaired && isInbound ? <th className="w-36 px-3 py-2 text-left">Số lô</th> : null}
+                                        {isInbound || isPaired ? <th className="w-36 px-3 py-2 text-left">HSD</th> : null}
+                                        {!isTransfer && !isPaired ? <th className="w-36 px-3 py-2 text-right">Đơn giá</th> : null}
                                         <th className="min-w-[180px] px-3 py-2 text-left">Ghi chú</th>
                                         <th className="w-14 px-3 py-2" />
                                     </tr>
@@ -458,6 +543,16 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                             <td className="text-muted-foreground px-3 py-2 text-center font-mono">
                                                 {index + 1}
                                             </td>
+                                            {isPaired ? (
+                                                <td className="px-3 py-2">
+                                                    <span className={cn(
+                                                        "inline-flex rounded px-2 py-1 text-xs font-medium",
+                                                        line.direction === "O" ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700",
+                                                    )}>
+                                                        {line.direction === "O" ? "Xuất nguồn" : "Nhập đích"}
+                                                    </span>
+                                                </td>
+                                            ) : null}
                                             <td className="px-3 py-2">
                                                 <AsyncSelect
                                                     value={line.product_id}
@@ -547,7 +642,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                                     placeholder="0"
                                                 />
                                             </td>
-                                            {!isInbound ? (
+                                            {(!isInbound && (!isPaired || line.direction === "O")) ? (
                                                 <td className="px-3 py-2">
                                                     <PreferredLotSelector
                                                         productId={line.product_id}
@@ -559,7 +654,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                                     />
                                                 </td>
                                             ) : null}
-                                            {isInbound ? (
+                                            {(isInbound || (isPaired && line.direction === "I")) ? (
                                                 <td className="px-3 py-2">
                                                     <Input
                                                         value={line.lot_code}
@@ -568,16 +663,18 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                                     />
                                                 </td>
                                             ) : null}
-                                            {isInbound ? (
+                                            {(isInbound || isPaired) ? (
                                                 <td className="px-3 py-2">
-                                                    <Input
-                                                        type="date"
-                                                        value={line.expiry_date}
-                                                        onChange={(event) => updateLine(line.id, { expiry_date: event.target.value })}
-                                                    />
+                                                    {!isPaired || line.direction === "I" ? (
+                                                        <Input
+                                                            type="date"
+                                                            value={line.expiry_date}
+                                                            onChange={(event) => updateLine(line.id, { expiry_date: event.target.value })}
+                                                        />
+                                                    ) : null}
                                                 </td>
                                             ) : null}
-                                            {!isTransfer ? (
+                                            {!isTransfer && !isPaired ? (
                                                 <td className="px-3 py-2">
                                                     <Input
                                                         type="number"

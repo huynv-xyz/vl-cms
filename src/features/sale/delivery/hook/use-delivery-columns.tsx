@@ -1,6 +1,6 @@
 import { useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
     Building2,
@@ -23,6 +23,7 @@ import {
     SelectItem,
 } from "@/components/ui/select"
 import { updateDeliveryStatus } from "@/api/sale/delivery"
+import { getMyPermissions } from "@/api/auth/permission"
 import {
     DELIVERY_STATUSES,
     getDeliveryStatusMeta,
@@ -31,6 +32,18 @@ import {
 
 export function useDeliveryColumns() {
     const [selectedId, setSelectedId] = useState<number | null>(null)
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canUpdateDelivery = permissions.some(
+        (permission: any) => permission.module === "sales.deliveries" && permission.action === "update"
+    )
+    const canUpdateDeliveryStatus = permissions.some(
+        (permission: any) =>
+            permission.module === "sales.deliveries" &&
+            (permission.action === "status.update" || permission.action === "update")
+    )
 
     const columns: ColumnDef<Delivery>[] = [
         buildIndexColumn(),
@@ -140,13 +153,18 @@ export function useDeliveryColumns() {
             header: "Trạng thái",
             size: 165,
             minSize: 150,
-            cell: ({ row }) => <DeliveryStatusSelect delivery={row.original} />,
+            cell: ({ row }) => (
+                <DeliveryStatusSelect
+                    delivery={row.original}
+                    canUpdateStatus={canUpdateDeliveryStatus}
+                />
+            ),
         },
 
         buildActionsColumn({
             renderActions: (_, row) => {
                 const status = row.original.status
-                if (["DELIVERING", "DONE"].includes(status)) {
+                if (!canUpdateDelivery || ["DELIVERING", "DONE"].includes(status)) {
                     return null
                 }
                 return <DeliveryRowActions row={row} />
@@ -166,7 +184,13 @@ export function useDeliveryColumns() {
     }
 }
 
-function DeliveryStatusSelect({ delivery }: { delivery: Delivery }) {
+function DeliveryStatusSelect({
+    delivery,
+    canUpdateStatus,
+}: {
+    delivery: Delivery
+    canUpdateStatus: boolean
+}) {
     const queryClient = useQueryClient()
     const allowedNextStatuses = getNextDeliveryStatuses(delivery.status)
     const isLocked = allowedNextStatuses.length === 0
@@ -189,7 +213,7 @@ function DeliveryStatusSelect({ delivery }: { delivery: Delivery }) {
         },
     })
 
-    if (isLocked) {
+    if (isLocked || !canUpdateStatus) {
         // Read-only pill khi đã chốt
         return (
             <span
@@ -205,7 +229,7 @@ function DeliveryStatusSelect({ delivery }: { delivery: Delivery }) {
         <Select
             value={delivery.status}
             onValueChange={(value) => mutation.mutate(value)}
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || !canUpdateStatus}
         >
             <SelectTrigger className="h-8 w-[150px] gap-1.5 border-dashed">
                 <SelectValue>

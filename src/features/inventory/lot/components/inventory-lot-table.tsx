@@ -3,7 +3,7 @@ import type React from "react"
 import { useEffect, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { AlertTriangle, CalendarClock, Clock3, Funnel, HelpCircle, Package, TrendingDown, TrendingUp, Warehouse, X } from "lucide-react"
+import { AlertTriangle, CalendarClock, CheckCircle2, Clock3, Funnel, HelpCircle, Package, TrendingDown, TrendingUp, Warehouse, X } from "lucide-react"
 
 import { listProductNatureLookups, listProductUnitLookups } from "@/api/app-lookup"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
@@ -626,7 +626,12 @@ function InventoryLotRow({ index, item, natureLabelMap }: { index: number; item:
             <MoneyTd>{purchaseUnitCost}</MoneyTd>
             <MoneyTd>{handlingFeeUnit}</MoneyTd>
             <MoneyTd>{handlingFeeTotal}</MoneyTd>
-            <MoneyTd className="font-semibold">{unitCost}</MoneyTd>
+            <Td className="tabular-nums font-semibold">
+                <div className="flex items-center gap-1.5">
+                    <CostPeriodIcon label={reportString(item, "cost_period_label")} />
+                    <span className="ml-auto text-right">{formatCurrency(Number(unitCost || 0))}</span>
+                </div>
+            </Td>
             <NumberTd>{openingQuantity}</NumberTd>
             <MoneyTd>{openingValue}</MoneyTd>
             <NumberTd>{inboundQuantity}</NumberTd>
@@ -1253,6 +1258,26 @@ function reportNumber(item: InventoryLot, key: string) {
 function reportString(item: InventoryLot, key: string) {
     const value = (item as any)?.[key]
     return value == null ? "" : String(value)
+}
+
+function CostPeriodIcon({ label }: { label?: string | null }) {
+    const hasPeriod = Boolean(label && label.trim())
+    const title = hasPeriod ? `Đã lấy từ kỳ tính giá: ${label}` : "Chưa có kỳ tính giá"
+
+    return (
+        <span
+            className={cn(
+                "inline-flex size-4 shrink-0 items-center justify-center rounded-full border",
+                hasPeriod
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-amber-200 bg-amber-50 text-amber-700",
+            )}
+            title={title}
+            aria-label={title}
+        >
+            {hasPeriod ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
+        </span>
+    )
 }
 
 function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {

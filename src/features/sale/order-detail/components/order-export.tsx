@@ -365,10 +365,11 @@ export function OrderExports({ exports, order }: any) {
                                          items={exportDoc.items ?? []}
                                          exportDoc={exportDoc}
                                          exportTime={exportTime}
-                                         order={order}
-                                    orderId={order.id}
-                                    physicalWarehouseId={physicalWarehouseId}
-                                />
+                                          order={order}
+                                     orderId={order.id}
+                                     physicalWarehouseId={physicalWarehouseId}
+                                     canUpdateExport={canUpdateStatus}
+                                 />
                             </div>
                         )
                     })}
@@ -391,6 +392,7 @@ function ItemsTable({
     order,
     orderId,
     physicalWarehouseId,
+    canUpdateExport,
 }: {
     items: any[]
     exportDoc: any
@@ -398,6 +400,7 @@ function ItemsTable({
     order: any
     orderId: number
     physicalWarehouseId?: number
+    canUpdateExport: boolean
 }) {
     const queryClient = useQueryClient()
     const { mutate: changeWarehouse, isPending } = useMutation({
@@ -422,6 +425,7 @@ function ItemsTable({
     })
 
     const isNew = exportDoc?.status === "NEW"
+    const canEditExport = isNew && canUpdateExport
     const postingDate = normalizeDateParam(exportDoc?.export_date) ?? new Date().toISOString().slice(0, 10)
     const postingTime = normalizeTimeForInput(exportTime)
     const payloadExportTime = normalizeTimeForInput(exportDoc?.export_time)
@@ -586,14 +590,14 @@ function ItemsTable({
                                     {formatCurrency(amount)}
                                 </TableCell>
                                 <TableCell>
-                                    {isNew ? (
+                                    {canEditExport ? (
                                         <div className="space-y-1">
                                             <AsyncSelect
                                                 className="h-9 min-h-9 items-center bg-white px-3 py-0 [&>span]:truncate"
                                                 placeholder="Chọn kho xuất"
                                                 searchPlaceholder="Tìm kho"
                                                 value={warehouseId}
-                                                disabled={isPending}
+                                                disabled={isPending || !canUpdateExport}
                                                 onChange={(value: any) => {
                                                     if (value) {
                                                         changeWarehouse({
@@ -637,8 +641,8 @@ function ItemsTable({
                                         exportTime={exportTime}
                                         availableLots={availableLots}
                                         lotsLoading={lotsLoading}
-                                        isNew={isNew}
-                                        disabled={isChangingLot || !warehouseId || !productId}
+                                        isNew={canEditExport}
+                                        disabled={isChangingLot || !canEditExport || !warehouseId || !productId}
                                         onChange={(lotCode) => changeLot({ itemId: item.id, lotCode })}
                                     />
                                 </TableCell>

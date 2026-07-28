@@ -28,6 +28,7 @@ const EXPORT_PAGE_SIZE = 500
 const COLUMNS: ExportColumn[] = [
     { label: "STT", value: (_row, index) => index + 1, width: 8, type: "number", numberFormat: "integer" },
     { label: "Ngày", value: (row) => row.posting_date, width: 14, type: "date" },
+    { label: "Giờ", value: (row) => formatTimeText(row.posting_time), width: 12 },
     { label: "Chứng từ", value: (row) => row.doc_no, width: 22 },
     { label: "Diễn giải", value: (row) => row.description, width: 36 },
     { label: "TK Nợ", value: (row) => row.tk_no, width: 12 },
@@ -43,7 +44,7 @@ const COLUMNS: ExportColumn[] = [
     { label: "Nhập", value: (row) => row.quantity_in, width: 16, type: "number", numberFormat: "quantity" },
     { label: "Xuất", value: (row) => row.quantity_out, width: 16, type: "number", numberFormat: "quantity" },
     { label: "Tồn sau", value: (row) => row.balance_quantity, width: 16, type: "number", numberFormat: "quantity" },
-    { label: "Thành tiền", value: (row) => row.amount, width: 18, type: "number", numberFormat: "money" },
+  { label: "Thành tiền", value: (row) => Math.abs(Number(row.amount || 0)), width: 18, type: "number", numberFormat: "money" },
     { label: "Loại chứng từ", value: (row) => getDocTypeMeta(row.doc_type).label, width: 34 },
     { label: "Tên nhà cung cấp", value: (row) => row.supplier_name, width: 28 },
     { label: "Mã loại", value: (row) => row.doc_type, width: 20 },
@@ -86,6 +87,7 @@ export function ExportInventoryLedgerButton({ keyword, filters, showValues = tru
                 unit: filters.unit || undefined,
                 lot_text: filters.lot_text || undefined,
                 lot_text_op: filters.lot_text_op || undefined,
+                time_sort: filters.time_sort || "asc",
                 direction: filters.direction || undefined,
                 show_values: filters.show_values,
             })
@@ -230,7 +232,7 @@ function autoFitColumns(sheet: any, columns: ExportColumn[]) {
         })
 
         const minWidth = column.type === "number" ? 12 : column.type === "date" ? 12 : 10
-        const maxWidth = ["Di�.n giải", "Tên sản phẩm"].includes(column.label)
+        const maxWidth = ["Diễn giải", "Tên hàng", "Tên sản phẩm"].includes(column.label)
             ? 64
             : ["Tên nhà cung cấp", "Loại chứng từ", "Kho"].includes(column.label)
                 ? 44
@@ -291,6 +293,11 @@ function formatDateText(value?: string | null) {
         return `${ymd[3].padStart(2, "0")}/${ymd[2].padStart(2, "0")}/${ymd[1]}`
     }
     return value
+}
+
+function formatTimeText(value?: string | null) {
+    if (!value) return ""
+    return String(value).trim().split(".")[0]
 }
 
 function excelDateSerial(value?: string | null) {

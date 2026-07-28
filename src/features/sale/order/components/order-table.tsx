@@ -73,9 +73,11 @@ export function OrderTable({
         queryKey: ["my-permissions"],
         queryFn: getMyPermissions,
     })
-    const canUpdateOrder =
+    const canUpdateOrder = hasPermission(permissions, "sales.orders", "update")
+    const canUpdateOrderStatus =
         hasPermission(permissions, "sales.orders", "update") ||
         hasPermission(permissions, "sales.orders", "status.update")
+    const canCreateOrder = hasPermission(permissions, "sales.orders", "create")
     const canAdjustPrice = hasPermission(permissions, "sales.orders", "price.adjust")
     const canAdjustQuantity = hasPermission(permissions, "sales.orders", "quantity.adjust")
 
@@ -297,11 +299,13 @@ export function OrderTable({
                             {data.map((order: Order) => (
                                 <OrderCard
                                     key={order.id}
-                                    order={order}
-                                    canUpdateOrder={canUpdateOrder}
-                                    canAdjustPrice={canAdjustPrice}
-                                    canAdjustQuantity={canAdjustQuantity}
-                                    returnTo={returnTo}
+                                     order={order}
+                                     canUpdateOrder={canUpdateOrder}
+                                     canUpdateOrderStatus={canUpdateOrderStatus}
+                                     canCreateOrder={canCreateOrder}
+                                     canAdjustPrice={canAdjustPrice}
+                                     canAdjustQuantity={canAdjustQuantity}
+                                     returnTo={returnTo}
                                 />
                             ))}
                         </>
@@ -342,12 +346,16 @@ function OrderListHeader() {
 function OrderCard({
     order,
     canUpdateOrder,
+    canUpdateOrderStatus,
+    canCreateOrder,
     canAdjustPrice,
     canAdjustQuantity,
     returnTo,
 }: {
     order: Order
     canUpdateOrder: boolean
+    canUpdateOrderStatus: boolean
+    canCreateOrder: boolean
     canAdjustPrice: boolean
     canAdjustQuantity: boolean
     returnTo: string
@@ -534,7 +542,7 @@ function OrderCard({
                     <Select
                         value={status}
                         onValueChange={(v) => changeStatus({ id: order.id, status: v })}
-                        disabled={isPending || isLocked || !canUpdateOrder}
+                        disabled={isPending || isLocked || !canUpdateOrderStatus}
                     >
                         <SelectTrigger
                             className={cn(
@@ -577,6 +585,7 @@ function OrderCard({
                     <OrderRowMenu
                         order={order}
                         canEdit={!isLocked && !hasDoneExport && canUpdateOrder}
+                        canClone={canCreateOrder}
                         canAdjustPrice={canAdjustPrice && hasDoneExport}
                         canAdjustQuantity={canAdjustQuantity && hasDoneExport}
                         onEdit={() => openEdit(order)}
@@ -592,11 +601,13 @@ function OrderCard({
                 order={order}
                 onClose={() => setDocumentOpen(false)}
             />
-            <CreateOrderDialog
-                open={cloneOpen}
-                onOpenChange={setCloneOpen}
-                initialData={order}
-            />
+            {canCreateOrder && (
+                <CreateOrderDialog
+                    open={cloneOpen}
+                    onOpenChange={setCloneOpen}
+                    initialData={order}
+                />
+            )}
             <OrderPriceAdjustmentDialog
                 open={priceOpen}
                 order={order}
@@ -614,6 +625,7 @@ function OrderCard({
 function OrderRowMenu({
     order,
     canEdit,
+    canClone,
     canAdjustPrice,
     canAdjustQuantity,
     onEdit,
@@ -623,6 +635,7 @@ function OrderRowMenu({
 }: {
     order: Order
     canEdit: boolean
+    canClone: boolean
     canAdjustPrice: boolean
     canAdjustQuantity: boolean
     onEdit: () => void
@@ -650,10 +663,12 @@ function OrderRowMenu({
                     <Pencil className="h-4 w-4" />
                     Sửa
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onClone} className="gap-2">
-                    <CopyPlus className="h-4 w-4" />
-                    Nhân bản
-                </DropdownMenuItem>
+                {canClone && (
+                    <DropdownMenuItem onClick={onClone} className="gap-2">
+                        <CopyPlus className="h-4 w-4" />
+                        Nhân bản
+                    </DropdownMenuItem>
+                )}
                 {canAdjustPrice && (
                     <DropdownMenuItem onClick={onAdjustPrice} className="gap-2">
                         <Pencil className="h-4 w-4" />

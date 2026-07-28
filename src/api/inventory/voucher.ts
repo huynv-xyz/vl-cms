@@ -20,6 +20,8 @@ export type InventoryVoucher = {
     id: number
     voucher_no?: string
     voucher_type_code: VoucherTypeCode | string
+    creation_origin?: "MANUAL" | "SYSTEM" | "IMPORT" | string
+    operation_code?: string
     posting_date?: string
     document_date?: string
     physical_warehouse_id?: number
@@ -46,6 +48,10 @@ export type InventoryVoucherItem = {
     id: number
     voucher_id: number
     line_no?: number
+    direction?: "I" | "O" | string
+    item_role?: "SOURCE" | "TARGET" | "PACKAGING" | "ADJUSTMENT" | string
+    movement_group?: string
+    related_item_id?: number
     product_id?: number
     warehouse_id?: number
     to_warehouse_id?: number
@@ -75,6 +81,10 @@ export type InventoryVoucherType = {
     tk_no?: string | null
     tk_co?: string | null
     active?: number
+    allow_manual_create?: number
+    allow_system_create?: number
+    allow_import?: number
+    manual_sort_order?: number
 }
 
 export const DEFAULT_INBOUND_VOUCHER_TYPES: InventoryVoucherType[] = [
@@ -125,6 +135,10 @@ export type ListVouchersParams = {
 
 export type CreateVoucherItemRequest = {
     line_no?: number
+    direction?: "I" | "O" | string
+    item_role?: "SOURCE" | "TARGET" | "PACKAGING" | "ADJUSTMENT" | string
+    movement_group?: string
+    related_item_id?: number
     product_id: number
     warehouse_id: number
     to_warehouse_id?: number
@@ -145,6 +159,7 @@ export type CreateVoucherItemRequest = {
 
 export type CreateVoucherRequest = {
     voucher_type_code: VoucherTypeCode | string
+    operation_code?: string
     posting_date: string
     document_date: string
     warehouse_id?: number
@@ -185,12 +200,20 @@ export function getVoucherPrintDetail(id: number) {
     return apiGet<InventoryVoucherPrintDetail>(`/inventory/vouchers/${id}/print`)
 }
 
-export function listVoucherTypes(direction?: "I" | "O", active?: number) {
-    return apiGet<InventoryVoucherType[]>("/inventory/vouchers/types", { direction, active })
+export function listVoucherTypes(direction?: "I" | "O", active?: number, manualCreate?: number) {
+    return apiGet<InventoryVoucherType[]>("/inventory/vouchers/types", {
+        direction,
+        active,
+        manual_create: manualCreate,
+    })
 }
 
 export function createVoucher(body: CreateVoucherRequest) {
     return apiPost<InventoryVoucher>("/inventory/vouchers", body)
+}
+
+export function createAndPostVoucher(body: CreateVoucherRequest) {
+    return apiPost<{ voucher_id: number; ledger_count: number }>("/inventory/vouchers/create-and-post", body)
 }
 
 export function postVoucher(id: number, body?: { posted_by?: number }) {
