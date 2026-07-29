@@ -13,6 +13,7 @@ import {
 import { getEffectiveProductBom } from "@/api/production/bom"
 import { getProduct, listProducts } from "@/api/product"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
+import { getAvailableLotsAt } from "@/api/inventory/lot"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Button } from "@/components/ui/button"
 import {
@@ -591,6 +592,7 @@ export function AdjustProductionDialog({ production, open, onOpenChange }: Props
                     ) : null}
 
                     <ProductionAdjustmentCards
+                        production={sourceProduction}
                         rows={rows}
                         expandedIndex={expandedIndex}
                         disabled={applied}
@@ -779,6 +781,7 @@ export function AdjustProductionDialog({ production, open, onOpenChange }: Props
 }
 
 function ProductionAdjustmentCards({
+    production,
     rows,
     expandedIndex,
     disabled,
@@ -789,6 +792,7 @@ function ProductionAdjustmentCards({
     onRemove,
     onMaterialChange,
 }: {
+    production?: Production
     rows: Row[]
     expandedIndex: number
     disabled?: boolean
@@ -909,9 +913,10 @@ function ProductionAdjustmentCards({
                                                     </Td>
                                                     <Td className="text-right">
                                                         <PreferredLotSelector
+                                                            production={production}
                                                             material={material}
                                                             disabled={disabled}
-                                                            onChange={(lotNo) => onMaterialChange(index, materialIndex, { lot_no: lotNo })}
+                                                            onChange={(lotNo, lotId) => onMaterialChange(index, materialIndex, { lot_no: lotNo, lot_id: lotId })}
                                                         />
                                                     </Td>
                                                 </tr>
@@ -1085,24 +1090,112 @@ function AllocationSummary({ material }: { material: MaterialRow }) {
 }
 
 function PreferredLotSelector({
+    production,
     material,
     disabled,
     onChange,
 }: {
+    production?: Production
     material: MaterialRow
     disabled?: boolean
-    onChange: (lotNo?: string) => void
+    onChange: (lotNo?: string, lotId?: number) => void
 }) {
-    const allocationLots = Array.from(
-        new Map(
-            (material.fifo_allocations || [])
-                .filter((allocation) => allocation.lot_no)
-                .map((allocation) => [String(allocation.lot_no), allocation]),
-        ).values(),
-    )
+    const productId = material.product_id ? Number(material.product_id) : undefined
+    const warehouseId = material.warehouse_id ? Number(material.warehouse_id) : undefined
+    const postingDate = production?.production_date
+    const postingTime = production?.production_time || undefined
+
+    const { data: availableLots = [], isFetching } = useQuery({
+        queryKey: ["production-adjust-available-lots", productId, warehouseId, postingDate, postingTime],
+        enabled: Boolean(productId && warehouseId && postingDate && !disabled),
+        queryFn: () => getAvailableLotsAt({
+            product_id: Number(productId),
+            warehouse_id: Number(warehouseId),
+            posting_date: String(postingDate),
+            posting_time: postingTime,
+        }),
+    })
+
+    const lotOptions = useMemo(() => {
+        const map = new Map<string, {
+            lot_id?: number
+            lot_no: string
+            inbound_date?: string
+            available_quantity?: number
+            allocated_quantity?: number
+        }>()
+
+        for (const lot of availableLots || []) {
+            const lotNo = String(lot.lot_no || "").trim()
+            if (!lotNo) continue
+            map.set(lotNo, {
+                lot_id: lot.id ?? lot.lot_id,
+                lot_no: lotNo,
+                inbound_date: lot.inbound_date,
+                available_quantity: Number(lot.available_quantity ?? lot.quantity_remaining ?? lot.quantity ?? 0),
+                allocated_quantity: 0,
+            })
+        }
+
+        for (const allocation of material.fifo_allocations || []) {
+            const lotNo = String(allocation.lot_no || "").trim()
+            if (!lotNo) continue
+            const current = map.get(lotNo)
+            map.set(lotNo, {
+                lot_id: current?.lot_id ?? allocation.inventory_lot_id ?? allocation.lot_id,
+                lot_no: lotNo,
+                inbound_date: current?.inbound_date ?? allocation.inbound_date,
+                available_quantity: current?.available_quantity,
+                allocated_quantity: Number(current?.allocated_quantity || 0) + Number(allocation.quantity || 0),
+            })
+        }
+
+        const selectedLotNo = String(material.lot_no || "").trim()
+        if (selectedLotNo && !map.has(selectedLotNo)) {
+            map.set(selectedLotNo, {
+                lot_id: material.lot_id,
+                lot_no: selectedLotNo,
+                allocated_quantity: 0,
+            })
+        }
+
+        return Array.from(map.values()).sort((a, b) => {
+            const aDate = a.inbound_date || "9999-12-31"
+            const bDate = b.inbound_date || "9999-12-31"
+            if (aDate !== bDate) return aDate.localeCompare(bDate)
+            return a.lot_no.localeCompare(b.lot_no)
+        })
+    }, [availableLots, material.fifo_allocations, material.lot_id, material.lot_no])
+    const allocationLots = lotOptions.map((lot) => {
+        const quantityText = lot.available_quantity != null
+            ? `còn ${formatNumber(lot.available_quantity)}`
+            : lot.allocated_quantity
+                ? `đã lấy ${formatNumber(lot.allocated_quantity)}`
+                : "lô đang chọn"
+        const allocatedText = lot.allocated_quantity && lot.available_quantity != null
+            ? ` · đã lấy ${formatNumber(lot.allocated_quantity)}`
+            : ""
+        return {
+            lot_id: lot.lot_id,
+            lot_no: lot.lot_no,
+            quantity: lot.available_quantity ?? lot.allocated_quantity ?? 0,
+            displayLabel: `${lot.lot_no} - ${quantityText}${allocatedText}`,
+        }
+    })
     const value = material.lot_no || "AUTO"
     return (
-        <Select value={value} disabled={disabled} onValueChange={(next) => onChange(next === "AUTO" ? undefined : next)}>
+        <Select
+            value={value}
+            disabled={disabled}
+            onValueChange={(next) => {
+                if (next === "AUTO") {
+                    onChange(undefined, undefined)
+                    return
+                }
+                const selected = lotOptions.find((lot) => lot.lot_no === next)
+                onChange(next, selected?.lot_id)
+            }}
+        >
             <SelectTrigger className="h-9 min-w-[150px] justify-between">
                 <SelectValue placeholder="Auto" />
             </SelectTrigger>
@@ -1113,9 +1206,14 @@ function PreferredLotSelector({
                         Auto
                     </span>
                 </SelectItem>
+                {isFetching ? (
+                    <SelectItem value="__LOADING__" disabled>
+                        Đang tải danh sách lô...
+                    </SelectItem>
+                ) : null}
                 {allocationLots.map((allocation: any) => (
                     <SelectItem key={String(allocation.lot_no)} value={String(allocation.lot_no)}>
-                        {allocation.lot_no} - đã lấy {formatNumber(allocation.quantity)}
+                        {allocation.displayLabel}
                     </SelectItem>
                 ))}
             </SelectContent>

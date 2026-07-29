@@ -46,6 +46,12 @@ export function OrderInfo({ order, metrics }: Props) {
             p.module === "sales.orders" &&
             (p.action === "status.update" || p.action === "update")
     )
+    const canUpdateOrder = permissions.some(
+        (p: any) => p.module === "sales.orders" && p.action === "update"
+    )
+    const canCreateOrder = permissions.some(
+        (p: any) => p.module === "sales.orders" && p.action === "create"
+    )
     const canAdjustPrice = permissions.some(
         (p: any) => p.module === "sales.orders" && p.action === "price.adjust"
     )
@@ -54,7 +60,7 @@ export function OrderInfo({ order, metrics }: Props) {
     )
     const isLocked = order.status === "DONE" || order.status === "CANCELLED"
     const hasDoneExport = hasCompletedExport(order)
-    const canEditOrder = canUpdateStatus && !isLocked && !hasDoneExport
+    const canEditOrder = canUpdateOrder && !isLocked && !hasDoneExport
 
     return (
         <div className="overflow-hidden rounded-xl border bg-gradient-to-br from-background to-muted/30 shadow-sm">
@@ -96,16 +102,18 @@ export function OrderInfo({ order, metrics }: Props) {
                 </div>
 
                 <div className="flex min-w-[170px] items-center gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-9 gap-1.5"
-                        onClick={() => setCloneOpen(true)}
-                    >
-                        <CopyPlus className="h-3.5 w-3.5" />
-                        Nhân bản
-                    </Button>
+                    {canCreateOrder && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-9 gap-1.5"
+                            onClick={() => setCloneOpen(true)}
+                        >
+                            <CopyPlus className="h-3.5 w-3.5" />
+                            Nhân bản
+                        </Button>
+                    )}
                     <Button
                         type="button"
                         variant="outline"
@@ -170,11 +178,13 @@ export function OrderInfo({ order, metrics }: Props) {
                 onClose={() => setDocumentOpen(false)}
             />
 
-            <CreateOrderDialog
-                open={cloneOpen}
-                onOpenChange={setCloneOpen}
-                initialData={order}
-            />
+            {canCreateOrder && (
+                <CreateOrderDialog
+                    open={cloneOpen}
+                    onOpenChange={setCloneOpen}
+                    initialData={order}
+                />
+            )}
 
             <UpdateOrderDialog
                 order={order}

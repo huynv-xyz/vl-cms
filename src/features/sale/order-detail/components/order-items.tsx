@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { AlertTriangle, CheckCircle2, Package, Pencil, Plus, Trash2 } from "lucide-react"
 
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table"
 
 import { deleteOrderItem } from "@/api/sale/order"
+import { getMyPermissions } from "@/api/auth/permission"
 import { CreateOrderItemDialog } from "./create-order-item-dialog"
 import { UpdateOrderItemDialog } from "./update-order-item-dialog"
 
@@ -25,8 +26,15 @@ export function OrderItems({ order, items }: any) {
 
     const [createOpen, setCreateOpen] = useState(false)
     const [editRow, setEditRow] = useState<any>(null)
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canUpdateOrder = permissions.some(
+        (permission: any) => permission.module === "sales.orders" && permission.action === "update"
+    )
 
-    const isEditable = order?.status === "CONFIRMED"
+    const isEditable = order?.status === "CONFIRMED" && canUpdateOrder
     const showStockWarning = order?.status !== "DONE"
 
     const { mutate: removeItem, isPending } = useMutation({

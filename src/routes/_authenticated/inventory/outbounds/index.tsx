@@ -43,6 +43,7 @@ function validateLedgerSearch(search: Record<string, unknown>) {
         unit: typeof search.unit === "string" ? search.unit : undefined,
         lot_text: typeof search.lot_text === "string" ? search.lot_text : undefined,
         lot_text_op: typeof search.lot_text_op === "string" ? search.lot_text_op : undefined,
+        time_sort: search.time_sort === "desc" ? "desc" : "asc",
     }
 }
 

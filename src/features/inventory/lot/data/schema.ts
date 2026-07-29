@@ -31,6 +31,7 @@ export type InventoryLot = {
     purchase_unit_cost?: number
     handling_fee_total?: number
     handling_fee_unit?: number
+    cost_period_label?: string | null
     expiry_date?: string | null
     expiry_status?: InventoryLotExpiryStatus
     days_to_expiry?: number | null

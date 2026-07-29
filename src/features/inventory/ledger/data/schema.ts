@@ -36,6 +36,7 @@ export type InventoryLedger = {
     voucher_item_id?: number | null
 
     posting_date: string
+    posting_time?: string | null
 
     product_id: number
     warehouse_id: number
@@ -62,6 +63,7 @@ export type InventoryLedgerReportRow = {
     voucher_id?: number | null
     voucher_item_id?: number | null
     posting_date: string
+    posting_time?: string | null
     product_id: number
     warehouse_id: number
     doc_type: string
@@ -74,6 +76,7 @@ export type InventoryLedgerReportRow = {
     unit?: string | null
     unit_price?: number | null
     amount?: number | null
+    cost_period_label?: string | null
     lot_id?: number | null
     lot_code?: string | null
     quantity_in: number

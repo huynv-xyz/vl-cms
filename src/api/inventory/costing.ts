@@ -185,7 +185,15 @@ export function createCostPeriod(body: CreateCostPeriodRequest) {
 }
 
 export function calculateCostPeriod(id: number) {
-    return apiPost<{ period: CostPeriod; product_rows: number; lot_allocations: number; production_rows: number; production_product_count: number }>(
+    return apiPost<{
+        period: CostPeriod
+        product_rows: number
+        lot_allocations: number
+        production_rows: number
+        production_product_count: number
+        ledger_rows: number
+        stale_periods: number
+    }>(
         `/inventory/costing/periods/${id}/calculate`,
     )
 }

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { AlertTriangle, CheckCircle2, Funnel, Loader2, MoreHorizontal, Pencil, Printer, Warehouse as WarehouseIcon, X } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Clock, Funnel, Loader2, MoreHorizontal, Pencil, Printer, Warehouse as WarehouseIcon, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { listProductUnitLookups } from "@/api/app-lookup"
@@ -10,12 +10,15 @@ import { getMyPermissions } from "@/api/auth/permission"
 import {
     applyPurchaseLotChange,
     applyPurchaseQuantityChange,
+    applyPurchasePostingDateTimeChange,
     applyReturnWarehouseChange,
     checkPurchaseLotChange,
     checkPurchaseQuantityChange,
+    checkPurchasePostingDateTimeChange,
     checkReturnWarehouseChange,
     type PurchaseLotChangeResult,
     type PurchaseQuantityChangeResult,
+    type PurchasePostingDateTimeChangeResult,
     type ReturnWarehouseChangeResult,
 } from "@/api/inventory/ledger"
 import { getVoucherPrintDetail, listVoucherTypes, VOUCHER_TYPE_LABEL, type InventoryVoucherPrintDetail, type InventoryVoucherType } from "@/api/inventory/voucher"
@@ -80,6 +83,7 @@ type Props = {
         unit?: string
         lot_text?: string
         lot_text_op?: string
+        time_sort?: "asc" | "desc" | string
     }
     onFiltersChange: (f: Props["filters"]) => void
     direction?: "IN" | "OUT"
@@ -141,6 +145,7 @@ export function InventoryLedgerTable({
     const [lotChangeRow, setLotChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [returnWarehouseChangeRow, setReturnWarehouseChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [purchaseQuantityChangeRow, setPurchaseQuantityChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [purchasePostingDateTimeChangeRow, setPurchasePostingDateTimeChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const queryClient = useQueryClient()
     const { data: inboundDocTypes = [] } = useQuery({
         queryKey: ["inventory-voucher-types", "I"],
@@ -181,6 +186,7 @@ export function InventoryLedgerTable({
             [key]: value || undefined,
         })
     }
+    const timeSort = filters.time_sort === "desc" ? "desc" : "asc"
 
     const setTextFilter = (
         textKey: "doc_text" | "description_text" | "supplier_text" | "product_text" | "product_code_text" | "product_name_text" | "warehouse_code_text" | "warehouse_name_text" | "lot_text",
@@ -295,6 +301,13 @@ export function InventoryLedgerTable({
                 onClear: () => clearTextFilter("lot_text", "lot_text_op"),
             }
             : null,
+        timeSort === "desc"
+            ? {
+                key: "time_sort",
+                label: "Thời gian: Giảm dần",
+                onClear: () => setFilter("time_sort", "asc"),
+            }
+            : null,
     ].filter(Boolean) as Array<{ key: string; label: string; onClear: () => void }>
 
     const clearAllActiveFilters = () => {
@@ -324,6 +337,7 @@ export function InventoryLedgerTable({
             unit: undefined,
             lot_text: undefined,
             lot_text_op: undefined,
+            time_sort: "asc",
         })
     }
 
@@ -391,6 +405,16 @@ export function InventoryLedgerTable({
                         placeholder="Đến ngày"
                     />
 
+                    <Select value={timeSort} onValueChange={(value) => setFilter("time_sort", value === "desc" ? "desc" : "asc")}>
+                        <SelectTrigger className={cn(controlClass, "min-w-[170px] flex-[0_1_180px]")}>
+                            <SelectValue placeholder="Sắp xếp thời gian" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="asc">Thời gian tăng dần</SelectItem>
+                            <SelectItem value="desc">Thời gian giảm dần</SelectItem>
+                        </SelectContent>
+                    </Select>
+
                 </div>
             </CardHeader>
 
@@ -424,14 +448,15 @@ export function InventoryLedgerTable({
                 ) : null}
                 <StickyReportTable
                     columnWidths={showValues
-                        ? [64, 110, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 120, 110, 110, 120, 140, 260, 260, 100]
-                        : [64, 110, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 110, 110, 120, 260, 260, 100]}
-                    defaultPinnedUntil={7}
+                        ? [64, 110, 90, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 120, 110, 110, 120, 140, 260, 260, 100]
+                        : [64, 110, 90, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 110, 110, 120, 260, 260, 100]}
+                    defaultPinnedUntil={8}
                     renderHeader={() => (
                         <>
                             <tr>
                                 <Th className="min-w-[56px] text-center">STT</Th>
                                 <Th className="min-w-[110px]">Ngày</Th>
+                                <Th className="min-w-[90px] text-center">Giờ</Th>
                                 <Th className="min-w-[170px]">
                                     <ColumnTextFilter
                                         label="Chứng từ"
@@ -544,6 +569,7 @@ export function InventoryLedgerTable({
                                     onChangeLot={canUseLedgerCorrections ? setLotChangeRow : undefined}
                                     onChangeReturnWarehouse={canUseLedgerCorrections ? setReturnWarehouseChangeRow : undefined}
                                     onChangePurchaseQuantity={canUseLedgerCorrections ? setPurchaseQuantityChangeRow : undefined}
+                                    onChangePurchasePostingDateTime={canUseLedgerCorrections ? setPurchasePostingDateTimeChangeRow : undefined}
                                     showValues={showValues}
                                     direction={direction}
                                 />
@@ -602,6 +628,18 @@ export function InventoryLedgerTable({
                 }}
                 onChanged={() => {
                     queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                }}
+            />
+            <PurchasePostingDateTimeChangeDialog
+                row={purchasePostingDateTimeChangeRow}
+                open={!!purchasePostingDateTimeChangeRow}
+                onOpenChange={(open) => {
+                    if (!open) setPurchasePostingDateTimeChangeRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
                 }}
             />
         </Card>
@@ -1094,6 +1132,7 @@ function LedgerRow({
     onChangeLot,
     onChangeReturnWarehouse,
     onChangePurchaseQuantity,
+    onChangePurchasePostingDateTime,
     showValues,
     direction,
 }: {
@@ -1103,6 +1142,7 @@ function LedgerRow({
     onChangeLot?: (row: InventoryLedgerReportRow) => void
     onChangeReturnWarehouse?: (row: InventoryLedgerReportRow) => void
     onChangePurchaseQuantity?: (row: InventoryLedgerReportRow) => void
+    onChangePurchasePostingDateTime?: (row: InventoryLedgerReportRow) => void
     showValues: boolean
     direction?: "IN" | "OUT"
 }) {
@@ -1117,6 +1157,9 @@ function LedgerRow({
             <Td className="text-muted-foreground text-center font-mono">{formatNumber(index)}</Td>
             <Td className="whitespace-nowrap text-center tabular-nums">
                 {formatDate(item.posting_date)}
+            </Td>
+            <Td className="whitespace-nowrap text-center tabular-nums">
+                {formatTime(item.posting_time)}
             </Td>
             <Td className={cn(centerVoucherFields && "text-center")}>
                 <div className={cn("flex items-center gap-1.5", centerVoucherFields && "justify-center")}>
@@ -1165,8 +1208,11 @@ function LedgerRow({
                 <LedgerText value={item.warehouse_name} className="text-center font-medium text-foreground" />
             </Td>
             {showValues ? (
-                <Td className="text-right tabular-nums">
-                    {formatNumber(Number(item.unit_price || 0))}
+                <Td className="tabular-nums">
+                    <div className="flex items-center justify-between gap-2">
+                        <CostPeriodIcon label={item.cost_period_label} />
+                        <span className="min-w-0 text-right">{formatNumber(Number(item.unit_price || 0))}</span>
+                    </div>
                 </Td>
             ) : null}
             <Td className="text-right font-semibold tabular-nums">
@@ -1183,7 +1229,7 @@ function LedgerRow({
             </Td>
             {showValues ? (
                 <Td className="text-right tabular-nums">
-                    {formatNumber(Number(item.amount || 0))}
+                      {formatNumber(Math.abs(Number(item.amount || 0)))}
                 </Td>
             ) : null}
             <Td className="text-center">
@@ -1198,6 +1244,7 @@ function LedgerRow({
                     onChangeLot={onChangeLot}
                     onChangeReturnWarehouse={onChangeReturnWarehouse}
                     onChangePurchaseQuantity={onChangePurchaseQuantity}
+                    onChangePurchasePostingDateTime={onChangePurchasePostingDateTime}
                 />
             </Td>
         </tr>
@@ -1209,17 +1256,20 @@ function LedgerCorrectionActions({
     onChangeLot,
     onChangeReturnWarehouse,
     onChangePurchaseQuantity,
+    onChangePurchasePostingDateTime,
 }: {
     item: InventoryLedgerReportRow
     onChangeLot?: (row: InventoryLedgerReportRow) => void
     onChangeReturnWarehouse?: (row: InventoryLedgerReportRow) => void
     onChangePurchaseQuantity?: (row: InventoryLedgerReportRow) => void
+    onChangePurchasePostingDateTime?: (row: InventoryLedgerReportRow) => void
 }) {
     const canChangeLot = Boolean(onChangeLot && isPurchaseInboundLedger(item))
     const canChangeReturnWarehouse = Boolean(onChangeReturnWarehouse && isSalesReturnInboundLedger(item))
     const canChangePurchaseQuantity = Boolean(onChangePurchaseQuantity && isQuantityCorrectionLedger(item))
+    const canChangePurchasePostingDateTime = Boolean(onChangePurchasePostingDateTime && isPurchasePostingDateTimeCorrectionLedger(item))
 
-    if (!canChangeLot && !canChangeReturnWarehouse && !canChangePurchaseQuantity) {
+    if (!canChangeLot && !canChangeReturnWarehouse && !canChangePurchaseQuantity && !canChangePurchasePostingDateTime) {
         return <span className="text-muted-foreground">-</span>
     }
 
@@ -1256,7 +1306,20 @@ function LedgerCorrectionActions({
                         <Pencil className="mt-0.5 h-4 w-4 text-primary" />
                         <span>
                             <span className="block font-medium">Sửa số lượng</span>
-                            <span className="block text-xs text-muted-foreground">Áp dụng cho mua hàng nhập khẩu, nhập kho khác hoặc xuất kho khác.</span>
+                            <span className="block text-xs text-muted-foreground">Áp dụng cho mua hàng nhập khẩu, mua hàng trong nước, nhập kho khác hoặc xuất kho khác.</span>
+                        </span>
+                    </button>
+                ) : null}
+                {canChangePurchasePostingDateTime ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                        onClick={() => onChangePurchasePostingDateTime?.(item)}
+                    >
+                        <Clock className="mt-0.5 h-4 w-4 text-primary" />
+                        <span>
+                            <span className="block font-medium">Đổi ngày/giờ chứng từ</span>
+                            <span className="block text-xs text-muted-foreground">Áp dụng cho toàn bộ phiếu mua hàng nhập khẩu/trong nước.</span>
                         </span>
                     </button>
                 ) : null}
@@ -1894,6 +1957,238 @@ function PurchaseQuantityChangeResultPanel({ result }: { result: PurchaseQuantit
     )
 }
 
+function PurchasePostingDateTimeChangeDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [newDate, setNewDate] = useState("")
+    const [newTime, setNewTime] = useState("")
+    const [result, setResult] = useState<PurchasePostingDateTimeChangeResult | null>(null)
+    const [errorText, setErrorText] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (open && row) {
+            setNewDate(toDateInputValue(row.posting_date))
+            setNewTime(toTimeInputValue(row.posting_time))
+            setResult(null)
+            setErrorText(null)
+        }
+    }, [open, row])
+
+    const oldDate = toDateInputValue(row?.posting_date)
+    const oldTime = toTimeInputValue(row?.posting_time)
+    const changed = Boolean(row && newDate && newTime && (newDate !== oldDate || normalizeTimeForApi(newTime) !== normalizeTimeForApi(oldTime)))
+    const applied = Boolean(result?.applied)
+
+    const handleDateChange = (value: string) => {
+        setNewDate(value)
+        setResult(null)
+        setErrorText(null)
+    }
+
+    const handleTimeChange = (value: string) => {
+        setNewTime(value)
+        setResult(null)
+        setErrorText(null)
+    }
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkPurchasePostingDateTimeChange(Number(row?.id), newDate, normalizeTimeForApi(newTime)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorText(null)
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorText(error?.message || "Không kiểm tra được ngày/giờ chứng từ")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applyPurchasePostingDateTimeChange(Number(row?.id), newDate, normalizeTimeForApi(newTime)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorText(null)
+            if (data?.valid) onChanged()
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorText(error?.message || "Không đổi được ngày/giờ chứng từ")
+        },
+    })
+
+    if (!row) return null
+
+    const working = checkMutation.isPending || applyMutation.isPending
+
+        return (
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent
+                    className="max-h-[calc(100vh-32px)] !w-[min(1280px,calc(100vw-32px))] !max-w-[calc(100vw-32px)] overflow-y-auto"
+                >
+                <DialogHeader>
+                    <DialogTitle>Đổi ngày/giờ chứng từ mua hàng</DialogTitle>
+                    <DialogDescription>
+                        Áp dụng cho toàn bộ phiếu/chứng từ mua hàng nhập khẩu hoặc mua hàng trong nước. Hệ thống kiểm tra lịch sử tồn theo ngày và giờ trước khi ghi thật.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                    <div className="grid gap-3 rounded-md border bg-muted/20 p-3 md:grid-cols-4">
+                        <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                        <InfoItem label="Loại chứng từ" value={getDocTypeMeta(row.doc_type).label} />
+                        <InfoItem label="Thời điểm hiện tại" value={`${formatDate(row.posting_date)} ${formatTime(row.posting_time)}`} />
+                        <InfoItem label="Số lô" value={row.lot_code || "-"} />
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <label className="space-y-1.5">
+                            <span className="text-sm font-medium">Ngày mới</span>
+                            <Input
+                                type="date"
+                                value={newDate}
+                                onChange={(event) => handleDateChange(event.target.value)}
+                            />
+                        </label>
+                        <label className="space-y-1.5">
+                            <span className="text-sm font-medium">Giờ mới</span>
+                            <Input
+                                type="time"
+                                step="1"
+                                value={newTime}
+                                onChange={(event) => handleTimeChange(event.target.value)}
+                            />
+                        </label>
+                    </div>
+
+                    {!changed ? (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                            Ngày/giờ mới phải khác thời điểm hiện tại của chứng từ.
+                        </div>
+                    ) : null}
+
+                    {errorText ? (
+                        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            {errorText}
+                        </div>
+                    ) : null}
+
+                    {result ? <PurchasePostingDateTimeChangeResultPanel result={result} /> : null}
+
+                    <div className="flex justify-end gap-2 border-t pt-3">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={working}>
+                            Đóng
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={!changed || working}
+                            onClick={() => checkMutation.mutate()}
+                        >
+                            {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Kiểm tra
+                        </Button>
+                        <Button
+                            type="button"
+                            disabled={!changed || working || applied}
+                            onClick={() => applyMutation.mutate()}
+                        >
+                            {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Đổi ngày/giờ
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function PurchasePostingDateTimeChangeResultPanel({ result }: { result: PurchasePostingDateTimeChangeResult }) {
+    const valid = Boolean(result.valid)
+    const applied = Boolean(result.applied)
+    const changes = result.changes || {}
+    const lines = result.lines || []
+
+    return (
+        <div className={cn(
+            "rounded-md border p-3 text-sm",
+            valid
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-800",
+        )}>
+            <div className="flex items-start gap-2 font-semibold">
+                {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
+                <span>{applied ? "Đã đổi ngày/giờ chứng từ" : valid ? "Có thể đổi ngày/giờ chứng từ" : "Không thể đổi ngày/giờ chứng từ"}</span>
+            </div>
+            <div className="mt-1 pl-6">{result.message}</div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-4">
+                <ResultInfo label="Thời điểm cũ" value={`${formatDate(result.old_posting_date)} ${formatTime(result.old_posting_time)}`} />
+                <ResultInfo label="Thời điểm mới" value={`${formatDate(result.new_posting_date)} ${formatTime(result.new_posting_time)}`} />
+                <ResultInfo label="Số dòng chứng từ" value={formatNumber(Number(result.line_count || 0))} />
+                <ResultInfo label="Số lô bị ảnh hưởng" value={formatNumber(Number(result.affected_lot_count || 0))} />
+                {applied ? <ResultInfo label="Dòng sổ kho đã cập nhật" value={formatNumber(Number(changes.updated_ledger_rows || 0))} /> : null}
+                {applied ? <ResultInfo label="Dòng phiếu kho đã cập nhật" value={formatNumber(Number(changes.updated_vouchers || 0))} /> : null}
+            </div>
+
+            {result.warnings?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2">
+                    {result.warnings.map((warning, index) => (
+                        <div key={index}>- {warning}</div>
+                    ))}
+                </div>
+            ) : null}
+
+            {result.errors?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2 text-red-700">
+                    {result.errors.map((error, index) => (
+                        <div key={index}>- {error}</div>
+                    ))}
+                </div>
+            ) : null}
+
+            <div className="mt-3 overflow-x-auto rounded-md border bg-white/70">
+                <table className="w-full min-w-[900px] text-sm">
+                    <thead className="bg-muted/50 text-muted-foreground">
+                        <tr>
+                            <Th className="w-12 text-center">STT</Th>
+                            <Th>Mã hàng</Th>
+                            <Th>Tên hàng</Th>
+                            <Th>Kho</Th>
+                            <Th>Số lô</Th>
+                            <Th className="text-right">SL</Th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {lines.map((line, index) => (
+                            <tr key={`${line.ledger_id || index}`} className="border-t">
+                                <Td className="text-center font-mono">{index + 1}</Td>
+                                <Td className="font-mono text-xs">{line.product_code || "-"}</Td>
+                                <Td>{line.product_name || "-"}</Td>
+                                <Td>{line.warehouse_name || line.warehouse_code || "-"}</Td>
+                                <Td className="font-mono text-xs">{line.lot_no || "-"}</Td>
+                                <Td className="text-right tabular-nums">{formatNumber(Number(line.quantity || 0))}</Td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                {!lines.length ? (
+                    <div className="text-muted-foreground py-5 text-center text-sm">
+                        Không có dòng chi tiết.
+                    </div>
+                ) : null}
+            </div>
+        </div>
+    )
+}
+
 function ResultInfo({ label, value }: { label: string; value?: React.ReactNode }) {
     return (
         <div className="rounded-md border bg-white/80 p-2">
@@ -2237,7 +2532,7 @@ function isSalesReturnInboundLedger(item: InventoryLedgerReportRow) {
 
 function isQuantityCorrectionLedger(item: InventoryLedgerReportRow) {
     const docType = String(item.doc_type || "").toUpperCase()
-    if (["IMPORT_PURCHASE", "OTHER_INBOUND"].includes(docType)) {
+    if (["IMPORT_PURCHASE", "DOMESTIC_PURCHASE", "OTHER_INBOUND"].includes(docType)) {
         return Number(item.quantity_in || 0) > 0 && Boolean(item.lot_code)
     }
     if (docType === "OTHER_EXPORT") {
@@ -2246,7 +2541,14 @@ function isQuantityCorrectionLedger(item: InventoryLedgerReportRow) {
     return false
 }
 
-function formatDate(value?: string) {
+function isPurchasePostingDateTimeCorrectionLedger(item: InventoryLedgerReportRow) {
+    const docType = String(item.doc_type || "").toUpperCase()
+    return ["IMPORT_PURCHASE", "DOMESTIC_PURCHASE"].includes(docType)
+        && Number(item.quantity_in || 0) > 0
+        && Boolean(item.lot_code)
+}
+
+function formatDate(value?: string | null) {
     if (!value) return "-"
     const datePart = value.split("T")[0]
     const [year, month, day] = datePart.split("-")
@@ -2254,6 +2556,36 @@ function formatDate(value?: string) {
         return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`
     }
     return datePart
+}
+
+function formatTime(value?: string | null) {
+    if (!value) return "-"
+    return String(value).trim().split(".")[0]
+}
+
+function toDateInputValue(value?: string | null) {
+    if (!value) return ""
+    return String(value).split("T")[0]
+}
+
+function toTimeInputValue(value?: string | null) {
+    if (!value) return currentTimeInputValue()
+    return String(value).trim().split(".")[0].slice(0, 8)
+}
+
+function normalizeTimeForApi(value?: string | null) {
+    const raw = String(value || "").trim()
+    if (!raw) return "00:00:00"
+    const parts = raw.split(":")
+    const hour = parts[0]?.padStart(2, "0") || "00"
+    const minute = parts[1]?.padStart(2, "0") || "00"
+    const second = parts[2]?.padStart(2, "0") || "00"
+    return `${hour}:${minute}:${second}`
+}
+
+function currentTimeInputValue() {
+    const now = new Date()
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`
 }
 
 function textFilterDescription(label: string, op: string | undefined, value: string) {
@@ -2332,6 +2664,26 @@ function formatMoney(value?: number | string | null) {
     return new Intl.NumberFormat("vi-VN", {
         maximumFractionDigits: 2,
     }).format(n)
+}
+
+function CostPeriodIcon({ label }: { label?: string | null }) {
+    const hasPeriod = Boolean(label && label.trim())
+    const title = hasPeriod ? `Đã lấy từ kỳ tính giá: ${label}` : "Chưa có kỳ tính giá"
+
+    return (
+        <span
+            className={cn(
+                "inline-flex size-4 shrink-0 items-center justify-center rounded-full border",
+                hasPeriod
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-amber-200 bg-amber-50 text-amber-700",
+            )}
+            title={title}
+            aria-label={title}
+        >
+            {hasPeriod ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
+        </span>
+    )
 }
 
 function escapeHtml(value: string) {
