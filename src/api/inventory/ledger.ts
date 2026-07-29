@@ -253,6 +253,23 @@ export function applyPurchasePostingDateTimeChange(ledgerId: number, newPostingD
     })
 }
 
+export type DocumentPostingTimeChangeResult = PurchasePostingDateTimeChangeResult & {
+    flow?: "OTHER_INBOUND" | "SALES_EXPORT" | "PRODUCTION"
+    source_id?: number | null
+}
+
+export function checkDocumentPostingTimeChange(ledgerId: number, newPostingTime: string) {
+    return apiPost<DocumentPostingTimeChangeResult>(`/inventory/ledger/${ledgerId}/document-posting-time-change/check`, {
+        newPostingTime,
+    })
+}
+
+export function applyDocumentPostingTimeChange(ledgerId: number, newPostingTime: string) {
+    return apiPost<DocumentPostingTimeChangeResult>(`/inventory/ledger/${ledgerId}/document-posting-time-change/apply`, {
+        newPostingTime,
+    })
+}
+
 export async function importProductionCostObjects(file: File) {
     const formData = new FormData()
     formData.append("file", file)

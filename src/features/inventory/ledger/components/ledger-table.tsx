@@ -11,14 +11,17 @@ import {
     applyPurchaseLotChange,
     applyPurchaseQuantityChange,
     applyPurchasePostingDateTimeChange,
+    applyDocumentPostingTimeChange,
     applyReturnWarehouseChange,
     checkPurchaseLotChange,
     checkPurchaseQuantityChange,
     checkPurchasePostingDateTimeChange,
+    checkDocumentPostingTimeChange,
     checkReturnWarehouseChange,
     type PurchaseLotChangeResult,
     type PurchaseQuantityChangeResult,
     type PurchasePostingDateTimeChangeResult,
+    type DocumentPostingTimeChangeResult,
     type ReturnWarehouseChangeResult,
 } from "@/api/inventory/ledger"
 import { getVoucherPrintDetail, listVoucherTypes, VOUCHER_TYPE_LABEL, type InventoryVoucherPrintDetail, type InventoryVoucherType } from "@/api/inventory/voucher"
@@ -146,6 +149,7 @@ export function InventoryLedgerTable({
     const [returnWarehouseChangeRow, setReturnWarehouseChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [purchaseQuantityChangeRow, setPurchaseQuantityChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [purchasePostingDateTimeChangeRow, setPurchasePostingDateTimeChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [documentPostingTimeChangeRow, setDocumentPostingTimeChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const queryClient = useQueryClient()
     const { data: inboundDocTypes = [] } = useQuery({
         queryKey: ["inventory-voucher-types", "I"],
@@ -570,6 +574,7 @@ export function InventoryLedgerTable({
                                     onChangeReturnWarehouse={canUseLedgerCorrections ? setReturnWarehouseChangeRow : undefined}
                                     onChangePurchaseQuantity={canUseLedgerCorrections ? setPurchaseQuantityChangeRow : undefined}
                                     onChangePurchasePostingDateTime={canUseLedgerCorrections ? setPurchasePostingDateTimeChangeRow : undefined}
+                                    onChangeDocumentPostingTime={canUseLedgerCorrections ? setDocumentPostingTimeChangeRow : undefined}
                                     showValues={showValues}
                                     direction={direction}
                                 />
@@ -640,6 +645,20 @@ export function InventoryLedgerTable({
                     queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
                     queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
                     queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                }}
+            />
+            <DocumentPostingTimeChangeDialog
+                row={documentPostingTimeChangeRow}
+                open={!!documentPostingTimeChangeRow}
+                onOpenChange={(open) => {
+                    if (!open) setDocumentPostingTimeChangeRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["sales-order-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["production-order-detail"] })
                 }}
             />
         </Card>
@@ -1133,6 +1152,7 @@ function LedgerRow({
     onChangeReturnWarehouse,
     onChangePurchaseQuantity,
     onChangePurchasePostingDateTime,
+    onChangeDocumentPostingTime,
     showValues,
     direction,
 }: {
@@ -1143,6 +1163,7 @@ function LedgerRow({
     onChangeReturnWarehouse?: (row: InventoryLedgerReportRow) => void
     onChangePurchaseQuantity?: (row: InventoryLedgerReportRow) => void
     onChangePurchasePostingDateTime?: (row: InventoryLedgerReportRow) => void
+    onChangeDocumentPostingTime?: (row: InventoryLedgerReportRow) => void
     showValues: boolean
     direction?: "IN" | "OUT"
 }) {
@@ -1245,6 +1266,7 @@ function LedgerRow({
                     onChangeReturnWarehouse={onChangeReturnWarehouse}
                     onChangePurchaseQuantity={onChangePurchaseQuantity}
                     onChangePurchasePostingDateTime={onChangePurchasePostingDateTime}
+                    onChangeDocumentPostingTime={onChangeDocumentPostingTime}
                 />
             </Td>
         </tr>
@@ -1257,19 +1279,22 @@ function LedgerCorrectionActions({
     onChangeReturnWarehouse,
     onChangePurchaseQuantity,
     onChangePurchasePostingDateTime,
+    onChangeDocumentPostingTime,
 }: {
     item: InventoryLedgerReportRow
     onChangeLot?: (row: InventoryLedgerReportRow) => void
     onChangeReturnWarehouse?: (row: InventoryLedgerReportRow) => void
     onChangePurchaseQuantity?: (row: InventoryLedgerReportRow) => void
     onChangePurchasePostingDateTime?: (row: InventoryLedgerReportRow) => void
+    onChangeDocumentPostingTime?: (row: InventoryLedgerReportRow) => void
 }) {
     const canChangeLot = Boolean(onChangeLot && isPurchaseInboundLedger(item))
     const canChangeReturnWarehouse = Boolean(onChangeReturnWarehouse && isSalesReturnInboundLedger(item))
     const canChangePurchaseQuantity = Boolean(onChangePurchaseQuantity && isQuantityCorrectionLedger(item))
     const canChangePurchasePostingDateTime = Boolean(onChangePurchasePostingDateTime && isPurchasePostingDateTimeCorrectionLedger(item))
+    const canChangeDocumentPostingTime = Boolean(onChangeDocumentPostingTime && isDocumentPostingTimeCorrectionLedger(item))
 
-    if (!canChangeLot && !canChangeReturnWarehouse && !canChangePurchaseQuantity && !canChangePurchasePostingDateTime) {
+    if (!canChangeLot && !canChangeReturnWarehouse && !canChangePurchaseQuantity && !canChangePurchasePostingDateTime && !canChangeDocumentPostingTime) {
         return <span className="text-muted-foreground">-</span>
     }
 
@@ -1320,6 +1345,19 @@ function LedgerCorrectionActions({
                         <span>
                             <span className="block font-medium">Đổi ngày/giờ chứng từ</span>
                             <span className="block text-xs text-muted-foreground">Áp dụng cho toàn bộ phiếu mua hàng nhập khẩu/trong nước.</span>
+                        </span>
+                    </button>
+                ) : null}
+                {canChangeDocumentPostingTime ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                        onClick={() => onChangeDocumentPostingTime?.(item)}
+                    >
+                        <Clock className="mt-0.5 h-4 w-4 text-primary" />
+                        <span>
+                            <span className="block font-medium">Sửa giờ {documentPostingTimeLabel(item.doc_type)}</span>
+                            <span className="block text-xs text-muted-foreground">Cập nhật toàn bộ chứng từ và nguồn phát sinh liên quan.</span>
                         </span>
                     </button>
                 ) : null}
@@ -2110,7 +2148,140 @@ function PurchasePostingDateTimeChangeDialog({
     )
 }
 
-function PurchasePostingDateTimeChangeResultPanel({ result }: { result: PurchasePostingDateTimeChangeResult }) {
+function DocumentPostingTimeChangeDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [newTime, setNewTime] = useState("")
+    const [result, setResult] = useState<DocumentPostingTimeChangeResult | null>(null)
+    const [errorText, setErrorText] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (open && row) {
+            setNewTime(row.posting_time ? toTimeInputValue(row.posting_time) : currentTimeInputValue())
+            setResult(null)
+            setErrorText(null)
+        }
+    }, [open, row])
+
+    const oldTime = row?.posting_time ? toTimeInputValue(row.posting_time) : ""
+    const changed = Boolean(row && newTime && normalizeTimeForApi(newTime) !== normalizeTimeForApi(oldTime))
+    const applied = Boolean(result?.applied)
+
+    const handleTimeChange = (value: string) => {
+        setNewTime(value)
+        setResult(null)
+        setErrorText(null)
+    }
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkDocumentPostingTimeChange(Number(row?.id), normalizeTimeForApi(newTime)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorText(null)
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorText(error?.message || "Không kiểm tra được giờ chứng từ")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applyDocumentPostingTimeChange(Number(row?.id), normalizeTimeForApi(newTime)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorText(null)
+            if (data?.valid) onChanged()
+        },
+        onError: (error: any) => {
+            setErrorText(error?.message || "Không đổi được giờ chứng từ")
+        },
+    })
+
+    if (!row) return null
+
+    const working = checkMutation.isPending || applyMutation.isPending
+    const flowLabel = documentPostingTimeLabel(row.doc_type)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-h-[calc(100vh-32px)] !w-[min(1180px,calc(100vw-32px))] !max-w-[calc(100vw-32px)] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Sửa giờ {flowLabel}</DialogTitle>
+                    <DialogDescription>
+                        Flow sửa sai riêng cho {flowLabel}. Hệ thống giả lập lại lịch sử tồn trước khi cập nhật toàn bộ chứng từ và nguồn phát sinh trong một giao dịch.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                    <div className="grid gap-3 rounded-md border bg-muted/20 p-3 md:grid-cols-4">
+                        <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                        <InfoItem label="Loại chứng từ" value={getDocTypeMeta(row.doc_type).label} />
+                        <InfoItem label="Ngày chứng từ" value={formatDate(row.posting_date)} />
+                        <InfoItem label="Giờ hiện tại" value={row.posting_time ? formatTime(row.posting_time) : "Chưa có giờ"} />
+                    </div>
+
+                    <label className="block max-w-sm space-y-1.5">
+                        <span className="text-sm font-medium">Giờ mới</span>
+                        <Input
+                            type="time"
+                            step="1"
+                            value={newTime}
+                            onChange={(event) => handleTimeChange(event.target.value)}
+                        />
+                    </label>
+
+                    {!changed ? (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                            Giờ mới phải khác giờ hiện tại của chứng từ.
+                        </div>
+                    ) : null}
+
+                    {errorText ? (
+                        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            {errorText}
+                        </div>
+                    ) : null}
+
+                    {result ? <PurchasePostingDateTimeChangeResultPanel result={result} timeOnly /> : null}
+
+                    <div className="flex justify-end gap-2 border-t pt-3">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={working}>
+                            Đóng
+                        </Button>
+                        <Button type="button" variant="outline" disabled={!changed || working || applied} onClick={() => checkMutation.mutate()}>
+                            {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Kiểm tra
+                        </Button>
+                        <Button
+                            type="button"
+                            disabled={!changed || working || applied || !result?.valid}
+                            onClick={() => applyMutation.mutate()}
+                        >
+                            {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Đổi giờ
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function PurchasePostingDateTimeChangeResultPanel({
+    result,
+    timeOnly = false,
+}: {
+    result: PurchasePostingDateTimeChangeResult
+    timeOnly?: boolean
+}) {
     const valid = Boolean(result.valid)
     const applied = Boolean(result.applied)
     const changes = result.changes || {}
@@ -2125,7 +2296,11 @@ function PurchasePostingDateTimeChangeResultPanel({ result }: { result: Purchase
         )}>
             <div className="flex items-start gap-2 font-semibold">
                 {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
-                <span>{applied ? "Đã đổi ngày/giờ chứng từ" : valid ? "Có thể đổi ngày/giờ chứng từ" : "Không thể đổi ngày/giờ chứng từ"}</span>
+                <span>{applied
+                    ? timeOnly ? "Đã đổi giờ chứng từ" : "Đã đổi ngày/giờ chứng từ"
+                    : valid
+                        ? timeOnly ? "Có thể đổi giờ chứng từ" : "Có thể đổi ngày/giờ chứng từ"
+                        : timeOnly ? "Không thể đổi giờ chứng từ" : "Không thể đổi ngày/giờ chứng từ"}</span>
             </div>
             <div className="mt-1 pl-6">{result.message}</div>
 
@@ -2546,6 +2721,27 @@ function isPurchasePostingDateTimeCorrectionLedger(item: InventoryLedgerReportRo
     return ["IMPORT_PURCHASE", "DOMESTIC_PURCHASE"].includes(docType)
         && Number(item.quantity_in || 0) > 0
         && Boolean(item.lot_code)
+}
+
+function isDocumentPostingTimeCorrectionLedger(item: InventoryLedgerReportRow) {
+    const docType = String(item.doc_type || "").toUpperCase()
+    if (docType === "OTHER_INBOUND") return Number(item.quantity_in || 0) > 0
+    if (docType === "SALES_EXPORT") return Number(item.quantity_out || 0) > 0
+    if (docType === "PRODUCTION") return Number(item.quantity_in || 0) > 0
+    return false
+}
+
+function documentPostingTimeLabel(docType?: string | null) {
+    switch (String(docType || "").toUpperCase()) {
+        case "OTHER_INBOUND":
+            return "phiếu nhập khác"
+        case "SALES_EXPORT":
+            return "phiếu xuất bán hàng"
+        case "PRODUCTION":
+            return "phiếu nhập thành phẩm sản xuất"
+        default:
+            return "chứng từ kho"
+    }
 }
 
 function formatDate(value?: string | null) {
