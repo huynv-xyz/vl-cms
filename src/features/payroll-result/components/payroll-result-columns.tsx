@@ -4,6 +4,8 @@ import type { PayrollResultItem } from "../data/schema"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { formatNumber } from "@/lib/utils"
 
+const stickyIdentityColumn = "sticky z-10 bg-background"
+
 const text = (value?: string | number | null) => {
   if (value === null || value === undefined || value === "") return "-"
   return String(value)
@@ -32,6 +34,10 @@ export function buildPayrollResultColumns(period: string): ColumnDef<PayrollResu
       ...buildIndexColumn<PayrollResultItem>(),
       header: "STT",
       size: 60,
+      meta: {
+        className: `${stickyIdentityColumn} left-0`,
+        tdClassName: `${stickyIdentityColumn} left-0 ps-3`,
+      },
     },
     {
       id: "emp_code",
@@ -48,6 +54,10 @@ export function buildPayrollResultColumns(period: string): ColumnDef<PayrollResu
         </Link>
       ),
       size: 130,
+      meta: {
+        className: `${stickyIdentityColumn} left-[60px]`,
+        tdClassName: `${stickyIdentityColumn} left-[60px]`,
+      },
     },
     {
       id: "emp_name",
@@ -64,6 +74,10 @@ export function buildPayrollResultColumns(period: string): ColumnDef<PayrollResu
         </Link>
       ),
       size: 220,
+      meta: {
+        className: `${stickyIdentityColumn} left-[190px] shadow-[1px_0_0_0_hsl(var(--border))]`,
+        tdClassName: `${stickyIdentityColumn} left-[190px] shadow-[1px_0_0_0_hsl(var(--border))]`,
+      },
     },
     {
       id: "region_code",
