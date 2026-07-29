@@ -15,7 +15,14 @@ import { toast } from "sonner"
 
 import { getMyPermissions } from "@/api/auth/permission"
 import { getAvailableLotsAt } from "@/api/inventory/lot"
-import { updateExportItemLot, updateExportItemWarehouse, updateExportStatus, updateExportTime } from "@/api/sale/export"
+import {
+    checkExportInventory,
+    type ExportInventoryCheckResult,
+    updateExportItemLot,
+    updateExportItemWarehouse,
+    updateExportStatus,
+    updateExportTime,
+} from "@/api/sale/export"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Badge } from "@/components/ui/badge"
@@ -86,6 +93,27 @@ export function OrderExports({ exports, order }: any) {
         })
     }, [exports])
 
+    const inventoryCheckQueries = useQueries({
+        queries: (exports ?? []).map((exportDoc: any) => {
+            const exportTime = exportTimes[exportDoc.id]
+                ?? normalizeTimeForInput(exportDoc.export_time)
+                ?? currentTimeForInput()
+            const itemSignature = (exportDoc.items ?? []).map((item: any) => [
+                item.id,
+                item.product_id,
+                item.warehouse_id,
+                item.lot_code,
+                item.quantity,
+            ])
+            return {
+                queryKey: ["export-inventory-check", exportDoc.id, exportTime, itemSignature],
+                enabled: exportDoc.status === "NEW" && Boolean(exportDoc.id && exportTime),
+                queryFn: () => checkExportInventory(exportDoc.id, exportTime),
+                staleTime: 5_000,
+            }
+        }),
+    })
+
     const { mutate: changeStatus, isPending } = useMutation({
         mutationFn: ({ id, status, exportTime }: any) => updateExportStatus(id, status, exportTime),
         onMutate: async ({ id, status, exportTime }) => {
@@ -114,6 +142,7 @@ export function OrderExports({ exports, order }: any) {
             queryClient.invalidateQueries({ queryKey: ["exports"] })
             queryClient.invalidateQueries({ queryKey: ["deliveries"] })
             queryClient.invalidateQueries({ queryKey: ["orders"] })
+            queryClient.invalidateQueries({ queryKey: ["export-inventory-check"] })
         },
     })
 
@@ -132,6 +161,7 @@ export function OrderExports({ exports, order }: any) {
             queryClient.invalidateQueries({ queryKey: ["exports"] })
             queryClient.invalidateQueries({ queryKey: ["export-item-lots"] })
             queryClient.invalidateQueries({ queryKey: ["export-item-availability"] })
+            queryClient.invalidateQueries({ queryKey: ["export-inventory-check"] })
         },
     })
 
@@ -168,7 +198,7 @@ export function OrderExports({ exports, order }: any) {
                 />
             ) : (
                 <div className="space-y-3 p-4">
-                    {exports.map((exportDoc: any) => {
+                    {exports.map((exportDoc: any, exportIndex: number) => {
                         const meta = getExportStatusMeta(exportDoc.status)
                         const isRowLocked = exportDoc.status === "DONE"
                         const allowedNextStatuses =
@@ -192,10 +222,15 @@ export function OrderExports({ exports, order }: any) {
                             const quantity = Number(item?.quantity || 0)
                             return getPayloadAvailableQuantity(item) < quantity
                         }).length
+                        const inventoryCheck = inventoryCheckQueries[exportIndex]?.data as ExportInventoryCheckResult | undefined
+                        const inventoryCheckLoading = Boolean(inventoryCheckQueries[exportIndex]?.isLoading)
+                        const historyInvalid = exportDoc.status === "NEW" && inventoryCheck?.valid === false
                         const statusDisabledReason =
                             missingWarehouseRows > 0
                                 ? "Chưa có kho xuất, không thể chuyển trạng thái"
-                                : stockShortageRows > 0
+                                : historyInvalid
+                                    ? inventoryCheck?.message
+                                    : stockShortageRows > 0
                                     ? "Không đủ tồn kho, không thể chuyển Hoàn thành"
                                     : !canUpdateStatus
                                         ? "Bạn không có quyền đổi trạng thái phiếu xuất"
@@ -316,6 +351,8 @@ export function OrderExports({ exports, order }: any) {
                                                   isPending ||
                                                   isRowLocked ||
                                                   missingWarehouseRows > 0 ||
+                                                  historyInvalid ||
+                                                  inventoryCheckLoading ||
                                                   stockShortageRows > 0 ||
                                                   !canUpdateStatus
                                               }
@@ -361,6 +398,12 @@ export function OrderExports({ exports, order }: any) {
                                         Một số dòng chưa có kho xuất, không thể chuyển trạng thái cho tới khi chọn đủ kho.
                                     </div>
                                 )}
+                                {historyInvalid && (
+                                    <div className="flex items-start gap-1.5 border-b bg-rose-50 px-4 py-2 text-xs font-medium text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
+                                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                        <span>{inventoryCheck?.message}</span>
+                                    </div>
+                                )}
                                      <ItemsTable
                                          items={exportDoc.items ?? []}
                                          exportDoc={exportDoc}
@@ -368,7 +411,8 @@ export function OrderExports({ exports, order }: any) {
                                           order={order}
                                      orderId={order.id}
                                      physicalWarehouseId={physicalWarehouseId}
-                                     canUpdateExport={canUpdateStatus}
+                                      canUpdateExport={canUpdateStatus}
+                                      inventoryCheck={inventoryCheck}
                                  />
                             </div>
                         )
@@ -393,6 +437,7 @@ function ItemsTable({
     orderId,
     physicalWarehouseId,
     canUpdateExport,
+    inventoryCheck,
 }: {
     items: any[]
     exportDoc: any
@@ -401,6 +446,7 @@ function ItemsTable({
     orderId: number
     physicalWarehouseId?: number
     canUpdateExport: boolean
+    inventoryCheck?: ExportInventoryCheckResult
 }) {
     const queryClient = useQueryClient()
     const { mutate: changeWarehouse, isPending } = useMutation({
@@ -410,6 +456,7 @@ function ItemsTable({
             toast.success("Đã cập nhật kho xuất")
             queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] })
             queryClient.invalidateQueries({ queryKey: ["exports"] })
+            queryClient.invalidateQueries({ queryKey: ["export-inventory-check"] })
         },
         onError: () => toast.error("Cập nhật kho xuất thất bại"),
     })
@@ -420,6 +467,7 @@ function ItemsTable({
             toast.success("Đã cập nhật lô xuất")
             queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] })
             queryClient.invalidateQueries({ queryKey: ["exports"] })
+            queryClient.invalidateQueries({ queryKey: ["export-inventory-check"] })
         },
         onError: () => toast.error("Cập nhật lô xuất thất bại"),
     })
@@ -534,6 +582,12 @@ function ItemsTable({
                                 : undefined
                         const lotsLoading = Boolean(availabilityQueries[idx]?.isLoading && !availabilityData)
                         const stockShortage = isNew && warehouseId && availableQuantity < quantity
+                        const historyIssue = Boolean(
+                            isNew &&
+                            inventoryCheck?.valid === false &&
+                            (!inventoryCheck.product_id || Number(inventoryCheck.product_id) === Number(productId)) &&
+                            (!inventoryCheck.warehouse_id || Number(inventoryCheck.warehouse_id) === Number(warehouseId))
+                        )
                         const orderItem = resolveOrderItem(item, orderItemById, orderItemByProductId)
                         const unitPrice = resolveUnitPrice(orderItem)
                         const discount = resolveProratedDiscount(orderItem, quantity)
@@ -543,7 +597,7 @@ function ItemsTable({
                             <TableRow
                                 key={item.id}
                                 className={
-                                    missingWarehouse
+                                    missingWarehouse || historyIssue
                                         ? "bg-rose-50/70 dark:bg-rose-950/20"
                                         : stockShortage
                                             ? "bg-amber-50/70 dark:bg-amber-950/20"
@@ -570,14 +624,17 @@ function ItemsTable({
                                 <TableCell className="text-right font-medium tabular-nums">
                                     {formatNumber(quantity)}
                                 </TableCell>
-                                <TableCell className={stockShortage ? "text-right font-semibold tabular-nums text-rose-600" : "text-right font-medium tabular-nums text-muted-foreground"}>
+                                <TableCell className={stockShortage || historyIssue ? "text-right font-semibold tabular-nums text-rose-600" : "text-right font-medium tabular-nums text-muted-foreground"}>
                                     {warehouseId ? formatNumber(availableQuantity) : "-"}
                                 </TableCell>
                                 <TableCell className="text-center">
                                     {warehouseId ? (
-                                        <span className={`inline-flex items-center gap-1 text-xs font-medium ${stockShortage ? "text-rose-600" : "text-emerald-600"}`}>
-                                            {stockShortage ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                                            {stockShortage ? "Vượt tồn" : "Đạt tồn"}
+                                        <span
+                                            className={`inline-flex items-center gap-1 text-xs font-medium ${stockShortage || historyIssue ? "text-rose-600" : "text-emerald-600"}`}
+                                            title={historyIssue ? inventoryCheck?.message : undefined}
+                                        >
+                                            {stockShortage || historyIssue ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                                            {historyIssue ? "Làm âm lịch sử" : stockShortage ? "Vượt tồn" : "Đạt tồn"}
                                         </span>
                                     ) : (
                                         <span className="text-xs text-muted-foreground">-</span>
