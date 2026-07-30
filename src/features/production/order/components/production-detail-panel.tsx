@@ -63,7 +63,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { listProducts, getProduct } from "@/api/product"
 import type { Product } from "@/features/product/data/schema"
 import { listWarehouses, getWarehouse } from "@/api/warehouse"
-import { listInventoryLotRecords } from "@/api/inventory/lot"
+import { getAvailableLotsAt } from "@/api/inventory/lot"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import {
     addProductionMaterial,
@@ -268,7 +268,7 @@ function ProductionHeader({ production }: { production: Production }) {
                                 <CalendarDays className="h-4 w-4" />
                                 <span>
                                     <span className="font-medium text-foreground">Ngày lệnh:</span>{" "}
-                                    {formatDate(production.production_date)}
+                                    {formatDate(production.production_date)} {formatTime(production.production_time)}
                                 </span>
                             </span>
                             <span className="inline-flex items-center gap-1.5">
@@ -1239,7 +1239,7 @@ function hasExpandedFifoResult(material: ProductionMaterial) {
 }
 
 function resolveLotRemaining(lot: any) {
-    return lot?.quantity_remaining ?? lot?.closing_quantity ?? lot?.remaining_quantity ?? 0
+    return lot?.available_quantity ?? lot?.quantity_remaining ?? lot?.closing_quantity ?? lot?.remaining_quantity ?? 0
 }
 
 function getPagedItems(data: any) {
@@ -1757,20 +1757,29 @@ function PreferredLotSelect({
 }) {
     const queryClient = useQueryClient()
     const { data, isLoading } = useQuery({
-        queryKey: ["production-material-lots", material.product_id, material.warehouse_id],
+        queryKey: [
+            "production-material-lots",
+            material.product_id,
+            material.warehouse_id,
+            production.production_date,
+            production.production_time,
+        ],
         enabled: Boolean(material.product_id && material.warehouse_id && !disabled),
         queryFn: () =>
-            listInventoryLotRecords({
-                page: 1,
-                size: 50,
+            getAvailableLotsAt({
                 product_id: Number(material.product_id),
                 warehouse_id: Number(material.warehouse_id),
-                only_remaining: true,
+                posting_date: String(production.production_date),
+                posting_time: production.production_time || "00:00:00",
             }),
         staleTime: 30_000,
     })
     const lots = getPagedItems(data)
     const selected = material.preferred_lot_no || "AUTO"
+    const selectedLotIsUnavailable = Boolean(
+        material.preferred_lot_no
+        && !lots.some((lot: any) => String(lot.lot_no || "") === material.preferred_lot_no)
+    )
 
     const mutation = useMutation({
         mutationFn: (lotNo?: string) =>
@@ -1795,7 +1804,7 @@ function PreferredLotSelect({
             <SelectTrigger className="h-8 min-w-[150px] justify-between">
                 <SelectValue placeholder="Auto" />
             </SelectTrigger>
-            <SelectContent className="max-w-[420px]">
+            <SelectContent className="max-w-[460px]">
                 <SelectItem value="AUTO">
                     <span className="inline-flex items-center gap-1.5">
                         <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -1803,6 +1812,11 @@ function PreferredLotSelect({
                     </span>
                 </SelectItem>
                 {isLoading ? <SelectItem value="LOADING" disabled>Đang tải...</SelectItem> : null}
+                {!isLoading && selectedLotIsUnavailable ? (
+                    <SelectItem value={String(material.preferred_lot_no)} disabled>
+                        {material.preferred_lot_no} - không có tồn tại thời điểm lệnh
+                    </SelectItem>
+                ) : null}
                 {lots.map((lot: any) => {
                     const lotNo = String(lot.lot_no || "")
                     if (!lotNo) return null
@@ -2192,6 +2206,13 @@ function formatDate(value?: string) {
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return value
     return date.toLocaleDateString("vi-VN")
+}
+
+function formatTime(value?: string) {
+    if (!value) return "-"
+    const match = value.match(/^(\d{1,2}):(\d{2})/)
+    if (!match) return value
+    return `${match[1].padStart(2, "0")}:${match[2]}`
 }
 
 function formatDateTime(value?: string) {
