@@ -42,6 +42,7 @@ type VoucherLine = {
     tk_co: string
     note: string
     direction?: "I" | "O"
+    item_role?: "SOURCE" | "TARGET" | "PACKAGING"
 }
 
 type Props = {
@@ -58,7 +59,7 @@ function createId() {
         : `${Date.now()}-${Math.random()}`
 }
 
-function createEmptyLine(direction?: "I" | "O"): VoucherLine {
+function createEmptyLine(direction?: "I" | "O", itemRole?: VoucherLine["item_role"]): VoucherLine {
     return {
         id: createId(),
         quantity: "",
@@ -69,11 +70,12 @@ function createEmptyLine(direction?: "I" | "O"): VoucherLine {
         tk_co: "",
         note: "",
         direction,
+        item_role: itemRole || (direction === "I" ? "TARGET" : direction === "O" ? "SOURCE" : undefined),
     }
 }
 
 function createPairedLines(): VoucherLine[] {
-    return [createEmptyLine("O"), createEmptyLine("I")]
+    return [createEmptyLine("O", "SOURCE"), createEmptyLine("I", "TARGET")]
 }
 
 function today() {
@@ -135,7 +137,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     const warehousePlaceholder = isTransfer ? "Chọn địa điểm kho xuất" : "Chọn địa điểm kho"
     const descriptionLabel = isTransfer ? "Diễn giải" : "Ghi chú"
     const descriptionPlaceholder = mode === "repack" ? "Diễn giải nghiệp vụ sang bao" : mode === "conversion" ? "Diễn giải nghiệp vụ chuyển mã" : isTransfer ? "Diễn giải phiếu chuyển kho" : "Ghi chú chung của phiếu"
-    const itemListTitle = mode === "repack" ? "Hàng xuất và hàng nhập sau sang bao" : mode === "conversion" ? "Hàng xuất và hàng nhập sau chuyển mã" : isTransfer ? "Danh sách hàng chuyển" : "Danh sách sản phẩm"
+    const itemListTitle = mode === "repack" ? "Hàng nguồn, bao bì và thành phẩm đầu ra" : mode === "conversion" ? "Mã nguồn và mã đích" : isTransfer ? "Danh sách hàng chuyển" : "Danh sách sản phẩm"
     const productColumnLabel = isTransfer ? "Hàng hóa" : "Sản phẩm"
     const selectedVoucherType = useMemo(
         () => selectableVoucherTypes.find((type) => type.code === voucherType),
@@ -261,10 +263,14 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         })
     }
 
-    const addLine = (direction?: "I" | "O") => setLines((current) => [...current, createEmptyLine(direction)])
+    const addLine = (direction?: "I" | "O", itemRole?: VoucherLine["item_role"]) => {
+        setLines((current) => [...current, createEmptyLine(direction, itemRole)])
+    }
 
     const removeLine = (id: string) => {
-        setLines((current) => (current.length <= 1 ? current : current.filter((line) => line.id !== id)))
+        setLines((current) => current.some((line) => line.id === id && line.direction === "I")
+            ? current
+            : current.filter((line) => line.id !== id))
     }
 
     const resetForm = () => {
@@ -296,11 +302,18 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         if (!validLines.length) {
             throw new Error("Thêm ít nhất 1 dòng sản phẩm có số lượng")
         }
+        const partialLine = lines.find((line) => Boolean(line.product_id) !== (Number(line.quantity) > 0))
+        if (partialLine) {
+            throw new Error("Mỗi dòng phải có đủ sản phẩm và số lượng lớn hơn 0")
+        }
         if (isPaired) {
             const sourceLines = validLines.filter((line) => line.direction === "O")
             const targetLines = validLines.filter((line) => line.direction === "I")
-            if (!sourceLines.length || !targetLines.length) {
-                throw new Error("Nghiệp vụ phải có ít nhất một dòng xuất nguồn và một dòng nhập đích")
+            if (!sourceLines.length) {
+                throw new Error(mode === "repack" ? "Sang bao phải có ít nhất một hàng nguồn" : "Chuyển mã phải có ít nhất một mã nguồn")
+            }
+            if (targetLines.length !== 1) {
+                throw new Error(mode === "repack" ? "Sang bao chỉ được có một thành phẩm đầu ra" : "Chuyển mã chỉ được có một mã đích")
             }
             if (mode === "conversion") {
                 const sourceQuantity = sourceLines.reduce((sum, line) => sum + Number(line.quantity), 0)
@@ -308,6 +321,11 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                 if (Math.abs(sourceQuantity - targetQuantity) > 0.0005) {
                     throw new Error("Chuyển mã phải giữ nguyên tổng số lượng xuất và nhập")
                 }
+                if (sourceLines.some((line) => line.product_id === targetLines[0].product_id)) {
+                    throw new Error("Mã đích phải khác mã nguồn")
+                }
+            } else if (!sourceLines.some((line) => line.item_role === "SOURCE")) {
+                throw new Error("Sang bao phải có ít nhất một dòng Hàng nguồn; các dòng còn lại có thể là Bao bì")
             }
         }
         const invalidWarehouseLine = validLines.find((line) => !line.warehouse_id)
@@ -343,7 +361,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                 return {
                     line_no: index + 1,
                     direction: isPaired ? line.direction : undefined,
-                    item_role: isPaired ? (line.direction === "O" ? "SOURCE" : "TARGET") : undefined,
+                    item_role: isPaired ? line.item_role : undefined,
                     movement_group: isPaired ? "MAIN" : undefined,
                     product_id: Number(line.product_id),
                     warehouse_id: Number(line.warehouse_id),
@@ -499,13 +517,9 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                             <div className="font-semibold">{itemListTitle}</div>
                             {isPaired ? (
                                 <div className="flex items-center gap-2">
-                                    <Button type="button" size="sm" variant="outline" onClick={() => addLine("O")}>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => addLine("O", "SOURCE")}>
                                         <ArrowUpRight className="mr-1 h-4 w-4 text-rose-600" />
-                                        Thêm hàng xuất
-                                    </Button>
-                                    <Button type="button" size="sm" variant="outline" onClick={() => addLine("I")}>
-                                        <ArrowDownLeft className="mr-1 h-4 w-4 text-emerald-600" />
-                                        Thêm hàng nhập
+                                        {mode === "repack" ? "Thêm hàng nguồn / bao bì" : "Thêm mã nguồn"}
                                     </Button>
                                 </div>
                             ) : (
@@ -515,6 +529,13 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                 </Button>
                             )}
                         </div>
+                        {isPaired ? (
+                            <div className="text-muted-foreground border-b bg-slate-50 px-3 py-2 text-xs">
+                                {mode === "repack"
+                                    ? "Chỉ có một thành phẩm đầu ra. Giá trị thành phẩm bằng tổng giá trị hàng nguồn và bao bì đã xuất."
+                                    : "Chỉ có một mã đích. Tổng số lượng mã nguồn phải bằng số lượng mã đích; giá trị mã đích được dẫn từ các dòng xuất."}
+                            </div>
+                        ) : null}
 
                         <div className="overflow-x-auto">
                             <table className="w-full min-w-[2020px] text-sm">
@@ -545,12 +566,29 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                             </td>
                                             {isPaired ? (
                                                 <td className="px-3 py-2">
-                                                    <span className={cn(
-                                                        "inline-flex rounded px-2 py-1 text-xs font-medium",
-                                                        line.direction === "O" ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700",
-                                                    )}>
-                                                        {line.direction === "O" ? "Xuất nguồn" : "Nhập đích"}
-                                                    </span>
+                                                    {mode === "repack" && line.direction === "O" ? (
+                                                        <Select
+                                                            value={line.item_role || "SOURCE"}
+                                                            onValueChange={(value) => updateLine(line.id, { item_role: value as VoucherLine["item_role"] })}
+                                                        >
+                                                            <SelectTrigger className="h-9">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="SOURCE">Hàng nguồn</SelectItem>
+                                                                <SelectItem value="PACKAGING">Bao bì</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    ) : (
+                                                        <span className={cn(
+                                                            "inline-flex rounded px-2 py-1 text-xs font-medium",
+                                                            line.direction === "O" ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700",
+                                                        )}>
+                                                            {line.direction === "O"
+                                                                ? "Mã nguồn"
+                                                                : mode === "repack" ? "Thành phẩm đầu ra" : "Mã đích"}
+                                                        </span>
+                                                    )}
                                                 </td>
                                             ) : null}
                                             <td className="px-3 py-2">
@@ -699,7 +737,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                                     type="button"
                                                     variant="ghost"
                                                     size="icon"
-                                                    disabled={lines.length <= 1}
+                                                    disabled={line.direction === "I" || lines.filter((row) => row.direction === "O").length <= 1}
                                                     onClick={() => removeLine(line.id)}
                                                 >
                                                     <Trash2 className="h-4 w-4" />

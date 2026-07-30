@@ -44,8 +44,10 @@ const COLUMNS: ExportColumn[] = [
     { label: "Nhập", value: (row) => row.quantity_in, width: 16, type: "number", numberFormat: "quantity" },
     { label: "Xuất", value: (row) => row.quantity_out, width: 16, type: "number", numberFormat: "quantity" },
     { label: "Tồn sau", value: (row) => row.balance_quantity, width: 16, type: "number", numberFormat: "quantity" },
-  { label: "Thành tiền", value: (row) => Math.abs(Number(row.amount || 0)), width: 18, type: "number", numberFormat: "money" },
+    { label: "Thành tiền", value: (row) => Math.abs(Number(row.amount || 0)), width: 18, type: "number", numberFormat: "money" },
     { label: "Loại chứng từ", value: (row) => getDocTypeMeta(row.doc_type).label, width: 34 },
+    { label: "Mã đối tượng tập hợp chi phí", value: (row) => row.cost_object_code, width: 26 },
+    { label: "Tên đối tượng tập hợp chi phí", value: (row) => row.cost_object_name, width: 42 },
     { label: "Tên nhà cung cấp", value: (row) => row.supplier_name, width: 28 },
     { label: "Mã loại", value: (row) => row.doc_type, width: 20 },
 ]

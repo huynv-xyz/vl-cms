@@ -496,7 +496,7 @@ function CostingCalculationErrorPanel({
                     Đóng
                 </Button>
             </div>
-            {details.length > 0 ? (
+            {details.length > 0 && (
                 <div className="mt-3 max-h-[360px] overflow-auto rounded-md border border-red-200 bg-background">
                     <table className="min-w-[1120px] w-full text-sm">
                         <thead className="bg-red-50 text-muted-foreground">
@@ -530,10 +530,6 @@ function CostingCalculationErrorPanel({
                             ))}
                         </tbody>
                     </table>
-                </div>
-            ) : (
-                <div className="mt-3 rounded-md border border-red-200 bg-background px-3 py-2 text-sm text-red-800">
-                    Backend chưa trả danh sách dòng chi tiết. Kiểm tra log hoặc dữ liệu kỳ tính giá.
                 </div>
             )}
         </div>

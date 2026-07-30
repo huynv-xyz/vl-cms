@@ -452,8 +452,8 @@ export function InventoryLedgerTable({
                 ) : null}
                 <StickyReportTable
                     columnWidths={showValues
-                        ? [64, 110, 90, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 120, 110, 110, 120, 140, 260, 260, 100]
-                        : [64, 110, 90, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 110, 110, 120, 260, 260, 100]}
+                        ? [64, 110, 90, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 120, 110, 110, 120, 140, 260, 180, 300, 260, 100]
+                        : [64, 110, 90, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 110, 110, 120, 260, 180, 300, 260, 100]}
                     defaultPinnedUntil={8}
                     renderHeader={() => (
                         <>
@@ -549,6 +549,8 @@ export function InventoryLedgerTable({
                                         variant="column"
                                     />
                                 </Th>
+                                <Th className="min-w-[180px] text-center">Mã đối tượng tập hợp chi phí</Th>
+                                <Th className="min-w-[300px]">Tên đối tượng tập hợp chi phí</Th>
                                 <Th className="min-w-[260px]">
                                     <ColumnTextFilter
                                         label="Tên nhà cung cấp"
@@ -1255,6 +1257,12 @@ function LedgerRow({
             ) : null}
             <Td className="text-center">
                 <LedgerText value={meta.label} className="text-center" />
+            </Td>
+            <Td className="text-center">
+                <LedgerText value={item.cost_object_code} className="text-center font-mono" />
+            </Td>
+            <Td>
+                <LedgerText value={item.cost_object_name} className="font-medium text-foreground" />
             </Td>
             <Td>
                 <LedgerText value={item.supplier_name} />
