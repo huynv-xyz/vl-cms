@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { AlertTriangle, CheckCircle2, Clock, Funnel, Loader2, MoreHorizontal, Pencil, Printer, Warehouse as WarehouseIcon, X } from "lucide-react"
+import { AlertTriangle, CheckCircle2, CircleHelp, Clock, Funnel, Loader2, MoreHorizontal, Pencil, Printer, Warehouse as WarehouseIcon, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { listProductUnitLookups } from "@/api/app-lookup"
@@ -46,6 +46,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn, formatNumber } from "@/lib/utils"
 import type { InventoryLedgerReportRow } from "../data/schema"
 import { getDocTypeMeta } from "../data/schema"
@@ -560,7 +561,9 @@ export function InventoryLedgerTable({
                                         onClear={() => clearTextFilter("supplier_text", "supplier_text_op")}
                                     />
                                 </Th>
-                                <Th className="min-w-[100px] text-center">Thao tác</Th>
+                                <Th className="min-w-[100px] text-center">
+                                    <LedgerCorrectionHelp />
+                                </Th>
                             </tr>
                         </>
                     )}
@@ -2156,6 +2159,62 @@ function PurchasePostingDateTimeChangeDialog({
                 </div>
             </DialogContent>
         </Dialog>
+    )
+}
+
+const LEDGER_CORRECTION_HELP: Array<{ docType: string; actions: string }> = [
+    { docType: "Mua hàng nhập khẩu nhập kho chưa thanh toán", actions: "Đổi số lô, sửa số lượng, đổi ngày/giờ chứng từ" },
+    { docType: "Mua hàng trong nước nhập kho chưa thanh toán", actions: "Đổi số lô, sửa số lượng, đổi ngày/giờ chứng từ" },
+    { docType: "Nhập kho khác", actions: "Đổi số lô, sửa số lượng, sửa giờ chứng từ" },
+    { docType: "Xuất kho khác", actions: "Sửa số lượng" },
+    { docType: "Nhập kho từ hàng bán trả lại", actions: "Đổi kho nhập trả hàng" },
+    { docType: "Xuất kho bán hàng", actions: "Đổi ngày/giờ chứng từ" },
+    { docType: "Nhập kho thành phẩm sản xuất", actions: "Sửa giờ chứng từ" },
+]
+
+function LedgerCorrectionHelp() {
+    return (
+        <div className="flex items-center justify-center gap-1.5">
+            <span>Thao tác</span>
+            <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <button
+                            type="button"
+                            className="text-muted-foreground hover:text-foreground inline-flex h-5 w-5 items-center justify-center"
+                            aria-label="Xem các thao tác sửa sai đã hỗ trợ"
+                        >
+                            <CircleHelp className="h-3.5 w-3.5" />
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                        side="left"
+                        align="start"
+                        className="w-[520px] max-w-[calc(100vw-2rem)] overflow-hidden border bg-popover p-0 text-popover-foreground shadow-xl"
+                    >
+                        <div className="border-b bg-muted/40 px-4 py-3">
+                            <div className="text-sm font-semibold text-foreground">Các thao tác sửa sai đã hỗ trợ</div>
+                            <div className="mt-0.5 text-xs text-muted-foreground">Danh sách được phân theo loại chứng từ</div>
+                        </div>
+                        <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-5 border-b bg-muted/20 px-4 py-2 text-left text-xs font-semibold text-muted-foreground">
+                            <span>Loại chứng từ</span>
+                            <span>Thao tác hỗ trợ</span>
+                        </div>
+                        <div className="max-h-[420px] divide-y overflow-y-auto">
+                            {LEDGER_CORRECTION_HELP.map((item) => (
+                                <div
+                                    key={item.docType}
+                                    className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-5 px-4 py-2.5 text-left text-sm even:bg-muted/15"
+                                >
+                                    <span className="font-medium leading-5 text-foreground">{item.docType}</span>
+                                    <span className="leading-5 text-foreground/75">{item.actions}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        </div>
     )
 }
 

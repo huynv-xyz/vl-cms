@@ -12,12 +12,14 @@ import {
     getCostBasis,
     importLandedCosts,
     listCostPeriods,
+    listFinishedProductCostExport,
     listLandedCosts,
     listPeriodCosts,
     type CostBasis,
     type CostPeriod,
     type CostingCalculationError,
     type CostingImportResult,
+    type FinishedProductCostExportRow,
     type LandedCost,
     type LotCostAllocation,
     type ProductPeriodCost,
@@ -262,6 +264,16 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
         onError: (error) => toast.error(error instanceof Error ? error.message : "Không xuất được file Excel"),
     })
 
+    const finishedProductExportMutation = useMutation({
+        mutationFn: async () => {
+            const rows = await listFinishedProductCostExport(period.id, keyword)
+            await exportFinishedProductCostsXlsx(period, rows)
+            return rows.length
+        },
+        onSuccess: (count) => toast.success(`Đã xuất ${formatNumber(count)} thành phẩm`),
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Không xuất được file Excel thành phẩm"),
+    })
+
     const totals = costsQuery.data?.totals || {}
 
     return (
@@ -341,6 +353,19 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                                     onChange={(event) => onKeywordChange(event.target.value)}
                                 />
                             </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={finishedProductExportMutation.isPending}
+                                onClick={() => finishedProductExportMutation.mutate()}
+                            >
+                                {finishedProductExportMutation.isPending ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Download className="mr-2 h-4 w-4" />
+                                )}
+                                Xuất Excel TP
+                            </Button>
                             <Button
                                 type="button"
                                 variant="outline"
@@ -482,6 +507,9 @@ function CostingCalculationErrorPanel({
     details: CostingCalculationError[]
     onClose: () => void
 }) {
+    const returnErrors = details.filter((item) => item.errorType === "SALES_RETURN_MISSING_COST")
+    const dependencyErrors = details.filter((item) => item.errorType !== "SALES_RETURN_MISSING_COST")
+
     return (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-950">
             <div className="flex items-start justify-between gap-3">
@@ -496,8 +524,49 @@ function CostingCalculationErrorPanel({
                     Đóng
                 </Button>
             </div>
-            {details.length > 0 && (
+            {returnErrors.length > 0 && (
                 <div className="mt-3 max-h-[360px] overflow-auto rounded-md border border-red-200 bg-background">
+                    <div className="sticky left-0 top-0 z-10 border-b border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-900">
+                        Dòng hàng bán trả lại chưa có giá vốn
+                    </div>
+                    <table className="min-w-[1320px] w-full text-sm">
+                        <thead className="bg-red-50 text-muted-foreground">
+                            <tr>
+                                <th className="px-3 py-2 text-left">STT</th>
+                                <th className="px-3 py-2 text-left">Chứng từ</th>
+                                <th className="px-3 py-2 text-left">Ngày</th>
+                                <th className="px-3 py-2 text-left">Hàng trả lại</th>
+                                <th className="px-3 py-2 text-left">Kho nhập</th>
+                                <th className="px-3 py-2 text-left">Số lô</th>
+                                <th className="px-3 py-2 text-right">SL trả</th>
+                                <th className="px-3 py-2 text-left">Lý do</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {returnErrors.map((item, index) => (
+                                <tr key={`${item.ledgerId || item.documentNo || "return"}-${index}`} className="border-t border-red-100">
+                                    <td className="px-3 py-2 align-top">{index + 1}</td>
+                                    <td className="px-3 py-2 align-top font-medium">{item.documentNo || "-"}</td>
+                                    <td className="px-3 py-2 align-top whitespace-nowrap">{formatDate(item.postingDate)}</td>
+                                    <td className="px-3 py-2 align-top">
+                                        <div className="font-medium">{item.outputProductName || "-"}</div>
+                                        <div className="text-xs text-muted-foreground">{item.outputProductCode || "-"}</div>
+                                    </td>
+                                    <td className="px-3 py-2 align-top text-muted-foreground">{item.outputWarehouse || "-"}</td>
+                                    <td className="px-3 py-2 align-top font-mono text-xs">{item.lotNo || "-"}</td>
+                                    <td className="px-3 py-2 align-top text-right tabular-nums">{formatNumber(item.materialQuantity || 0)}</td>
+                                    <td className="px-3 py-2 align-top text-red-800">{item.reason || "-"}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+            {dependencyErrors.length > 0 && (
+                <div className="mt-3 max-h-[360px] overflow-auto rounded-md border border-red-200 bg-background">
+                    <div className="sticky left-0 top-0 z-10 border-b border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-900">
+                        Nghiệp vụ phụ thuộc giá chưa tính được
+                    </div>
                     <table className="min-w-[1120px] w-full text-sm">
                         <thead className="bg-red-50 text-muted-foreground">
                             <tr>
@@ -511,7 +580,7 @@ function CostingCalculationErrorPanel({
                             </tr>
                         </thead>
                         <tbody>
-                            {details.map((item, index) => (
+                            {dependencyErrors.map((item, index) => (
                                 <tr key={`${item.productionItemId || "row"}-${index}`} className="border-t border-red-100">
                                     <td className="px-3 py-2 align-top">{index + 1}</td>
                                     <td className="px-3 py-2 align-top">
@@ -1497,6 +1566,80 @@ async function exportCostingResultsXlsx(period: CostPeriod, rows: ProductPeriodC
 
     const buffer = await workbook.xlsx.writeBuffer()
     downloadCostingBlob(buffer, `ket-qua-tinh-gia-${period.from_date}-${period.to_date}.xlsx`)
+}
+
+async function exportFinishedProductCostsXlsx(period: CostPeriod, rows: FinishedProductCostExportRow[]) {
+    const { Workbook } = await import("exceljs")
+    const workbook = new Workbook()
+    workbook.creator = "VLIFE"
+    workbook.created = new Date()
+
+    const columns: CostingExportColumn[] = [
+        { label: "Mã thành phẩm", width: 24, value: (row: any) => row.product_code },
+        { label: "Tên thành phẩm", width: 42, value: (row: any) => row.product_name },
+        { label: "Mã đối tượng THCP", width: 24, value: (row: any) => row.cost_object_code },
+        { label: "Tên đối tượng THCP", width: 42, value: (row: any) => row.cost_object_name },
+        { label: "NVL trực tiếp", width: 20, type: "number", numberFormat: "money", value: (row: any) => row.direct_material_value },
+        { label: "Số lượng thành phẩm", width: 20, type: "number", numberFormat: "quantity", value: (row: any) => row.finished_quantity },
+        { label: "Giá thành đơn vị", width: 20, type: "number", numberFormat: "money", value: (row: any) => row.unit_cost },
+    ]
+    const sheet = workbook.addWorksheet("Thành phẩm", {
+        views: [{ state: "frozen", ySplit: 4 }],
+    })
+
+    sheet.mergeCells(1, 1, 1, columns.length)
+    sheet.getCell(1, 1).value = "DANH SÁCH THÀNH PHẨM TÍNH GIÁ"
+    sheet.getCell(1, 1).font = { bold: true, size: 16 }
+    sheet.getCell(1, 1).alignment = { horizontal: "center", vertical: "middle" }
+
+    sheet.mergeCells(2, 1, 2, columns.length)
+    sheet.getCell(2, 1).value = `Kỳ: ${period.name} | Thời gian: ${formatDate(period.from_date)} - ${formatDate(period.to_date)} | Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}`
+    sheet.getCell(2, 1).font = { italic: true, color: { argb: "FF64748B" } }
+    sheet.getCell(2, 1).alignment = { horizontal: "center" }
+
+    sheet.addRow([])
+    sheet.addRow(columns.map((column) => column.label))
+    rows.forEach((row, index) => {
+        sheet.addRow(columns.map((column) => normalizeCostingExportCell(column.value(row as any, index), column)))
+    })
+    sheet.columns = columns.map((column) => ({ width: column.width ?? 16 }))
+    sheet.autoFilter = {
+        from: { row: 4, column: 1 },
+        to: { row: 4, column: columns.length },
+    }
+
+    const border = {
+        top: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        left: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        bottom: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        right: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+    }
+    const header = sheet.getRow(4)
+    header.height = 26
+    header.eachCell({ includeEmpty: true }, (cell) => {
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F766E" } }
+        cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
+        cell.border = border
+    })
+    for (let rowIndex = 5; rowIndex <= sheet.rowCount; rowIndex++) {
+        const row = sheet.getRow(rowIndex)
+        row.height = 22
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            const column = columns[colNumber - 1]
+            cell.border = border
+            cell.alignment = {
+                vertical: "middle",
+                horizontal: column.type === "number" ? "right" : "left",
+                wrapText: false,
+            }
+            if (column.type === "number") cell.numFmt = getCostingExcelNumberFormat(cell.value, column)
+        })
+    }
+    applyCostingAutoColumnWidths(sheet, columns, 5)
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    downloadCostingBlob(buffer, `thanh-pham-tinh-gia-${period.from_date}-${period.to_date}.xlsx`)
 }
 
 function normalizeCostingExportCell(value: string | number | null | undefined, column: CostingExportColumn) {

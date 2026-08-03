@@ -210,6 +210,7 @@ export function InventoryLedgerReportPage({
                         <DropdownMenuContent align="end" className="w-52">
                             {mode !== "out" ? <DropdownMenuItem onSelect={() => setVoucherDialog("in")}><ArrowDownLeft className="text-emerald-600" />Nhập hàng</DropdownMenuItem> : null}
                             {mode !== "in" ? <DropdownMenuItem onSelect={() => setVoucherDialog("out")}><ArrowUpRight className="text-rose-600" />Xuất hàng</DropdownMenuItem> : null}
+                            <DropdownMenuItem onSelect={() => setVoucherDialog("transfer")}><ArrowLeftRight className="text-blue-600" />Chuyển kho</DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                     {mode === "all" ? (
@@ -222,7 +223,6 @@ export function InventoryLedgerReportPage({
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuItem onSelect={() => setVoucherDialog("transfer")}><ArrowLeftRight className="text-blue-600" />Chuyển kho</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => setVoucherDialog("repack")}><Package className="text-amber-600" />Sang bao</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => setVoucherDialog("conversion")}><RefreshCw className="text-violet-600" />Chuyển mã</DropdownMenuItem>
                             </DropdownMenuContent>
