@@ -322,6 +322,7 @@ function navigateToOrderList(navigate: any, returnTo?: string) {
             size: Number(url.searchParams.get("size") || 20),
             keyword: url.searchParams.get("keyword") || "",
             status: url.searchParams.get("status") || undefined,
+            export_progress: url.searchParams.get("export_progress") || undefined,
             customer_id: numberParam(url.searchParams.get("customer_id")),
             employee_id: numberParam(url.searchParams.get("employee_id")),
             from_date: url.searchParams.get("from_date") || undefined,

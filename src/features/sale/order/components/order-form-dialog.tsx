@@ -37,6 +37,8 @@ type Props = {
     isLoading?: boolean
     isPending?: boolean
     showStatus?: boolean
+    lockAfterDoneExport?: boolean
+    itemError?: { orderItemId: number; message: string } | null
     onSubmit: () => void
 }
 
@@ -81,6 +83,8 @@ export function OrderFormDialog({
     isLoading,
     isPending,
     showStatus = true,
+    lockAfterDoneExport = false,
+    itemError,
     onSubmit,
 }: Props) {
     const meta = DIALOG_META[mode]
@@ -152,6 +156,7 @@ export function OrderFormDialog({
                                         value={headerData}
                                         onChange={setHeaderData}
                                         showStatus={showStatus}
+                                        lockAfterDoneExport={lockAfterDoneExport}
                                     />
                                 </OrderFormCard>                                <OrderFormCard
                                     step={2}
@@ -174,6 +179,8 @@ export function OrderFormDialog({
                                         setItems={setItems}
                                         addRequest={addItemRequest}
                                         enableReorder
+                                        lockCommittedLines={lockAfterDoneExport}
+                                        itemError={itemError}
                                     />
                                 </OrderFormCard>
                             </div>

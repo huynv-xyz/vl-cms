@@ -256,16 +256,21 @@ export function applyPurchasePostingDateTimeChange(ledgerId: number, newPostingD
 export type DocumentPostingTimeChangeResult = PurchasePostingDateTimeChangeResult & {
     flow?: "OTHER_INBOUND" | "SALES_EXPORT" | "PRODUCTION"
     source_id?: number | null
+    export_no?: string | null
+    delivery_no?: string | null
+    order_no?: string | null
 }
 
-export function checkDocumentPostingTimeChange(ledgerId: number, newPostingTime: string) {
+export function checkDocumentPostingTimeChange(ledgerId: number, newPostingTime: string, newPostingDate?: string) {
     return apiPost<DocumentPostingTimeChangeResult>(`/inventory/ledger/${ledgerId}/document-posting-time-change/check`, {
+        newPostingDate,
         newPostingTime,
     })
 }
 
-export function applyDocumentPostingTimeChange(ledgerId: number, newPostingTime: string) {
+export function applyDocumentPostingTimeChange(ledgerId: number, newPostingTime: string, newPostingDate?: string) {
     return apiPost<DocumentPostingTimeChangeResult>(`/inventory/ledger/${ledgerId}/document-posting-time-change/apply`, {
+        newPostingDate,
         newPostingTime,
     })
 }

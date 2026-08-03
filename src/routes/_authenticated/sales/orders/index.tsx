@@ -16,6 +16,11 @@ export const Route = createFileRoute("/_authenticated/sales/orders/")({
                 ? search.status
                 : undefined,
 
+        export_progress:
+            typeof search.export_progress === "string"
+                ? search.export_progress
+                : undefined,
+
         customer_id:
             search.customer_id !== undefined &&
                 !isNaN(Number(search.customer_id))

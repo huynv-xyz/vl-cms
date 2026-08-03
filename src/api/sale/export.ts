@@ -1,5 +1,6 @@
 import { createCrudApi } from "@/api/crud"
-import { apiGet, apiPut } from "@/api/client"
+import { apiGet, apiPost, apiPut } from "@/api/client"
+import type { DocumentPostingTimeChangeResult } from "@/api/inventory/ledger"
 import type { Export } from "@/features/sale/export/data/schema"
 
 export type ExportListParams = {
@@ -55,6 +56,20 @@ export function checkExportInventory(id: number, exportTime?: string) {
 
 export function updateExportTime(id: number, exportTime: string) {
     return apiPut(`/sales/exports/${id}/export-time`, { export_time: exportTime })
+}
+
+export function checkExportPostingDateTimeChange(id: number, newPostingDate: string, newPostingTime: string) {
+    return apiPost<DocumentPostingTimeChangeResult>(`/sales/exports/${id}/document-posting-datetime-change/check`, {
+        newPostingDate,
+        newPostingTime,
+    })
+}
+
+export function applyExportPostingDateTimeChange(id: number, newPostingDate: string, newPostingTime: string) {
+    return apiPost<DocumentPostingTimeChangeResult>(`/sales/exports/${id}/document-posting-datetime-change/apply`, {
+        newPostingDate,
+        newPostingTime,
+    })
 }
 
 export function updateExportItemWarehouse(

@@ -60,7 +60,7 @@ export function OrderInfo({ order, metrics }: Props) {
     )
     const isLocked = order.status === "DONE" || order.status === "CANCELLED"
     const hasDoneExport = hasCompletedExport(order)
-    const canEditOrder = canUpdateOrder && !isLocked && !hasDoneExport
+    const canEditOrder = canUpdateOrder && !isLocked
 
     return (
         <div className="overflow-hidden rounded-xl border bg-gradient-to-br from-background to-muted/30 shadow-sm">

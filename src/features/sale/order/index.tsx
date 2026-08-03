@@ -27,13 +27,14 @@ export default function OrderPage() {
     } = useUrlListFilters(
         search,
         navigate,
-        ['status'],
+        ['status', 'export_progress'],
         ['customer_id', 'employee_id', 'from_date', 'to_date', 'order_date_sort']
     )
 
     const orderListParams = {
         keyword,
         status: requestFilters.status,
+        export_progress: requestFilters.export_progress,
 
         customer_id: requestFilters.customer_id
             ? Number(requestFilters.customer_id)
@@ -55,6 +56,7 @@ export default function OrderPage() {
             search.size,
             keyword,
             multiFilters.status,
+            multiFilters.export_progress,
             singleFilters.customer_id,
             singleFilters.employee_id,
             singleFilters.from_date,
@@ -99,6 +101,7 @@ export default function OrderPage() {
 
                             filters={{
                                 status: multiFilters.status,
+                                export_progress: multiFilters.export_progress,
                                 customer_id: singleFilters.customer_id
                                     ? Number(singleFilters.customer_id)
                                     : undefined,
@@ -113,6 +116,7 @@ export default function OrderPage() {
                             onFiltersChange={(next) => {
                                 setMultiFilters({
                                     status: next.status,
+                                    export_progress: next.export_progress,
                                 })
 
                                 setSingleFilters({

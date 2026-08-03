@@ -23,6 +23,7 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
     })
     const [headerFormData, setHeaderFormData] = useState<any>(null)
     const [items, setItems] = useState<any[]>([])
+    const [itemError, setItemError] = useState<{ orderItemId: number; message: string } | null>(null)
 
     useEffect(() => {
         if (!open || !detail) return
@@ -47,11 +48,16 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
                 hdn_status: item.hdn_status ?? undefined,
                 description: item.description ?? "",
                 note: item.note ?? "",
+                exported_quantity: item.exported_quantity ?? 0,
             }))
         )
+        setItemError(null)
     }, [open, detail])
 
     const { mutate, isPending } = useMutation({
+        onMutate: () => {
+            setItemError(null)
+        },
         mutationFn: () => updateOrder({
             id: order.id,
             ...headerFormData,
@@ -74,6 +80,11 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
             onOpenChange(false)
         },
         onError: (e: any) => {
+            const message = e.message || "Không thể cập nhật đơn hàng"
+            const orderItemId = Number(e?.data?.order_item_id)
+            if (Number.isFinite(orderItemId) && orderItemId > 0) {
+                setItemError({ orderItemId, message })
+            }
             toast.error(e.message || "Lỗi")
         },
     })
@@ -86,6 +97,7 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
                 if (!value) {
                     setHeaderFormData(null)
                     setItems([])
+                    setItemError(null)
                 }
                 onOpenChange(value)
             }}
@@ -96,6 +108,8 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
             orderNo={detail?.order_no}
             isLoading={isLoading}
             isPending={isPending}
+            lockAfterDoneExport={(detail?.exports ?? []).some((item: any) => item.status === "DONE")}
+            itemError={itemError}
             onSubmit={mutate}
         />
     )

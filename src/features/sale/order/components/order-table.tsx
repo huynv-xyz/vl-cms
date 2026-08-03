@@ -10,6 +10,7 @@ import {
     CopyPlus,
     Download,
     FileText,
+    Funnel,
     Inbox,
     MoreHorizontal,
     Package,
@@ -31,6 +32,8 @@ import { CardPagination } from "@/components/table/card-pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -295,7 +298,12 @@ export function OrderTable({
                         <EmptyState />
                     ) : (
                         <>
-                            <OrderListHeader />
+                            <OrderListHeader
+                                value={filters?.export_progress ?? []}
+                                onChange={(value) =>
+                                    setFilter("export_progress", value.length ? value : undefined)
+                                }
+                            />
                             {data.map((order: Order) => (
                                 <OrderCard
                                     key={order.id}
@@ -326,14 +334,102 @@ export function OrderTable({
     )
 }
 
-function OrderListHeader() {
+const EXPORT_PROGRESS_OPTIONS = [
+    { value: "NOT_EXPORTED", label: "Chưa xuất" },
+    { value: "PARTIAL", label: "Đang xuất" },
+    { value: "EXPORTED", label: "Đã xuất" },
+] as const
+
+function OrderListHeader({
+    value,
+    onChange,
+}: {
+    value: string[]
+    onChange: (value: string[]) => void
+}) {
+    const [open, setOpen] = useState(false)
+    const [draft, setDraft] = useState<string[]>(value)
+
+    const handleOpenChange = (next: boolean) => {
+        setOpen(next)
+        if (next) setDraft(value)
+    }
+
+    const toggle = (option: string) => {
+        setDraft((current) =>
+            current.includes(option)
+                ? current.filter((item) => item !== option)
+                : [...current, option]
+        )
+    }
+
     return (
         <div className="bg-muted/95 sticky top-16 z-40 hidden items-center gap-2 rounded-md border px-2.5 py-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground shadow-xs backdrop-blur xl:grid xl:grid-cols-[88px_150px_minmax(210px,1.5fr)_minmax(150px,1fr)_minmax(190px,1.15fr)_140px_330px]">
             <div>Ngày đặt</div>
             <div>Mã đơn</div>
             <div>Khách hàng</div>
             <div>Hàng hóa</div>
-            <div>Tiến độ xuất</div>
+            <div className="flex items-center gap-1">
+                <span>Tiến độ xuất</span>
+                <Popover open={open} onOpenChange={handleOpenChange}>
+                    <PopoverTrigger asChild>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            className={cn(
+                                "h-6 gap-1 rounded-sm px-1.5 text-muted-foreground hover:bg-white",
+                                value.length > 0 && "bg-teal-50 text-teal-700 hover:bg-teal-100"
+                            )}
+                            aria-label="Lọc theo tiến độ xuất"
+                        >
+                            <Funnel className="h-3.5 w-3.5" />
+                            {value.length > 0 ? (
+                                <span className="rounded-full bg-teal-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+                                    {value.length}
+                                </span>
+                            ) : null}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-2" align="start">
+                        <div className="space-y-1">
+                            {EXPORT_PROGRESS_OPTIONS.map((option) => (
+                                <label
+                                    key={option.value}
+                                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm font-medium normal-case tracking-normal hover:bg-muted"
+                                >
+                                    <Checkbox
+                                        checked={draft.includes(option.value)}
+                                        onCheckedChange={() => toggle(option.value)}
+                                    />
+                                    <span>{option.label}</span>
+                                </label>
+                            ))}
+                        </div>
+                        <div className="mt-2 flex items-center justify-between border-t pt-2">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-xs"
+                                onClick={() => setDraft([])}
+                            >
+                                Bỏ lọc
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                className="h-8 px-3 text-xs"
+                                onClick={() => {
+                                    onChange(draft)
+                                    setOpen(false)
+                                }}
+                            >
+                                Áp dụng
+                            </Button>
+                        </div>
+                    </PopoverContent>
+                </Popover>
+            </div>
             <div className="text-right">Tổng tiền</div>
             <div className="text-center">Thao tác</div>
         </div>
@@ -584,7 +680,7 @@ function OrderCard({
 
                     <OrderRowMenu
                         order={order}
-                        canEdit={!isLocked && !hasDoneExport && canUpdateOrder}
+                        canEdit={!isLocked && canUpdateOrder}
                         canClone={canCreateOrder}
                         canAdjustPrice={canAdjustPrice && hasDoneExport}
                         canAdjustQuantity={canAdjustQuantity && hasDoneExport}
@@ -1072,6 +1168,7 @@ function buildOrdersReturnTo({
     params.set("size", String(size || 20))
     appendParam(params, "keyword", keyword)
     appendParam(params, "status", Array.isArray(filters?.status) ? filters.status.join(",") : filters?.status)
+    appendParam(params, "export_progress", Array.isArray(filters?.export_progress) ? filters.export_progress.join(",") : filters?.export_progress)
     appendParam(params, "customer_id", filters?.customer_id)
     appendParam(params, "employee_id", filters?.employee_id)
     appendParam(params, "from_date", filters?.from_date)

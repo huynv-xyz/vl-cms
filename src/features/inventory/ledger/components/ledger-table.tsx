@@ -1364,7 +1364,10 @@ function LedgerCorrectionActions({
                     >
                         <Clock className="mt-0.5 h-4 w-4 text-primary" />
                         <span>
-                            <span className="block font-medium">Sửa giờ {documentPostingTimeLabel(item.doc_type)}</span>
+                            <span className="block font-medium">
+                                {String(item.doc_type || "").toUpperCase() === "SALES_EXPORT" ? "Đổi ngày/giờ" : "Sửa giờ"}{" "}
+                                {documentPostingTimeLabel(item.doc_type)}
+                            </span>
                             <span className="block text-xs text-muted-foreground">Cập nhật toàn bộ chứng từ và nguồn phát sinh liên quan.</span>
                         </span>
                     </button>
@@ -2167,20 +2170,26 @@ function DocumentPostingTimeChangeDialog({
     onOpenChange: (open: boolean) => void
     onChanged: () => void
 }) {
+    const canChangeDate = String(row?.doc_type || "").toUpperCase() === "SALES_EXPORT"
+    const [newDate, setNewDate] = useState("")
     const [newTime, setNewTime] = useState("")
     const [result, setResult] = useState<DocumentPostingTimeChangeResult | null>(null)
     const [errorText, setErrorText] = useState<string | null>(null)
 
     useEffect(() => {
         if (open && row) {
+            setNewDate(toDateInputValue(row.posting_date))
             setNewTime(row.posting_time ? toTimeInputValue(row.posting_time) : currentTimeInputValue())
             setResult(null)
             setErrorText(null)
         }
     }, [open, row])
 
+    const oldDate = toDateInputValue(row?.posting_date)
     const oldTime = row?.posting_time ? toTimeInputValue(row.posting_time) : ""
-    const changed = Boolean(row && newTime && normalizeTimeForApi(newTime) !== normalizeTimeForApi(oldTime))
+    const changed = Boolean(
+        row && newTime && (normalizeTimeForApi(newTime) !== normalizeTimeForApi(oldTime) || (canChangeDate && newDate !== oldDate)),
+    )
     const applied = Boolean(result?.applied)
 
     const handleTimeChange = (value: string) => {
@@ -2189,8 +2198,19 @@ function DocumentPostingTimeChangeDialog({
         setErrorText(null)
     }
 
+    const handleDateChange = (value: string) => {
+        setNewDate(value)
+        setResult(null)
+        setErrorText(null)
+    }
+
+
     const checkMutation = useMutation({
-        mutationFn: () => checkDocumentPostingTimeChange(Number(row?.id), normalizeTimeForApi(newTime)),
+        mutationFn: () => checkDocumentPostingTimeChange(
+            Number(row?.id),
+            normalizeTimeForApi(newTime),
+            canChangeDate ? newDate : undefined,
+        ),
         onSuccess: (data) => {
             setResult(data)
             setErrorText(null)
@@ -2202,7 +2222,11 @@ function DocumentPostingTimeChangeDialog({
     })
 
     const applyMutation = useMutation({
-        mutationFn: () => applyDocumentPostingTimeChange(Number(row?.id), normalizeTimeForApi(newTime)),
+        mutationFn: () => applyDocumentPostingTimeChange(
+            Number(row?.id),
+            normalizeTimeForApi(newTime),
+            canChangeDate ? newDate : undefined,
+        ),
         onSuccess: (data) => {
             setResult(data)
             setErrorText(null)
@@ -2222,7 +2246,7 @@ function DocumentPostingTimeChangeDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-h-[calc(100vh-32px)] !w-[min(1180px,calc(100vw-32px))] !max-w-[calc(100vw-32px)] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Sửa giờ {flowLabel}</DialogTitle>
+                    <DialogTitle>{canChangeDate ? "Đổi ngày/giờ" : "Sửa giờ"} {flowLabel}</DialogTitle>
                     <DialogDescription>
                         Flow sửa sai riêng cho {flowLabel}. Hệ thống giả lập lại lịch sử tồn trước khi cập nhật toàn bộ chứng từ và nguồn phát sinh trong một giao dịch.
                     </DialogDescription>
@@ -2236,19 +2260,34 @@ function DocumentPostingTimeChangeDialog({
                         <InfoItem label="Giờ hiện tại" value={row.posting_time ? formatTime(row.posting_time) : "Chưa có giờ"} />
                     </div>
 
-                    <label className="block max-w-sm space-y-1.5">
-                        <span className="text-sm font-medium">Giờ mới</span>
-                        <Input
-                            type="time"
-                            step="1"
-                            value={newTime}
-                            onChange={(event) => handleTimeChange(event.target.value)}
-                        />
-                    </label>
+                    <div className={cn("grid max-w-2xl gap-3", canChangeDate && "sm:grid-cols-2")}>
+                        {canChangeDate ? (
+                            <label className="block space-y-1.5">
+                                <span className="text-sm font-medium">Ngày mới</span>
+                                <Input
+                                    type="date"
+                                    value={newDate}
+                                    max={currentLocalDateInputValue()}
+                                    onChange={(event) => handleDateChange(event.target.value)}
+                                />
+                            </label>
+                        ) : null}
+                        <label className="block space-y-1.5">
+                            <span className="text-sm font-medium">Giờ mới</span>
+                            <Input
+                                type="time"
+                                step="1"
+                                value={newTime}
+                                onChange={(event) => handleTimeChange(event.target.value)}
+                            />
+                        </label>
+                    </div>
 
                     {!changed ? (
                         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                            Giờ mới phải khác giờ hiện tại của chứng từ.
+                            {canChangeDate
+                                ? "Ngày/giờ mới phải khác ngày/giờ hiện tại của chứng từ."
+                                : "Giờ mới phải khác giờ hiện tại của chứng từ."}
                         </div>
                     ) : null}
 
@@ -2258,7 +2297,7 @@ function DocumentPostingTimeChangeDialog({
                         </div>
                     ) : null}
 
-                    {result ? <PurchasePostingDateTimeChangeResultPanel result={result} timeOnly /> : null}
+                    {result ? <PurchasePostingDateTimeChangeResultPanel result={result} timeOnly={!canChangeDate} /> : null}
 
                     <div className="flex justify-end gap-2 border-t pt-3">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={working}>
@@ -2274,7 +2313,7 @@ function DocumentPostingTimeChangeDialog({
                             onClick={() => applyMutation.mutate()}
                         >
                             {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            Đổi giờ
+                            {canChangeDate ? "Đổi ngày/giờ" : "Đổi giờ"}
                         </Button>
                     </div>
                 </div>
@@ -2790,6 +2829,11 @@ function normalizeTimeForApi(value?: string | null) {
 function currentTimeInputValue() {
     const now = new Date()
     return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`
+}
+
+function currentLocalDateInputValue() {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
 }
 
 function textFilterDescription(label: string, op: string | undefined, value: string) {

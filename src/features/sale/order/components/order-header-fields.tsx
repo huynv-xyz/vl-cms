@@ -18,9 +18,10 @@ type Props = {
     value: any
     onChange: (value: any) => void
     showStatus?: boolean
+    lockAfterDoneExport?: boolean
 }
 
-export function OrderHeaderFields({ value, onChange, showStatus = true }: Props) {
+export function OrderHeaderFields({ value, onChange, showStatus = true, lockAfterDoneExport = false }: Props) {
     const update = (patch: any) => onChange({ ...value, ...patch })
     const customerEmployeeId = (customerOption: any) =>
         customerOption?.raw?.employee_id ?? customerOption?.raw?.employee?.id ?? undefined
@@ -37,6 +38,7 @@ export function OrderHeaderFields({ value, onChange, showStatus = true }: Props)
                             employee_id: customerEmployeeId(customerOption),
                         })
                     }
+                    disabled={lockAfterDoneExport}
                     required
                     dataSource={{ getList: listCustomers, getById: getCustomer }}
                     popoverContentClassName="w-[520px] max-w-[calc(100vw-2rem)]"
@@ -54,6 +56,7 @@ export function OrderHeaderFields({ value, onChange, showStatus = true }: Props)
                     placeholder="Chọn nhân viên"
                     value={value.employee_id}
                     onChange={(employeeId: any) => update({ employee_id: employeeId })}
+                    disabled={lockAfterDoneExport}
                     dataSource={{ getList: listEmployees, getById: getEmployee }}
                     mapOption={(x: any) => ({
                         value: x.id,
@@ -67,6 +70,7 @@ export function OrderHeaderFields({ value, onChange, showStatus = true }: Props)
                 <Input
                     type="date"
                     value={value.order_date || ""}
+                    disabled={lockAfterDoneExport}
                     onChange={(event) => update({ order_date: event.target.value })}
                 />
             </Field>
@@ -76,6 +80,7 @@ export function OrderHeaderFields({ value, onChange, showStatus = true }: Props)
                     <Select
                         value={value.status || "NEW"}
                         onValueChange={(status) => update({ status })}
+                        disabled={lockAfterDoneExport}
                     >
                         <SelectTrigger>
                             <SelectValue placeholder="Chọn trạng thái" />
