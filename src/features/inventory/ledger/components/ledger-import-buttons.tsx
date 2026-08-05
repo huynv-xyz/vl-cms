@@ -62,6 +62,17 @@ const PURCHASE_STOCK_REQUIRED_COLUMNS = [
     "TK Có",
 ]
 
+const PURCHASE_PRICE_REQUIRED_COLUMNS = [
+    "Ngày hạch toán",
+    "Số chứng từ",
+    "Mã hàng",
+    "Tên hàng",
+    "Số lô",
+    "Số lượng mua",
+    "Mã kho",
+    "Đơn giá bao gồm PLH",
+]
+
 const VTHH_DETAIL_REQUIRED_COLUMNS = [
     "Ngày chứng từ",
     "Số chứng từ",
@@ -202,7 +213,7 @@ export function LedgerImportButtons() {
 
             if (normalized.totalRows === 0) {
                 setImportResultDialog({
-                    title: "Lỗi sửa đơn giá vốn",
+                    title: "Lỗi sửa đơn giá mua hàng",
                     result: {
                         ...res,
                         failed: 1,
@@ -220,15 +231,15 @@ export function LedgerImportButtons() {
             }
 
             if (res.failed > 0 || res.errors?.length) {
-                setImportResultDialog({ title: "Lỗi sửa đơn giá vốn", result: res, mode: "purchase-base-price" })
-                toast.warning("Sửa đơn giá vốn có lỗi, chưa cập nhật dữ liệu")
+                setImportResultDialog({ title: "Lỗi sửa đơn giá mua hàng", result: res, mode: "purchase-base-price" })
+                toast.warning("Sửa đơn giá mua hàng có lỗi, chưa cập nhật dữ liệu")
                 return
             }
 
-            setImportResultDialog({ title: "Kết quả sửa đơn giá vốn", result: res, mode: "purchase-base-price" })
-            toast.success(`Đã cập nhật ${normalized.updated} dòng đơn giá vốn`)
+            setImportResultDialog({ title: "Kết quả sửa đơn giá mua hàng", result: res, mode: "purchase-base-price" })
+            toast.success(`Đã cập nhật ${normalized.updated} dòng đơn giá mua hàng`)
         },
-        onError: (error: any) => toast.error(error?.message || "Không thể sửa đơn giá vốn"),
+        onError: (error: any) => toast.error(error?.message || "Không thể sửa đơn giá mua hàng"),
     })
 
     const importVthhDetailMutation = useMutation({
@@ -358,7 +369,7 @@ export function LedgerImportButtons() {
                     </DropdownMenuItem>
                     <DropdownMenuItem disabled={importPurchaseBasePriceMutation.isPending} onSelect={() => setGuide(purchaseBasePriceGuide(purchaseBasePriceFileRef))}>
                         <Upload className="h-4 w-4" />
-                        {importPurchaseBasePriceMutation.isPending ? "Đang sửa..." : "Sửa đơn giá vốn"}
+                        {importPurchaseBasePriceMutation.isPending ? "Đang sửa..." : "Sửa đơn giá mua hàng"}
                     </DropdownMenuItem>
                     <DropdownMenuItem disabled={importVthhDetailMutation.isPending} onSelect={() => setGuide(vthhGuide(vthhDetailFileRef))}>
                         <Upload className="h-4 w-4" />
@@ -511,7 +522,7 @@ function purchaseGuide(inputRef: RefObject<HTMLInputElement | null>): ImportGuid
             "Hạn sử dụng và Ngày hạch toán bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy, ví dụ 24/10/2028 hoặc 24-10-2028.",
             "Dòng có Mã hàng bắt đầu bằng PHI hoặc dòng không có Mã kho sẽ được bỏ qua. Mã hàng khác nếu chưa có trong danh mục sản phẩm sẽ báo lỗi.",
             "Đơn giá được hiểu là đơn giá mua gốc, chưa bao gồm phí lô hàng. Phí hàng về kho và đơn giá sau phí sẽ được tính ở chức năng Tính giá tồn kho.",
-            "Import lại cùng file không tạo trùng giao dịch. Nếu dòng mua hàng đã tồn tại nhưng đơn giá khác, dùng nút Sửa đơn giá vốn.",
+            "Import lại cùng file không tạo trùng giao dịch. Nếu dòng mua hàng đã tồn tại nhưng đơn giá khác, dùng nút Sửa đơn giá mua hàng.",
         ],
         inputRef,
     }
@@ -519,12 +530,12 @@ function purchaseGuide(inputRef: RefObject<HTMLInputElement | null>): ImportGuid
 
 function purchaseBasePriceGuide(inputRef: RefObject<HTMLInputElement | null>): ImportGuide {
     return {
-        title: "Sửa đơn giá vốn",
-        description: "File này dùng để cập nhật lại đơn giá mua gốc cho các dòng mua hàng đã có trong Sổ kho.",
-        columns: PURCHASE_STOCK_REQUIRED_COLUMNS,
+        title: "Sửa đơn giá mua hàng",
+        description: "File này dùng để cập nhật lại đơn giá mua hàng đã bao gồm phí làm hàng cho các dòng mua hàng đã có trong Sổ kho.",
+        columns: PURCHASE_PRICE_REQUIRED_COLUMNS,
         notes: [
-            "File dùng lại format của Import mua hàng.",
-            "Đơn giá mới sẽ ghi vào inventory_ledger.unit_price và inventory_ledger.amount theo đơn giá mua gốc. Đơn giá cũ được backup vào legacy_unit_price nếu chưa có.",
+            "Cột Tên hàng chỉ để người dùng dễ kiểm tra file; hệ thống map dòng theo Mã hàng.",
+            "Cột Đơn giá bao gồm PLH là đơn giá mua hàng đã bao gồm phí làm hàng. Giá trị này sẽ ghi vào inventory_ledger.unit_price và tính lại inventory_ledger.amount.",
             "Nếu dòng sổ kho không tìm thấy hoặc số dòng trùng khóa giữa DB và Excel không khớp, hệ thống báo lỗi và rollback toàn bộ.",
             "Sau khi cập nhật sổ kho, hệ thống tính lại inventory_lots.unit_cost theo bình quân các dòng mua hàng dương của lô đó.",
         ],

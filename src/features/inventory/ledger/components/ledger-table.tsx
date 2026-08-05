@@ -13,18 +13,24 @@ import {
     applyPurchasePostingDateTimeChange,
     applyDocumentPostingTimeChange,
     applyReturnWarehouseChange,
+    applySalesExportLotChange,
+    applySalesReturnUnitPriceChange,
     updateInventoryLedgerStaticParameters,
     checkPurchaseLotChange,
     checkPurchaseQuantityChange,
     checkPurchasePostingDateTimeChange,
     checkDocumentPostingTimeChange,
     checkReturnWarehouseChange,
+    checkSalesExportLotChange,
+    checkSalesReturnUnitPriceChange,
     type InventoryLedgerStaticParametersPayload,
     type PurchaseLotChangeResult,
     type PurchaseQuantityChangeResult,
     type PurchasePostingDateTimeChangeResult,
     type DocumentPostingTimeChangeResult,
     type ReturnWarehouseChangeResult,
+    type SalesExportLotChangeResult,
+    type SalesReturnUnitPriceChangeResult,
 } from "@/api/inventory/ledger"
 import { getVoucherPrintDetail, listVoucherTypes, VOUCHER_TYPE_LABEL, type InventoryVoucherPrintDetail, type InventoryVoucherType } from "@/api/inventory/voucher"
 import { listWarehouses } from "@/api/warehouse"
@@ -163,7 +169,9 @@ export function InventoryLedgerTable({
     }
     const [detailVoucherId, setDetailVoucherId] = useState<number | null>(null)
     const [lotChangeRow, setLotChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [salesExportLotChangeRow, setSalesExportLotChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [returnWarehouseChangeRow, setReturnWarehouseChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [salesReturnUnitPriceChangeRow, setSalesReturnUnitPriceChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [purchaseQuantityChangeRow, setPurchaseQuantityChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [purchasePostingDateTimeChangeRow, setPurchasePostingDateTimeChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [documentPostingTimeChangeRow, setDocumentPostingTimeChangeRow] = useState<InventoryLedgerReportRow | null>(null)
@@ -604,7 +612,9 @@ export function InventoryLedgerTable({
                                     item={item}
                                     onOpenVoucher={setDetailVoucherId}
                                     onChangeLot={canUseLedgerCorrections ? setLotChangeRow : undefined}
+                                    onChangeSalesExportLot={canUseLedgerCorrections ? setSalesExportLotChangeRow : undefined}
                                     onChangeReturnWarehouse={canUseLedgerCorrections ? setReturnWarehouseChangeRow : undefined}
+                                    onChangeSalesReturnUnitPrice={canUseLedgerCorrections ? setSalesReturnUnitPriceChangeRow : undefined}
                                     onChangePurchaseQuantity={canUseLedgerCorrections ? setPurchaseQuantityChangeRow : undefined}
                                     onChangePurchasePostingDateTime={canUseLedgerCorrections ? setPurchasePostingDateTimeChangeRow : undefined}
                                     onChangeDocumentPostingTime={canUseLedgerCorrections ? setDocumentPostingTimeChangeRow : undefined}
@@ -652,11 +662,31 @@ export function InventoryLedgerTable({
                     queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
                 }}
             />
+            <SalesExportLotChangeDialog
+                row={salesExportLotChangeRow}
+                open={!!salesExportLotChangeRow}
+                onOpenChange={(open) => {
+                    if (!open) setSalesExportLotChangeRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                }}
+            />
             <ReturnWarehouseChangeDialog
                 row={returnWarehouseChangeRow}
                 open={!!returnWarehouseChangeRow}
                 onOpenChange={(open) => {
                     if (!open) setReturnWarehouseChangeRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                }}
+            />
+            <SalesReturnUnitPriceChangeDialog
+                row={salesReturnUnitPriceChangeRow}
+                open={!!salesReturnUnitPriceChangeRow}
+                onOpenChange={(open) => {
+                    if (!open) setSalesReturnUnitPriceChangeRow(null)
                 }}
                 onChanged={() => {
                     queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
@@ -1234,7 +1264,9 @@ function LedgerRow({
     item,
     onOpenVoucher,
     onChangeLot,
+    onChangeSalesExportLot,
     onChangeReturnWarehouse,
+    onChangeSalesReturnUnitPrice,
     onChangePurchaseQuantity,
     onChangePurchasePostingDateTime,
     onChangeDocumentPostingTime,
@@ -1246,7 +1278,9 @@ function LedgerRow({
     item: InventoryLedgerReportRow
     onOpenVoucher: (voucherId: number) => void
     onChangeLot?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesExportLot?: (row: InventoryLedgerReportRow) => void
     onChangeReturnWarehouse?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesReturnUnitPrice?: (row: InventoryLedgerReportRow) => void
     onChangePurchaseQuantity?: (row: InventoryLedgerReportRow) => void
     onChangePurchasePostingDateTime?: (row: InventoryLedgerReportRow) => void
     onChangeDocumentPostingTime?: (row: InventoryLedgerReportRow) => void
@@ -1382,7 +1416,9 @@ function LedgerRow({
                 <LedgerCorrectionActions
                     item={item}
                     onChangeLot={onChangeLot}
+                    onChangeSalesExportLot={onChangeSalesExportLot}
                     onChangeReturnWarehouse={onChangeReturnWarehouse}
+                    onChangeSalesReturnUnitPrice={onChangeSalesReturnUnitPrice}
                     onChangePurchaseQuantity={onChangePurchaseQuantity}
                     onChangePurchasePostingDateTime={onChangePurchasePostingDateTime}
                     onChangeDocumentPostingTime={onChangeDocumentPostingTime}
@@ -1396,7 +1432,9 @@ function LedgerRow({
 function LedgerCorrectionActions({
     item,
     onChangeLot,
+    onChangeSalesExportLot,
     onChangeReturnWarehouse,
+    onChangeSalesReturnUnitPrice,
     onChangePurchaseQuantity,
     onChangePurchasePostingDateTime,
     onChangeDocumentPostingTime,
@@ -1404,7 +1442,9 @@ function LedgerCorrectionActions({
 }: {
     item: InventoryLedgerReportRow
     onChangeLot?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesExportLot?: (row: InventoryLedgerReportRow) => void
     onChangeReturnWarehouse?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesReturnUnitPrice?: (row: InventoryLedgerReportRow) => void
     onChangePurchaseQuantity?: (row: InventoryLedgerReportRow) => void
     onChangePurchasePostingDateTime?: (row: InventoryLedgerReportRow) => void
     onChangeDocumentPostingTime?: (row: InventoryLedgerReportRow) => void
@@ -1412,12 +1452,14 @@ function LedgerCorrectionActions({
 }) {
     const canEditStaticParameters = Boolean(onEditStaticParameters)
     const canChangeLot = Boolean(onChangeLot && isPurchaseInboundLedger(item))
+    const canChangeSalesExportLot = Boolean(onChangeSalesExportLot && isSalesExportLedger(item))
     const canChangeReturnWarehouse = Boolean(onChangeReturnWarehouse && isSalesReturnInboundLedger(item))
+    const canChangeSalesReturnUnitPrice = Boolean(onChangeSalesReturnUnitPrice && isSalesReturnUnitPriceCorrectionLedger(item))
     const canChangePurchaseQuantity = Boolean(onChangePurchaseQuantity && isQuantityCorrectionLedger(item))
     const canChangePurchasePostingDateTime = Boolean(onChangePurchasePostingDateTime && isPurchasePostingDateTimeCorrectionLedger(item))
     const canChangeDocumentPostingTime = Boolean(onChangeDocumentPostingTime && isDocumentPostingTimeCorrectionLedger(item))
 
-    if (!canEditStaticParameters && !canChangeLot && !canChangeReturnWarehouse && !canChangePurchaseQuantity && !canChangePurchasePostingDateTime && !canChangeDocumentPostingTime) {
+    if (!canEditStaticParameters && !canChangeLot && !canChangeSalesExportLot && !canChangeReturnWarehouse && !canChangeSalesReturnUnitPrice && !canChangePurchaseQuantity && !canChangePurchasePostingDateTime && !canChangeDocumentPostingTime) {
         return <span className="text-muted-foreground">-</span>
     }
 
@@ -1455,6 +1497,19 @@ function LedgerCorrectionActions({
                         <span>
                             <span className="block font-medium">Đổi số lô nhập hàng</span>
                             <span className="block text-xs text-muted-foreground">Áp dụng cho dòng nhập mua hàng hoặc nhập kho khác.</span>
+                        </span>
+                    </button>
+                ) : null}
+                {canChangeSalesExportLot ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                        onClick={() => onChangeSalesExportLot?.(item)}
+                    >
+                        <Pencil className="mt-0.5 h-4 w-4 text-primary" />
+                        <span>
+                            <span className="block font-medium">Đổi số lô xuất kho</span>
+                            <span className="block text-xs text-muted-foreground">Chuyển dòng xuất sang lô đã tồn tại và kiểm tra lịch sử tồn.</span>
                         </span>
                     </button>
                 ) : null}
@@ -1510,6 +1565,19 @@ function LedgerCorrectionActions({
                         <span>
                             <span className="block font-medium">Đổi kho nhập trả hàng</span>
                             <span className="block text-xs text-muted-foreground">Áp dụng cho dòng nhập kho từ hàng bán trả lại.</span>
+                        </span>
+                    </button>
+                ) : null}
+                {canChangeSalesReturnUnitPrice ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                        onClick={() => onChangeSalesReturnUnitPrice?.(item)}
+                    >
+                        <Pencil className="mt-0.5 h-4 w-4 text-primary" />
+                        <span>
+                            <span className="block font-medium">Sửa đơn giá nhập trả hàng</span>
+                            <span className="block text-xs text-muted-foreground">Chỉ sửa giá vốn nhập kho, không sửa giá bán hoặc công nợ.</span>
                         </span>
                     </button>
                 ) : null}
@@ -1860,6 +1928,186 @@ function PurchaseLotChangeResultPanel({ result }: { result: PurchaseLotChangeRes
     )
 }
 
+function SalesExportLotChangeDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [newLotNo, setNewLotNo] = useState("")
+    const [result, setResult] = useState<SalesExportLotChangeResult | null>(null)
+    const [errorMessage, setErrorMessage] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setNewLotNo(row.lot_code || "")
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [open, row])
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkSalesExportLotChange(Number(row?.id), newLotNo),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorMessage(error?.message || "Không kiểm tra được số lô xuất kho.")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applySalesExportLotChange(Number(row?.id), newLotNo),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            if (data?.valid) onChanged()
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không đổi được số lô xuất kho.")
+        },
+    })
+
+    const trimmedNewLotNo = newLotNo.trim()
+    const unchanged = trimmedNewLotNo === String(row?.lot_code || "").trim()
+    const busy = checkMutation.isPending || applyMutation.isPending
+    const canApply = Boolean(result?.valid && !result.applied && !unchanged && !busy)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="flex max-h-[92vh] flex-col overflow-hidden"
+                style={{ width: "min(980px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
+            >
+                <DialogHeader>
+                    <DialogTitle>Đổi số lô xuất kho</DialogTitle>
+                    <DialogDescription>
+                        Chỉ chuyển dòng xuất sang một lô đã tồn tại. Hệ thống kiểm tra lịch sử tồn theo thời điểm trước khi ghi thật.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {row ? (
+                    <div className="space-y-4 overflow-y-auto pr-1">
+                        <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                            <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                            <InfoItem label="Ngày chứng từ" value={`${formatDate(row.posting_date)} ${formatTime(row.posting_time)}`} />
+                            <InfoItem label="Kho" value={row.warehouse_name} />
+                            <InfoItem label="Hàng hóa" value={`${row.product_code} - ${row.product_name}`} />
+                            <InfoItem label="Lô hiện tại" value={row.lot_code || "-"} />
+                            <InfoItem label="Số lượng xuất" value={formatNumber(Number(row.quantity_out || 0))} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Số lô đúng</label>
+                            <Input
+                                value={newLotNo}
+                                onChange={(event) => {
+                                    setNewLotNo(event.target.value)
+                                    setResult(null)
+                                    setErrorMessage("")
+                                }}
+                                placeholder="Nhập số lô đã có trong kho"
+                                className="h-10 font-mono"
+                            />
+                            {unchanged ? (
+                                <div className="text-sm text-destructive">Số lô đúng phải khác số lô hiện tại.</div>
+                            ) : null}
+                        </div>
+
+                        {errorMessage ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <div className="flex items-start gap-2 font-semibold">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4" />
+                                    Không thể đổi số lô xuất kho
+                                </div>
+                                <div className="mt-1 pl-6">{errorMessage}</div>
+                            </div>
+                        ) : null}
+
+                        {result ? <SalesExportLotChangeResultPanel result={result} /> : null}
+                    </div>
+                ) : null}
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={busy || unchanged || !trimmedNewLotNo}
+                        onClick={() => checkMutation.mutate()}
+                    >
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button
+                        type="button"
+                        disabled={!canApply}
+                        onClick={() => applyMutation.mutate()}
+                    >
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Đổi lô
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function SalesExportLotChangeResultPanel({ result }: { result: SalesExportLotChangeResult }) {
+    const valid = Boolean(result.valid)
+    const applied = Boolean(result.applied)
+    const changes = result.changes || {}
+
+    return (
+        <div className={cn(
+            "rounded-md border p-3 text-sm",
+            valid
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-800",
+        )}>
+            <div className="flex items-start gap-2 font-semibold">
+                {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
+                <span>{applied ? "Đã đổi số lô xuất kho" : valid ? "Có thể đổi số lô xuất kho" : "Không thể đổi số lô xuất kho"}</span>
+            </div>
+            <div className="mt-1 pl-6">{result.message}</div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+                <ResultInfo label="Lô hiện tại" value={result.old_lot_no || "-"} />
+                <ResultInfo label="Lô đúng" value={result.new_lot_no || "-"} />
+                <ResultInfo label="Số lượng xuất" value={formatNumber(Number(result.quantity || 0))} />
+                <ResultInfo label="Dòng sổ kho" value={applied ? formatNumber(Number(changes.updated_ledger_rows || 0)) : "Sẽ cập nhật 1 dòng"} />
+                <ResultInfo label="Dòng phiếu kho" value={applied ? formatNumber(Number(changes.updated_voucher_items || 0)) : result.voucher_item_id ? "Sẽ đồng bộ" : "Không có"} />
+                {applied ? <ResultInfo label="Lô cũ được dọn" value={formatNumber(Number(changes.deleted_old_lots || 0))} /> : null}
+            </div>
+
+            {result.errors?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2 text-red-700">
+                    {result.errors.map((error, index) => (
+                        <div key={index}>- {error}</div>
+                    ))}
+                </div>
+            ) : null}
+
+            {result.warnings?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2">
+                    {result.warnings.map((warning, index) => (
+                        <div key={index}>- {warning}</div>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
 function ReturnWarehouseChangeDialog({
     row,
     open,
@@ -2083,6 +2331,193 @@ function ReturnWarehouseChangeResultPanel({ result }: { result: ReturnWarehouseC
                 <ResultInfo label="Quy định địa điểm kho" value={result.same_physical_required ? "Phiếu nhiều dòng: phải cùng địa điểm kho" : "Phiếu một dòng: được đổi địa điểm kho"} />
                 {applied ? <ResultInfo label="Lô mới được tạo" value={formatNumber(Number(changes.created_lots || 0))} /> : null}
                 {applied ? <ResultInfo label="Lô cũ được dọn" value={formatNumber(Number(changes.deleted_old_lots || 0))} /> : null}
+            </div>
+
+            {result.errors?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2 text-red-700">
+                    {result.errors.map((error, index) => (
+                        <div key={index}>- {error}</div>
+                    ))}
+                </div>
+            ) : null}
+
+            {result.warnings?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2">
+                    {result.warnings.map((warning, index) => (
+                        <div key={index}>- {warning}</div>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+function SalesReturnUnitPriceChangeDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [unitPriceText, setUnitPriceText] = useState("")
+    const [result, setResult] = useState<SalesReturnUnitPriceChangeResult | null>(null)
+    const [errorMessage, setErrorMessage] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setUnitPriceText(String(row.unit_price ?? ""))
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [open, row])
+
+    const newUnitPrice = parseDecimalInput(unitPriceText)
+    const quantity = Number(row?.quantity_in || 0)
+    const currentUnitPrice = Number(row?.unit_price || 0)
+    const currentAmount = Number(row?.amount || 0)
+    const previewAmount = Number.isFinite(newUnitPrice) ? quantity * newUnitPrice : 0
+    const unchanged = Number.isFinite(newUnitPrice) && Math.abs(newUnitPrice - currentUnitPrice) < 0.000001
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkSalesReturnUnitPriceChange(Number(row?.id), newUnitPrice),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorMessage(error?.message || "Không kiểm tra được đơn giá nhập trả hàng.")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applySalesReturnUnitPriceChange(Number(row?.id), newUnitPrice),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            if (data?.valid) onChanged()
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không sửa được đơn giá nhập trả hàng.")
+        },
+    })
+
+    const busy = checkMutation.isPending || applyMutation.isPending
+    const canCheck = Boolean(row && Number.isFinite(newUnitPrice) && newUnitPrice >= 0 && !unchanged && !busy)
+    const canApply = Boolean(result?.valid && !result.applied && !unchanged && !busy)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="flex max-h-[92vh] flex-col overflow-hidden"
+                style={{ width: "min(980px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
+            >
+                <DialogHeader>
+                    <DialogTitle>Sửa đơn giá nhập trả hàng</DialogTitle>
+                    <DialogDescription>
+                        Chỉ sửa giá vốn nhập kho của hàng bán trả lại, không sửa giá bán, tiền trả khách hoặc công nợ.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {row ? (
+                    <div className="space-y-4 overflow-y-auto pr-1">
+                        <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                            <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                            <InfoItem label="Ngày chứng từ" value={`${formatDate(row.posting_date)} ${formatTime(row.posting_time)}`} />
+                            <InfoItem label="Kho" value={row.warehouse_name} />
+                            <InfoItem label="Hàng hóa" value={`${row.product_code} - ${row.product_name}`} />
+                            <InfoItem label="Số lô" value={row.lot_code || "-"} />
+                            <InfoItem label="Số lượng nhập trả" value={formatNumber(quantity)} />
+                        </div>
+
+                        <div className="grid gap-3 rounded-md border p-3 text-sm md:grid-cols-2">
+                            <InfoItem label="Đơn giá hiện tại" value={formatNumber(currentUnitPrice)} />
+                            <InfoItem label="Giá trị hiện tại" value={formatNumber(currentAmount)} />
+                            <InfoItem label="Đơn giá mới" value={Number.isFinite(newUnitPrice) ? formatNumber(newUnitPrice) : "-"} />
+                            <InfoItem label="Giá trị mới" value={Number.isFinite(newUnitPrice) ? formatNumber(previewAmount) : "-"} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Đơn giá mới</label>
+                            <Input
+                                value={unitPriceText}
+                                onChange={(event) => {
+                                    setUnitPriceText(event.target.value)
+                                    setResult(null)
+                                    setErrorMessage("")
+                                }}
+                                placeholder="Nhập đơn giá vốn mới"
+                                className="h-10 font-mono"
+                            />
+                            {!Number.isFinite(newUnitPrice) ? (
+                                <div className="text-sm text-destructive">Đơn giá mới không hợp lệ.</div>
+                            ) : null}
+                            {unchanged ? (
+                                <div className="text-sm text-muted-foreground">Đơn giá mới đang trùng đơn giá hiện tại.</div>
+                            ) : null}
+                        </div>
+
+                        {errorMessage ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <div className="flex items-start gap-2 font-semibold">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4" />
+                                    Không thể sửa đơn giá nhập trả hàng
+                                </div>
+                                <div className="mt-1 pl-6">{errorMessage}</div>
+                            </div>
+                        ) : null}
+
+                        {result ? <SalesReturnUnitPriceChangeResultPanel result={result} /> : null}
+                    </div>
+                ) : null}
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button type="button" variant="outline" disabled={!canCheck} onClick={() => checkMutation.mutate()}>
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button type="button" disabled={!canApply} onClick={() => applyMutation.mutate()}>
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Áp dụng
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function SalesReturnUnitPriceChangeResultPanel({ result }: { result: SalesReturnUnitPriceChangeResult }) {
+    const valid = Boolean(result.valid)
+    const applied = Boolean(result.applied)
+    const changes = result.changes || {}
+
+    return (
+        <div className={cn(
+            "rounded-md border p-3 text-sm",
+            valid
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-800",
+        )}>
+            <div className="flex items-start gap-2 font-semibold">
+                {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
+                <span>{applied ? "Đã sửa đơn giá nhập trả hàng" : valid ? "Có thể sửa đơn giá nhập trả hàng" : "Không thể sửa đơn giá nhập trả hàng"}</span>
+            </div>
+            <div className="mt-1 pl-6">{result.message}</div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+                <ResultInfo label="Đơn giá cũ" value={formatNumber(Number(result.current_unit_price || 0))} />
+                <ResultInfo label="Đơn giá mới" value={formatNumber(Number(result.new_unit_price || 0))} />
+                <ResultInfo label="Giá trị mới" value={formatNumber(Number(result.new_amount || 0))} />
+                <ResultInfo label="Dòng sổ kho" value={applied ? formatNumber(Number(changes.updated_ledger_rows || 0)) : "Sẽ cập nhật 1 dòng"} />
+                <ResultInfo label="Dòng phiếu kho" value={applied ? formatNumber(Number(changes.updated_voucher_items || 0)) : result.voucher_item_id ? "Sẽ đồng bộ" : "Không có"} />
+                {applied ? <ResultInfo label="Kỳ cần tính lại" value={formatNumber(Number(changes.stale_cost_periods || 0))} /> : null}
             </div>
 
             {result.errors?.length ? (
@@ -2458,9 +2893,9 @@ const LEDGER_CORRECTION_HELP: Array<{ docType: string; actions: string }> = [
     { docType: "Mua hàng nhập khẩu nhập kho chưa thanh toán", actions: "Đổi số lô, sửa số lượng, đổi ngày/giờ chứng từ" },
     { docType: "Mua hàng trong nước nhập kho chưa thanh toán", actions: "Đổi số lô, sửa số lượng, đổi ngày/giờ chứng từ" },
     { docType: "Nhập kho khác", actions: "Đổi số lô, sửa số lượng, sửa giờ chứng từ" },
-    { docType: "Xuất kho khác", actions: "Sửa số lượng" },
-    { docType: "Nhập kho từ hàng bán trả lại", actions: "Đổi kho nhập trả hàng" },
-    { docType: "Xuất kho bán hàng", actions: "Đổi ngày/giờ chứng từ" },
+    { docType: "Xuất kho khác", actions: "Đổi số lô xuất kho, sửa số lượng" },
+    { docType: "Nhập kho từ hàng bán trả lại", actions: "Đổi kho nhập trả hàng, sửa đơn giá nhập trả hàng" },
+    { docType: "Xuất kho bán hàng", actions: "Đổi số lô xuất kho, đổi ngày/giờ chứng từ" },
     { docType: "Nhập kho thành phẩm sản xuất", actions: "Sửa giờ chứng từ" },
 ]
 
@@ -3127,6 +3562,18 @@ function isSalesReturnInboundLedger(item: InventoryLedgerReportRow) {
         && Boolean(item.lot_code)
 }
 
+function isSalesReturnUnitPriceCorrectionLedger(item: InventoryLedgerReportRow) {
+    return String(item.doc_type || "").toUpperCase() === "SALES_RETURN"
+        && Number(item.quantity_in || 0) > 0
+}
+
+function isSalesExportLedger(item: InventoryLedgerReportRow) {
+    const docType = String(item.doc_type || "").toUpperCase()
+    return ["SALES_EXPORT", "EXPORT", "OTHER_EXPORT"].includes(docType)
+        && Number(item.quantity_out || 0) > 0
+        && Boolean(item.lot_code)
+}
+
 function isQuantityCorrectionLedger(item: InventoryLedgerReportRow) {
     const docType = String(item.doc_type || "").toUpperCase()
     if (["IMPORT_PURCHASE", "DOMESTIC_PURCHASE", "OTHER_INBOUND"].includes(docType)) {
@@ -3179,6 +3626,13 @@ function formatDate(value?: string | null) {
 function formatTime(value?: string | null) {
     if (!value) return "-"
     return String(value).trim().split(".")[0]
+}
+
+function parseDecimalInput(value: string) {
+    const normalized = String(value || "").trim().replace(/,/g, "")
+    if (!normalized) return Number.NaN
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : Number.NaN
 }
 
 function toDateInputValue(value?: string | null) {

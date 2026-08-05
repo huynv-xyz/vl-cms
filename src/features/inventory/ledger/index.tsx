@@ -1,12 +1,15 @@
 ﻿import type React from "react"
 import { useState } from "react"
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronDown, Package, PackageOpen, RefreshCw, TrendingDown, TrendingUp, Warehouse, type LucideIcon } from "lucide-react"
+import { useMutation } from "@tanstack/react-query"
+import { AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CheckCircle2, ChevronDown, Loader2, Package, PackageOpen, RefreshCw, Search, TrendingDown, TrendingUp, Warehouse, type LucideIcon } from "lucide-react"
 
-import { listInventoryLedgerReport } from "@/api/inventory/ledger"
+import { checkNegativeStock, listInventoryLedgerReport, type NegativeStockAuditResult } from "@/api/inventory/ledger"
 import { PageSection } from "@/components/page-section"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Textarea } from "@/components/ui/textarea"
 import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { useUrlListFilters } from "@/hooks/use-url-list-filters"
 import { useUrlPagination } from "@/hooks/use-url-pagination"
@@ -35,7 +38,7 @@ export function InventoryLedgerReportPage({
     const search = route.useSearch()
     const navigate = route.useNavigate()
     const { pagination, setPagination } = useUrlPagination(search, navigate)
-    const [voucherDialog, setVoucherDialog] = useState<"in" | "out" | "transfer" | "repack" | "conversion" | null>(null)
+    const [voucherDialog, setVoucherDialog] = useState<"in" | "out" | "transfer" | "repack" | "conversion" | "negative-stock" | null>(null)
     const direction = mode === "in" ? "IN" : mode === "out" ? "OUT" : undefined
     const showValues = mode === "all"
     const pageTitle = mode === "in" ? "Nhập kho" : mode === "out" ? "Xuất kho" : "Sổ kho"
@@ -223,6 +226,7 @@ export function InventoryLedgerReportPage({
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuItem onSelect={() => setVoucherDialog("negative-stock")}><Search className="text-rose-600" />Kiểm tra âm tồn</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => setVoucherDialog("repack")}><Package className="text-amber-600" />Sang bao</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => setVoucherDialog("conversion")}><RefreshCw className="text-violet-600" />Chuyển mã</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -336,6 +340,10 @@ export function InventoryLedgerReportPage({
                         open={voucherDialog === "conversion"}
                         onOpenChange={(open) => setVoucherDialog(open ? "conversion" : null)}
                     />
+                    <NegativeStockAuditDialog
+                        open={voucherDialog === "negative-stock"}
+                        onOpenChange={(open) => setVoucherDialog(open ? "negative-stock" : null)}
+                    />
                 </div>
                 )
             }}
@@ -362,6 +370,127 @@ function InventoryLedgerSummary({ totals, showValues = true }: { totals?: Invent
             <Metric icon={TrendingUp} label="Nhập kho" quantity={normalized.inbound_quantity} value={normalized.inbound_value} showValue={showValues} tone="ok" />
             <Metric icon={TrendingDown} label="Xuất kho" quantity={normalized.outbound_quantity} value={normalized.outbound_value} showValue={showValues} tone="bad" />
             <Metric icon={Warehouse} label="Tồn cuối kỳ" quantity={normalized.closing_quantity} value={normalized.closing_value} showValue={showValues} tone="info" />
+        </div>
+    )
+}
+
+function NegativeStockAuditDialog({
+    open,
+    onOpenChange,
+}: {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+}) {
+    const [productCodes, setProductCodes] = useState("")
+    const [result, setResult] = useState<NegativeStockAuditResult | null>(null)
+    const mutation = useMutation({
+        mutationFn: () => checkNegativeStock(productCodes),
+        onSuccess: setResult,
+    })
+    const busy = mutation.isPending
+
+    return (
+        <Dialog open={open} onOpenChange={(nextOpen) => !busy && onOpenChange(nextOpen)}>
+            <DialogContent className="flex max-h-[92vh] !w-[min(1320px,calc(100vw-32px))] !max-w-[calc(100vw-32px)] flex-col overflow-hidden">
+                <DialogHeader>
+                    <DialogTitle>Kiểm tra âm tồn sổ kho</DialogTitle>
+                    <DialogDescription>
+                        Nhập mã hàng cách nhau bằng dấu phẩy. Bỏ trống để kiểm tra tất cả mã hàng đang có trong sổ kho.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 overflow-y-auto pr-1">
+                    <Textarea
+                        value={productCodes}
+                        onChange={(event) => {
+                            setProductCodes(event.target.value)
+                            setResult(null)
+                            mutation.reset()
+                        }}
+                        placeholder="VD: HP.G500.T.5.1717PK, HF.K1.T.155GFHC"
+                        className="min-h-24 font-mono"
+                    />
+
+                    {mutation.error ? (
+                        <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                            <AlertTriangle className="mt-0.5 h-4 w-4" />
+                            <span>{(mutation.error as any)?.message || "Không kiểm tra được âm tồn."}</span>
+                        </div>
+                    ) : null}
+
+                    {result ? <NegativeStockAuditResultPanel result={result} /> : null}
+                </div>
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button type="button" disabled={busy} onClick={() => mutation.mutate()}>
+                        {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                        Kiểm tra
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function NegativeStockAuditResultPanel({ result }: { result: NegativeStockAuditResult }) {
+    const hasNegative = Number(result.negative_count || 0) > 0
+
+    return (
+        <div className="space-y-3">
+            <div className={cn(
+                "flex items-start gap-2 rounded-md border p-3 text-sm",
+                hasNegative ? "border-red-200 bg-red-50 text-red-800" : "border-emerald-200 bg-emerald-50 text-emerald-800",
+            )}>
+                {hasNegative ? <AlertTriangle className="mt-0.5 h-4 w-4" /> : <CheckCircle2 className="mt-0.5 h-4 w-4" />}
+                <div>
+                    <div className="font-semibold">{result.message}</div>
+                    <div className="mt-1">
+                        Đã kiểm tra {formatNumber(Number(result.checked_lot_count || 0))} lô, phát hiện {formatNumber(Number(result.negative_count || 0))} lô âm tồn.
+                    </div>
+                </div>
+            </div>
+
+            {result.unknown_product_codes?.length ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    Không tìm thấy mã hàng: {result.unknown_product_codes.join(", ")}
+                </div>
+            ) : null}
+
+            {hasNegative ? (
+                <div className="overflow-auto rounded-md border">
+                    <table className="w-full min-w-[980px] text-sm">
+                        <thead className="bg-muted text-muted-foreground">
+                            <tr>
+                                <th className="px-2 py-2 text-left">Mã hàng</th>
+                                <th className="px-2 py-2 text-left">Tên hàng</th>
+                                <th className="px-2 py-2 text-left">Kho</th>
+                                <th className="px-2 py-2 text-left">Số lô</th>
+                                <th className="px-2 py-2 text-left">Ngày/Giờ</th>
+                                <th className="px-2 py-2 text-left">Chứng từ</th>
+                                <th className="px-2 py-2 text-left">Loại</th>
+                                <th className="px-2 py-2 text-right">Tồn sau</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {result.items.map((item, index) => (
+                                <tr key={`${item.lot_id || index}-${item.doc_no || index}`} className="border-t">
+                                    <td className="px-2 py-2 font-mono">{item.product_code || "-"}</td>
+                                    <td className="px-2 py-2">{item.product_name || "-"}</td>
+                                    <td className="px-2 py-2">{item.warehouse_code || item.warehouse_name || "-"}</td>
+                                    <td className="px-2 py-2 font-mono">{item.lot_code || "-"}</td>
+                                    <td className="px-2 py-2">{[item.posting_date, item.posting_time].filter(Boolean).join(" ") || "-"}</td>
+                                    <td className="px-2 py-2">{item.doc_no || "-"}</td>
+                                    <td className="px-2 py-2">{item.doc_type || "-"}</td>
+                                    <td className="px-2 py-2 text-right font-semibold text-red-600">{formatNumber(Number(item.balance || 0))}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : null}
         </div>
     )
 }

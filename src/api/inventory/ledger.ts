@@ -68,6 +68,40 @@ export function listInventoryLedgerReport(params: InventoryLedgerReportParams) {
     }>("/inventory/ledger/report", params)
 }
 
+export type NegativeStockAuditItem = {
+    lot_id?: number | null
+    product_id?: number | null
+    product_code?: string | null
+    product_name?: string | null
+    warehouse_id?: number | null
+    warehouse_code?: string | null
+    warehouse_name?: string | null
+    lot_code?: string | null
+    posting_date?: string | null
+    posting_time?: string | null
+    doc_no?: string | null
+    doc_type?: string | null
+    description?: string | null
+    balance?: number | string | null
+}
+
+export type NegativeStockAuditResult = {
+    ok: boolean
+    checked_scope: "ALL" | "PRODUCT_CODES" | string
+    requested_product_codes: string[]
+    unknown_product_codes: string[]
+    checked_lot_count: number
+    negative_count: number
+    message: string
+    items: NegativeStockAuditItem[]
+}
+
+export function checkNegativeStock(productCodes: string) {
+    return apiPost<NegativeStockAuditResult>("/inventory/ledger/negative-stock/check", {
+        productCodes,
+    })
+}
+
 export type ProductionCostObjectImportResult = {
     total_rows?: number
     totalRows?: number
@@ -124,6 +158,45 @@ export function applyPurchaseLotChange(ledgerId: number, newLotNo: string) {
     })
 }
 
+export type SalesExportLotChangeResult = {
+    valid: boolean
+    applied: boolean
+    message: string
+    ledger_id: number
+    voucher_id?: number | null
+    voucher_item_id?: number | null
+    product_id: number
+    warehouse_id: number
+    product_code: string
+    product_name: string
+    warehouse_code?: string | null
+    warehouse_name: string
+    doc_no?: string | null
+    doc_type?: string | null
+    posting_date?: string | null
+    posting_time?: string | null
+    old_lot_id: number
+    old_lot_no: string
+    target_lot_id: number
+    new_lot_no: string
+    quantity: number
+    errors: string[]
+    warnings: string[]
+    changes: Record<string, number>
+}
+
+export function checkSalesExportLotChange(ledgerId: number, newLotNo: string) {
+    return apiPost<SalesExportLotChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-lot-change/check`, {
+        newLotNo,
+    })
+}
+
+export function applySalesExportLotChange(ledgerId: number, newLotNo: string) {
+    return apiPost<SalesExportLotChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-lot-change/apply`, {
+        newLotNo,
+    })
+}
+
 export type ReturnWarehouseChangeResult = {
     valid: boolean
     applied: boolean
@@ -162,6 +235,47 @@ export function checkReturnWarehouseChange(ledgerId: number, newWarehouseId: num
 export function applyReturnWarehouseChange(ledgerId: number, newWarehouseId: number) {
     return apiPost<ReturnWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/return-warehouse-change/apply`, {
         newWarehouseId,
+    })
+}
+
+export type SalesReturnUnitPriceChangeResult = {
+    valid: boolean
+    applied: boolean
+    message: string
+    ledger_id: number
+    voucher_id?: number | null
+    voucher_item_id?: number | null
+    product_id: number
+    product_code: string
+    product_name: string
+    warehouse_id: number
+    warehouse_code?: string | null
+    warehouse_name: string
+    doc_no?: string | null
+    doc_type?: string | null
+    posting_date?: string | null
+    posting_time?: string | null
+    lot_id?: number | null
+    lot_no?: string | null
+    quantity: number
+    current_unit_price: number
+    current_amount: number
+    new_unit_price: number
+    new_amount: number
+    errors: string[]
+    warnings: string[]
+    changes: Record<string, number>
+}
+
+export function checkSalesReturnUnitPriceChange(ledgerId: number, newUnitPrice: number) {
+    return apiPost<SalesReturnUnitPriceChangeResult>(`/inventory/ledger/${ledgerId}/sales-return-unit-price-change/check`, {
+        newUnitPrice,
+    })
+}
+
+export function applySalesReturnUnitPriceChange(ledgerId: number, newUnitPrice: number) {
+    return apiPost<SalesReturnUnitPriceChangeResult>(`/inventory/ledger/${ledgerId}/sales-return-unit-price-change/apply`, {
+        newUnitPrice,
     })
 }
 
