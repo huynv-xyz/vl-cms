@@ -1,0 +1,1 @@
+import{a2 as r,a4 as s}from"./index-DD6ZDpFQ.js";const t=r("/product-groups"),e=t.list,u=o=>t.list({...o,active:o.active??!0}),a=t.detail,p=t.create,d=t.update,i=t.delete,n=()=>s("/product-groups/parent-vthh-options");export{e as a,n as b,p as c,i as d,a as g,u as l,d as u};

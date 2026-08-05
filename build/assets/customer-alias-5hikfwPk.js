@@ -1,0 +1,1 @@
+import{aM as a,a2 as o}from"./index-DD6ZDpFQ.js";const s=o("/customer-aliases"),r=s.list,c=s.detail,l=s.create,n=s.update,u=s.delete;async function m(t){const e=new FormData;return e.append("file",t),a("/customer-aliases/import-invoice-excel",e)}export{l as c,u as d,c as g,m as i,r as l,n as u};

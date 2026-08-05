@@ -1,0 +1,1 @@
+import{a2 as a,aM as c}from"./index-DD6ZDpFQ.js";const t=a("/products"),r="1",u=t.list,d=s=>t.list({...s,status:s.status||r}),i=t.detail,n=t.create,p=t.update,l=t.delete;async function P(s){const o=new FormData;return o.append("file",s),c("/products/import-csv",o)}export{d as a,n as c,l as d,i as g,P as i,u as l,p as u};

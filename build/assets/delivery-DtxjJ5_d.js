@@ -1,0 +1,1 @@
+import{a2 as a,aN as i}from"./index-DD6ZDpFQ.js";const e=a("/sales/deliveries"),l=e.list,c=e.detail,d=e.create,o=e.update,u=e.delete,v=(s,t)=>i(`/sales/deliveries/${s}/status`,{status:t});export{o as a,d as c,u as d,c as g,l,v as u};

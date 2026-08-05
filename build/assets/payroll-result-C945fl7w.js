@@ -1,0 +1,1 @@
+import{a4 as l}from"./index-DD6ZDpFQ.js";function t(a){return l("/salary/payrolls",a)}function e(a,r){return l("/salary/payrolls/detail",{period:a,employeeId:r})}function o(a){return l(`/salary/bonus-year/${a}`)}export{t as a,e as g,o as l};
