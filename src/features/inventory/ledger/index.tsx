@@ -41,7 +41,7 @@ export function InventoryLedgerReportPage({
     const [voucherDialog, setVoucherDialog] = useState<"in" | "out" | "transfer" | "repack" | "conversion" | "negative-stock" | null>(null)
     const direction = mode === "in" ? "IN" : mode === "out" ? "OUT" : undefined
     const showValues = mode === "all"
-    const pageTitle = mode === "in" ? "Nhập kho" : mode === "out" ? "Xuất kho" : "Sổ kho"
+    const pageTitle = mode === "in" ? "Nhập kho" : mode === "out" ? "Xuất kho" : "Sổ chi tiết vật tư hàng hóa"
 
     const {
         keyword,
@@ -169,8 +169,8 @@ export function InventoryLedgerReportPage({
                     <ExportInventoryLedgerButton
                         keyword={keyword}
                         showValues={showValues}
-                        title={mode === "in" ? "NHẬP KHO" : mode === "out" ? "XUẤT KHO" : "SỔ KHO"}
-                        filePrefix={mode === "in" ? "nhap-kho" : mode === "out" ? "xuat-kho" : "so-kho"}
+                        title={mode === "in" ? "NHẬP KHO" : mode === "out" ? "XUẤT KHO" : "SỔ CHI TIẾT VẬT TƯ HÀNG HÓA"}
+                        filePrefix={mode === "in" ? "nhap-kho" : mode === "out" ? "xuat-kho" : "so-chi-tiet-vat-tu-hang-hoa"}
                         filters={{
                             product_ids: requestFilters.product_ids,
                             warehouse_id: requestFilters.warehouse_id ? Number(requestFilters.warehouse_id) : undefined,

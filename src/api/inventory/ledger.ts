@@ -197,6 +197,88 @@ export function applySalesExportLotChange(ledgerId: number, newLotNo: string) {
     })
 }
 
+export type TransferExportWarehouseChangeResult = {
+    valid: boolean
+    applied: boolean
+    message: string
+    ledger_id: number
+    voucher_id?: number | null
+    voucher_item_id?: number | null
+    inbound_ledger_id?: number | null
+    product_id: number
+    product_code: string
+    product_name: string
+    doc_no?: string | null
+    doc_type?: string | null
+    posting_date?: string | null
+    posting_time?: string | null
+    old_warehouse_id: number
+    old_warehouse_code?: string | null
+    old_warehouse_name: string
+    new_warehouse_id: number
+    new_warehouse_code?: string | null
+    new_warehouse_name: string
+    destination_warehouse_id?: number | null
+    destination_warehouse_code?: string | null
+    destination_warehouse_name?: string | null
+    old_destination_warehouse_id?: number | null
+    old_destination_warehouse_code?: string | null
+    old_destination_warehouse_name?: string | null
+    new_destination_warehouse_id?: number | null
+    new_destination_warehouse_code?: string | null
+    new_destination_warehouse_name?: string | null
+    old_lot_no?: string | null
+    new_lot_no: string
+    old_source_lot_id: number
+    new_source_lot_id: number
+    old_destination_lot_id: number
+    target_destination_lot_id: number
+    quantity: number
+    old_unit_price: number
+    old_amount: number
+    new_unit_price: number
+    new_amount: number
+    errors: string[]
+    warnings: string[]
+    changes: Record<string, number>
+}
+
+export type TransferExportWarehouseAvailableLot = {
+    lot_id: number
+    lot_no: string
+    available_quantity: number | string
+    enough: boolean
+    unit_cost?: number | string | null
+    expiry_date?: string | null
+    preferred?: boolean
+}
+
+export function listTransferExportWarehouseChangeLots(ledgerId: number, newWarehouseId: number) {
+    return apiPost<TransferExportWarehouseAvailableLot[]>(`/inventory/ledger/${ledgerId}/transfer-export-warehouse-change/available-lots`, {
+        newWarehouseId,
+    })
+}
+
+export function getTransferExportWarehouseChangeContext(ledgerId: number) {
+    return apiGet<TransferExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/transfer-export-warehouse-change/context`)
+}
+
+export function checkTransferExportWarehouseChange(ledgerId: number, newWarehouseId: number, newToWarehouseId: number, newLotNo: string) {
+    return apiPost<TransferExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/transfer-export-warehouse-change/check`, {
+        newWarehouseId,
+        newToWarehouseId,
+        newLotNo,
+    })
+}
+
+export function applyTransferExportWarehouseChange(ledgerId: number, newWarehouseId: number, newToWarehouseId: number, newLotNo: string) {
+    return apiPost<TransferExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/transfer-export-warehouse-change/apply`, {
+        newWarehouseId,
+        newToWarehouseId,
+        newLotNo,
+    })
+}
+
 export type ReturnWarehouseChangeResult = {
     valid: boolean
     applied: boolean

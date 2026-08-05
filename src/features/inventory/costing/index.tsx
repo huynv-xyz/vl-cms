@@ -1,27 +1,21 @@
-﻿import { Fragment, useEffect, useMemo, useRef, useState } from "react"
+import { Fragment, useEffect, useMemo, useState } from "react"
 import type React from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { AlertCircle, Calculator, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, Loader2, Play, Plus, Search, Upload } from "lucide-react"
+import { AlertCircle, Calculator, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Download, Loader2, Play, Plus, Search } from "lucide-react"
 import { toast } from "sonner"
 
 import { listInventoryLedgerReport } from "@/api/inventory/ledger"
 import {
     calculateCostPeriod,
     createCostPeriod,
-    createLandedCost,
-    deleteLandedCost,
     getCostBasis,
-    importLandedCosts,
     listCostPeriods,
     listFinishedProductCostExport,
-    listLandedCosts,
     listPeriodCosts,
     type CostBasis,
     type CostPeriod,
     type CostingCalculationError,
-    type CostingImportResult,
     type FinishedProductCostExportRow,
-    type LandedCost,
     type LotCostAllocation,
     type ProductPeriodCost,
     type ProductionCostBasis,
@@ -34,8 +28,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
 import { StickyReportTable } from "@/features/inventory/components/sticky-report-table"
 import type { InventoryLedgerReportRow } from "@/features/inventory/ledger/data/schema"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
@@ -50,20 +42,10 @@ function firstDayOfMonth() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
 }
 
-const LANDED_COST_IMPORT_COLUMNS = [
-    "Ngày hạch toán",
-    "Số chứng từ",
-    "Diễn giải chung",
-    "Tên nhà cung cấp",
-    "Mã hàng",
-    "Số lô",
-    "Giá trị mua",
-]
-
 const COSTING_PAGE_SIZE = 50
 const COSTING_EXPORT_PAGE_SIZE = 1000
 const GRID_TABLE_CLASS = "[&_td]:border [&_td]:border-slate-200 [&_th]:border [&_th]:border-slate-200"
-type CostResultFilter = "all" | "production" | "lot"
+type CostResultFilter = "all" | "production"
 const QUARTERS = [
     { label: "Quý 1", value: 1 },
     { label: "Quý 2", value: 2 },
@@ -85,7 +67,6 @@ function quarterOf(date?: string) {
 export default function InventoryCostingPage() {
     const [selectedPeriodId, setSelectedPeriodId] = useState<number>()
     const [costKeyword, setCostKeyword] = useState("")
-    const [landedKeyword, setLandedKeyword] = useState("")
     const [periodYear, setPeriodYear] = useState(new Date().getFullYear())
 
     const periodsQuery = useQuery({
@@ -108,97 +89,87 @@ export default function InventoryCostingPage() {
 
     return (
         <Main className="flex w-full min-w-0 flex-col gap-2">
-            <Tabs defaultValue="periods" className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-1.5">
-                    <div className="flex flex-wrap items-center gap-3">
-                        <h2 className="text-2xl font-bold tracking-tight">Tính giá tồn kho</h2>
-                        <TabsList>
-                            <TabsTrigger value="periods">Kỳ tính giá</TabsTrigger>
-                            <TabsTrigger value="landed-costs">Phí lô hàng</TabsTrigger>
-                        </TabsList>
-                    </div>
-                    <CreatePeriodDialog />
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-1.5">
+                <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-2xl font-bold tracking-tight">Tính giá tồn kho</h2>
                 </div>
+                <CreatePeriodDialog />
+            </div>
 
-                <TabsContent value="periods" className="mt-0 space-y-2">
-                    <Card className="gap-2 overflow-hidden py-2">
-                        <CardHeader className="px-3 py-2">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="font-semibold">Danh sách kỳ</div>
-                                <div className="flex items-center gap-2">
-                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPeriodYear((year) => year - 1)}>
-                                        <ChevronLeft className="h-4 w-4" />
-                                    </Button>
-                                    <div className="min-w-24 text-center text-lg font-semibold">{periodYear}</div>
-                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPeriodYear((year) => year + 1)}>
-                                        <ChevronRight className="h-4 w-4" />
-                                    </Button>
-                                </div>
+            <div className="mt-0 space-y-2">
+                <Card className="gap-2 overflow-hidden py-2">
+                    <CardHeader className="px-3 py-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-semibold">Danh sách kỳ</div>
+                            <div className="flex items-center gap-2">
+                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPeriodYear((year) => year - 1)}>
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <div className="min-w-24 text-center text-lg font-semibold">{periodYear}</div>
+                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPeriodYear((year) => year + 1)}>
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
                             </div>
-                        </CardHeader>
-                        <CardContent className="px-3 py-0">
-                            {periodsQuery.isLoading ? (
-                                <div className="rounded-md bg-muted/30 p-3 text-sm text-muted-foreground">Đang tải kỳ tính giá...</div>
-                            ) : (
-                                <div className="grid gap-2 lg:grid-cols-4">
-                                    {QUARTERS.map((quarter) => {
-                                        const quarterPeriods = yearPeriods.filter((period) => quarterOf(period.from_date) === quarter.value)
-                                        return (
-                                            <div key={quarter.value} className="rounded-md bg-slate-50 p-2">
-                                                <div className="mb-1.5 flex items-center justify-between gap-2">
-                                                    <div className="font-semibold">{quarter.label}</div>
-                                                    <div className="text-xs text-muted-foreground">{quarterPeriods.length} kỳ</div>
-                                                </div>
-                                                <div className="max-h-[260px] space-y-1.5 overflow-y-auto pr-1">
-                                                    {quarterPeriods.map((period) => (
-                                                        <button
-                                                            key={period.id}
-                                                            className={cn(
-                                                                "w-full rounded-md bg-white px-2.5 py-1.5 text-left shadow-sm transition hover:bg-teal-50",
-                                                                selectedPeriod?.id === period.id && "bg-teal-50 ring-1 ring-teal-300",
-                                                            )}
-                                                            onClick={() => setSelectedPeriodId(period.id)}
-                                                        >
-                                                            <div className="flex items-start justify-between gap-2">
-                                                                <div className="min-w-0">
-                                                                    <div className="truncate font-semibold">{period.name}</div>
-                                                                    <div className="text-muted-foreground text-xs">
-                                                                        {formatDate(period.from_date)} - {formatDate(period.to_date)}
-                                                                    </div>
-                                                                </div>
-                                                                <StatusBadge status={period.status} />
-                                                            </div>
-                                                        </button>
-                                                    ))}
-                                                    {!quarterPeriods.length && (
-                                                        <div className="rounded-md bg-white/70 px-3 py-5 text-center text-sm text-muted-foreground">
-                                                            Chưa có kỳ
-                                                        </div>
-                                                    )}
-                                                </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="px-3 py-0">
+                        {periodsQuery.isLoading ? (
+                            <div className="rounded-md bg-muted/30 p-3 text-sm text-muted-foreground">Đang tải kỳ tính giá...</div>
+                        ) : (
+                            <div className="grid gap-2 lg:grid-cols-4">
+                                {QUARTERS.map((quarter) => {
+                                    const quarterPeriods = yearPeriods.filter((period) => quarterOf(period.from_date) === quarter.value)
+                                    return (
+                                        <div key={quarter.value} className="rounded-md bg-slate-50 p-2">
+                                            <div className="mb-1.5 flex items-center justify-between gap-2">
+                                                <div className="font-semibold">{quarter.label}</div>
+                                                <div className="text-xs text-muted-foreground">{quarterPeriods.length} kỳ</div>
                                             </div>
-                                        )
-                                    })}
-                                </div>
-                            )}
+                                            <div className="max-h-[260px] space-y-1.5 overflow-y-auto pr-1">
+                                                {quarterPeriods.map((period) => (
+                                                    <button
+                                                        key={period.id}
+                                                        className={cn(
+                                                            "w-full rounded-md bg-white px-2.5 py-1.5 text-left shadow-sm transition hover:bg-teal-50",
+                                                            selectedPeriod?.id === period.id && "bg-teal-50 ring-1 ring-teal-300",
+                                                        )}
+                                                        onClick={() => setSelectedPeriodId(period.id)}
+                                                    >
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <div className="min-w-0">
+                                                                <div className="truncate font-semibold">{period.name}</div>
+                                                                <div className="text-muted-foreground text-xs">
+                                                                    {formatDate(period.from_date)} - {formatDate(period.to_date)}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <StatusBadge status={period.status} />
+                                                    </button>
+                                                ))}
+                                                {!quarterPeriods.length && (
+                                                    <div className="rounded-md bg-white/70 px-3 py-5 text-center text-sm text-muted-foreground">
+                                                        Chưa có kỳ
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {selectedPeriod ? (
+                    <PeriodDetail period={selectedPeriod} keyword={costKeyword} onKeywordChange={setCostKeyword} />
+                ) : (
+                    <Card className="py-2">
+                        <CardContent className="p-6 text-sm text-muted-foreground">
+                            Tạo kỳ tính giá để bắt đầu.
                         </CardContent>
                     </Card>
-
-                    {selectedPeriod ? (
-                        <PeriodDetail period={selectedPeriod} keyword={costKeyword} onKeywordChange={setCostKeyword} />
-                    ) : (
-                        <Card className="py-2">
-                            <CardContent className="p-6 text-sm text-muted-foreground">
-                                Tạo kỳ tính giá để bắt đầu.
-                            </CardContent>
-                        </Card>
-                    )}
-                </TabsContent>
-
-                <TabsContent value="landed-costs" className="mt-0">
-                    <LandedCostsPanel keyword={landedKeyword} onKeywordChange={setLandedKeyword} />
-                </TabsContent>
-            </Tabs>
+                )}
+            </div>
         </Main>
     )
 }
@@ -217,7 +188,6 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
         details: CostingCalculationError[]
     } | null>(null)
     const productionOnly = resultFilter === "production"
-    const lotAllocatedOnly = resultFilter === "lot"
 
     useEffect(() => {
         setPageIndex(0)
@@ -231,7 +201,6 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
             size: COSTING_PAGE_SIZE,
             keyword,
             production_only: productionOnly,
-            lot_allocated_only: lotAllocatedOnly,
         }),
     })
 
@@ -242,7 +211,7 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
             const staleNotice = result.stale_periods > 0
                 ? `; ${result.stale_periods} kỳ sau cần tính lại`
                 : ""
-            toast.success(`Đã tính giá: ${result.product_rows} dòng, ${result.production_product_count} thành phẩm, ${result.lot_allocations} phân bổ phí lô${staleNotice}`)
+            toast.success(`Đã tính giá: ${result.product_rows} dòng, ${result.production_product_count} thành phẩm${staleNotice}`)
             queryClient.invalidateQueries({ queryKey: ["inventory-cost-periods"] })
             queryClient.invalidateQueries({ queryKey: ["inventory-cost-period-costs", period.id] })
             queryClient.invalidateQueries({ queryKey: ["inventory-cost-lot-allocations", period.id] })
@@ -258,11 +227,11 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
 
     const exportMutation = useMutation({
         mutationFn: async () => {
-            const rows = await fetchAllPeriodCosts(period.id, keyword, productionOnly, lotAllocatedOnly)
+            const rows = await fetchAllPeriodCosts(period.id, keyword, productionOnly)
             await exportCostingResultsXlsx(period, rows)
             return rows.length
         },
-        onSuccess: (count) => toast.success(`Đã xuất ${formatNumber(count)} dòng kết quả tính giá`),
+        onSuccess: (count) => toast.success(`Đã xuất ${formatNumber(count)} dòng tổng hợp tồn kho`),
         onError: (error) => toast.error(error instanceof Error ? error.message : "Không xuất được file Excel"),
     })
 
@@ -313,18 +282,10 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                 />
             )}
 
-            <div className="grid gap-2 md:grid-cols-5">
-                <MetricCard title="Tồn đầu kỳ" quantity={totals.opening_quantity} value={totals.opening_value} />
-                <MetricCard title="Nhập trong kỳ" quantity={totals.inbound_quantity} value={totals.inbound_value} />
-                <MetricCard title="Xuất trong kỳ" quantity={totals.outbound_quantity} value={totals.outbound_value} />
-                <MetricCard title="Tồn cuối kỳ" quantity={totals.closing_quantity} value={totals.closing_value} />
-                <CountMetricCard title="TP đã tính giá" label="Sản phẩm" value={costsQuery.data?.production_product_count || 0} />
-            </div>
-
             <Card className="gap-2 overflow-hidden py-2">
                 <CardHeader className="border-b px-3 py-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="font-semibold">Kết quả tính giá</div>
+                        <div className="font-semibold">Tổng hợp tồn kho</div>
                         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                             <div className="flex flex-wrap items-center gap-1 rounded-md border bg-muted/30 p-1">
                                 <CostResultFilterButton
@@ -338,12 +299,6 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                                     label="Thành phẩm đã tính giá"
                                     count={costsQuery.data?.production_count || 0}
                                     onClick={() => setResultFilter("production")}
-                                />
-                                <CostResultFilterButton
-                                    active={resultFilter === "lot"}
-                                    label="Có phân bổ theo lô"
-                                    count={costsQuery.data?.lot_allocated_count || 0}
-                                    onClick={() => setResultFilter("lot")}
                                 />
                             </div>
                             <div className="relative w-full sm:w-80">
@@ -382,7 +337,7 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                 </CardHeader>
                 <CardContent className="p-0">
                     <StickyReportTable
-                        columnWidths={[64, 150, 320, 90, 160, 220, 140, 130, 150, 130, 150, 130, 150]}
+                        columnWidths={[64, 150, 320, 90, 160, 220, 140, 130, 150, 130, 150, 130, 150, 130, 150]}
                         tableClassName={cn("border-collapse", GRID_TABLE_CLASS)}
                         renderHeader={() => (
                             <>
@@ -394,11 +349,14 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                                     <Th rowSpan={2}>Mã kho</Th>
                                     <Th rowSpan={2}>Tên kho</Th>
                                     <Th rowSpan={2}>Đơn giá</Th>
+                                    <Th colSpan={2}>Đầu kỳ</Th>
                                     <Th colSpan={2}>Nhập</Th>
                                     <Th colSpan={2}>Xuất</Th>
                                     <Th colSpan={2}>Tồn</Th>
                                 </tr>
                                 <tr>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
                                     <Th>Số lượng</Th>
                                     <Th>Giá trị</Th>
                                     <Th>Số lượng</Th>
@@ -427,6 +385,8 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                                         <Td center>{row.warehouse_code || "-"}</Td>
                                         <Td>{row.warehouse_name || "-"}</Td>
                                         <Td number>{formatCurrency(row.avg_unit_cost)}</Td>
+                                        <Td number>{formatNumber(row.opening_quantity)}</Td>
+                                        <Td number>{formatCurrency(row.opening_value)}</Td>
                                         <Td number>{formatNumber(row.inbound_quantity)}</Td>
                                         <Td number>{formatCurrency(row.inbound_value)}</Td>
                                         <Td number>{formatNumber(row.outbound_quantity)}</Td>
@@ -437,12 +397,27 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                                 ))}
                                 {!costsQuery.data?.items?.length && (
                                     <tr>
-                                        <td colSpan={13} className="p-6 text-center text-sm text-muted-foreground">
+                                        <td colSpan={15} className="p-6 text-center text-sm text-muted-foreground">
                                             Chưa có kết quả. Bấm Tính giá để sinh dữ liệu kỳ.
                                         </td>
                                     </tr>
                                 )}
                             </>
+                        )}
+                        renderFooter={() => (
+                            <tr>
+                                <Td colSpan={7} className="bg-slate-50 text-right font-semibold">
+                                    Tổng
+                                </Td>
+                                <Td number className="bg-slate-50 font-semibold">{formatNumber(totals.opening_quantity)}</Td>
+                                <Td number className="bg-slate-50 font-semibold">{formatCurrency(totals.opening_value)}</Td>
+                                <Td number className="bg-slate-50 font-semibold">{formatNumber(totals.inbound_quantity)}</Td>
+                                <Td number className="bg-slate-50 font-semibold">{formatCurrency(totals.inbound_value)}</Td>
+                                <Td number className="bg-slate-50 font-semibold">{formatNumber(totals.outbound_quantity)}</Td>
+                                <Td number className="bg-slate-50 font-semibold">{formatCurrency(totals.outbound_value)}</Td>
+                                <Td number className="bg-slate-50 font-semibold">{formatNumber(totals.closing_quantity)}</Td>
+                                <Td number className="bg-slate-50 font-semibold">{formatCurrency(totals.closing_value)}</Td>
+                            </tr>
                         )}
                     />
                     <CardPagination
@@ -668,7 +643,7 @@ function CostBasisDialog({
                             <TransferInboundBasisPanel rows={basis?.transfer_inbounds || []} />
                             {isEmptyCostBasis(basis) && (
                                 <div className="rounded-md border bg-muted/20 p-4 text-sm text-muted-foreground">
-                                    Chưa có chi tiết cơ sở tính giá cho dòng này. Dòng giá vẫn được tính từ số liệu tổng hợp của sổ kho trong kỳ.
+                                    Chưa có chi tiết cơ sở tính giá cho dòng này. Dòng giá vốn được tính từ số liệu tổng hợp của sổ kho trong kỳ.
                                 </div>
                             )}
                             <CostBasisLedgerPanel
@@ -787,7 +762,7 @@ function CostBasisLedgerPanel({
 
 function LotAllocationsPanel({ rows, isLoading }: { rows: LotCostAllocation[]; isLoading: boolean }) {
     if (isLoading) {
-        return <div className="rounded-md border bg-background p-4 text-sm text-muted-foreground">Đang tải phân bổ lô...</div>
+        return <div className="rounded-md border bg-background p-4 text-sm text-muted-foreground">Đang tải phân bổ theo lô...</div>
     }
     if (!rows.length) return null
 
@@ -795,7 +770,7 @@ function LotAllocationsPanel({ rows, isLoading }: { rows: LotCostAllocation[]; i
         <div className="rounded-md border bg-background">
             <div className="border-b px-3 py-2 text-sm font-semibold">Chi tiết phân bổ theo lô</div>
             <StickyReportTable
-                columnWidths={[64, 180, 260, 140, 140, 150, 150, 150, 150, 150, 170]}
+                columnWidths={[64, 180, 260, 140, 140, 150, 150, 150, 170]}
                 tableClassName={cn("border-collapse", GRID_TABLE_CLASS)}
                 defaultPinnedUntil={-1}
                 renderHeader={() => (
@@ -807,10 +782,8 @@ function LotAllocationsPanel({ rows, isLoading }: { rows: LotCostAllocation[]; i
                             <Th>HSD</Th>
                             <Th>SL phân bổ</Th>
                             <Th>Giá mua</Th>
-                            <Th>Phí lô</Th>
-                            <Th>Phí/ĐV</Th>
-                            <Th>Giá sau phí</Th>
-                            <Th>Thành tiền sau phí</Th>
+                            <Th>Đơn giá</Th>
+                            <Th>Thành tiền</Th>
                         </tr>
                 )}
                 renderBody={() => (
@@ -827,8 +800,6 @@ function LotAllocationsPanel({ rows, isLoading }: { rows: LotCostAllocation[]; i
                                 <Td center>{formatDate(row.expiry_date)}</Td>
                                 <Td number>{formatNumber(row.quantity_basis)}</Td>
                                 <Td number>{formatCurrency(row.purchase_amount)}</Td>
-                                <Td number>{formatCurrency(row.landed_cost_amount)}</Td>
-                                <Td number>{formatCurrency(row.landed_unit_cost)}</Td>
                                 <Td number>{formatCurrency(row.final_unit_cost)}</Td>
                                 <Td number>{formatCurrency(row.final_amount)}</Td>
                             </tr>
@@ -1042,273 +1013,6 @@ function TransferInboundBasisPanel({ rows }: { rows: TransferInboundCostBasis[] 
     )
 }
 
-function LandedCostsPanel({ keyword, onKeywordChange }: {
-    keyword: string
-    onKeywordChange: (value: string) => void
-}) {
-    const queryClient = useQueryClient()
-    const importInputRef = useRef<HTMLInputElement>(null)
-    const [importResult, setImportResult] = useState<CostingImportResult | null>(null)
-    const [importGuideOpen, setImportGuideOpen] = useState(false)
-    const [fromDate, setFromDate] = useState("")
-    const [toDate, setToDate] = useState("")
-    const [pageIndex, setPageIndex] = useState(0)
-
-    useEffect(() => {
-        setPageIndex(0)
-    }, [keyword, fromDate, toDate])
-
-    const query = useQuery({
-        queryKey: ["inventory-landed-costs", keyword, fromDate, toDate, pageIndex],
-        queryFn: () => listLandedCosts({
-            page: pageIndex + 1,
-            size: COSTING_PAGE_SIZE,
-            keyword,
-            from_date: fromDate || undefined,
-            to_date: toDate || undefined,
-        }),
-    })
-
-    const deleteMutation = useMutation({
-        mutationFn: deleteLandedCost,
-        onSuccess: () => {
-            toast.success("Đã xóa phí lô")
-            queryClient.invalidateQueries({ queryKey: ["inventory-landed-costs"] })
-        },
-        onError: (error) => toast.error(error instanceof Error ? error.message : "Không xóa được phí lô"),
-    })
-
-    const importMutation = useMutation({
-        mutationFn: importLandedCosts,
-        onSuccess: async (res) => {
-            await queryClient.invalidateQueries({ queryKey: ["inventory-landed-costs"] })
-            if (res.failed > 0) {
-                setImportResult(res)
-                toast.warning(`Import phí lô xong ${res.success} dòng, lỗi ${res.failed} dòng`)
-                return
-            }
-            setImportResult(null)
-            toast.success(`Đã import ${res.success} dòng phí lô`)
-        },
-        onError: (error) => toast.error(error instanceof Error ? error.message : "Không import được phí lô"),
-    })
-
-    const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0]
-        event.target.value = ""
-        if (!file) return
-        setImportResult(null)
-        importMutation.mutate(file)
-    }
-
-    const copyImportErrors = async () => {
-        if (!importResult?.errors?.length) return
-        await navigator.clipboard.writeText(
-            importResult.errors.map((error) => `Dòng ${error.row}: ${error.message}`).join("\n"),
-        )
-        toast.success("Đã copy danh sách lỗi")
-    }
-
-    const chooseImportFile = () => {
-        setImportGuideOpen(false)
-        window.setTimeout(() => importInputRef.current?.click(), 0)
-    }
-
-    return (
-        <>
-        <input
-            ref={importInputRef}
-            type="file"
-            accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-            className="hidden"
-            onChange={handleImportFile}
-        />
-        <Card className="gap-2 overflow-hidden py-2">
-            <CardHeader className="border-b px-3 py-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                        <div className="font-semibold">Phí lô hàng</div>
-                        <div className="text-muted-foreground text-sm">
-                            Lưu phí theo mã lô, khi tính kỳ hệ thống phân bổ theo số lượng của lô.
-                        </div>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-end gap-1.5">
-                        <div className="relative w-72">
-                            <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
-                            <Input
-                                className="pl-9"
-                                value={keyword}
-                                placeholder="Tìm mã lô, chứng từ"
-                                onChange={(event) => onKeywordChange(event.target.value)}
-                            />
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <span className="whitespace-nowrap text-sm text-muted-foreground">Từ ngày</span>
-                            <Input
-                                type="date"
-                                className="w-36"
-                                value={fromDate}
-                                max={toDate || undefined}
-                                onChange={(event) => setFromDate(event.target.value)}
-                            />
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <span className="whitespace-nowrap text-sm text-muted-foreground">Đến ngày</span>
-                            <Input
-                                type="date"
-                                className="w-36"
-                                value={toDate}
-                                min={fromDate || undefined}
-                                onChange={(event) => setToDate(event.target.value)}
-                            />
-                        </div>
-                        <Button
-                            variant="outline"
-                            disabled={importMutation.isPending}
-                            onClick={() => setImportGuideOpen(true)}
-                        >
-                            <Upload className="mr-2 h-4 w-4" />
-                            {importMutation.isPending ? "Đang import..." : "Import phí"}
-                        </Button>
-                        <CreateLandedCostDialog />
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent className="p-0">
-                <StickyReportTable
-                    columnWidths={[64, 130, 170, 150, 160, 140, 220, 300, 100]}
-                    tableClassName={cn("border-collapse", GRID_TABLE_CLASS)}
-                    renderHeader={() => (
-                            <tr>
-                                <Th>STT</Th>
-                                <Th>Ngày CT</Th>
-                                <Th>Số CT</Th>
-                                <Th>Mã lô</Th>
-                                <Th>Loại phí</Th>
-                                <Th>Số tiền</Th>
-                                <Th>Nhà cung cấp</Th>
-                                <Th>Diễn giải</Th>
-                                <Th>Thao tác</Th>
-                            </tr>
-                    )}
-                    renderBody={() => (
-                        <>
-                            {(query.data?.items || []).map((row: LandedCost, index) => (
-                                <tr key={row.id} className="border-t">
-                                    <Td center>{pageIndex * COSTING_PAGE_SIZE + index + 1}</Td>
-                                    <Td center>{formatDate(row.doc_date)}</Td>
-                                    <Td center>{row.doc_no || "-"}</Td>
-                                    <Td center className="font-mono">{row.lot_no}</Td>
-                                    <Td>{row.cost_type || "-"}</Td>
-                                    <Td number>{formatCurrency(row.amount)}</Td>
-                                    <Td>{row.supplier_name || "-"}</Td>
-                                    <Td>{row.description || "-"}</Td>
-                                    <Td center>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => deleteMutation.mutate(row.id)}
-                                        >
-                                            Xóa
-                                        </Button>
-                                    </Td>
-                                </tr>
-                            ))}
-                            {!query.data?.items?.length && (
-                                <tr>
-                                    <td colSpan={9} className="p-6 text-center text-sm text-muted-foreground">
-                                        Chưa có phí lô hàng.
-                                    </td>
-                                </tr>
-                            )}
-                        </>
-                    )}
-                    renderFooter={() => (
-                            <tr className="border-t bg-slate-50 font-semibold">
-                                <td colSpan={5} className="px-3 py-2 text-right">Tổng</td>
-                                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(query.data?.totals?.amount)}</td>
-                                <td colSpan={3} />
-                            </tr>
-                    )}
-                />
-                <CardPagination
-                    className="border-t py-3"
-                    pageIndex={pageIndex}
-                    pageCount={query.data?.total_page || 1}
-                    onPageChange={setPageIndex}
-                />
-            </CardContent>
-        </Card>
-        <Dialog open={importGuideOpen} onOpenChange={setImportGuideOpen}>
-            <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle>Import phí lô hàng</DialogTitle>
-                    <DialogDescription>
-                        File import phí lô hàng cần có các cột sau. Có thể copy chính xác tiêu đề cột từ danh sách này.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                    <div className="rounded-md border bg-muted/30 p-3">
-                        <div className="mb-2 text-sm font-medium">Tiêu đề cột cần có</div>
-                        <pre className="max-h-[320px] select-text overflow-auto whitespace-pre-wrap rounded bg-background p-3 text-sm leading-6 text-foreground">
-                            {LANDED_COST_IMPORT_COLUMNS.join("\n")}
-                        </pre>
-                    </div>
-                    <div className="space-y-1 text-sm text-muted-foreground">
-                        <p>Ngày hạch toán bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy, ví dụ 24/10/2028 hoặc 24-10-2028.</p>
-                        <p>Cột Mã hàng trong file phần mềm cũ được hiểu là Loại chi phí, không phải mã sản phẩm.</p>
-                        <p>Các cột bắt buộc để import là Ngày hạch toán, Số chứng từ, Diễn giải chung, Tên nhà cung cấp, Mã hàng, Số lô và Giá trị mua.</p>
-                        <p>Phí được lưu riêng theo mã lô, không làm thay đổi số lượng tồn kho. Khi tính kỳ, hệ thống mới phân bổ phí vào giá trị.</p>
-                    </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setImportGuideOpen(false)}>Đóng</Button>
-                    <Button onClick={chooseImportFile}>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Chọn file import
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-        <Dialog open={!!importResult} onOpenChange={(open) => !open && setImportResult(null)}>
-            <DialogContent className="max-w-4xl">
-                <DialogHeader>
-                    <DialogTitle>Lỗi import phí lô hàng</DialogTitle>
-                </DialogHeader>
-                <div className="text-sm text-muted-foreground">
-                    Đã import {importResult?.success ?? 0} dòng, lỗi {importResult?.failed ?? 0} dòng.
-                </div>
-                <div className="max-h-[520px] overflow-auto rounded-md border">
-                    <table className={cn("w-full min-w-[720px] border-collapse text-sm", GRID_TABLE_CLASS)}>
-                        <thead className="sticky top-0 bg-muted text-muted-foreground">
-                            <tr>
-                                <th className="w-24 border-b px-3 py-2 text-left font-medium">Dòng</th>
-                                <th className="border-b px-3 py-2 text-left font-medium">Lý do lỗi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {(importResult?.errors || []).map((error, index) => (
-                                <tr key={`${error.row}-${index}`} className="border-b last:border-b-0">
-                                    <td className="px-3 py-2 align-top font-medium">{error.row}</td>
-                                    <td className="px-3 py-2 align-top text-muted-foreground">{error.message}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-                <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setImportResult(null)}>Đóng</Button>
-                    <Button variant="outline" onClick={copyImportErrors}>
-                        <Copy className="mr-2 h-4 w-4" />
-                        Copy lỗi
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-        </>
-    )
-}
-
 function CreatePeriodDialog() {
     const queryClient = useQueryClient()
     const [open, setOpen] = useState(false)
@@ -1366,105 +1070,6 @@ function CreatePeriodDialog() {
     )
 }
 
-function CreateLandedCostDialog() {
-    const queryClient = useQueryClient()
-    const [open, setOpen] = useState(false)
-    const [form, setForm] = useState({
-        doc_no: "",
-        doc_date: todayYmd(),
-        lot_no: "",
-        cost_type: "",
-        amount: "",
-        supplier_name: "",
-        description: "",
-    })
-    const mutation = useMutation({
-        mutationFn: () => createLandedCost({ ...form, amount: Number(form.amount || 0) }),
-        onSuccess: () => {
-            toast.success("Đã lưu phí lô")
-            setOpen(false)
-            setForm({ doc_no: "", doc_date: todayYmd(), lot_no: "", cost_type: "", amount: "", supplier_name: "", description: "" })
-            queryClient.invalidateQueries({ queryKey: ["inventory-landed-costs"] })
-        },
-        onError: (error) => toast.error(error instanceof Error ? error.message : "Không lưu được phí lô"),
-    })
-
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Thêm phí
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl">
-                <DialogHeader>
-                    <DialogTitle>Thêm phí lô hàng</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 md:grid-cols-3">
-                    <Field label="Ngày chứng từ">
-                        <Input type="date" value={form.doc_date} onChange={(e) => setForm({ ...form, doc_date: e.target.value })} />
-                    </Field>
-                    <Field label="Số chứng từ">
-                        <Input value={form.doc_no} onChange={(e) => setForm({ ...form, doc_no: e.target.value })} />
-                    </Field>
-                    <Field label="Mã lô">
-                        <Input value={form.lot_no} onChange={(e) => setForm({ ...form, lot_no: e.target.value })} />
-                    </Field>
-                    <Field label="Loại phí">
-                        <Input value={form.cost_type} onChange={(e) => setForm({ ...form, cost_type: e.target.value })} />
-                    </Field>
-                    <Field label="Số tiền">
-                        <Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-                    </Field>
-                    <Field label="Tên nhà cung cấp">
-                        <Input value={form.supplier_name} onChange={(e) => setForm({ ...form, supplier_name: e.target.value })} />
-                    </Field>
-                    <div className="md:col-span-3">
-                        <Field label="Diễn giải">
-                            <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-                        </Field>
-                    </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setOpen(false)}>Hủy</Button>
-                    <Button disabled={mutation.isPending} onClick={() => mutation.mutate()}>Lưu phí</Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
-function MetricCard({ title, quantity, value }: { title: string; quantity?: number; value?: number }) {
-    return (
-        <Card className="bg-slate-100 py-2">
-            <CardContent className="px-3 py-2">
-                <div className="text-center text-sm font-semibold uppercase text-slate-600">{title}</div>
-                <div className="mt-1.5 grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 text-sm">
-                    <span className="text-muted-foreground">Số lượng</span>
-                    <span className="text-right font-semibold">{formatNumber(quantity)}</span>
-                    <span className="text-muted-foreground">Giá trị</span>
-                    <span className="text-right font-semibold">{formatCurrency(value)}</span>
-                </div>
-            </CardContent>
-        </Card>
-    )
-}
-
-function CountMetricCard({ title, label, value }: { title: string; label: string; value?: number }) {
-    return (
-        <Card className="bg-amber-50 py-2">
-            <CardContent className="px-3 py-2">
-                <div className="text-center text-sm font-semibold uppercase text-amber-700">{title}</div>
-                <div className="mt-1.5 grid grid-cols-[1fr_auto] gap-x-3 text-sm">
-                    <span className="text-muted-foreground">{label}</span>
-                    <span className="text-right font-semibold text-amber-700">{formatNumber(value)}</span>
-                </div>
-            </CardContent>
-        </Card>
-    )
-}
-
 function StatusBadge({ status }: { status?: string }) {
     const label = status === "LOCKED"
         ? "Đã khóa"
@@ -1506,14 +1111,13 @@ function Td({
     center,
     number,
     className,
-}: {
-    children: React.ReactNode
-    center?: boolean
-    number?: boolean
-    className?: string
-}) {
+    ...props
+}: React.TdHTMLAttributes<HTMLTableCellElement> & { center?: boolean; number?: boolean }) {
     return (
-        <td className={cn("overflow-hidden text-ellipsis whitespace-nowrap px-3 py-1.5 align-middle", center && "text-center", number && "text-right tabular-nums", className)}>
+        <td
+            className={cn("overflow-hidden text-ellipsis whitespace-nowrap px-3 py-1.5 align-middle", center && "text-center", number && "text-right tabular-nums", className)}
+            {...props}
+        >
             {children}
         </td>
     )
@@ -1546,6 +1150,8 @@ const COSTING_EXPORT_COLUMNS: CostingExportColumn[] = [
     { label: "Mã kho", width: 22, value: (row) => row.warehouse_code },
     { label: "Tên kho", width: 28, value: (row) => row.warehouse_name },
     { label: "Đơn giá", width: 16, type: "number", numberFormat: "money", value: (row) => row.avg_unit_cost },
+    { label: "Đầu kỳ SL", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.opening_quantity },
+    { label: "Đầu kỳ GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.opening_value },
     { label: "Nhập SL", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.inbound_quantity },
     { label: "Nhập GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.inbound_value },
     { label: "Xuất SL", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.outbound_quantity },
@@ -1562,24 +1168,17 @@ const COSTING_GROUPED_EXPORT_COLUMNS: CostingExportColumn[] = [
     { label: "Mã kho", width: 22 },
     { label: "Tên kho", width: 28 },
     { label: "Đơn giá", width: 16, type: "number", numberFormat: "money" },
+    { label: "Đầu kỳ SL", width: 14, type: "number", numberFormat: "quantity" },
+    { label: "Đầu kỳ GT", width: 16, type: "number", numberFormat: "money" },
     { label: "Nhập SL", width: 14, type: "number", numberFormat: "quantity" },
     { label: "Nhập GT", width: 16, type: "number", numberFormat: "money" },
     { label: "Xuất SL", width: 14, type: "number", numberFormat: "quantity" },
     { label: "Xuất GT", width: 16, type: "number", numberFormat: "money" },
     { label: "Tồn SL", width: 14, type: "number", numberFormat: "quantity" },
     { label: "Tồn GT", width: 16, type: "number", numberFormat: "money" },
-    { label: "Ngày", width: 14 },
-    { label: "Giờ", width: 10 },
-    { label: "Chứng từ", width: 22 },
-    { label: "Diễn giải", width: 48 },
-    { label: "Số lô", width: 18 },
-    { label: "TK Nợ", width: 12 },
-    { label: "TK Có", width: 12 },
-    { label: "Mã đối tượng THCP", width: 24 },
-    { label: "Tên đối tượng THCP", width: 36 },
 ]
 
-async function fetchAllPeriodCosts(periodId: number, keyword: string, productionOnly: boolean, lotAllocatedOnly: boolean) {
+async function fetchAllPeriodCosts(periodId: number, keyword: string, productionOnly: boolean) {
     const rows: ProductPeriodCost[] = []
     let page = 1
     while (true) {
@@ -1588,7 +1187,6 @@ async function fetchAllPeriodCosts(periodId: number, keyword: string, production
             size: COSTING_EXPORT_PAGE_SIZE,
             keyword: keyword || undefined,
             production_only: productionOnly,
-            lot_allocated_only: lotAllocatedOnly,
         })
         rows.push(...(res.items || []))
         if (page >= (res.total_page || 1) || !res.items?.length) break
@@ -1603,15 +1201,13 @@ async function exportCostingResultsXlsx(period: CostPeriod, rows: ProductPeriodC
     workbook.creator = "VLIFE"
     workbook.created = new Date()
 
-    const sheet = workbook.addWorksheet("Kết quả tính giá", {
+    const sheet = workbook.addWorksheet("Tổng hợp tồn kho", {
         views: [{ state: "frozen", ySplit: 5 }],
     })
-    sheet.properties.outlineProperties = { summaryBelow: false, summaryRight: false }
     const columns = COSTING_GROUPED_EXPORT_COLUMNS
-    const ledgerRowsByKey = await fetchCostingLedgerRowsByProduct(period, rows)
 
     sheet.mergeCells(1, 1, 1, columns.length)
-    sheet.getCell(1, 1).value = "KẾT QUẢ TÍNH GIÁ"
+    sheet.getCell(1, 1).value = "TỔNG HỢP TỒN KHO"
     sheet.getCell(1, 1).font = { bold: true, size: 16 }
     sheet.getCell(1, 1).alignment = { horizontal: "center", vertical: "middle" }
 
@@ -1623,30 +1219,21 @@ async function exportCostingResultsXlsx(period: CostPeriod, rows: ProductPeriodC
     sheet.addRow([])
     sheet.addRow([
         "STT", "Mã hàng", "Tên hàng", "ĐVT", "Mã kho", "Tên kho", "Đơn giá",
-        "Nhập", "", "Xuất", "", "Tồn", "",
-        "Ngày", "Giờ", "Chứng từ", "Diễn giải", "Số lô", "TK Nợ", "TK Có", "Mã đối tượng THCP", "Tên đối tượng THCP",
+        "Đầu kỳ", "", "Nhập", "", "Xuất", "", "Tồn", "",
     ])
     sheet.addRow([
         "", "", "", "", "", "", "",
-        "Số lượng", "Giá trị", "Số lượng", "Giá trị", "Số lượng", "Giá trị",
-        "", "", "", "", "", "", "", "", "",
+        "Số lượng", "Giá trị", "Số lượng", "Giá trị", "Số lượng", "Giá trị", "Số lượng", "Giá trị",
     ])
     applyCostingGroupedHeaderMerges(sheet)
     rows.forEach((row, index) => {
         const productRow = sheet.addRow(buildCostingProductExportRow(row, index))
         productRow.font = { bold: true, color: { argb: "FF0F172A" } }
         productRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFF6FF" } }
-
-        const ledgerRows = ledgerRowsByKey.get(costingLedgerKey(row)) || []
-        if (ledgerRows.length) {
-            ledgerRows.forEach((item) => {
-                const detailRow = sheet.addRow(buildCostingLedgerExportRow(item))
-                detailRow.outlineLevel = 1
-                detailRow.hidden = true
-                detailRow.font = { color: { argb: "FF334155" } }
-            })
-        }
     })
+    const totalRow = sheet.addRow(buildCostingTotalsExportRow(rows))
+    totalRow.font = { bold: true, color: { argb: "FF0F172A" } }
+    totalRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } }
 
     sheet.columns = columns.map((column) => ({ width: column.width ?? 16 }))
 
@@ -1687,16 +1274,17 @@ async function exportCostingResultsXlsx(period: CostPeriod, rows: ProductPeriodC
     applyCostingAutoColumnWidths(sheet, columns, 6)
 
     const buffer = await workbook.xlsx.writeBuffer()
-    downloadCostingBlob(buffer, `ket-qua-tinh-gia-${period.from_date}-${period.to_date}.xlsx`)
+    downloadCostingBlob(buffer, `tong-hop-ton-kho-${period.from_date}-${period.to_date}.xlsx`)
 }
 
 function applyCostingGroupedHeaderMerges(sheet: any) {
-    ;[1, 2, 3, 4, 5, 6, 7, 14, 15, 16, 17, 18, 19, 20, 21, 22].forEach((column) => {
+    ;[1, 2, 3, 4, 5, 6, 7].forEach((column) => {
         sheet.mergeCells(4, column, 5, column)
     })
     sheet.mergeCells(4, 8, 4, 9)
     sheet.mergeCells(4, 10, 4, 11)
     sheet.mergeCells(4, 12, 4, 13)
+    sheet.mergeCells(4, 14, 4, 15)
 }
 
 function buildCostingProductExportRow(row: ProductPeriodCost, index: number) {
@@ -1708,96 +1296,54 @@ function buildCostingProductExportRow(row: ProductPeriodCost, index: number) {
         row.warehouse_code || "",
         row.warehouse_name || "",
         row.avg_unit_cost || 0,
+        row.opening_quantity || 0,
+        row.opening_value || 0,
         row.inbound_quantity || 0,
         row.inbound_value || 0,
         row.outbound_quantity || 0,
         row.outbound_value || 0,
         row.closing_quantity || 0,
         row.closing_value || 0,
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
     ]
 }
 
-function buildCostingLedgerExportRow(item: InventoryLedgerReportRow) {
-    const unitPrice = Number(item.unit_price || 0)
-    const quantityIn = Number(item.quantity_in || 0)
-    const quantityOut = Number(item.quantity_out || 0)
-    const balanceQuantity = Number(item.balance_quantity || 0)
+function buildCostingTotalsExportRow(rows: ProductPeriodCost[]) {
+    const total = rows.reduce((sum, row) => ({
+        openingQuantity: sum.openingQuantity + Number(row.opening_quantity || 0),
+        openingValue: sum.openingValue + Number(row.opening_value || 0),
+        inboundQuantity: sum.inboundQuantity + Number(row.inbound_quantity || 0),
+        inboundValue: sum.inboundValue + Number(row.inbound_value || 0),
+        outboundQuantity: sum.outboundQuantity + Number(row.outbound_quantity || 0),
+        outboundValue: sum.outboundValue + Number(row.outbound_value || 0),
+        closingQuantity: sum.closingQuantity + Number(row.closing_quantity || 0),
+        closingValue: sum.closingValue + Number(row.closing_value || 0),
+    }), {
+        openingQuantity: 0,
+        openingValue: 0,
+        inboundQuantity: 0,
+        inboundValue: 0,
+        outboundQuantity: 0,
+        outboundValue: 0,
+        closingQuantity: 0,
+        closingValue: 0,
+    })
     return [
         "",
-        item.product_code || "",
-        item.product_name || "",
-        item.unit || "",
-        item.warehouse_code || "",
-        item.warehouse_name || "",
-        unitPrice,
-        quantityIn || "",
-        quantityIn ? quantityIn * unitPrice : "",
-        quantityOut || "",
-        quantityOut ? quantityOut * unitPrice : "",
-        balanceQuantity,
-        balanceQuantity * unitPrice,
-        formatDate(item.posting_date),
-        formatTime(item.posting_time),
-        item.doc_no || "",
-        item.description || "",
-        item.lot_code || "",
-        item.tk_no || "",
-        item.tk_co || "",
-        item.cost_object_code || "",
-        item.cost_object_name || "",
+        "",
+        "Tổng",
+        "",
+        "",
+        "",
+        "",
+        total.openingQuantity,
+        total.openingValue,
+        total.inboundQuantity,
+        total.inboundValue,
+        total.outboundQuantity,
+        total.outboundValue,
+        total.closingQuantity,
+        total.closingValue,
     ]
-}
-
-async function fetchCostingLedgerRowsByProduct(period: CostPeriod, rows: ProductPeriodCost[]) {
-    const result = new Map<string, InventoryLedgerReportRow[]>()
-    const uniqueRows = new Map<string, ProductPeriodCost>()
-    rows.forEach((row) => uniqueRows.set(costingLedgerKey(row), row))
-    const entries = Array.from(uniqueRows.values())
-    const batchSize = 5
-
-    for (let start = 0; start < entries.length; start += batchSize) {
-        const batch = entries.slice(start, start + batchSize)
-        const details = await Promise.all(batch.map(async (row) => ({
-            key: costingLedgerKey(row),
-            rows: await fetchAllCostingLedgerRows(period, row),
-        })))
-        details.forEach((item) => result.set(item.key, item.rows))
-    }
-
-    return result
-}
-
-async function fetchAllCostingLedgerRows(period: CostPeriod, row: ProductPeriodCost) {
-    const items: InventoryLedgerReportRow[] = []
-    let page = 1
-    while (true) {
-        const res = await listInventoryLedgerReport({
-            page,
-            size: 200,
-            product_id: row.product_id,
-            warehouse_id: row.warehouse_id || undefined,
-            from_date: period.from_date,
-            to_date: period.to_date,
-            time_sort: "asc",
-            show_values: true,
-        })
-        items.push(...(res.items || []))
-        if (page >= (res.total_page || 1) || !res.items?.length) break
-        page += 1
-    }
-    return items
-}
-
-function costingLedgerKey(row: ProductPeriodCost) {
-    return `${row.product_id}:${row.warehouse_id || ""}`
 }
 
 async function exportFinishedProductCostsXlsx(period: CostPeriod, rows: FinishedProductCostExportRow[]) {
@@ -1836,8 +1382,8 @@ async function exportFinishedProductCostsXlsx(period: CostPeriod, rows: Finished
     })
     sheet.columns = columns.map((column) => ({ width: column.width ?? 16 }))
     sheet.autoFilter = {
-        from: { row: 5, column: 1 },
-        to: { row: 5, column: columns.length },
+        from: { row: 4, column: 1 },
+        to: { row: 4, column: columns.length },
     }
 
     const border = {
@@ -1846,7 +1392,7 @@ async function exportFinishedProductCostsXlsx(period: CostPeriod, rows: Finished
         bottom: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
         right: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
     }
-    for (const headerRowIndex of [4, 5]) {
+    for (const headerRowIndex of [4]) {
         const header = sheet.getRow(headerRowIndex)
         header.height = 24
         header.eachCell({ includeEmpty: true }, (cell) => {
@@ -1856,7 +1402,7 @@ async function exportFinishedProductCostsXlsx(period: CostPeriod, rows: Finished
             cell.border = border
         })
     }
-    for (let rowIndex = 6; rowIndex <= sheet.rowCount; rowIndex++) {
+    for (let rowIndex = 5; rowIndex <= sheet.rowCount; rowIndex++) {
         const row = sheet.getRow(rowIndex)
         row.height = 22
         row.eachCell({ includeEmpty: true }, (cell, colNumber) => {

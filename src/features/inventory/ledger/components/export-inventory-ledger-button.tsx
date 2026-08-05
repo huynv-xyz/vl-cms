@@ -52,7 +52,7 @@ const COLUMNS: ExportColumn[] = [
     { label: "Mã loại", value: (row) => row.doc_type, width: 20 },
 ]
 
-export function ExportInventoryLedgerButton({ keyword, filters, showValues = true, title = "SỔ KHO", filePrefix = "so-kho" }: Props) {
+export function ExportInventoryLedgerButton({ keyword, filters, showValues = true, title = "SỔ CHI TIẾT VẬT TƯ HÀNG HÓA", filePrefix = "so-chi-tiet-vat-tu-hang-hoa" }: Props) {
     const [loading, setLoading] = useState(false)
     const columns = getExportColumns(showValues)
 
@@ -100,7 +100,7 @@ export function ExportInventoryLedgerButton({ keyword, filters, showValues = tru
             }
 
             await exportInventoryLedgerXlsx(rows, filters, columns, title, filePrefix)
-            toast.success(`Đã xuất ${rows.length} dòng sổ kho`)
+            toast.success(`Đã xuất ${rows.length} dòng sổ chi tiết vật tư hàng hóa`)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Xuất Excel thất bại")
         } finally {
@@ -153,7 +153,7 @@ async function exportInventoryLedgerXlsx(
     workbook.creator = "VLIFE"
     workbook.created = new Date()
 
-    const sheet = workbook.addWorksheet("Sổ kho", {
+    const sheet = workbook.addWorksheet("Sổ chi tiết VT HH", {
         views: [{ state: "frozen", ySplit: 4 }],
     })
 
