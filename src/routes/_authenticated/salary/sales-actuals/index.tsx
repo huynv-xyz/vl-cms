@@ -12,6 +12,11 @@ export const Route = createFileRoute("/_authenticated/salary/sales-actuals/")({
                 ? search.period
                 : undefined,
 
+        year:
+            typeof search.year === "string" || typeof search.year === "number"
+                ? search.year
+                : undefined,
+
         employeeId:
             typeof search.employeeId === "string" ||
                 typeof search.employeeId === "number"

@@ -48,7 +48,7 @@ function formatPeriod(value?: number) {
 }
 
 function targetTotal(row: SalesActualItem) {
-    return row.target_gtqd_month
+    return isAnnualRow(row) ? row.target_gtqd_year : row.target_gtqd_month
 }
 
 function actualTotal(row: SalesActualItem) {
@@ -57,7 +57,11 @@ function actualTotal(row: SalesActualItem) {
 
 function getTargetValue(row: SalesActualItem, key: ProductKey) {
     if (!row.target) return undefined
-    return (row.target[key] ?? 0) / 12
+    return isAnnualRow(row) ? (row.target[key] ?? 0) : (row.target[key] ?? 0) / 12
+}
+
+function isAnnualRow(row: SalesActualItem) {
+    return /^\d{4}$/.test(String(row.actual?.period ?? ""))
 }
 
 function getActualValue(row: SalesActualItem, key: ProductKey) {
@@ -155,6 +159,8 @@ function productCell(row: SalesActualItem, key: ProductKey) {
     const actualQd = actual == null || coeff == null ? undefined : actual * unitMultiplier * coeff
     const tone = completionTone(actual, target)
     const progress = Math.min(tone.rate ?? 0, 140)
+    const targetLabel = isAnnualRow(row) ? "CT năm" : "CT tháng"
+    const convertedTargetLabel = isAnnualRow(row) ? "QD CT năm" : "QD CT tháng"
 
     return (
         <div className={cn("min-w-[178px] rounded-md border p-2.5 shadow-sm", tone.card)}>
@@ -168,8 +174,8 @@ function productCell(row: SalesActualItem, key: ProductKey) {
             </div>
             <div className="flex items-start justify-between gap-2">
                 <div className="space-y-1 text-[11px] text-muted-foreground">
-                    <div>CT tháng</div>
-                    <div>QD CT tháng</div>
+                    <div>{targetLabel}</div>
+                    <div>{convertedTargetLabel}</div>
                     <div>Thực hiện</div>
                     <div>QD thực hiện</div>
                 </div>
@@ -265,7 +271,7 @@ export const salesActualColumns: ColumnDef<SalesActualItem>[] = [
     {
         id: "target_total",
         accessorFn: targetTotal,
-        header: () => header("GTQD CT tháng", "right"),
+        header: () => header("GTQD CT", "right"),
         cell: ({ row }) => moneyCell(targetTotal(row.original)),
         size: 130,
         meta: {

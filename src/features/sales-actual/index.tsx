@@ -36,7 +36,7 @@ function displayPeriod(value?: string | number) {
 }
 
 function isValidPeriod(value: string) {
-    return value === '' || /^\d{4}-(0[1-9]|1[0-2])$/.test(value) || /^\d{6}$/.test(value)
+    return value === '' || /^\d{4}$/.test(value) || /^\d{4}-(0[1-9]|1[0-2])$/.test(value) || /^\d{6}$/.test(value)
 }
 
 function fmt(value: number) {
@@ -83,23 +83,27 @@ export default function SalesActualPage() {
         keyword,
         setKeyword,
         getSingle,
-        setSingle,
+        setSingleFilters,
         requestFilters,
-    } = useUrlListFilters(search, navigate, [], ['employeeId', 'period'])
+    } = useUrlListFilters(search, navigate, [], ['employeeId', 'period', 'year'])
 
-    const selectedPeriod = getSingle('period') || ''
+    const selectedYear = getSingle('year') || ''
+    const selectedPeriod = getSingle('period') || selectedYear || ''
     const [periodDraft, setPeriodDraft] = useState(displayPeriod(selectedPeriod))
-    const period = selectedPeriod ? Number(compactPeriod(selectedPeriod)) : undefined
+    const isAnnualView = /^\d{4}$/.test(selectedPeriod)
+    const period = selectedPeriod && !isAnnualView ? Number(compactPeriod(selectedPeriod)) : undefined
+    const year = isAnnualView ? Number(selectedPeriod) : undefined
     const employeeId = parseOptionalNumber(requestFilters.employeeId)
 
     const { data, isLoading, error } = usePaginatedList(
-        ['sales-actual', search.page, search.size, keyword, period, employeeId],
+        ['sales-actual', search.page, search.size, keyword, period, year, employeeId],
         listSalesActuals,
         {
             page: search.page,
             size: search.size,
             keyword,
             period,
+            year,
             employeeId,
         },
     )
@@ -114,7 +118,7 @@ export default function SalesActualPage() {
     const syncMutation = useMutation({
         mutationFn: () => {
             const nextPeriod = periodDraft.trim() || currentMonth()
-            if (!isValidPeriod(nextPeriod) || !nextPeriod) {
+            if (!isValidPeriod(nextPeriod) || !nextPeriod || /^\d{4}$/.test(nextPeriod)) {
                 throw new Error('Kỳ không hợp lệ. Định dạng YYYY-MM')
             }
             return syncSalesActualsFromTransactions(compactPeriod(nextPeriod))
@@ -122,7 +126,7 @@ export default function SalesActualPage() {
         onSuccess: (res) => {
             const normalized = res.period
             setPeriodDraft(displayPeriod(normalized))
-            setSingle('period', normalized)
+            setSingleFilters({ year: undefined, period: normalized })
             qc.invalidateQueries({ queryKey: ['sales-actual'] })
             if (res.source_rows === 0) {
                 toast.warning(`Chưa có giao dịch bán hàng trong sales_transactions cho kỳ ${displayPeriod(normalized)}`)
@@ -142,9 +146,13 @@ export default function SalesActualPage() {
         const nextPeriod = value.trim()
         if (!isValidPeriod(nextPeriod)) return
 
+        const annual = /^\d{4}$/.test(nextPeriod)
         const normalized = nextPeriod ? compactPeriod(nextPeriod) : undefined
         if ((normalized ?? '') === selectedPeriod) return
-        setSingle('period', normalized)
+        setSingleFilters({
+            period: annual ? undefined : normalized,
+            year: annual ? normalized : undefined,
+        })
     }
 
     return (
@@ -168,6 +176,7 @@ export default function SalesActualPage() {
                                 value={periodDraft}
                                 onChange={setPeriodDraft}
                                 onCommit={commitPeriodFilter}
+                                placeholder="YYYY hoặc YYYY-MM"
                             />
                             <Button
                                 variant="outline"
@@ -175,10 +184,21 @@ export default function SalesActualPage() {
                                 onClick={() => {
                                     const month = currentMonth()
                                     setPeriodDraft(month)
-                                    setSingle('period', compactPeriod(month))
+                                    setSingleFilters({ year: undefined, period: compactPeriod(month) })
                                 }}
                             >
                                 Tháng hiện tại
+                            </Button>
+                            <Button
+                                variant={isAnnualView ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => {
+                                    const selected = periodDraft.match(/^\d{4}/)?.[0] ?? String(new Date().getFullYear())
+                                    setPeriodDraft(selected)
+                                    setSingleFilters({ period: undefined, year: selected })
+                                }}
+                            >
+                                Cả năm
                             </Button>
                             <Button
                                 className={!selectedPeriod ? 'hidden' : undefined}
@@ -186,7 +206,7 @@ export default function SalesActualPage() {
                                 size="sm"
                                 onClick={() => {
                                     setPeriodDraft('')
-                                    setSingle('period', undefined)
+                                    setSingleFilters({ period: undefined, year: undefined })
                                 }}
                             >
                                 Bỏ lọc kỳ
@@ -196,12 +216,13 @@ export default function SalesActualPage() {
                                 size="sm"
                                 onClick={() => syncMutation.mutate()}
                                 disabled={syncMutation.isPending}
+                                className={isAnnualView ? 'hidden' : undefined}
                             >
                                 <PlayCircle className="mr-2 h-4 w-4" />
                                 {syncMutation.isPending ? 'Đang đồng bộ...' : 'Đồng bộ từ giao dịch'}
                             </Button>
                         </div>
-                        <Badge variant="secondary">Kỳ {displayPeriod(selectedPeriod) || 'tất cả'}</Badge>
+                        <Badge variant="secondary">{isAnnualView ? `Cả năm ${selectedPeriod}` : `Kỳ ${displayPeriod(selectedPeriod) || 'tất cả'}`}</Badge>
                     </div>
 
                     <div className="flex flex-wrap divide-x-0 px-1 py-3">

@@ -9,6 +9,8 @@ export function currentSalaryPeriod() {
 }
 
 export function shiftSalaryPeriod(value: string, delta: number) {
+  const yearMatch = /^(\d{4})$/.exec(value)
+  if (yearMatch) return String(Number(yearMatch[1]) + delta)
   const match = /^(\d{4})-(\d{2})$/.exec(value)
   const base = match
     ? new Date(Number(match[1]), Number(match[2]) - 1 + delta, 1)
@@ -23,6 +25,7 @@ type Props = {
   className?: string
   inputClassName?: string
   buttonClassName?: string
+  placeholder?: string
 }
 
 export function SalaryPeriodStepper({
@@ -32,6 +35,7 @@ export function SalaryPeriodStepper({
   className,
   inputClassName,
   buttonClassName,
+  placeholder = "YYYY-MM",
 }: Props) {
   const commit = (next: string) => onCommit?.(next)
 
@@ -53,7 +57,7 @@ export function SalaryPeriodStepper({
           "h-full rounded-none border-0 text-center text-2xl font-bold tracking-wide shadow-none focus-visible:ring-0",
           inputClassName
         )}
-        placeholder="YYYY-MM"
+        placeholder={placeholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onBlur={() => commit(value)}

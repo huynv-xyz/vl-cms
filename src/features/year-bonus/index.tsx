@@ -100,16 +100,17 @@ export default function YearBonusPage() {
                 <TableHead className="text-center">Vùng</TableHead>
                 <TableHead className="text-center">Có ASM</TableHead>
                 <TableHead className="text-right">GTQD ĐK</TableHead>
+                <TableHead className="text-right">GTQD TH</TableHead>
                 <TableHead className="text-center">% Vượt TT</TableHead>
                 <TableHead className="text-center">Mốc áp dụng</TableHead>
-                <TableHead className="text-right">Quỹ tại mốc</TableHead>
-                <TableHead className="text-right font-bold text-green-700">Tiền thưởng</TableHead>
+                <TableHead className="text-right">Quỹ tại mốc (đ)</TableHead>
+                <TableHead className="text-right font-bold text-green-700">Tiền thưởng (đ)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                     Không có dữ liệu năm {viewYear}
                   </TableCell>
                 </TableRow>
@@ -129,6 +130,7 @@ export default function YearBonusPage() {
                       <Badge variant={r.has_asm ? "default" : "secondary"}>{r.has_asm ? "Có" : "Không"}</Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-sm">{fmt(r.gtqd_dk)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-sm">{fmt(r.gtqd_th)}</TableCell>
                     <TableCell className="text-center text-sm">
                       <span className={r.actual_pct_over >= 0.03 ? "text-green-700 font-medium" : "text-red-500"}>
                         {pct(r.actual_pct_over)}

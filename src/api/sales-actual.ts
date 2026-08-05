@@ -10,6 +10,7 @@ export type SalesActualListParams = {
     size: number
     keyword?: string
     period?: number
+    year?: number
     employeeId?: number
 }
 

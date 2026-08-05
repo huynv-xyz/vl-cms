@@ -122,6 +122,7 @@ export type PayrollAnnualBonusDetail = {
   region_code?: string
   has_asm: number
   gtqd_dk: number
+  gtqd_th: number
   actual_pct_over: number
   applied_tier_rate: number
   pool_at_tier: number
@@ -201,6 +202,7 @@ export type YearBonusItem = {
   region_code?: string
   has_asm: number
   gtqd_dk: number
+  gtqd_th: number
   actual_pct_over: number
   applied_tier_rate: number
   pool_at_tier: number
