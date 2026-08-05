@@ -44,12 +44,14 @@ export function getPageNumbers(currentPage: number, totalPages: number) {
 
 export function formatNumber(value?: number) {
     if (value == null) return "-"
-    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(value)
+    const normalized = Math.abs(value) < 0.0000005 ? 0 : value
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(normalized)
 }
 
 export function formatCurrency(value?: number) {
     if (value == null) return "-"
-    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value)
+    const normalized = Math.abs(value) < 0.005 ? 0 : value
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(normalized)
 }
 
 export function normalizeDate(d?: string) {

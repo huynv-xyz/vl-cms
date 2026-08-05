@@ -231,15 +231,19 @@ export function InventoryLedgerReportPage({
                 </div>
             }
         >
-            {(data) => (
+            {(data) => {
+                const ledgerData = data as typeof data & { totals?: InventoryLedgerTotals }
+
+                return (
                 <div className="space-y-4">
-                    <InventoryLedgerSummary totals={(data as any).totals} showValues={showValues} />
+                    <InventoryLedgerSummary totals={ledgerData.totals} showValues={showValues} />
 
                     <InventoryLedgerTable
-                        data={data.items || []}
+                        data={ledgerData.items || []}
+                        totals={ledgerData.totals}
                         pagination={pagination}
                         onPaginationChange={setPagination}
-                        pageCount={data.total_page}
+                        pageCount={ledgerData.total_page}
                         keyword={keyword}
                         onKeywordChange={setKeyword}
                         direction={direction}
@@ -333,7 +337,8 @@ export function InventoryLedgerReportPage({
                         onOpenChange={(open) => setVoucherDialog(open ? "conversion" : null)}
                     />
                 </div>
-            )}
+                )
+            }}
         </PageSection>
     )
 }

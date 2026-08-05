@@ -3,6 +3,7 @@ import { apiGet, apiPost, apiPostMultipart } from "@/api/client"
 import type {
     InventoryLedger,
     InventoryLedgerReportRow,
+    InventoryLedgerTotals,
 } from "@/features/inventory/ledger/data/schema"
 
 export type InventoryLedgerListParams = {
@@ -63,6 +64,7 @@ export function listInventoryLedgerReport(params: InventoryLedgerReportParams) {
         current_page: number
         total_page: number
         size: number
+        totals?: InventoryLedgerTotals
     }>("/inventory/ledger/report", params)
 }
 
@@ -259,6 +261,30 @@ export type DocumentPostingTimeChangeResult = PurchasePostingDateTimeChangeResul
     export_no?: string | null
     delivery_no?: string | null
     order_no?: string | null
+}
+
+export type InventoryLedgerStaticParametersPayload = {
+    description?: string | null
+    tk_no?: string | null
+    tk_co?: string | null
+    supplier_name?: string | null
+}
+
+export type InventoryLedgerStaticParametersResult = InventoryLedgerStaticParametersPayload & {
+    id: number
+    updated: boolean
+}
+
+export function updateInventoryLedgerStaticParameters(
+    ledgerId: number,
+    body: InventoryLedgerStaticParametersPayload,
+) {
+    return apiPost<InventoryLedgerStaticParametersResult>(`/inventory/ledger/${ledgerId}/static-parameters`, {
+        description: body.description,
+        tkNo: body.tk_no,
+        tkCo: body.tk_co,
+        supplierName: body.supplier_name,
+    })
 }
 
 export function checkDocumentPostingTimeChange(ledgerId: number, newPostingTime: string, newPostingDate?: string) {

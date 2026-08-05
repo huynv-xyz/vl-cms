@@ -19,6 +19,9 @@ type Props = {
 }
 
 export function ExportInfo({ data }: Props) {
+    const company = data.delivery?.company
+    const companyName = company?.name?.trim() || "—"
+    const companyAddress = company?.address?.trim() || "—"
     const customerName: string =
         (data as any).order?.customer?.name ?? ""
     const customerAddress: string =
@@ -49,10 +52,10 @@ export function ExportInfo({ data }: Props) {
             {/* ── Company header ── */}
             <div className="export-print-company text-center mb-2">
                 <div className="font-bold text-sm uppercase tracking-wide">
-                    CÔNG TY CỔ PHẦN QUỐC TẾ CUỘC SỐNG VIỆT
+                    {companyName}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                    Số 54C1, KP 11, Phường Tân Triều, Tỉnh Đồng Nai, Việt Nam
+                    {companyAddress}
                 </div>
             </div>
 

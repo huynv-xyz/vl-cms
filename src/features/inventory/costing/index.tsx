@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AlertCircle, Calculator, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, Loader2, Play, Plus, Search, Upload } from "lucide-react"
 import { toast } from "sonner"
 
+import { listInventoryLedgerReport } from "@/api/inventory/ledger"
 import {
     calculateCostPeriod,
     createCostPeriod,
@@ -36,6 +37,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { StickyReportTable } from "@/features/inventory/components/sticky-report-table"
+import type { InventoryLedgerReportRow } from "@/features/inventory/ledger/data/schema"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 
 function todayYmd() {
@@ -380,29 +382,31 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                 </CardHeader>
                 <CardContent className="p-0">
                     <StickyReportTable
-                        columnWidths={[64, 150, 300, 90, 160, 220, 130, 150, 130, 150, 130, 150, 130, 130, 150, 130, 150, 160]}
+                        columnWidths={[64, 150, 320, 90, 160, 220, 140, 130, 150, 130, 150, 130, 150]}
                         tableClassName={cn("border-collapse", GRID_TABLE_CLASS)}
                         renderHeader={() => (
+                            <>
                                 <tr>
-                                    <Th>STT</Th>
-                                    <Th>Mã hàng</Th>
-                                    <Th>Tên hàng</Th>
-                                    <Th>ĐVT</Th>
-                                    <Th>Mã kho</Th>
-                                    <Th>Tên kho</Th>
-                                    <Th>Tồn đầu SL</Th>
-                                    <Th>Tồn đầu GT</Th>
-                                    <Th>Nhập SL</Th>
-                                    <Th>Nhập GT</Th>
-                                    <Th>Phí lô</Th>
-                                    <Th>Nhập TP GT</Th>
-                                    <Th>Giá BQ</Th>
-                                    <Th>Xuất SL</Th>
-                                    <Th>Xuất GT</Th>
-                                    <Th>Tồn cuối SL</Th>
-                                    <Th>Tồn cuối GT</Th>
-                                    <Th>Cơ sở tính giá</Th>
+                                    <Th rowSpan={2}>STT</Th>
+                                    <Th rowSpan={2}>Mã hàng</Th>
+                                    <Th rowSpan={2}>Tên hàng</Th>
+                                    <Th rowSpan={2}>ĐVT</Th>
+                                    <Th rowSpan={2}>Mã kho</Th>
+                                    <Th rowSpan={2}>Tên kho</Th>
+                                    <Th rowSpan={2}>Đơn giá</Th>
+                                    <Th colSpan={2}>Nhập</Th>
+                                    <Th colSpan={2}>Xuất</Th>
+                                    <Th colSpan={2}>Tồn</Th>
                                 </tr>
+                                <tr>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
+                                </tr>
+                            </>
                         )}
                         renderBody={() => (
                             <>
@@ -410,32 +414,30 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                                     <tr key={row.id} className="border-t">
                                         <Td center>{pageIndex * COSTING_PAGE_SIZE + index + 1}</Td>
                                         <Td center>{row.product_code}</Td>
-                                        <Td className="font-medium">{row.product_name}</Td>
+                                        <Td className="font-medium">
+                                            <button
+                                                type="button"
+                                                className="max-w-full truncate text-left text-primary underline-offset-2 hover:underline"
+                                                onClick={() => setBasisRow(row)}
+                                            >
+                                                {row.product_name || "-"}
+                                            </button>
+                                        </Td>
                                         <Td center>{row.unit || "-"}</Td>
                                         <Td center>{row.warehouse_code || "-"}</Td>
                                         <Td>{row.warehouse_name || "-"}</Td>
-                                        <Td number>{formatNumber(row.opening_quantity)}</Td>
-                                        <Td number>{formatCurrency(row.opening_value)}</Td>
+                                        <Td number>{formatCurrency(row.avg_unit_cost)}</Td>
                                         <Td number>{formatNumber(row.inbound_quantity)}</Td>
                                         <Td number>{formatCurrency(row.inbound_value)}</Td>
-                                        <Td number>{formatCurrency(row.landed_cost_value)}</Td>
-                                        <Td number>{formatCurrency(row.production_inbound_value)}</Td>
-                                        <Td number>{formatCurrency(row.avg_unit_cost)}</Td>
                                         <Td number>{formatNumber(row.outbound_quantity)}</Td>
                                         <Td number>{formatCurrency(row.outbound_value)}</Td>
                                         <Td number>{formatNumber(row.closing_quantity)}</Td>
                                         <Td number>{formatCurrency(row.closing_value)}</Td>
-                                        <Td center>
-                                            <Button type="button" variant="outline" size="sm" onClick={() => setBasisRow(row)}>
-                                                <Calculator className="mr-2 h-4 w-4" />
-                                                Cơ sở
-                                            </Button>
-                                        </Td>
                                     </tr>
                                 ))}
                                 {!costsQuery.data?.items?.length && (
                                     <tr>
-                                        <td colSpan={18} className="p-6 text-center text-sm text-muted-foreground">
+                                        <td colSpan={13} className="p-6 text-center text-sm text-muted-foreground">
                                             Chưa có kết quả. Bấm Tính giá để sinh dữ liệu kỳ.
                                         </td>
                                     </tr>
@@ -621,16 +623,32 @@ function CostBasisDialog({
         enabled: open && !!row,
         queryFn: () => getCostBasis(period.id, row!.product_id, row!.warehouse_id),
     })
+    const ledgerQuery = useQuery({
+        queryKey: ["inventory-cost-basis-ledger", period.id, row?.product_id, row?.warehouse_id],
+        enabled: open && !!row,
+        queryFn: () => listInventoryLedgerReport({
+            page: 1,
+            size: 200,
+            product_id: row!.product_id,
+            warehouse_id: row!.warehouse_id || undefined,
+            from_date: period.from_date,
+            to_date: period.to_date,
+            time_sort: "asc",
+            show_values: true,
+        }),
+    })
     const basis = query.data
-    const summary = basis?.summary || row || undefined
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="!flex max-h-[92vh] w-[min(96vw,1800px)] !max-w-none flex-col overflow-hidden p-0">
                 <DialogHeader className="border-b px-5 py-4">
                     <DialogTitle>Cơ sở tính giá</DialogTitle>
-                    <DialogDescription>
-                        {row?.product_name || "-"} · {row?.product_code || "-"} · {row?.warehouse_name || "-"} · Kỳ {formatDate(period.from_date)} - {formatDate(period.to_date)}
+                    <DialogDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span>{row?.product_name || "-"} · {row?.product_code || "-"} · {row?.warehouse_name || "-"} · Kỳ {formatDate(period.from_date)} - {formatDate(period.to_date)}</span>
+                        <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">
+                            Giá đã tính: {formatCurrency(row?.avg_unit_cost || 0)}
+                        </span>
                     </DialogDescription>
                 </DialogHeader>
                 <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
@@ -645,7 +663,6 @@ function CostBasisDialog({
                         </div>
                     ) : (
                         <>
-                            <CostBasisSummaryPanel row={summary} />
                             <LotAllocationsPanel rows={basis?.lot_allocations || []} isLoading={false} />
                             <ProductionCostBasisPanel rows={basis?.production_costs || []} />
                             <TransferInboundBasisPanel rows={basis?.transfer_inbounds || []} />
@@ -654,6 +671,11 @@ function CostBasisDialog({
                                     Chưa có chi tiết cơ sở tính giá cho dòng này. Dòng giá vẫn được tính từ số liệu tổng hợp của sổ kho trong kỳ.
                                 </div>
                             )}
+                            <CostBasisLedgerPanel
+                                rows={ledgerQuery.data?.items || []}
+                                total={ledgerQuery.data?.total || 0}
+                                isLoading={ledgerQuery.isLoading}
+                            />
                         </>
                     )}
                 </div>
@@ -667,47 +689,98 @@ function isEmptyCostBasis(basis?: CostBasis) {
     return !basis.lot_allocations?.length && !basis.production_costs?.length && !basis.transfer_inbounds?.length
 }
 
-function CostBasisSummaryPanel({ row }: { row?: ProductPeriodCost }) {
-    if (!row) return null
-    const purchaseQuantity = Number(row.purchase_inbound_quantity || 0)
-    const purchaseValue = Number(row.purchase_inbound_value || 0)
-    const productionQuantity = Number(row.production_inbound_quantity || 0)
-    const productionValue = Number(row.production_inbound_value || 0)
-    const otherQuantity = Number(row.inbound_quantity || 0) - purchaseQuantity - productionQuantity
-    const otherValue = Number(row.inbound_value || 0) - purchaseValue - productionValue - Number(row.landed_cost_value || 0)
-    const rows = [
-        { label: "Tồn đầu kỳ", quantity: row.opening_quantity, value: row.opening_value },
-        { label: "Mua hàng / nhập kho có giá mua", quantity: purchaseQuantity, value: purchaseValue },
-        { label: "Phí lô hàng phân bổ", quantity: undefined, value: row.landed_cost_value },
-        { label: "Nhập thành phẩm sản xuất", quantity: productionQuantity, value: productionValue },
-        { label: "Nhập khác / trả lại / điều chỉnh", quantity: otherQuantity, value: otherValue },
-        { label: "Xuất trong kỳ", quantity: row.outbound_quantity, value: row.outbound_value },
-        { label: "Tồn cuối kỳ", quantity: row.closing_quantity, value: row.closing_value },
-    ]
-
+function CostBasisLedgerPanel({
+    rows,
+    total,
+    isLoading,
+}: {
+    rows: InventoryLedgerReportRow[]
+    total: number
+    isLoading: boolean
+}) {
     return (
         <div className="rounded-md border bg-background">
-            <div className="border-b px-3 py-2 text-sm font-semibold">Tổng hợp nguồn giá</div>
-            <div className="overflow-x-auto">
-                <table className="min-w-[760px] w-full text-sm">
-                    <thead className="bg-muted/40 text-muted-foreground">
-                        <tr>
-                            <th className="px-3 py-2 text-left">Nguồn</th>
-                            <th className="px-3 py-2 text-right">Số lượng</th>
-                            <th className="px-3 py-2 text-right">Giá trị</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.map((item) => (
-                            <tr key={item.label} className="border-t">
-                                <td className="px-3 py-2 font-medium">{item.label}</td>
-                                <td className="px-3 py-2 text-right tabular-nums">{item.quantity === undefined ? "-" : formatNumber(item.quantity)}</td>
-                                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(item.value || 0)}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+            <div className="flex items-center justify-between gap-3 border-b px-3 py-2">
+                <div className="text-sm font-semibold">Các lần nhập xuất trong kỳ</div>
+                {total > rows.length ? (
+                    <div className="text-xs text-muted-foreground">Đang hiển thị {formatNumber(rows.length)} / {formatNumber(total)} dòng đầu tiên</div>
+                ) : null}
             </div>
+            {isLoading ? (
+                <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Đang tải nhập xuất trong kỳ...
+                </div>
+            ) : rows.length ? (
+                <StickyReportTable
+                    columnWidths={[56, 110, 80, 150, 280, 130, 130, 120, 150, 120, 150, 120, 150, 90, 90, 160, 260]}
+                    tableClassName={cn("border-collapse", GRID_TABLE_CLASS)}
+                    defaultPinnedUntil={-1}
+                    renderHeader={() => (
+                        <>
+                            <tr>
+                                <Th rowSpan={2}>STT</Th>
+                                <Th rowSpan={2}>Ngày</Th>
+                                <Th rowSpan={2}>Giờ</Th>
+                                <Th rowSpan={2}>Chứng từ</Th>
+                                <Th rowSpan={2}>Diễn giải</Th>
+                                <Th rowSpan={2}>Số lô</Th>
+                                <Th rowSpan={2}>Đơn giá</Th>
+                                <Th colSpan={2}>Nhập</Th>
+                                <Th colSpan={2}>Xuất</Th>
+                                <Th colSpan={2}>Tồn</Th>
+                                <Th rowSpan={2}>TK Nợ</Th>
+                                <Th rowSpan={2}>TK Có</Th>
+                                <Th rowSpan={2}>Mã đối tượng THCP</Th>
+                                <Th rowSpan={2}>Tên đối tượng THCP</Th>
+                            </tr>
+                            <tr>
+                                <Th>Số lượng</Th>
+                                <Th>Giá trị</Th>
+                                <Th>Số lượng</Th>
+                                <Th>Giá trị</Th>
+                                <Th>Số lượng</Th>
+                                <Th>Giá trị</Th>
+                            </tr>
+                        </>
+                    )}
+                    renderBody={() => (
+                        <>
+                            {rows.map((item, index) => {
+                                const unitPrice = Number(item.unit_price || 0)
+                                const quantityIn = Number(item.quantity_in || 0)
+                                const quantityOut = Number(item.quantity_out || 0)
+                                const balanceQuantity = Number(item.balance_quantity || 0)
+                                return (
+                                    <tr key={`${item.id}-${index}`} className="border-t">
+                                        <Td center>{index + 1}</Td>
+                                        <Td center>{formatDate(item.posting_date)}</Td>
+                                        <Td center>{formatTime(item.posting_time)}</Td>
+                                        <Td className="font-mono text-xs">{item.doc_no || "-"}</Td>
+                                        <Td>{item.description || "-"}</Td>
+                                        <Td center>{item.lot_code || "-"}</Td>
+                                        <Td number>{formatCurrency(unitPrice)}</Td>
+                                        <Td number>{quantityIn ? formatNumber(quantityIn) : "-"}</Td>
+                                        <Td number>{quantityIn ? formatCurrency(quantityIn * unitPrice) : "-"}</Td>
+                                        <Td number>{quantityOut ? formatNumber(quantityOut) : "-"}</Td>
+                                        <Td number>{quantityOut ? formatCurrency(quantityOut * unitPrice) : "-"}</Td>
+                                        <Td number>{formatNumber(balanceQuantity)}</Td>
+                                        <Td number>{formatCurrency(balanceQuantity * unitPrice)}</Td>
+                                        <Td center>{item.tk_no || "-"}</Td>
+                                        <Td center>{item.tk_co || "-"}</Td>
+                                        <Td center>{item.cost_object_code || "-"}</Td>
+                                        <Td>{item.cost_object_name || "-"}</Td>
+                                    </tr>
+                                )
+                            })}
+                        </>
+                    )}
+                />
+            ) : (
+                <div className="p-4 text-sm text-muted-foreground">
+                    Không có dòng nhập xuất trong kỳ cho sản phẩm và kho này.
+                </div>
+            )}
         </div>
     )
 }
@@ -890,7 +963,7 @@ function ProductionMaterialsPanel({ rows }: { rows: ProductionCostBasis["materia
                         <Th>Kho vật tư</Th>
                         <Th>Số lô</Th>
                         <Th>SL dùng</Th>
-                        <Th>Giá BQ</Th>
+                        <Th>Đơn giá</Th>
                         <Th>Thành tiền</Th>
                     </tr>
                 )}
@@ -1424,8 +1497,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     )
 }
 
-function Th({ children }: { children: React.ReactNode }) {
-    return <th className="border-b px-3 py-1.5 text-center text-xs font-semibold uppercase">{children}</th>
+function Th({ children, className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
+    return <th className={cn("border-b px-3 py-1.5 text-center text-xs font-semibold uppercase", className)} {...props}>{children}</th>
 }
 
 function Td({
@@ -1452,12 +1525,17 @@ function formatDate(value?: string) {
     return `${day}/${month}/${year}`
 }
 
+function formatTime(value?: string | null) {
+    if (!value) return "-"
+    return value.slice(0, 5)
+}
+
 type CostingExportColumn = {
     label: string
     width?: number
     type?: "number" | "text"
     numberFormat?: "quantity" | "money"
-    value: (row: ProductPeriodCost, index: number) => string | number | null | undefined
+    value?: (row: ProductPeriodCost, index: number) => string | number | null | undefined
 }
 
 const COSTING_EXPORT_COLUMNS: CostingExportColumn[] = [
@@ -1467,17 +1545,38 @@ const COSTING_EXPORT_COLUMNS: CostingExportColumn[] = [
     { label: "ĐVT", width: 10, value: (row) => row.unit },
     { label: "Mã kho", width: 22, value: (row) => row.warehouse_code },
     { label: "Tên kho", width: 28, value: (row) => row.warehouse_name },
-    { label: "Tồn đầu SL", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.opening_quantity },
-    { label: "Tồn đầu GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.opening_value },
+    { label: "Đơn giá", width: 16, type: "number", numberFormat: "money", value: (row) => row.avg_unit_cost },
     { label: "Nhập SL", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.inbound_quantity },
     { label: "Nhập GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.inbound_value },
-    { label: "Phí lô", width: 16, type: "number", numberFormat: "money", value: (row) => row.landed_cost_value },
-    { label: "Nhập TP GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.production_inbound_value },
-    { label: "Giá BQ", width: 16, type: "number", numberFormat: "money", value: (row) => row.avg_unit_cost },
     { label: "Xuất SL", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.outbound_quantity },
     { label: "Xuất GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.outbound_value },
-    { label: "Tồn cuối SL", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.closing_quantity },
-    { label: "Tồn cuối GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.closing_value },
+    { label: "Tồn SL", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.closing_quantity },
+    { label: "Tồn GT", width: 16, type: "number", numberFormat: "money", value: (row) => row.closing_value },
+]
+
+const COSTING_GROUPED_EXPORT_COLUMNS: CostingExportColumn[] = [
+    { label: "STT", width: 8, type: "number", numberFormat: "quantity" },
+    { label: "Mã hàng", width: 22 },
+    { label: "Tên hàng", width: 46 },
+    { label: "ĐVT", width: 10 },
+    { label: "Mã kho", width: 22 },
+    { label: "Tên kho", width: 28 },
+    { label: "Đơn giá", width: 16, type: "number", numberFormat: "money" },
+    { label: "Nhập SL", width: 14, type: "number", numberFormat: "quantity" },
+    { label: "Nhập GT", width: 16, type: "number", numberFormat: "money" },
+    { label: "Xuất SL", width: 14, type: "number", numberFormat: "quantity" },
+    { label: "Xuất GT", width: 16, type: "number", numberFormat: "money" },
+    { label: "Tồn SL", width: 14, type: "number", numberFormat: "quantity" },
+    { label: "Tồn GT", width: 16, type: "number", numberFormat: "money" },
+    { label: "Ngày", width: 14 },
+    { label: "Giờ", width: 10 },
+    { label: "Chứng từ", width: 22 },
+    { label: "Diễn giải", width: 48 },
+    { label: "Số lô", width: 18 },
+    { label: "TK Nợ", width: 12 },
+    { label: "TK Có", width: 12 },
+    { label: "Mã đối tượng THCP", width: 24 },
+    { label: "Tên đối tượng THCP", width: 36 },
 ]
 
 async function fetchAllPeriodCosts(periodId: number, keyword: string, productionOnly: boolean, lotAllocatedOnly: boolean) {
@@ -1505,9 +1604,11 @@ async function exportCostingResultsXlsx(period: CostPeriod, rows: ProductPeriodC
     workbook.created = new Date()
 
     const sheet = workbook.addWorksheet("Kết quả tính giá", {
-        views: [{ state: "frozen", ySplit: 4 }],
+        views: [{ state: "frozen", ySplit: 5 }],
     })
-    const columns = COSTING_EXPORT_COLUMNS
+    sheet.properties.outlineProperties = { summaryBelow: false, summaryRight: false }
+    const columns = COSTING_GROUPED_EXPORT_COLUMNS
+    const ledgerRowsByKey = await fetchCostingLedgerRowsByProduct(period, rows)
 
     sheet.mergeCells(1, 1, 1, columns.length)
     sheet.getCell(1, 1).value = "KẾT QUẢ TÍNH GIÁ"
@@ -1520,16 +1621,34 @@ async function exportCostingResultsXlsx(period: CostPeriod, rows: ProductPeriodC
     sheet.getCell(2, 1).alignment = { horizontal: "center" }
 
     sheet.addRow([])
-    sheet.addRow(columns.map((column) => column.label))
+    sheet.addRow([
+        "STT", "Mã hàng", "Tên hàng", "ĐVT", "Mã kho", "Tên kho", "Đơn giá",
+        "Nhập", "", "Xuất", "", "Tồn", "",
+        "Ngày", "Giờ", "Chứng từ", "Diễn giải", "Số lô", "TK Nợ", "TK Có", "Mã đối tượng THCP", "Tên đối tượng THCP",
+    ])
+    sheet.addRow([
+        "", "", "", "", "", "", "",
+        "Số lượng", "Giá trị", "Số lượng", "Giá trị", "Số lượng", "Giá trị",
+        "", "", "", "", "", "", "", "", "",
+    ])
+    applyCostingGroupedHeaderMerges(sheet)
     rows.forEach((row, index) => {
-        sheet.addRow(columns.map((column) => normalizeCostingExportCell(column.value(row, index), column)))
+        const productRow = sheet.addRow(buildCostingProductExportRow(row, index))
+        productRow.font = { bold: true, color: { argb: "FF0F172A" } }
+        productRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFF6FF" } }
+
+        const ledgerRows = ledgerRowsByKey.get(costingLedgerKey(row)) || []
+        if (ledgerRows.length) {
+            ledgerRows.forEach((item) => {
+                const detailRow = sheet.addRow(buildCostingLedgerExportRow(item))
+                detailRow.outlineLevel = 1
+                detailRow.hidden = true
+                detailRow.font = { color: { argb: "FF334155" } }
+            })
+        }
     })
 
     sheet.columns = columns.map((column) => ({ width: column.width ?? 16 }))
-    sheet.autoFilter = {
-        from: { row: 4, column: 1 },
-        to: { row: 4, column: columns.length },
-    }
 
     const border = {
         top: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
@@ -1538,16 +1657,19 @@ async function exportCostingResultsXlsx(period: CostPeriod, rows: ProductPeriodC
         right: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
     }
 
-    const header = sheet.getRow(4)
-    header.height = 26
-    header.eachCell({ includeEmpty: true }, (cell) => {
-        cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F766E" } }
-        cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
-        cell.border = border
-    })
+    for (const rowIndex of [4, 5]) {
+        const header = sheet.getRow(rowIndex)
+        header.height = 24
+        for (let columnIndex = 1; columnIndex <= columns.length; columnIndex++) {
+            const cell = header.getCell(columnIndex)
+            cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F766E" } }
+            cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
+            cell.border = border
+        }
+    }
 
-    for (let rowIndex = 5; rowIndex <= sheet.rowCount; rowIndex++) {
+    for (let rowIndex = 6; rowIndex <= sheet.rowCount; rowIndex++) {
         const row = sheet.getRow(rowIndex)
         row.height = 22
         row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
@@ -1562,10 +1684,120 @@ async function exportCostingResultsXlsx(period: CostPeriod, rows: ProductPeriodC
         })
     }
 
-    applyCostingAutoColumnWidths(sheet, columns, 5)
+    applyCostingAutoColumnWidths(sheet, columns, 6)
 
     const buffer = await workbook.xlsx.writeBuffer()
     downloadCostingBlob(buffer, `ket-qua-tinh-gia-${period.from_date}-${period.to_date}.xlsx`)
+}
+
+function applyCostingGroupedHeaderMerges(sheet: any) {
+    ;[1, 2, 3, 4, 5, 6, 7, 14, 15, 16, 17, 18, 19, 20, 21, 22].forEach((column) => {
+        sheet.mergeCells(4, column, 5, column)
+    })
+    sheet.mergeCells(4, 8, 4, 9)
+    sheet.mergeCells(4, 10, 4, 11)
+    sheet.mergeCells(4, 12, 4, 13)
+}
+
+function buildCostingProductExportRow(row: ProductPeriodCost, index: number) {
+    return [
+        index + 1,
+        row.product_code || "",
+        row.product_name || "",
+        row.unit || "",
+        row.warehouse_code || "",
+        row.warehouse_name || "",
+        row.avg_unit_cost || 0,
+        row.inbound_quantity || 0,
+        row.inbound_value || 0,
+        row.outbound_quantity || 0,
+        row.outbound_value || 0,
+        row.closing_quantity || 0,
+        row.closing_value || 0,
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+    ]
+}
+
+function buildCostingLedgerExportRow(item: InventoryLedgerReportRow) {
+    const unitPrice = Number(item.unit_price || 0)
+    const quantityIn = Number(item.quantity_in || 0)
+    const quantityOut = Number(item.quantity_out || 0)
+    const balanceQuantity = Number(item.balance_quantity || 0)
+    return [
+        "",
+        item.product_code || "",
+        item.product_name || "",
+        item.unit || "",
+        item.warehouse_code || "",
+        item.warehouse_name || "",
+        unitPrice,
+        quantityIn || "",
+        quantityIn ? quantityIn * unitPrice : "",
+        quantityOut || "",
+        quantityOut ? quantityOut * unitPrice : "",
+        balanceQuantity,
+        balanceQuantity * unitPrice,
+        formatDate(item.posting_date),
+        formatTime(item.posting_time),
+        item.doc_no || "",
+        item.description || "",
+        item.lot_code || "",
+        item.tk_no || "",
+        item.tk_co || "",
+        item.cost_object_code || "",
+        item.cost_object_name || "",
+    ]
+}
+
+async function fetchCostingLedgerRowsByProduct(period: CostPeriod, rows: ProductPeriodCost[]) {
+    const result = new Map<string, InventoryLedgerReportRow[]>()
+    const uniqueRows = new Map<string, ProductPeriodCost>()
+    rows.forEach((row) => uniqueRows.set(costingLedgerKey(row), row))
+    const entries = Array.from(uniqueRows.values())
+    const batchSize = 5
+
+    for (let start = 0; start < entries.length; start += batchSize) {
+        const batch = entries.slice(start, start + batchSize)
+        const details = await Promise.all(batch.map(async (row) => ({
+            key: costingLedgerKey(row),
+            rows: await fetchAllCostingLedgerRows(period, row),
+        })))
+        details.forEach((item) => result.set(item.key, item.rows))
+    }
+
+    return result
+}
+
+async function fetchAllCostingLedgerRows(period: CostPeriod, row: ProductPeriodCost) {
+    const items: InventoryLedgerReportRow[] = []
+    let page = 1
+    while (true) {
+        const res = await listInventoryLedgerReport({
+            page,
+            size: 200,
+            product_id: row.product_id,
+            warehouse_id: row.warehouse_id || undefined,
+            from_date: period.from_date,
+            to_date: period.to_date,
+            time_sort: "asc",
+            show_values: true,
+        })
+        items.push(...(res.items || []))
+        if (page >= (res.total_page || 1) || !res.items?.length) break
+        page += 1
+    }
+    return items
+}
+
+function costingLedgerKey(row: ProductPeriodCost) {
+    return `${row.product_id}:${row.warehouse_id || ""}`
 }
 
 async function exportFinishedProductCostsXlsx(period: CostPeriod, rows: FinishedProductCostExportRow[]) {
@@ -1600,12 +1832,12 @@ async function exportFinishedProductCostsXlsx(period: CostPeriod, rows: Finished
     sheet.addRow([])
     sheet.addRow(columns.map((column) => column.label))
     rows.forEach((row, index) => {
-        sheet.addRow(columns.map((column) => normalizeCostingExportCell(column.value(row as any, index), column)))
+        sheet.addRow(columns.map((column) => normalizeCostingExportCell(column.value?.(row as any, index), column)))
     })
     sheet.columns = columns.map((column) => ({ width: column.width ?? 16 }))
     sheet.autoFilter = {
-        from: { row: 4, column: 1 },
-        to: { row: 4, column: columns.length },
+        from: { row: 5, column: 1 },
+        to: { row: 5, column: columns.length },
     }
 
     const border = {
@@ -1614,15 +1846,17 @@ async function exportFinishedProductCostsXlsx(period: CostPeriod, rows: Finished
         bottom: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
         right: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
     }
-    const header = sheet.getRow(4)
-    header.height = 26
-    header.eachCell({ includeEmpty: true }, (cell) => {
-        cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F766E" } }
-        cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
-        cell.border = border
-    })
-    for (let rowIndex = 5; rowIndex <= sheet.rowCount; rowIndex++) {
+    for (const headerRowIndex of [4, 5]) {
+        const header = sheet.getRow(headerRowIndex)
+        header.height = 24
+        header.eachCell({ includeEmpty: true }, (cell) => {
+            cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F766E" } }
+            cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
+            cell.border = border
+        })
+    }
+    for (let rowIndex = 6; rowIndex <= sheet.rowCount; rowIndex++) {
         const row = sheet.getRow(rowIndex)
         row.height = 22
         row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
@@ -1636,7 +1870,7 @@ async function exportFinishedProductCostsXlsx(period: CostPeriod, rows: Finished
             if (column.type === "number") cell.numFmt = getCostingExcelNumberFormat(cell.value, column)
         })
     }
-    applyCostingAutoColumnWidths(sheet, columns, 5)
+    applyCostingAutoColumnWidths(sheet, columns, 6)
 
     const buffer = await workbook.xlsx.writeBuffer()
     downloadCostingBlob(buffer, `thanh-pham-tinh-gia-${period.from_date}-${period.to_date}.xlsx`)
