@@ -22,6 +22,7 @@ export const inboundSchema: RJSFSchema = {
     required: [
         "source_type",
         "inbound_date",
+        "posting_time",
         "warehouse_id",
         "product_id",
         "quantity_in",
@@ -66,6 +67,11 @@ export const inboundSchema: RJSFSchema = {
         inbound_date: {
             type: "string",
             title: "Ngày nhập",
+        },
+        posting_time: {
+            type: "string",
+            format: "time",
+            title: "Giờ nhập",
         },
         warehouse_id: {
             type: "integer",

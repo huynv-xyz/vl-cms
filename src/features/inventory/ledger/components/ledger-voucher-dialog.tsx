@@ -82,6 +82,13 @@ function today() {
     return dateToYmd(new Date())
 }
 
+function currentTimeInputValue() {
+    const date = new Date()
+    const hours = String(date.getHours()).padStart(2, "0")
+    const minutes = String(date.getMinutes()).padStart(2, "0")
+    return `${hours}:${minutes}`
+}
+
 function dateToYmd(date: Date) {
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, "0")
@@ -126,6 +133,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     const [voucherType, setVoucherType] = useState<VoucherTypeCode | "">("")
     const [operationCode, setOperationCode] = useState("")
     const [postingDate, setPostingDate] = useState(today())
+    const [postingTime, setPostingTime] = useState(currentTimeInputValue())
     const [physicalWarehouseId, setPhysicalWarehouseId] = useState<number | undefined>()
     const [toPhysicalWarehouseId, setToPhysicalWarehouseId] = useState<number | undefined>()
     const [description, setDescription] = useState("")
@@ -163,6 +171,8 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         if (!open) return
         setVoucherType(isTransfer ? "TRANSFER_EXPORT" : isPaired ? "OTHER_INBOUND" : "")
         setOperationCode(isPaired ? (mode === "repack" ? "REPACK" : "PRODUCT_CONVERSION") : "")
+        setPostingDate(today())
+        setPostingTime(currentTimeInputValue())
         setToPhysicalWarehouseId(undefined)
         setLines(isPaired ? createPairedLines() : [createEmptyLine()])
     }, [isPaired, isTransfer, mode, open])
@@ -277,6 +287,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         setVoucherType((selectableVoucherTypes[0]?.code as VoucherTypeCode) || "")
         setOperationCode(isPaired ? (mode === "repack" ? "REPACK" : "PRODUCT_CONVERSION") : "")
         setPostingDate(today())
+        setPostingTime(currentTimeInputValue())
         setPhysicalWarehouseId(undefined)
         setToPhysicalWarehouseId(undefined)
         setDescription("")
@@ -292,6 +303,9 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         }
         if (!postingDate) {
             throw new Error("Chọn ngày chứng từ")
+        }
+        if (!postingTime) {
+            throw new Error("Chọn giờ chứng từ")
         }
         if (!isTransfer && !voucherType) {
             throw new Error("Chọn loại chứng từ")
@@ -347,7 +361,9 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
             voucher_type_code: isTransfer ? "TRANSFER_EXPORT" : voucherType,
             operation_code: isPaired ? (mode === "repack" ? "REPACK" : "PRODUCT_CONVERSION") : operationLookupType ? operationCode : undefined,
             posting_date: postingDate,
+            posting_time: postingTime,
             document_date: postingDate,
+            document_time: postingTime,
             physical_warehouse_id: !isTransfer ? physicalWarehouseId : undefined,
             from_physical_warehouse_id: isTransfer ? physicalWarehouseId : undefined,
             to_physical_warehouse_id: isTransfer ? toPhysicalWarehouseId : undefined,
@@ -445,6 +461,11 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                         <div className={cn("min-w-0 space-y-1.5", isTransfer ? "xl:col-span-1" : "")}>
                             <Label>Ngày chứng từ</Label>
                             <Input type="date" value={postingDate} onChange={(event) => setPostingDate(event.target.value)} />
+                        </div>
+
+                        <div className="min-w-0 space-y-1.5">
+                            <Label>Giờ chứng từ</Label>
+                            <Input type="time" value={postingTime} onChange={(event) => setPostingTime(event.target.value)} />
                         </div>
 
                         <div className="min-w-0 space-y-1.5">

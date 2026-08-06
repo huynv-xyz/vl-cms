@@ -53,6 +53,7 @@ import { OrderDocumentDialog } from "./order-document-dialog"
 import { CreateOrderDialog } from "./create-order-dialog"
 import { OrderPriceAdjustmentDialog } from "./order-price-adjustment-dialog"
 import { OrderQuantityAdjustmentDialog } from "./order-quantity-adjustment-dialog"
+import { OrderSalespersonAdjustmentDialog } from "./order-salesperson-adjustment-dialog"
 
 const controlClass = "h-9 min-h-9 rounded-md border-slate-300 bg-white shadow-xs"
 const EXPORT_PAGE_SIZE = 500
@@ -83,6 +84,7 @@ export function OrderTable({
     const canCreateOrder = hasPermission(permissions, "sales.orders", "create")
     const canAdjustPrice = hasPermission(permissions, "sales.orders", "price.adjust")
     const canAdjustQuantity = hasPermission(permissions, "sales.orders", "quantity.adjust")
+    const canAdjustSalesperson = hasPermission(permissions, "sales.orders", "salesperson.adjust")
 
     const setFilter = (key: string, value: any) =>
         onFiltersChange?.({ ...filters, [key]: value })
@@ -313,8 +315,9 @@ export function OrderTable({
                                      canCreateOrder={canCreateOrder}
                                      canAdjustPrice={canAdjustPrice}
                                      canAdjustQuantity={canAdjustQuantity}
+                                     canAdjustSalesperson={canAdjustSalesperson}
                                      returnTo={returnTo}
-                                />
+                                 />
                             ))}
                         </>
                     )}
@@ -446,6 +449,7 @@ function OrderCard({
     canCreateOrder,
     canAdjustPrice,
     canAdjustQuantity,
+    canAdjustSalesperson,
     returnTo,
 }: {
     order: Order
@@ -454,6 +458,7 @@ function OrderCard({
     canCreateOrder: boolean
     canAdjustPrice: boolean
     canAdjustQuantity: boolean
+    canAdjustSalesperson: boolean
     returnTo: string
 }) {
     const { openEdit } = useOrders()
@@ -462,6 +467,7 @@ function OrderCard({
     const [cloneOpen, setCloneOpen] = useState(false)
     const [priceOpen, setPriceOpen] = useState(false)
     const [quantityOpen, setQuantityOpen] = useState(false)
+    const [salespersonOpen, setSalespersonOpen] = useState(false)
 
     const { mutate: changeStatus, isPending } = useMutation({
         mutationFn: ({ id, status }: { id: number; status: string }) =>
@@ -684,10 +690,12 @@ function OrderCard({
                         canClone={canCreateOrder}
                         canAdjustPrice={canAdjustPrice && hasDoneExport}
                         canAdjustQuantity={canAdjustQuantity && hasDoneExport}
+                        canAdjustSalesperson={canAdjustSalesperson && order.status !== "NEW"}
                         onEdit={() => openEdit(order)}
                         onClone={() => setCloneOpen(true)}
                         onAdjustPrice={() => setPriceOpen(true)}
                         onAdjustQuantity={() => setQuantityOpen(true)}
+                        onAdjustSalesperson={() => setSalespersonOpen(true)}
                     />
                 </div>
             </div>
@@ -714,6 +722,11 @@ function OrderCard({
                 order={order}
                 onOpenChange={setQuantityOpen}
             />
+            <OrderSalespersonAdjustmentDialog
+                open={salespersonOpen}
+                order={order}
+                onOpenChange={setSalespersonOpen}
+            />
         </div>
     )
 }
@@ -724,20 +737,24 @@ function OrderRowMenu({
     canClone,
     canAdjustPrice,
     canAdjustQuantity,
+    canAdjustSalesperson,
     onEdit,
     onClone,
     onAdjustPrice,
     onAdjustQuantity,
+    onAdjustSalesperson,
 }: {
     order: Order
     canEdit: boolean
     canClone: boolean
     canAdjustPrice: boolean
     canAdjustQuantity: boolean
+    canAdjustSalesperson: boolean
     onEdit: () => void
     onClone: () => void
     onAdjustPrice: () => void
     onAdjustQuantity: () => void
+    onAdjustSalesperson: () => void
 }) {
     return (
         <DropdownMenu modal={false}>
@@ -775,6 +792,12 @@ function OrderRowMenu({
                     <DropdownMenuItem onClick={onAdjustQuantity} className="gap-2">
                         <Pencil className="h-4 w-4" />
                         Sửa SL
+                    </DropdownMenuItem>
+                )}
+                {canAdjustSalesperson && (
+                    <DropdownMenuItem onClick={onAdjustSalesperson} className="gap-2">
+                        <User className="h-4 w-4" />
+                        Sửa NV bán
                     </DropdownMenuItem>
                 )}
             </DropdownMenuContent>

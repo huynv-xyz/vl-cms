@@ -16,6 +16,22 @@ export type ExportListParams = {
     to_date?: string
 }
 
+export type ExportExcelLine = {
+    export_id?: number
+    export_no?: string
+    export_date?: string
+    warehouse_code?: string
+    warehouse_name?: string
+    customer_code?: string
+    customer_name?: string
+    product_code?: string
+    product_name?: string
+    description?: string
+    unit?: string
+    quantity?: number
+    status?: string
+}
+
 const exportApi = createCrudApi<
     Export,
     Partial<Export>,
@@ -28,6 +44,10 @@ export const getExport = exportApi.detail
 export const createExport = exportApi.create
 export const updateExport = exportApi.update
 export const deleteExport = exportApi.delete
+
+export function listExportExcelLines(params: Omit<ExportListParams, "page" | "size">) {
+    return apiGet<ExportExcelLine[]>("/sales/exports/excel-lines", params)
+}
 
 export function updateExportStatus(id: number, status: string, exportTime?: string) {
     return apiPut(`/sales/exports/${id}/status`, { status, export_time: exportTime })

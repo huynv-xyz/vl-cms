@@ -3344,7 +3344,7 @@ const LEDGER_CORRECTION_HELP: Array<{ docType: string; actions: string }> = [
     { docType: "Mua hàng nhập khẩu nhập kho chưa thanh toán", actions: "Đổi số lô, sửa số lượng, đổi ngày/giờ chứng từ" },
     { docType: "Mua hàng trong nước nhập kho chưa thanh toán", actions: "Đổi số lô, sửa số lượng, đổi ngày/giờ chứng từ" },
     { docType: "Nhập kho khác", actions: "Đổi số lô, sửa số lượng, sửa giờ chứng từ" },
-    { docType: "Xuất kho khác", actions: "Đổi số lô xuất kho, sửa số lượng" },
+    { docType: "Xuất kho khác", actions: "Đổi số lô xuất kho, sửa số lượng, sửa giờ chứng từ" },
     { docType: "Nhập kho từ hàng bán trả lại", actions: "Đổi kho nhập trả hàng, sửa đơn giá nhập trả hàng" },
     { docType: "Xuất kho bán hàng", actions: "Đổi số lô xuất kho, đổi ngày/giờ chứng từ" },
     { docType: "Xuất/Nhập chuyển kho nội bộ", actions: "Đổi kho chuyển kho nội bộ" },
@@ -3839,14 +3839,8 @@ function printInventoryVoucher(voucher: InventoryVoucherPrintDetail) {
     const voucherNo = voucher.voucher_no || `#${voucher.id}`
     const voucherTypeCode = String(voucher.voucher_type_code || voucher.type?.code || "")
     const isTransfer = voucherTypeCode === "TRANSFER_EXPORT"
-    const printItems = isTransfer ? items.flatMap((item) => {
-        const sourceWarehouse = item.warehouse || voucher.from_physical_warehouse || voucher.physical_warehouse || voucher.warehouse
-        const targetWarehouse = item.to_warehouse || voucher.to_physical_warehouse || voucher.to_warehouse
-        return [
-            { ...item, warehouse: sourceWarehouse },
-            { ...item, warehouse: targetWarehouse },
-        ]
-    }) : items
+    const showValueColumns = !isTransfer
+    const printItems = items
     const totalQuantity = printItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
     const totalAmount = printItems.reduce((sum, item) => sum + Number(item.amount || 0), 0)
 
@@ -3855,31 +3849,36 @@ function printInventoryVoucher(voucher: InventoryVoucherPrintDetail) {
             <head>
                 <title>${escapeHtml(title)} ${escapeHtml(voucherNo)}</title>
                 <style>
-                    body { font-family: Arial, sans-serif; padding: 18px; color: #111827; }
-                    .company { text-align: center; margin-bottom: 8px; }
-                    .company-name { font-weight: 700; font-size: 13px; text-transform: uppercase; }
-                    .company-address { font-size: 11px; color: #6b7280; }
-                    .meta-line { display: flex; justify-content: space-between; align-items: center; background: #f9fafb; padding: 6px 10px; border: 1px solid #e5e7eb; font-size: 12px; }
-                    .title { text-align: center; padding: 14px 0 10px; }
-                    .title h1 { margin: 0; font-size: 22px; letter-spacing: .02em; }
-                    .date { margin-top: 3px; font-size: 12px; color: #6b7280; font-style: italic; }
-                    .info { font-size: 13px; line-height: 1.6; margin: 6px 0 10px; }
-                    table { width: 100%; border-collapse: collapse; font-size: 11px; }
-                    th, td { border: 1px solid #9ca3af; padding: 5px 6px; vertical-align: top; }
+                    body { font-family: Arial, sans-serif; padding: 12px; color: #111827; }
+                    .company { text-align: center; margin-bottom: 6px; }
+                    .company-name { font-weight: 700; font-size: 12px; text-transform: uppercase; }
+                    .company-address { font-size: 10px; color: #6b7280; }
+                    .meta-line { display: flex; justify-content: space-between; align-items: center; background: #f9fafb; padding: 4px 8px; border: 1px solid #e5e7eb; font-size: 10.5px; }
+                    .title { text-align: center; padding: 10px 0 8px; }
+                    .title h1 { margin: 0; font-size: 20px; letter-spacing: .02em; }
+                    .date { margin-top: 2px; font-size: 10.5px; color: #6b7280; font-style: italic; }
+                    .info { font-size: 11px; line-height: 1.45; margin: 4px 0 8px; }
+                    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 9.6px; line-height: 1.18; }
+                    th, td { border: 1px solid #9ca3af; padding: 3px 4px; vertical-align: top; }
                     th { background: #f3f4f6; text-align: center; font-weight: 700; }
+                    td { overflow-wrap: break-word; word-break: normal; }
+                    .product-name { font-size: 9.4px; line-height: 1.2; }
+                    .warehouse-cell { font-size: 8.8px; line-height: 1.15; }
                     .right { text-align: right; }
                     .center { text-align: center; }
                     .mono { font-family: Consolas, monospace; }
-                    .note { padding: 7px 4px; font-size: 12px; color: #4b5563; }
-                    .sign-date { margin: 12px 28px 20px 0; text-align: right; font-size: 11px; color: #6b7280; font-style: italic; }
-                    .signatures { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; text-align: center; font-size: 12px; }
+                    .note { padding: 5px 4px; font-size: 10.5px; color: #4b5563; }
+                    .sign-date { margin: 10px 24px 16px 0; text-align: right; font-size: 10px; color: #6b7280; font-style: italic; }
+                    .signatures { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; text-align: center; font-size: 10.5px; }
                     .sign-role { font-weight: 700; min-height: 18px; }
-                    .sign-hint { color: #6b7280; font-size: 11px; font-style: italic; }
-                    .sign-space { margin-top: 44px; font-weight: 700; }
+                    .sign-hint { color: #6b7280; font-size: 9.5px; font-style: italic; }
+                    .sign-space { margin-top: 34px; font-weight: 700; }
                     @media print {
-                        body { padding: 8px; }
-                        table { font-size: 10px; line-height: 1.2; }
-                        th, td { padding: 3px 5px; }
+                        body { padding: 4px; }
+                        table { font-size: 9px; line-height: 1.14; }
+                        th, td { padding: 2px 3px; }
+                        .product-name { font-size: 8.9px; }
+                        .warehouse-cell { font-size: 8.4px; }
                     }
                 </style>
             </head>
@@ -3901,43 +3900,71 @@ function printInventoryVoucher(voucher: InventoryVoucherPrintDetail) {
                     <div>- Lý do: ${escapeHtml(voucher.description || VOUCHER_TYPE_LABEL[voucher.voucher_type_code || ""] || "")}</div>
                 </div>
                 <table>
+                    <colgroup>
+                        <col style="width: ${isTransfer ? "5%" : "5%"}" />
+                        <col style="width: ${isTransfer ? "18%" : "14%"}" />
+                        <col style="width: ${isTransfer ? "32%" : "27%"}" />
+                        <col style="width: ${isTransfer ? "5%" : "6%"}" />
+                        <col style="width: ${isTransfer ? "6%" : "8%"}" />
+                        <col style="width: ${isTransfer ? "6%" : "9%"}" />
+                        <col style="width: ${isTransfer ? "8%" : "9%"}" />
+                        ${showValueColumns ? `
+                            <col style="width: 8%" />
+                            <col style="width: 8%" />
+                        ` : ""}
+                        <col style="width: ${isTransfer ? "10%" : "6%"}" />
+                        ${isTransfer ? `<col style="width: 10%" />` : ""}
+                    </colgroup>
                     <thead>
                         <tr>
-                            <th style="width: 38px">STT</th>
-                            <th style="width: 90px">Mã hàng</th>
+                            <th>STT</th>
+                            <th>Mã hàng</th>
                             <th>Tên sản phẩm, hàng hóa</th>
-                            <th style="width: 50px">ĐVT</th>
-                            <th style="width: 90px">Số lô</th>
-                            <th style="width: 85px">HSD</th>
-                            <th style="width: 80px">Số lượng</th>
-                            <th style="width: 90px">Đơn giá</th>
-                            <th style="width: 100px">Thành tiền</th>
-                            <th style="width: 130px">${isInbound ? "Nhập tại kho" : "Xuất tại kho"}</th>
+                            <th>ĐVT</th>
+                            <th>Số lô</th>
+                            <th>HSD</th>
+                            <th>Số lượng</th>
+                            ${showValueColumns ? `
+                                <th>Đơn giá</th>
+                                <th>Thành tiền</th>
+                            ` : ""}
+                            <th>${isTransfer ? "Kho xuất" : isInbound ? "Nhập tại kho" : "Xuất tại kho"}</th>
+                            ${isTransfer ? "<th>Kho nhận</th>" : ""}
                         </tr>
                     </thead>
                     <tbody>
-                        ${printItems.map((item, index) => `
+                        ${printItems.map((item, index) => {
+        const sourceWarehouse = item.warehouse || voucher.from_physical_warehouse || voucher.physical_warehouse || voucher.warehouse
+        const targetWarehouse = item.to_warehouse || voucher.to_physical_warehouse || voucher.to_warehouse
+        return `
                             <tr>
                                 <td class="center">${index + 1}</td>
                                 <td class="mono">${escapeHtml(item.product?.code || "")}</td>
-                                <td>${escapeHtml(item.product?.name || `[SP #${item.product_id || ""}]`)}</td>
+                                <td class="product-name">${escapeHtml(item.product?.name || `[SP #${item.product_id || ""}]`)}</td>
                                 <td class="center">${escapeHtml(item.unit || item.product?.unit || "")}</td>
                                 <td class="mono">${escapeHtml(item.lot_code || "")}</td>
                                 <td class="center">${escapeHtml(formatDate(item.expiry_date))}</td>
                                 <td class="right">${escapeHtml(formatQty(item.quantity))}</td>
-                                <td class="right">${escapeHtml(formatMoney(item.unit_price))}</td>
-                                <td class="right">${escapeHtml(formatMoney(item.amount))}</td>
-                                <td>${escapeHtml(formatWarehouse(item.warehouse))}</td>
+                                ${showValueColumns ? `
+                                    <td class="right">${escapeHtml(formatMoney(item.unit_price))}</td>
+                                    <td class="right">${escapeHtml(formatMoney(item.amount))}</td>
+                                ` : ""}
+                                <td class="warehouse-cell">${escapeHtml(formatWarehouse(sourceWarehouse))}</td>
+                                ${isTransfer ? `<td class="warehouse-cell">${escapeHtml(formatWarehouse(targetWarehouse))}</td>` : ""}
                             </tr>
-                        `).join("")}
+                        `
+    }).join("")}
                     </tbody>
                     <tfoot>
                         <tr>
                             <td colspan="6" class="right"><strong>Cộng</strong></td>
                             <td class="right"><strong>${escapeHtml(formatQty(totalQuantity))}</strong></td>
+                            ${showValueColumns ? `
+                                <td></td>
+                                <td class="right"><strong>${escapeHtml(formatMoney(totalAmount))}</strong></td>
+                            ` : ""}
                             <td></td>
-                            <td class="right"><strong>${escapeHtml(formatMoney(totalAmount))}</strong></td>
-                            <td></td>
+                            ${isTransfer ? "<td></td>" : ""}
                         </tr>
                     </tfoot>
                 </table>
@@ -4069,6 +4096,7 @@ function isPurchasePostingDateTimeCorrectionLedger(item: InventoryLedgerReportRo
 function isDocumentPostingTimeCorrectionLedger(item: InventoryLedgerReportRow) {
     const docType = String(item.doc_type || "").toUpperCase()
     if (docType === "OTHER_INBOUND") return Number(item.quantity_in || 0) > 0
+    if (docType === "OTHER_EXPORT") return Number(item.quantity_out || 0) > 0
     if (docType === "SALES_EXPORT") return Number(item.quantity_out || 0) > 0
     if (docType === "PRODUCTION") return Number(item.quantity_in || 0) > 0
     return false
@@ -4078,6 +4106,8 @@ function documentPostingTimeLabel(docType?: string | null) {
     switch (String(docType || "").toUpperCase()) {
         case "OTHER_INBOUND":
             return "phiếu nhập khác"
+        case "OTHER_EXPORT":
+            return "phiếu xuất kho khác"
         case "SALES_EXPORT":
             return "phiếu xuất bán hàng"
         case "PRODUCTION":

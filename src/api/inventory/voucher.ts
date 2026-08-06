@@ -23,7 +23,9 @@ export type InventoryVoucher = {
     creation_origin?: "MANUAL" | "SYSTEM" | "IMPORT" | string
     operation_code?: string
     posting_date?: string
+    posting_time?: string
     document_date?: string
+    document_time?: string
     physical_warehouse_id?: number
     description?: string
     status: VoucherStatus | string
@@ -161,7 +163,9 @@ export type CreateVoucherRequest = {
     voucher_type_code: VoucherTypeCode | string
     operation_code?: string
     posting_date: string
+    posting_time?: string
     document_date: string
+    document_time?: string
     warehouse_id?: number
     from_warehouse_id?: number
     to_warehouse_id?: number

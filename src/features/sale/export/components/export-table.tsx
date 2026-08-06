@@ -29,6 +29,7 @@ import {
     PackageOpen,
     type LucideIcon,
 } from "lucide-react"
+import { ExportExcelButton } from "./export-excel-button"
 
 const FILTER_CONTROL_CLASS =
     "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
@@ -64,6 +65,10 @@ export function ExportTable({
 
     return (
         <div className="space-y-5">
+            <div className="flex justify-end">
+                <ExportExcelButton keyword={keyword} filters={filters} />
+            </div>
+
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <SummaryCard
                     icon={Files}

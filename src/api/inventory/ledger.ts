@@ -452,7 +452,7 @@ export function applyPurchasePostingDateTimeChange(ledgerId: number, newPostingD
 }
 
 export type DocumentPostingTimeChangeResult = PurchasePostingDateTimeChangeResult & {
-    flow?: "OTHER_INBOUND" | "SALES_EXPORT" | "PRODUCTION"
+    flow?: "OTHER_INBOUND" | "OTHER_EXPORT" | "SALES_EXPORT" | "PRODUCTION"
     source_id?: number | null
     export_no?: string | null
     delivery_no?: string | null
