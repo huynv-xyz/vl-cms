@@ -89,3 +89,6 @@ export const adjustOrderQuantity = (id: number, items: AdjustOrderQuantityItem[]
 
 export const checkOrderQuantityAdjustment = (id: number, items: AdjustOrderQuantityItem[]) =>
     apiPost(`/sales/orders/${id}/quantity-adjustment/check`, { items })
+
+export const adjustOrderSalesperson = (id: number, employeeId: number) =>
+    apiPut(`/sales/orders/${id}/salesperson-adjustment`, { employee_id: employeeId })

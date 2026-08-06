@@ -11,6 +11,7 @@ import { CreateOrderDialog } from "../../order/components/create-order-dialog"
 import { UpdateOrderDialog } from "../../order/components/update-order-dialog"
 import { OrderPriceAdjustmentDialog } from "../../order/components/order-price-adjustment-dialog"
 import { OrderQuantityAdjustmentDialog } from "../../order/components/order-quantity-adjustment-dialog"
+import { OrderSalespersonAdjustmentDialog } from "../../order/components/order-salesperson-adjustment-dialog"
 import {
     CalendarDays,
     Clock,
@@ -21,6 +22,7 @@ import {
     Phone,
     Receipt,
     UserRound,
+    UserCog,
     UsersRound,
 } from "lucide-react"
 
@@ -35,6 +37,7 @@ export function OrderInfo({ order, metrics }: Props) {
     const [editOpen, setEditOpen] = useState(false)
     const [priceOpen, setPriceOpen] = useState(false)
     const [quantityOpen, setQuantityOpen] = useState(false)
+    const [salespersonOpen, setSalespersonOpen] = useState(false)
     const statusMeta = getOrderStatusMeta(order.status)
     const StatusIcon = statusMeta.icon
     const { data: permissions = [] } = useQuery({
@@ -57,6 +60,9 @@ export function OrderInfo({ order, metrics }: Props) {
     )
     const canAdjustQuantity = permissions.some(
         (p: any) => p.module === "sales.orders" && p.action === "quantity.adjust"
+    )
+    const canAdjustSalesperson = permissions.some(
+        (p: any) => p.module === "sales.orders" && p.action === "salesperson.adjust"
     )
     const isLocked = order.status === "DONE" || order.status === "CANCELLED"
     const hasDoneExport = hasCompletedExport(order)
@@ -159,6 +165,18 @@ export function OrderInfo({ order, metrics }: Props) {
                             Sửa SL
                         </Button>
                     )}
+                    {canAdjustSalesperson && order.status !== "NEW" && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-9 gap-1.5"
+                            onClick={() => setSalespersonOpen(true)}
+                        >
+                            <UserCog className="h-3.5 w-3.5" />
+                            Sửa NV bán
+                        </Button>
+                    )}
                     <InlineStatus
                         row={order}
                         value={order.status}
@@ -202,6 +220,12 @@ export function OrderInfo({ order, metrics }: Props) {
                 order={order}
                 open={quantityOpen}
                 onOpenChange={setQuantityOpen}
+            />
+
+            <OrderSalespersonAdjustmentDialog
+                order={order}
+                open={salespersonOpen}
+                onOpenChange={setSalespersonOpen}
             />
 
             {/* INFO GRID */}

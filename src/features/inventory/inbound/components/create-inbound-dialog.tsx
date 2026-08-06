@@ -23,6 +23,7 @@ export function CreateInboundDialog({ open, onOpenChange }: any) {
 
     const [formData, setFormData] = useState<any>({
         inbound_date: todayYmd(),
+        posting_time: currentTimeInputValue(),
         warehouse_id: undefined,
         product_id: undefined,
         lot_no: "",
@@ -46,6 +47,7 @@ export function CreateInboundDialog({ open, onOpenChange }: any) {
                 warehouse_id: formData.warehouse_id,
                 lot_no: formData.lot_no,
                 inbound_date: formData.inbound_date,
+                posting_time: formData.posting_time,
                 source_type: formData.source_type,
                 source_id: formData.source_id,
                 source_no: formData.source_no,
@@ -106,4 +108,11 @@ function todayYmd() {
     const month = String(date.getMonth() + 1).padStart(2, "0")
     const day = String(date.getDate()).padStart(2, "0")
     return `${year}-${month}-${day}`
+}
+
+function currentTimeInputValue() {
+    const date = new Date()
+    const hours = String(date.getHours()).padStart(2, "0")
+    const minutes = String(date.getMinutes()).padStart(2, "0")
+    return `${hours}:${minutes}`
 }

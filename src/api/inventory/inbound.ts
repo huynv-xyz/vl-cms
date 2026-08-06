@@ -16,6 +16,7 @@ export type CreateInventoryInboundRequest = {
     product_id: number
     warehouse_id: number
     inbound_date: string
+    posting_time?: string
 
     lot_no?: string
     source_type: string
