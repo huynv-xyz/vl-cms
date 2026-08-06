@@ -1,5 +1,5 @@
 ﻿import { ColumnDef } from "@tanstack/react-table"
-import { Link } from "@tanstack/react-router"
+import { Link, useLocation } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
@@ -21,6 +21,7 @@ import { toast } from "sonner"
 
 export function useExportColumns() {
     const queryClient = useQueryClient()
+    const returnTo = useLocation({ select: (location) => location.href })
     const { data: permissions = [] } = useQuery({
         queryKey: ["my-permissions"],
         queryFn: getMyPermissions,
@@ -106,13 +107,22 @@ export function useExportColumns() {
             accessorKey: "order_id",
             title: "Đơn hàng",
             width: 180,
-            render: (row) => (
-                <div className="max-w-[170px]">
-                    <div className="truncate font-medium">
+            render: (row) => {
+                if (!row.order_id) {
+                    return <span className="text-muted-foreground">—</span>
+                }
+
+                return (
+                    <Link
+                        to="/sales/orders/$id"
+                        params={{ id: String(row.order_id) }}
+                        search={{ return_to: returnTo }}
+                        className="block max-w-[170px] truncate font-medium text-primary hover:underline"
+                    >
                         {row.order?.order_no ?? `#${row.order_id}`}
-                    </div>
-                </div>
-            ),
+                    </Link>
+                )
+            },
         }),
 
         buildTextColumn({

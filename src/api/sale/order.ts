@@ -12,6 +12,7 @@ export type OrderListParams = {
     from_date?: string
     to_date?: string
     order_date_sort?: string
+    export_progress?: string
 }
 
 export type CreateOrderRequest = Partial<Order>

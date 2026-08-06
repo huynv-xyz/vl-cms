@@ -44,13 +44,15 @@ const COLUMNS: ExportColumn[] = [
     { label: "Nhập", value: (row) => row.quantity_in, width: 16, type: "number", numberFormat: "quantity" },
     { label: "Xuất", value: (row) => row.quantity_out, width: 16, type: "number", numberFormat: "quantity" },
     { label: "Tồn sau", value: (row) => row.balance_quantity, width: 16, type: "number", numberFormat: "quantity" },
-  { label: "Thành tiền", value: (row) => Math.abs(Number(row.amount || 0)), width: 18, type: "number", numberFormat: "money" },
+    { label: "Thành tiền", value: (row) => Math.abs(Number(row.amount || 0)), width: 18, type: "number", numberFormat: "money" },
     { label: "Loại chứng từ", value: (row) => getDocTypeMeta(row.doc_type).label, width: 34 },
+    { label: "Mã đối tượng tập hợp chi phí", value: (row) => row.cost_object_code, width: 26 },
+    { label: "Tên đối tượng tập hợp chi phí", value: (row) => row.cost_object_name, width: 42 },
     { label: "Tên nhà cung cấp", value: (row) => row.supplier_name, width: 28 },
     { label: "Mã loại", value: (row) => row.doc_type, width: 20 },
 ]
 
-export function ExportInventoryLedgerButton({ keyword, filters, showValues = true, title = "SỔ KHO", filePrefix = "so-kho" }: Props) {
+export function ExportInventoryLedgerButton({ keyword, filters, showValues = true, title = "SỔ CHI TIẾT VẬT TƯ HÀNG HÓA", filePrefix = "so-chi-tiet-vat-tu-hang-hoa" }: Props) {
     const [loading, setLoading] = useState(false)
     const columns = getExportColumns(showValues)
 
@@ -98,7 +100,7 @@ export function ExportInventoryLedgerButton({ keyword, filters, showValues = tru
             }
 
             await exportInventoryLedgerXlsx(rows, filters, columns, title, filePrefix)
-            toast.success(`Đã xuất ${rows.length} dòng sổ kho`)
+            toast.success(`Đã xuất ${rows.length} dòng sổ chi tiết vật tư hàng hóa`)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Xuất Excel thất bại")
         } finally {
@@ -151,7 +153,7 @@ async function exportInventoryLedgerXlsx(
     workbook.creator = "VLIFE"
     workbook.created = new Date()
 
-    const sheet = workbook.addWorksheet("Sổ kho", {
+    const sheet = workbook.addWorksheet("Sổ chi tiết VT HH", {
         views: [{ state: "frozen", ySplit: 4 }],
     })
 

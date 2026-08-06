@@ -10,7 +10,7 @@ import { AsyncSelect } from "@/components/rjsf/async-select"
 import { listProducts, getProduct } from "@/api/product"
 import { listGoodsDescriptions } from "@/api/sale/goods-description"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
-import { Check, ChevronsUpDown, Copy, GripVertical, PackageOpen, Trash2 } from "lucide-react"
+import { AlertTriangle, Check, ChevronsUpDown, Copy, GripVertical, PackageOpen, Trash2 } from "lucide-react"
 
 type OrderItem = {
     id?: number
@@ -25,6 +25,7 @@ type OrderItem = {
     description?: string
     note?: string
     sort_order?: number
+    exported_quantity?: number
 }
 
 type Props = {
@@ -32,9 +33,11 @@ type Props = {
     setItems: (items: OrderItem[]) => void
     addRequest?: number
     enableReorder?: boolean
+    lockCommittedLines?: boolean
+    itemError?: { orderItemId: number; message: string } | null
 }
 
-export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorder = false }: Props) {
+export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorder = false, lockCommittedLines = false, itemError }: Props) {
     const rowRefs = useRef<Array<HTMLTableRowElement | null>>([])
     const pendingFocusIndexRef = useRef<number | null>(null)
     const lastAddRequestRef = useRef(addRequest)
@@ -72,6 +75,16 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
         lastAddRequestRef.current = addRequest
         addRow()
     }, [addRequest])
+
+    useEffect(() => {
+        if (!itemError) return
+        const index = items.findIndex((item) => Number(item.id) === itemError.orderItemId)
+        if (index < 0) return
+
+        window.requestAnimationFrame(() => {
+            rowRefs.current[index]?.scrollIntoView({ behavior: "smooth", block: "center" })
+        })
+    }, [itemError, items])
 
     const addRow = () => {
         const lastIndex = items.length - 1
@@ -244,6 +257,8 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                     <tbody className="bg-background">
                         {items.map((row, i) => {
                             const isPromotion = row.line_type === "PROMOTION"
+                            const doneExportQty = Number(row.exported_quantity ?? 0)
+                            const isCommitted = lockCommittedLines && doneExportQty > 0
                             const lineTotal = Math.max(
                                 isPromotion
                                     ? 0
@@ -251,6 +266,8 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                 0
                             )
                             const isInvalid = !row.product_id || (row.quantity ?? 0) <= 0
+                            const hasServerError =
+                                itemError != null && Number(row.id) === Number(itemError.orderItemId)
 
                             return (
                                 <Fragment key={i}>
@@ -265,10 +282,13 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                         }}
                                         onDrop={(event) => dropRow(event, i)}
                                         onDragEnd={() => setDraggingIndex(null)}
+                                        title={hasServerError ? itemError.message : undefined}
+                                        aria-invalid={hasServerError || undefined}
                                         className={cn(
                                             "border-t-4 border-t-slate-300 bg-white transition-colors hover:bg-slate-50",
                                             i > 0 && "shadow-[inset_0_1px_0_rgba(15,23,42,0.08)]",
                                             isInvalid && "bg-amber-50/30 dark:bg-amber-950/10",
+                                            hasServerError && "border-t-red-500 bg-red-50 ring-2 ring-inset ring-red-400 hover:bg-red-50 dark:bg-red-950/20",
                                             draggingIndex === i && "opacity-50"
                                         )}
                                     >
@@ -291,7 +311,19 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                         ) : null}
                                     </td>
                                     <td className="text-muted-foreground px-2 py-2 text-center align-middle font-mono text-xs font-semibold tabular-nums">
-                                        {i + 1}
+                                        <div className="flex items-center justify-center gap-1.5">
+                                            <span>{i + 1}</span>
+                                            {hasServerError ? (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <AlertTriangle className="h-4 w-4 cursor-help text-red-600" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="max-w-sm text-sm">
+                                                        {itemError?.message}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            ) : null}
+                                        </div>
                                     </td>
 
                                     <td className="min-w-0 px-2 py-2 align-middle" data-product-code-trigger>
@@ -302,6 +334,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                             onApplyMany={appendProducts}
                                             placeholder="Chọn mã"
                                             searchPlaceholder="Tìm theo mã sản phẩm..."
+                                            disabled={isCommitted}
                                             popoverContentClassName="w-[420px] max-w-[calc(100vw-2rem)]"
                                             commandListClassName="max-h-[390px]"
                                         />
@@ -315,6 +348,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                             onApplyMany={appendProducts}
                                             placeholder="Chọn tên sản phẩm"
                                             searchPlaceholder="Tìm theo tên sản phẩm..."
+                                            disabled={isCommitted}
                                             popoverContentClassName="w-[720px] max-w-[calc(100vw-2rem)]"
                                             commandListClassName="max-h-[450px]"
                                         />
@@ -348,6 +382,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                             placeholder="Chọn mô tả"
                                             searchPlaceholder="Tìm mô tả HH..."
                                             emptyText="Không có mô tả phù hợp"
+                                            disabled={isCommitted}
                                             className="min-w-0"
                                             popoverContentClassName="w-[360px] max-w-[calc(100vw-2rem)]"
                                             commandListClassName="max-h-[360px]"
@@ -367,7 +402,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                     <td className="px-2 py-2 align-middle">
                                         <DecimalInput
                                             value={row.unit_price}
-                                            disabled={isPromotion}
+                                            disabled={isPromotion || isCommitted}
                                             onKeyDown={(event) => addRowOnEnter(event, i)}
                                             onChange={(unit_price) => updateRow(i, { unit_price })}
                                         />
@@ -375,7 +410,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                     <td className="px-2 py-2 align-middle">
                                         <DecimalInput
                                             value={row.discount ?? 0}
-                                            disabled={isPromotion}
+                                            disabled={isPromotion || isCommitted}
                                             onKeyDown={(event) => addRowOnEnter(event, i)}
                                             onChange={(discount) => updateRow(i, { discount })}
                                         />
@@ -384,6 +419,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                     <td className="px-2 py-2 text-center align-middle">
                                         <Checkbox
                                             checked={isPromotion}
+                                            disabled={isCommitted}
                                             onCheckedChange={(checked) =>
                                                 updateRow(i, {
                                                     line_type: checked ? "PROMOTION" : "NORMAL",
@@ -397,6 +433,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                     <td className="px-2 py-2 text-center align-middle">
                                         <Checkbox
                                             checked={row.hdn_status === "KO"}
+                                            disabled={isCommitted}
                                             onCheckedChange={(checked) =>
                                                 updateRow(i, {
                                                     hdn_status: checked ? "KO" : undefined,
@@ -408,6 +445,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                     <td className="min-w-0 px-2 py-2 align-middle">
                                         <Input
                                             value={row.note ?? ""}
+                                            disabled={isCommitted}
                                             onChange={(event) => updateRow(i, { note: event.target.value })}
                                             onKeyDown={(event) => addRowOnEnter(event, i)}
                                             placeholder="Ghi chú dòng hàng"
@@ -444,6 +482,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                                         size="icon"
                                                         variant="ghost"
                                                         className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-7 w-7"
+                                                        disabled={isCommitted}
                                                         onClick={() => removeRow(i)}
                                                     >
                                                         <Trash2 className="h-3.5 w-3.5" />
@@ -499,6 +538,7 @@ function ProductSelect({
     value,
     onChange,
     onApplyMany,
+    disabled,
     placeholder,
     searchPlaceholder,
     popoverContentClassName,
@@ -508,6 +548,7 @@ function ProductSelect({
     value?: number
     onChange: (value: number | undefined, option: ProductOption | null) => void
     onApplyMany: (products: any[]) => void
+    disabled?: boolean
     placeholder: string
     searchPlaceholder: string
     popoverContentClassName?: string
@@ -612,11 +653,12 @@ function ProductSelect({
     }
 
     return (
-        <Popover open={open} onOpenChange={closePopover}>
+        <Popover open={open && !disabled} onOpenChange={closePopover}>
             <PopoverTrigger asChild>
                 <Button
                     type="button"
                     variant="outline"
+                    disabled={disabled}
                     className="h-auto min-h-10 w-full min-w-0 items-start justify-between py-2"
                 >
                     <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left leading-snug">

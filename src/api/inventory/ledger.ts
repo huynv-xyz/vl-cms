@@ -3,6 +3,7 @@ import { apiGet, apiPost, apiPostMultipart } from "@/api/client"
 import type {
     InventoryLedger,
     InventoryLedgerReportRow,
+    InventoryLedgerTotals,
 } from "@/features/inventory/ledger/data/schema"
 
 export type InventoryLedgerListParams = {
@@ -63,7 +64,42 @@ export function listInventoryLedgerReport(params: InventoryLedgerReportParams) {
         current_page: number
         total_page: number
         size: number
+        totals?: InventoryLedgerTotals
     }>("/inventory/ledger/report", params)
+}
+
+export type NegativeStockAuditItem = {
+    lot_id?: number | null
+    product_id?: number | null
+    product_code?: string | null
+    product_name?: string | null
+    warehouse_id?: number | null
+    warehouse_code?: string | null
+    warehouse_name?: string | null
+    lot_code?: string | null
+    posting_date?: string | null
+    posting_time?: string | null
+    doc_no?: string | null
+    doc_type?: string | null
+    description?: string | null
+    balance?: number | string | null
+}
+
+export type NegativeStockAuditResult = {
+    ok: boolean
+    checked_scope: "ALL" | "PRODUCT_CODES" | string
+    requested_product_codes: string[]
+    unknown_product_codes: string[]
+    checked_lot_count: number
+    negative_count: number
+    message: string
+    items: NegativeStockAuditItem[]
+}
+
+export function checkNegativeStock(productCodes: string) {
+    return apiPost<NegativeStockAuditResult>("/inventory/ledger/negative-stock/check", {
+        productCodes,
+    })
 }
 
 export type ProductionCostObjectImportResult = {
@@ -122,6 +158,127 @@ export function applyPurchaseLotChange(ledgerId: number, newLotNo: string) {
     })
 }
 
+export type SalesExportLotChangeResult = {
+    valid: boolean
+    applied: boolean
+    message: string
+    ledger_id: number
+    voucher_id?: number | null
+    voucher_item_id?: number | null
+    product_id: number
+    warehouse_id: number
+    product_code: string
+    product_name: string
+    warehouse_code?: string | null
+    warehouse_name: string
+    doc_no?: string | null
+    doc_type?: string | null
+    posting_date?: string | null
+    posting_time?: string | null
+    old_lot_id: number
+    old_lot_no: string
+    target_lot_id: number
+    new_lot_no: string
+    quantity: number
+    errors: string[]
+    warnings: string[]
+    changes: Record<string, number>
+}
+
+export function checkSalesExportLotChange(ledgerId: number, newLotNo: string) {
+    return apiPost<SalesExportLotChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-lot-change/check`, {
+        newLotNo,
+    })
+}
+
+export function applySalesExportLotChange(ledgerId: number, newLotNo: string) {
+    return apiPost<SalesExportLotChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-lot-change/apply`, {
+        newLotNo,
+    })
+}
+
+export type TransferExportWarehouseChangeResult = {
+    valid: boolean
+    applied: boolean
+    message: string
+    ledger_id: number
+    voucher_id?: number | null
+    voucher_item_id?: number | null
+    inbound_ledger_id?: number | null
+    product_id: number
+    product_code: string
+    product_name: string
+    doc_no?: string | null
+    doc_type?: string | null
+    posting_date?: string | null
+    posting_time?: string | null
+    old_warehouse_id: number
+    old_warehouse_code?: string | null
+    old_warehouse_name: string
+    new_warehouse_id: number
+    new_warehouse_code?: string | null
+    new_warehouse_name: string
+    destination_warehouse_id?: number | null
+    destination_warehouse_code?: string | null
+    destination_warehouse_name?: string | null
+    old_destination_warehouse_id?: number | null
+    old_destination_warehouse_code?: string | null
+    old_destination_warehouse_name?: string | null
+    new_destination_warehouse_id?: number | null
+    new_destination_warehouse_code?: string | null
+    new_destination_warehouse_name?: string | null
+    old_lot_no?: string | null
+    new_lot_no: string
+    old_source_lot_id: number
+    new_source_lot_id: number
+    old_destination_lot_id: number
+    target_destination_lot_id: number
+    quantity: number
+    old_unit_price: number
+    old_amount: number
+    new_unit_price: number
+    new_amount: number
+    errors: string[]
+    warnings: string[]
+    changes: Record<string, number>
+}
+
+export type TransferExportWarehouseAvailableLot = {
+    lot_id: number
+    lot_no: string
+    available_quantity: number | string
+    enough: boolean
+    unit_cost?: number | string | null
+    expiry_date?: string | null
+    preferred?: boolean
+}
+
+export function listTransferExportWarehouseChangeLots(ledgerId: number, newWarehouseId: number) {
+    return apiPost<TransferExportWarehouseAvailableLot[]>(`/inventory/ledger/${ledgerId}/transfer-export-warehouse-change/available-lots`, {
+        newWarehouseId,
+    })
+}
+
+export function getTransferExportWarehouseChangeContext(ledgerId: number) {
+    return apiGet<TransferExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/transfer-export-warehouse-change/context`)
+}
+
+export function checkTransferExportWarehouseChange(ledgerId: number, newWarehouseId: number, newToWarehouseId: number, newLotNo: string) {
+    return apiPost<TransferExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/transfer-export-warehouse-change/check`, {
+        newWarehouseId,
+        newToWarehouseId,
+        newLotNo,
+    })
+}
+
+export function applyTransferExportWarehouseChange(ledgerId: number, newWarehouseId: number, newToWarehouseId: number, newLotNo: string) {
+    return apiPost<TransferExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/transfer-export-warehouse-change/apply`, {
+        newWarehouseId,
+        newToWarehouseId,
+        newLotNo,
+    })
+}
+
 export type ReturnWarehouseChangeResult = {
     valid: boolean
     applied: boolean
@@ -160,6 +317,47 @@ export function checkReturnWarehouseChange(ledgerId: number, newWarehouseId: num
 export function applyReturnWarehouseChange(ledgerId: number, newWarehouseId: number) {
     return apiPost<ReturnWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/return-warehouse-change/apply`, {
         newWarehouseId,
+    })
+}
+
+export type SalesReturnUnitPriceChangeResult = {
+    valid: boolean
+    applied: boolean
+    message: string
+    ledger_id: number
+    voucher_id?: number | null
+    voucher_item_id?: number | null
+    product_id: number
+    product_code: string
+    product_name: string
+    warehouse_id: number
+    warehouse_code?: string | null
+    warehouse_name: string
+    doc_no?: string | null
+    doc_type?: string | null
+    posting_date?: string | null
+    posting_time?: string | null
+    lot_id?: number | null
+    lot_no?: string | null
+    quantity: number
+    current_unit_price: number
+    current_amount: number
+    new_unit_price: number
+    new_amount: number
+    errors: string[]
+    warnings: string[]
+    changes: Record<string, number>
+}
+
+export function checkSalesReturnUnitPriceChange(ledgerId: number, newUnitPrice: number) {
+    return apiPost<SalesReturnUnitPriceChangeResult>(`/inventory/ledger/${ledgerId}/sales-return-unit-price-change/check`, {
+        newUnitPrice,
+    })
+}
+
+export function applySalesReturnUnitPriceChange(ledgerId: number, newUnitPrice: number) {
+    return apiPost<SalesReturnUnitPriceChangeResult>(`/inventory/ledger/${ledgerId}/sales-return-unit-price-change/apply`, {
+        newUnitPrice,
     })
 }
 
@@ -248,6 +446,52 @@ export function checkPurchasePostingDateTimeChange(ledgerId: number, newPostingD
 
 export function applyPurchasePostingDateTimeChange(ledgerId: number, newPostingDate: string, newPostingTime: string) {
     return apiPost<PurchasePostingDateTimeChangeResult>(`/inventory/ledger/${ledgerId}/purchase-posting-datetime-change/apply`, {
+        newPostingDate,
+        newPostingTime,
+    })
+}
+
+export type DocumentPostingTimeChangeResult = PurchasePostingDateTimeChangeResult & {
+    flow?: "OTHER_INBOUND" | "SALES_EXPORT" | "PRODUCTION"
+    source_id?: number | null
+    export_no?: string | null
+    delivery_no?: string | null
+    order_no?: string | null
+}
+
+export type InventoryLedgerStaticParametersPayload = {
+    description?: string | null
+    tk_no?: string | null
+    tk_co?: string | null
+    supplier_name?: string | null
+}
+
+export type InventoryLedgerStaticParametersResult = InventoryLedgerStaticParametersPayload & {
+    id: number
+    updated: boolean
+}
+
+export function updateInventoryLedgerStaticParameters(
+    ledgerId: number,
+    body: InventoryLedgerStaticParametersPayload,
+) {
+    return apiPost<InventoryLedgerStaticParametersResult>(`/inventory/ledger/${ledgerId}/static-parameters`, {
+        description: body.description,
+        tkNo: body.tk_no,
+        tkCo: body.tk_co,
+        supplierName: body.supplier_name,
+    })
+}
+
+export function checkDocumentPostingTimeChange(ledgerId: number, newPostingTime: string, newPostingDate?: string) {
+    return apiPost<DocumentPostingTimeChangeResult>(`/inventory/ledger/${ledgerId}/document-posting-time-change/check`, {
+        newPostingDate,
+        newPostingTime,
+    })
+}
+
+export function applyDocumentPostingTimeChange(ledgerId: number, newPostingTime: string, newPostingDate?: string) {
+    return apiPost<DocumentPostingTimeChangeResult>(`/inventory/ledger/${ledgerId}/document-posting-time-change/apply`, {
         newPostingDate,
         newPostingTime,
     })

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { AlertTriangle, CheckCircle2, Clock, Funnel, Loader2, MoreHorizontal, Pencil, Printer, Warehouse as WarehouseIcon, X } from "lucide-react"
+import { AlertTriangle, CheckCircle2, CircleHelp, Clock, Funnel, Loader2, MoreHorizontal, Pencil, Printer, Warehouse as WarehouseIcon, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { listProductUnitLookups } from "@/api/app-lookup"
@@ -11,15 +11,32 @@ import {
     applyPurchaseLotChange,
     applyPurchaseQuantityChange,
     applyPurchasePostingDateTimeChange,
+    applyDocumentPostingTimeChange,
     applyReturnWarehouseChange,
+    applySalesExportLotChange,
+    applySalesReturnUnitPriceChange,
+    applyTransferExportWarehouseChange,
+    updateInventoryLedgerStaticParameters,
     checkPurchaseLotChange,
     checkPurchaseQuantityChange,
     checkPurchasePostingDateTimeChange,
+    checkDocumentPostingTimeChange,
     checkReturnWarehouseChange,
+    checkSalesExportLotChange,
+    checkSalesReturnUnitPriceChange,
+    checkTransferExportWarehouseChange,
+    getTransferExportWarehouseChangeContext,
+    listTransferExportWarehouseChangeLots,
+    type InventoryLedgerStaticParametersPayload,
     type PurchaseLotChangeResult,
     type PurchaseQuantityChangeResult,
     type PurchasePostingDateTimeChangeResult,
+    type DocumentPostingTimeChangeResult,
     type ReturnWarehouseChangeResult,
+    type SalesExportLotChangeResult,
+    type SalesReturnUnitPriceChangeResult,
+    type TransferExportWarehouseAvailableLot,
+    type TransferExportWarehouseChangeResult,
 } from "@/api/inventory/ledger"
 import { getVoucherPrintDetail, listVoucherTypes, VOUCHER_TYPE_LABEL, type InventoryVoucherPrintDetail, type InventoryVoucherType } from "@/api/inventory/voucher"
 import { listWarehouses } from "@/api/warehouse"
@@ -43,8 +60,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn, formatNumber } from "@/lib/utils"
-import type { InventoryLedgerReportRow } from "../data/schema"
+import type { InventoryLedgerReportRow, InventoryLedgerTotals } from "../data/schema"
 import { getDocTypeMeta } from "../data/schema"
 import type { Warehouse } from "@/features/warehouse/data/schema"
 
@@ -52,6 +71,7 @@ type TextFilterOp = "contains" | "equals" | "not_equals" | "not_contains"
 
 type Props = {
     data: InventoryLedgerReportRow[]
+    totals?: InventoryLedgerTotals
     pagination: PaginationState
     onPaginationChange: OnChangeFn<PaginationState>
     pageCount: number
@@ -131,6 +151,7 @@ function uniqueOptions(options: Array<{ value: string; label: string }>) {
 
 export function InventoryLedgerTable({
     data,
+    totals,
     pagination,
     onPaginationChange,
     pageCount,
@@ -141,11 +162,27 @@ export function InventoryLedgerTable({
     direction,
     showValues = true,
 }: Props) {
+    const filterTotals = {
+        opening_quantity: 0,
+        opening_value: 0,
+        inbound_quantity: 0,
+        inbound_value: 0,
+        outbound_quantity: 0,
+        outbound_value: 0,
+        closing_quantity: 0,
+        closing_value: 0,
+        ...(totals || {}),
+    }
     const [detailVoucherId, setDetailVoucherId] = useState<number | null>(null)
     const [lotChangeRow, setLotChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [salesExportLotChangeRow, setSalesExportLotChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [transferWarehouseChangeRow, setTransferWarehouseChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [returnWarehouseChangeRow, setReturnWarehouseChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [salesReturnUnitPriceChangeRow, setSalesReturnUnitPriceChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [purchaseQuantityChangeRow, setPurchaseQuantityChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [purchasePostingDateTimeChangeRow, setPurchasePostingDateTimeChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [documentPostingTimeChangeRow, setDocumentPostingTimeChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [staticParametersRow, setStaticParametersRow] = useState<InventoryLedgerReportRow | null>(null)
     const queryClient = useQueryClient()
     const { data: inboundDocTypes = [] } = useQuery({
         queryKey: ["inventory-voucher-types", "I"],
@@ -448,16 +485,16 @@ export function InventoryLedgerTable({
                 ) : null}
                 <StickyReportTable
                     columnWidths={showValues
-                        ? [64, 110, 90, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 120, 110, 110, 120, 140, 260, 260, 100]
-                        : [64, 110, 90, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 110, 110, 120, 260, 260, 100]}
+                        ? [64, 110, 90, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 120, 140, 120, 140, 120, 140, 120, 140, 260, 180, 300, 260, 100]
+                        : [64, 110, 90, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 110, 110, 120, 260, 180, 300, 260, 100]}
                     defaultPinnedUntil={8}
                     renderHeader={() => (
                         <>
                             <tr>
-                                <Th className="min-w-[56px] text-center">STT</Th>
-                                <Th className="min-w-[110px]">Ngày</Th>
-                                <Th className="min-w-[90px] text-center">Giờ</Th>
-                                <Th className="min-w-[170px]">
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[56px] text-center">STT</Th>
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[110px]">Ngày</Th>
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[90px] text-center">Giờ</Th>
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[170px]">
                                     <ColumnTextFilter
                                         label="Chứng từ"
                                         value={filters.doc_text}
@@ -466,7 +503,7 @@ export function InventoryLedgerTable({
                                         onClear={() => clearTextFilter("doc_text", "doc_text_op")}
                                     />
                                 </Th>
-                                <Th className="min-w-[260px]">
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[260px]">
                                     <ColumnTextFilter
                                         label="Diễn giải"
                                         value={filters.description_text}
@@ -475,9 +512,9 @@ export function InventoryLedgerTable({
                                         onClear={() => clearTextFilter("description_text", "description_text_op")}
                                     />
                                 </Th>
-                                <Th className="min-w-[70px]">TK Nợ</Th>
-                                <Th className="min-w-[70px]">TK Có</Th>
-                                <Th className="min-w-[150px]">
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[70px]">TK Nợ</Th>
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[70px]">TK Có</Th>
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[150px]">
                                     <ColumnTextFilter
                                         label="Mã hàng"
                                         value={filters.product_code_text}
@@ -486,7 +523,7 @@ export function InventoryLedgerTable({
                                         onClear={() => clearTextFilter("product_code_text", "product_code_text_op")}
                                     />
                                 </Th>
-                                <Th className="min-w-[300px]">
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[300px]">
                                     <ColumnTextFilter
                                         label="Tên hàng"
                                         value={filters.product_name_text}
@@ -495,7 +532,7 @@ export function InventoryLedgerTable({
                                         onClear={() => clearTextFilter("product_name_text", "product_name_text_op")}
                                     />
                                 </Th>
-                                <Th className="min-w-[80px]">
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[80px]">
                                     <ColumnMultiSelectFilter
                                         label="ĐVT"
                                         value={filters.unit}
@@ -503,7 +540,7 @@ export function InventoryLedgerTable({
                                         onApply={(value) => setFilter("unit", value)}
                                     />
                                 </Th>
-                                <Th className="min-w-[140px]">
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[140px]">
                                     <ColumnTextFilter
                                         label="Số lô"
                                         value={filters.lot_text}
@@ -512,7 +549,7 @@ export function InventoryLedgerTable({
                                         onClear={() => clearTextFilter("lot_text", "lot_text_op")}
                                     />
                                 </Th>
-                                <Th className="min-w-[160px]">
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[160px]">
                                     <ColumnTextFilter
                                         label="Mã kho"
                                         value={filters.warehouse_code_text}
@@ -521,7 +558,7 @@ export function InventoryLedgerTable({
                                         onClear={() => clearTextFilter("warehouse_code_text", "warehouse_code_text_op")}
                                     />
                                 </Th>
-                                <Th className="min-w-[220px]">
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[220px]">
                                     <ColumnTextFilter
                                         label="Tên kho"
                                         value={filters.warehouse_name_text}
@@ -530,13 +567,12 @@ export function InventoryLedgerTable({
                                         onClear={() => clearTextFilter("warehouse_name_text", "warehouse_name_text_op")}
                                     />
                                 </Th>
-                                {showValues ? <Th className="min-w-[120px]">{"\u0110\u01a1n gi\u00e1"}</Th> : null}
-                                <Th className="min-w-[120px]">Tồn đầu</Th>
-                                <Th className="min-w-[110px]">Nhập</Th>
-                                <Th className="min-w-[110px]">Xuất</Th>
-                                <Th className="min-w-[120px]">Tồn sau</Th>
-                                {showValues ? <Th className="min-w-[140px]">{"Th\u00e0nh ti\u1ec1n"}</Th> : null}
-                                <Th className="min-w-[260px]">
+                                {showValues ? <Th rowSpan={2} className="min-w-[120px]">Đơn giá</Th> : null}
+                                <Th colSpan={showValues ? 2 : 1} className="min-w-[120px] text-center">Tồn đầu</Th>
+                                <Th colSpan={showValues ? 2 : 1} className="min-w-[110px] text-center">Nhập</Th>
+                                <Th colSpan={showValues ? 2 : 1} className="min-w-[110px] text-center">Xuất</Th>
+                                <Th colSpan={showValues ? 2 : 1} className="min-w-[120px] text-center">Tồn sau</Th>
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[260px]">
                                     <LedgerDocTypeFilter
                                         value={filters.doc_type}
                                         inboundTypes={direction === "OUT" ? [] : inboundDocTypes}
@@ -545,7 +581,9 @@ export function InventoryLedgerTable({
                                         variant="column"
                                     />
                                 </Th>
-                                <Th className="min-w-[260px]">
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[180px] text-center">Mã đối tượng tập hợp chi phí</Th>
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[300px]">Tên đối tượng tập hợp chi phí</Th>
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[260px]">
                                     <ColumnTextFilter
                                         label="Tên nhà cung cấp"
                                         value={filters.supplier_text}
@@ -554,8 +592,22 @@ export function InventoryLedgerTable({
                                         onClear={() => clearTextFilter("supplier_text", "supplier_text_op")}
                                     />
                                 </Th>
-                                <Th className="min-w-[100px] text-center">Thao tác</Th>
+                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[100px] text-center">
+                                    <LedgerCorrectionHelp />
+                                </Th>
                             </tr>
+                            {showValues ? (
+                                <tr>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
+                                    <Th>Số lượng</Th>
+                                    <Th>Giá trị</Th>
+                                </tr>
+                            ) : null}
                         </>
                     )}
                     renderBody={() => (
@@ -567,14 +619,22 @@ export function InventoryLedgerTable({
                                     item={item}
                                     onOpenVoucher={setDetailVoucherId}
                                     onChangeLot={canUseLedgerCorrections ? setLotChangeRow : undefined}
+                                    onChangeSalesExportLot={canUseLedgerCorrections ? setSalesExportLotChangeRow : undefined}
+                                    onChangeTransferWarehouse={canUseLedgerCorrections ? setTransferWarehouseChangeRow : undefined}
                                     onChangeReturnWarehouse={canUseLedgerCorrections ? setReturnWarehouseChangeRow : undefined}
+                                    onChangeSalesReturnUnitPrice={canUseLedgerCorrections ? setSalesReturnUnitPriceChangeRow : undefined}
                                     onChangePurchaseQuantity={canUseLedgerCorrections ? setPurchaseQuantityChangeRow : undefined}
                                     onChangePurchasePostingDateTime={canUseLedgerCorrections ? setPurchasePostingDateTimeChangeRow : undefined}
+                                    onChangeDocumentPostingTime={canUseLedgerCorrections ? setDocumentPostingTimeChangeRow : undefined}
+                                    onEditStaticParameters={canUseLedgerCorrections ? setStaticParametersRow : undefined}
                                     showValues={showValues}
                                     direction={direction}
                                 />
                             ))}
                         </>
+                    )}
+                    renderFooter={() => (
+                        <LedgerTotalsRow totals={filterTotals} showValues={showValues} />
                     )}
                 />
 
@@ -610,11 +670,43 @@ export function InventoryLedgerTable({
                     queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
                 }}
             />
+            <SalesExportLotChangeDialog
+                row={salesExportLotChangeRow}
+                open={!!salesExportLotChangeRow}
+                onOpenChange={(open) => {
+                    if (!open) setSalesExportLotChangeRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                }}
+            />
             <ReturnWarehouseChangeDialog
                 row={returnWarehouseChangeRow}
                 open={!!returnWarehouseChangeRow}
                 onOpenChange={(open) => {
                     if (!open) setReturnWarehouseChangeRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                }}
+            />
+            <TransferExportWarehouseChangeDialog
+                row={transferWarehouseChangeRow}
+                open={!!transferWarehouseChangeRow}
+                onOpenChange={(open) => {
+                    if (!open) setTransferWarehouseChangeRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                }}
+            />
+            <SalesReturnUnitPriceChangeDialog
+                row={salesReturnUnitPriceChangeRow}
+                open={!!salesReturnUnitPriceChangeRow}
+                onOpenChange={(open) => {
+                    if (!open) setSalesReturnUnitPriceChangeRow(null)
                 }}
                 onChanged={() => {
                     queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
@@ -640,6 +732,30 @@ export function InventoryLedgerTable({
                     queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
                     queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
                     queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                }}
+            />
+            <DocumentPostingTimeChangeDialog
+                row={documentPostingTimeChangeRow}
+                open={!!documentPostingTimeChangeRow}
+                onOpenChange={(open) => {
+                    if (!open) setDocumentPostingTimeChangeRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["sales-order-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["production-order-detail"] })
+                }}
+            />
+            <StaticParametersDialog
+                row={staticParametersRow}
+                open={!!staticParametersRow}
+                onOpenChange={(open) => {
+                    if (!open) setStaticParametersRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
                 }}
             />
         </Card>
@@ -1125,14 +1241,57 @@ function FilterOptionButton({
     )
 }
 
+function LedgerTotalsRow({ totals, showValues }: { totals: Required<InventoryLedgerTotals>; showValues: boolean }) {
+    const labelCell = (
+        <Td colSpan={13} className="bg-slate-50 text-right font-semibold text-slate-700">
+            Tổng theo bộ lọc
+        </Td>
+    )
+    const trailingCell = <Td colSpan={5} className="bg-slate-50" />
+
+    if (!showValues) {
+        return (
+            <tr className="border-t-2 border-slate-300">
+                {labelCell}
+                <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(totals.opening_quantity)}</Td>
+                <Td className="bg-slate-50 text-right font-semibold tabular-nums text-emerald-700">{formatNumber(totals.inbound_quantity)}</Td>
+                <Td className="bg-slate-50 text-right font-semibold tabular-nums text-rose-700">{formatNumber(totals.outbound_quantity)}</Td>
+                <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(totals.closing_quantity)}</Td>
+                {trailingCell}
+            </tr>
+        )
+    }
+
+    return (
+        <tr className="border-t-2 border-slate-300">
+            {labelCell}
+            <Td className="bg-slate-50 text-center font-semibold text-muted-foreground">-</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(totals.opening_quantity)}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(totals.opening_value)}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-emerald-700">{formatNumber(totals.inbound_quantity)}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-emerald-700">{formatNumber(totals.inbound_value)}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-rose-700">{formatNumber(totals.outbound_quantity)}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-rose-700">{formatNumber(totals.outbound_value)}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(totals.closing_quantity)}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(totals.closing_value)}</Td>
+            {trailingCell}
+        </tr>
+    )
+}
+
 function LedgerRow({
     index,
     item,
     onOpenVoucher,
     onChangeLot,
+    onChangeSalesExportLot,
+    onChangeTransferWarehouse,
     onChangeReturnWarehouse,
+    onChangeSalesReturnUnitPrice,
     onChangePurchaseQuantity,
     onChangePurchasePostingDateTime,
+    onChangeDocumentPostingTime,
+    onEditStaticParameters,
     showValues,
     direction,
 }: {
@@ -1140,9 +1299,14 @@ function LedgerRow({
     item: InventoryLedgerReportRow
     onOpenVoucher: (voucherId: number) => void
     onChangeLot?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesExportLot?: (row: InventoryLedgerReportRow) => void
+    onChangeTransferWarehouse?: (row: InventoryLedgerReportRow) => void
     onChangeReturnWarehouse?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesReturnUnitPrice?: (row: InventoryLedgerReportRow) => void
     onChangePurchaseQuantity?: (row: InventoryLedgerReportRow) => void
     onChangePurchasePostingDateTime?: (row: InventoryLedgerReportRow) => void
+    onChangeDocumentPostingTime?: (row: InventoryLedgerReportRow) => void
+    onEditStaticParameters?: (row: InventoryLedgerReportRow) => void
     showValues: boolean
     direction?: "IN" | "OUT"
 }) {
@@ -1150,6 +1314,12 @@ function LedgerRow({
     const quantityIn = Number(item.quantity_in || 0)
     const quantityOut = Number(item.quantity_out || 0)
     const openingBalance = Number(item.balance_quantity || 0) - quantityIn + quantityOut
+    const rowUnitPrice = Number(item.unit_price || 0)
+    const closingBalance = Number(item.balance_quantity || 0)
+    const openingValue = openingBalance * rowUnitPrice
+    const inboundValue = quantityIn * rowUnitPrice
+    const outboundValue = quantityOut * rowUnitPrice
+    const closingValue = closingBalance * rowUnitPrice
     const centerVoucherFields = Boolean(direction)
 
     return (
@@ -1208,32 +1378,58 @@ function LedgerRow({
                 <LedgerText value={item.warehouse_name} className="text-center font-medium text-foreground" />
             </Td>
             {showValues ? (
-                <Td className="tabular-nums">
-                    <div className="flex items-center justify-between gap-2">
-                        <CostPeriodIcon label={item.cost_period_label} />
-                        <span className="min-w-0 text-right">{formatNumber(Number(item.unit_price || 0))}</span>
-                    </div>
-                </Td>
-            ) : null}
-            <Td className="text-right font-semibold tabular-nums">
-                {formatNumber(openingBalance)}
-            </Td>
-            <Td className="text-right">
-                <Quantity value={quantityIn} tone="in" />
-            </Td>
-            <Td className="text-right">
-                <Quantity value={quantityOut} tone="out" />
-            </Td>
-            <Td className="text-right font-bold tabular-nums">
-                {formatNumber(Number(item.balance_quantity || 0))}
-            </Td>
-            {showValues ? (
-                <Td className="text-right tabular-nums">
-                      {formatNumber(Math.abs(Number(item.amount || 0)))}
-                </Td>
-            ) : null}
+                <>
+                    <Td className="tabular-nums">
+                        <div className="flex items-center justify-between gap-2">
+                            <CostPeriodIcon label={item.cost_period_label} docType={item.doc_type} />
+                            <span className="min-w-0 text-right">{formatNumber(rowUnitPrice)}</span>
+                        </div>
+                    </Td>
+                    <QuantityValueCells
+                        quantity={openingBalance}
+                        amount={openingValue}
+                        quantityClassName="font-semibold"
+                    />
+                    <QuantityValueCells
+                        quantity={quantityIn}
+                        amount={inboundValue}
+                        quantityTone="in"
+                    />
+                    <QuantityValueCells
+                        quantity={quantityOut}
+                        amount={outboundValue}
+                        quantityTone="out"
+                    />
+                    <QuantityValueCells
+                        quantity={closingBalance}
+                        amount={closingValue}
+                        quantityClassName="font-bold"
+                    />
+                </>
+            ) : (
+                <>
+                    <Td className="text-right font-semibold tabular-nums">
+                        {formatNumber(openingBalance)}
+                    </Td>
+                    <Td className="text-right">
+                        <Quantity value={quantityIn} tone="in" />
+                    </Td>
+                    <Td className="text-right">
+                        <Quantity value={quantityOut} tone="out" />
+                    </Td>
+                    <Td className="text-right font-bold tabular-nums">
+                        {formatNumber(closingBalance)}
+                    </Td>
+                </>
+            )}
             <Td className="text-center">
                 <LedgerText value={meta.label} className="text-center" />
+            </Td>
+            <Td className="text-center">
+                <LedgerText value={item.cost_object_code} className="text-center font-mono" />
+            </Td>
+            <Td>
+                <LedgerText value={item.cost_object_name} className="font-medium text-foreground" />
             </Td>
             <Td>
                 <LedgerText value={item.supplier_name} />
@@ -1242,9 +1438,14 @@ function LedgerRow({
                 <LedgerCorrectionActions
                     item={item}
                     onChangeLot={onChangeLot}
+                    onChangeSalesExportLot={onChangeSalesExportLot}
+                    onChangeTransferWarehouse={onChangeTransferWarehouse}
                     onChangeReturnWarehouse={onChangeReturnWarehouse}
+                    onChangeSalesReturnUnitPrice={onChangeSalesReturnUnitPrice}
                     onChangePurchaseQuantity={onChangePurchaseQuantity}
                     onChangePurchasePostingDateTime={onChangePurchasePostingDateTime}
+                    onChangeDocumentPostingTime={onChangeDocumentPostingTime}
+                    onEditStaticParameters={onEditStaticParameters}
                 />
             </Td>
         </tr>
@@ -1254,22 +1455,37 @@ function LedgerRow({
 function LedgerCorrectionActions({
     item,
     onChangeLot,
+    onChangeSalesExportLot,
+    onChangeTransferWarehouse,
     onChangeReturnWarehouse,
+    onChangeSalesReturnUnitPrice,
     onChangePurchaseQuantity,
     onChangePurchasePostingDateTime,
+    onChangeDocumentPostingTime,
+    onEditStaticParameters,
 }: {
     item: InventoryLedgerReportRow
     onChangeLot?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesExportLot?: (row: InventoryLedgerReportRow) => void
+    onChangeTransferWarehouse?: (row: InventoryLedgerReportRow) => void
     onChangeReturnWarehouse?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesReturnUnitPrice?: (row: InventoryLedgerReportRow) => void
     onChangePurchaseQuantity?: (row: InventoryLedgerReportRow) => void
     onChangePurchasePostingDateTime?: (row: InventoryLedgerReportRow) => void
+    onChangeDocumentPostingTime?: (row: InventoryLedgerReportRow) => void
+    onEditStaticParameters?: (row: InventoryLedgerReportRow) => void
 }) {
+    const canEditStaticParameters = Boolean(onEditStaticParameters)
     const canChangeLot = Boolean(onChangeLot && isPurchaseInboundLedger(item))
+    const canChangeSalesExportLot = Boolean(onChangeSalesExportLot && isSalesExportLedger(item))
+    const canChangeTransferWarehouse = Boolean(onChangeTransferWarehouse && isTransferLedger(item))
     const canChangeReturnWarehouse = Boolean(onChangeReturnWarehouse && isSalesReturnInboundLedger(item))
+    const canChangeSalesReturnUnitPrice = Boolean(onChangeSalesReturnUnitPrice && isSalesReturnUnitPriceCorrectionLedger(item))
     const canChangePurchaseQuantity = Boolean(onChangePurchaseQuantity && isQuantityCorrectionLedger(item))
     const canChangePurchasePostingDateTime = Boolean(onChangePurchasePostingDateTime && isPurchasePostingDateTimeCorrectionLedger(item))
+    const canChangeDocumentPostingTime = Boolean(onChangeDocumentPostingTime && isDocumentPostingTimeCorrectionLedger(item))
 
-    if (!canChangeLot && !canChangeReturnWarehouse && !canChangePurchaseQuantity && !canChangePurchasePostingDateTime) {
+    if (!canEditStaticParameters && !canChangeLot && !canChangeSalesExportLot && !canChangeTransferWarehouse && !canChangeReturnWarehouse && !canChangeSalesReturnUnitPrice && !canChangePurchaseQuantity && !canChangePurchasePostingDateTime && !canChangeDocumentPostingTime) {
         return <span className="text-muted-foreground">-</span>
     }
 
@@ -1284,6 +1500,19 @@ function LedgerCorrectionActions({
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64 p-1">
                 <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Thao tác sửa sai</div>
+                {canEditStaticParameters ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                        onClick={() => onEditStaticParameters?.(item)}
+                    >
+                        <Pencil className="mt-0.5 h-4 w-4 text-primary" />
+                        <span>
+                            <span className="block font-medium">Sửa các thông số tĩnh</span>
+                            <span className="block text-xs text-muted-foreground">Chỉ cập nhật diễn giải, TK Nợ, TK Có và tên nhà cung cấp của dòng này.</span>
+                        </span>
+                    </button>
+                ) : null}
                 {canChangeLot ? (
                     <button
                         type="button"
@@ -1294,6 +1523,19 @@ function LedgerCorrectionActions({
                         <span>
                             <span className="block font-medium">Đổi số lô nhập hàng</span>
                             <span className="block text-xs text-muted-foreground">Áp dụng cho dòng nhập mua hàng hoặc nhập kho khác.</span>
+                        </span>
+                    </button>
+                ) : null}
+                {canChangeSalesExportLot ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                        onClick={() => onChangeSalesExportLot?.(item)}
+                    >
+                        <Pencil className="mt-0.5 h-4 w-4 text-primary" />
+                        <span>
+                            <span className="block font-medium">Đổi số lô xuất kho</span>
+                            <span className="block text-xs text-muted-foreground">Chuyển dòng xuất sang lô đã tồn tại và kiểm tra lịch sử tồn.</span>
                         </span>
                     </button>
                 ) : null}
@@ -1310,6 +1552,19 @@ function LedgerCorrectionActions({
                         </span>
                     </button>
                 ) : null}
+                {canChangeTransferWarehouse ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                        onClick={() => onChangeTransferWarehouse?.(item)}
+                    >
+                        <WarehouseIcon className="mt-0.5 h-4 w-4 text-primary" />
+                        <span>
+                            <span className="block font-medium">Đổi kho chuyển kho nội bộ</span>
+                            <span className="block text-xs text-muted-foreground">Chọn lại kho xuất, kho nhập và lô xuất đã tồn tại cho dòng chuyển kho.</span>
+                        </span>
+                    </button>
+                ) : null}
                 {canChangePurchasePostingDateTime ? (
                     <button
                         type="button"
@@ -1320,6 +1575,22 @@ function LedgerCorrectionActions({
                         <span>
                             <span className="block font-medium">Đổi ngày/giờ chứng từ</span>
                             <span className="block text-xs text-muted-foreground">Áp dụng cho toàn bộ phiếu mua hàng nhập khẩu/trong nước.</span>
+                        </span>
+                    </button>
+                ) : null}
+                {canChangeDocumentPostingTime ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                        onClick={() => onChangeDocumentPostingTime?.(item)}
+                    >
+                        <Clock className="mt-0.5 h-4 w-4 text-primary" />
+                        <span>
+                            <span className="block font-medium">
+                                {String(item.doc_type || "").toUpperCase() === "SALES_EXPORT" ? "Đổi ngày/giờ" : "Sửa giờ"}{" "}
+                                {documentPostingTimeLabel(item.doc_type)}
+                            </span>
+                            <span className="block text-xs text-muted-foreground">Cập nhật toàn bộ chứng từ và nguồn phát sinh liên quan.</span>
                         </span>
                     </button>
                 ) : null}
@@ -1336,8 +1607,187 @@ function LedgerCorrectionActions({
                         </span>
                     </button>
                 ) : null}
+                {canChangeSalesReturnUnitPrice ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                        onClick={() => onChangeSalesReturnUnitPrice?.(item)}
+                    >
+                        <Pencil className="mt-0.5 h-4 w-4 text-primary" />
+                        <span>
+                            <span className="block font-medium">Sửa đơn giá nhập trả hàng</span>
+                            <span className="block text-xs text-muted-foreground">Chỉ sửa giá vốn nhập kho, không sửa giá bán hoặc công nợ.</span>
+                        </span>
+                    </button>
+                ) : null}
             </PopoverContent>
         </Popover>
+    )
+}
+
+function StaticParametersDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [form, setForm] = useState<InventoryLedgerStaticParametersPayload>({
+        description: "",
+        tk_no: "",
+        tk_co: "",
+        supplier_name: "",
+    })
+    const [errorMessage, setErrorMessage] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setForm({
+                description: row.description || "",
+                tk_no: row.tk_no || "",
+                tk_co: row.tk_co || "",
+                supplier_name: row.supplier_name || "",
+            })
+            setErrorMessage("")
+        }
+    }, [open, row])
+
+    const original = useMemo<InventoryLedgerStaticParametersPayload>(() => ({
+        description: row?.description || "",
+        tk_no: row?.tk_no || "",
+        tk_co: row?.tk_co || "",
+        supplier_name: row?.supplier_name || "",
+    }), [row])
+
+    const payload = useMemo<InventoryLedgerStaticParametersPayload>(() => ({
+        description: normalizeStaticValue(form.description),
+        tk_no: normalizeStaticValue(form.tk_no),
+        tk_co: normalizeStaticValue(form.tk_co),
+        supplier_name: normalizeStaticValue(form.supplier_name),
+    }), [form])
+
+    const unchanged =
+        normalizeStaticValue(form.description) === normalizeStaticValue(original.description)
+        && normalizeStaticValue(form.tk_no) === normalizeStaticValue(original.tk_no)
+        && normalizeStaticValue(form.tk_co) === normalizeStaticValue(original.tk_co)
+        && normalizeStaticValue(form.supplier_name) === normalizeStaticValue(original.supplier_name)
+
+    const mutation = useMutation({
+        mutationFn: () => updateInventoryLedgerStaticParameters(Number(row?.id), payload),
+        onSuccess: () => {
+            setErrorMessage("")
+            toast.success("Đã sửa các thông số tĩnh của dòng sổ kho.")
+            onChanged()
+            onOpenChange(false)
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không sửa được các thông số tĩnh.")
+        },
+    })
+
+    const setField = (key: keyof InventoryLedgerStaticParametersPayload, value: string) => {
+        setForm((current) => ({ ...current, [key]: value }))
+        setErrorMessage("")
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="flex max-h-[92vh] flex-col overflow-hidden"
+                style={{ width: "min(760px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
+            >
+                <DialogHeader>
+                    <DialogTitle>Sửa các thông số tĩnh</DialogTitle>
+                    <DialogDescription>
+                        Chỉ cập nhật các trường hiển thị riêng trên dòng sổ kho này.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {row ? (
+                    <div className="space-y-4 overflow-y-auto pr-1">
+                        <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                            <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                            <InfoItem label="Ngày chứng từ" value={formatDate(row.posting_date)} />
+                            <InfoItem label="Loại chứng từ" value={getDocTypeMeta(row.doc_type).label} />
+                            <InfoItem label="Hàng hóa" value={`${row.product_code} - ${row.product_name}`} />
+                            <InfoItem label="Kho" value={row.warehouse_name} />
+                            <InfoItem label="Số lô" value={row.lot_code || "-"} />
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="grid gap-2 md:col-span-2">
+                                <label className="text-sm font-medium">Diễn giải</label>
+                                <Textarea
+                                    value={form.description || ""}
+                                    onChange={(event) => setField("description", event.target.value)}
+                                    placeholder="Nhập diễn giải"
+                                    className="min-h-24"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <label className="text-sm font-medium">TK Nợ</label>
+                                <Input
+                                    value={form.tk_no || ""}
+                                    onChange={(event) => setField("tk_no", event.target.value)}
+                                    placeholder="Nhập TK Nợ"
+                                    className="h-10 font-mono"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <label className="text-sm font-medium">TK Có</label>
+                                <Input
+                                    value={form.tk_co || ""}
+                                    onChange={(event) => setField("tk_co", event.target.value)}
+                                    placeholder="Nhập TK Có"
+                                    className="h-10 font-mono"
+                                />
+                            </div>
+                            <div className="grid gap-2 md:col-span-2">
+                                <label className="text-sm font-medium">Tên nhà cung cấp</label>
+                                <Input
+                                    value={form.supplier_name || ""}
+                                    onChange={(event) => setField("supplier_name", event.target.value)}
+                                    placeholder="Nhập tên nhà cung cấp"
+                                    className="h-10"
+                                />
+                            </div>
+                        </div>
+
+                        {unchanged ? (
+                            <div className="text-sm text-muted-foreground">Chưa có thay đổi so với giá trị hiện tại.</div>
+                        ) : null}
+
+                        {errorMessage ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <div className="flex items-start gap-2 font-semibold">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4" />
+                                    Không thể lưu
+                                </div>
+                                <div className="mt-1 pl-6">{errorMessage}</div>
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button
+                        type="button"
+                        disabled={!row || unchanged || mutation.isPending}
+                        onClick={() => mutation.mutate()}
+                    >
+                        {mutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Lưu thay đổi
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
     )
 }
 
@@ -1505,6 +1955,598 @@ function PurchaseLotChangeResultPanel({ result }: { result: PurchaseLotChangeRes
                 <ResultInfo label="Dòng tính giá ảnh hưởng" value={formatNumber(Number(counts.cost_rows || 0))} />
                 {applied ? <ResultInfo label="Lô cũ đã xóa/gom" value={formatNumber(Number(changes.deleted_lots || 0))} /> : null}
             </div>
+
+            {result.warnings?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2">
+                    {result.warnings.map((warning, index) => (
+                        <div key={index}>- {warning}</div>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+function SalesExportLotChangeDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [newLotNo, setNewLotNo] = useState("")
+    const [result, setResult] = useState<SalesExportLotChangeResult | null>(null)
+    const [errorMessage, setErrorMessage] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setNewLotNo(row.lot_code || "")
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [open, row])
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkSalesExportLotChange(Number(row?.id), newLotNo),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorMessage(error?.message || "Không kiểm tra được số lô xuất kho.")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applySalesExportLotChange(Number(row?.id), newLotNo),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            if (data?.valid) onChanged()
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không đổi được số lô xuất kho.")
+        },
+    })
+
+    const trimmedNewLotNo = newLotNo.trim()
+    const unchanged = trimmedNewLotNo === String(row?.lot_code || "").trim()
+    const busy = checkMutation.isPending || applyMutation.isPending
+    const canApply = Boolean(result?.valid && !result.applied && !unchanged && !busy)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="flex max-h-[92vh] flex-col overflow-hidden"
+                style={{ width: "min(980px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
+            >
+                <DialogHeader>
+                    <DialogTitle>Đổi số lô xuất kho</DialogTitle>
+                    <DialogDescription>
+                        Chỉ chuyển dòng xuất sang một lô đã tồn tại. Hệ thống kiểm tra lịch sử tồn theo thời điểm trước khi ghi thật.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {row ? (
+                    <div className="space-y-4 overflow-y-auto pr-1">
+                        <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                            <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                            <InfoItem label="Ngày chứng từ" value={`${formatDate(row.posting_date)} ${formatTime(row.posting_time)}`} />
+                            <InfoItem label="Kho" value={row.warehouse_name} />
+                            <InfoItem label="Hàng hóa" value={`${row.product_code} - ${row.product_name}`} />
+                            <InfoItem label="Lô hiện tại" value={row.lot_code || "-"} />
+                            <InfoItem label="Số lượng xuất" value={formatNumber(Number(row.quantity_out || 0))} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Số lô đúng</label>
+                            <Input
+                                value={newLotNo}
+                                onChange={(event) => {
+                                    setNewLotNo(event.target.value)
+                                    setResult(null)
+                                    setErrorMessage("")
+                                }}
+                                placeholder="Nhập số lô đã có trong kho"
+                                className="h-10 font-mono"
+                            />
+                            {unchanged ? (
+                                <div className="text-sm text-destructive">Số lô đúng phải khác số lô hiện tại.</div>
+                            ) : null}
+                        </div>
+
+                        {errorMessage ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <div className="flex items-start gap-2 font-semibold">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4" />
+                                    Không thể đổi số lô xuất kho
+                                </div>
+                                <div className="mt-1 pl-6">{errorMessage}</div>
+                            </div>
+                        ) : null}
+
+                        {result ? <SalesExportLotChangeResultPanel result={result} /> : null}
+                    </div>
+                ) : null}
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={busy || unchanged || !trimmedNewLotNo}
+                        onClick={() => checkMutation.mutate()}
+                    >
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button
+                        type="button"
+                        disabled={!canApply}
+                        onClick={() => applyMutation.mutate()}
+                    >
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Đổi lô
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function SalesExportLotChangeResultPanel({ result }: { result: SalesExportLotChangeResult }) {
+    const valid = Boolean(result.valid)
+    const applied = Boolean(result.applied)
+    const changes = result.changes || {}
+
+    return (
+        <div className={cn(
+            "rounded-md border p-3 text-sm",
+            valid
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-800",
+        )}>
+            <div className="flex items-start gap-2 font-semibold">
+                {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
+                <span>{applied ? "Đã đổi số lô xuất kho" : valid ? "Có thể đổi số lô xuất kho" : "Không thể đổi số lô xuất kho"}</span>
+            </div>
+            <div className="mt-1 pl-6">{result.message}</div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+                <ResultInfo label="Lô hiện tại" value={result.old_lot_no || "-"} />
+                <ResultInfo label="Lô đúng" value={result.new_lot_no || "-"} />
+                <ResultInfo label="Số lượng xuất" value={formatNumber(Number(result.quantity || 0))} />
+                <ResultInfo label="Dòng sổ kho" value={applied ? formatNumber(Number(changes.updated_ledger_rows || 0)) : "Sẽ cập nhật 1 dòng"} />
+                <ResultInfo label="Dòng phiếu kho" value={applied ? formatNumber(Number(changes.updated_voucher_items || 0)) : result.voucher_item_id ? "Sẽ đồng bộ" : "Không có"} />
+                {applied ? <ResultInfo label="Lô cũ được dọn" value={formatNumber(Number(changes.deleted_old_lots || 0))} /> : null}
+            </div>
+
+            {result.errors?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2 text-red-700">
+                    {result.errors.map((error, index) => (
+                        <div key={index}>- {error}</div>
+                    ))}
+                </div>
+            ) : null}
+
+            {result.warnings?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2">
+                    {result.warnings.map((warning, index) => (
+                        <div key={index}>- {warning}</div>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+function TransferExportWarehouseChangeDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [newWarehouseId, setNewWarehouseId] = useState("")
+    const [newToWarehouseId, setNewToWarehouseId] = useState("")
+    const [newLotNo, setNewLotNo] = useState("")
+    const [sourceWarehouseSearch, setSourceWarehouseSearch] = useState("")
+    const [destinationWarehouseSearch, setDestinationWarehouseSearch] = useState("")
+    const [sourceWarehouseSelectOpen, setSourceWarehouseSelectOpen] = useState(false)
+    const [destinationWarehouseSelectOpen, setDestinationWarehouseSelectOpen] = useState(false)
+    const [result, setResult] = useState<TransferExportWarehouseChangeResult | null>(null)
+    const [errorMessage, setErrorMessage] = useState("")
+    const sourceWarehouseSearchInputRef = useRef<HTMLInputElement | null>(null)
+    const destinationWarehouseSearchInputRef = useRef<HTMLInputElement | null>(null)
+
+    const { data: warehousePage } = useQuery({
+        queryKey: ["warehouses", "transfer-export-warehouse-change"],
+        queryFn: () => listWarehouses({ page: 1, size: 1000, status: "ACTIVE" }),
+        enabled: open,
+    })
+    const { data: contextData } = useQuery({
+        queryKey: ["transfer-export-warehouse-change-context", row?.id],
+        queryFn: () => getTransferExportWarehouseChangeContext(Number(row?.id)),
+        enabled: Boolean(open && row?.id),
+    })
+    const warehouses = (warehousePage?.items || []) as Warehouse[]
+    const currentSourceWarehouseId = contextData?.old_warehouse_id ?? row?.warehouse_id
+    const currentDestinationWarehouseId = contextData?.old_destination_warehouse_id
+    const currentLotNo = String(contextData?.old_lot_no || row?.lot_code || "").trim()
+    const unchangedAll = Boolean(
+        currentSourceWarehouseId
+        && currentDestinationWarehouseId
+        && Number(newWarehouseId) === Number(currentSourceWarehouseId)
+        && Number(newToWarehouseId) === Number(currentDestinationWarehouseId)
+        && newLotNo.trim() === currentLotNo,
+    )
+    const { data: availableLots = [], isLoading: availableLotsLoading } = useQuery({
+        queryKey: ["transfer-export-warehouse-change-lots", row?.id, newWarehouseId],
+        queryFn: () => listTransferExportWarehouseChangeLots(Number(row?.id), Number(newWarehouseId)),
+        enabled: Boolean(open && row?.id && newWarehouseId),
+        staleTime: 15_000,
+    })
+
+    useEffect(() => {
+        if (open && row) {
+            setNewWarehouseId("")
+            setNewToWarehouseId("")
+            setNewLotNo("")
+            setSourceWarehouseSearch("")
+            setDestinationWarehouseSearch("")
+            setSourceWarehouseSelectOpen(false)
+            setDestinationWarehouseSelectOpen(false)
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [open, row])
+
+    useEffect(() => {
+        if (!open || !contextData) return
+        setNewWarehouseId(String(contextData.old_warehouse_id || ""))
+        setNewToWarehouseId(String(contextData.old_destination_warehouse_id || ""))
+        setNewLotNo(String(contextData.old_lot_no || ""))
+    }, [contextData, open])
+
+    useEffect(() => {
+        if (!sourceWarehouseSelectOpen) return
+        const timer = window.setTimeout(() => sourceWarehouseSearchInputRef.current?.focus(), 0)
+        return () => window.clearTimeout(timer)
+    }, [sourceWarehouseSelectOpen])
+
+    useEffect(() => {
+        if (!destinationWarehouseSelectOpen) return
+        const timer = window.setTimeout(() => destinationWarehouseSearchInputRef.current?.focus(), 0)
+        return () => window.clearTimeout(timer)
+    }, [destinationWarehouseSelectOpen])
+
+    useEffect(() => {
+        if (!open || !newWarehouseId || !availableLots.length || newLotNo.trim()) return
+        const currentLotNo = String(contextData?.old_lot_no || row?.lot_code || "").trim()
+        const preferred = availableLots.find((lot) => lot.preferred || String(lot.lot_no || "").trim() === currentLotNo)
+        const enoughPreferred = preferred?.enough ? preferred : null
+        const enoughLots = availableLots.filter((lot) => lot.enough)
+        const autoLot = enoughPreferred || (enoughLots.length === 1 ? enoughLots[0] : null)
+        if (autoLot?.lot_no) {
+            setNewLotNo(String(autoLot.lot_no))
+        }
+    }, [availableLots, contextData?.old_lot_no, newLotNo, newWarehouseId, open, row?.lot_code])
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkTransferExportWarehouseChange(Number(row?.id), Number(newWarehouseId), Number(newToWarehouseId), newLotNo),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorMessage(error?.message || "Không kiểm tra được kho xuất mới.")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applyTransferExportWarehouseChange(Number(row?.id), Number(newWarehouseId), Number(newToWarehouseId), newLotNo),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            if (data?.valid) onChanged()
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không đổi được kho xuất chuyển kho.")
+        },
+    })
+
+    const selectedWarehouse = warehouses.find((warehouse) => String(warehouse.id) === newWarehouseId)
+    const selectedDestinationWarehouse = warehouses.find((warehouse) => String(warehouse.id) === newToWarehouseId)
+    const filteredSourceWarehouses = useMemo(() => {
+        const keyword = normalizeSearchText(sourceWarehouseSearch)
+        if (!keyword) return warehouses
+        return warehouses.filter((warehouse) =>
+            normalizeSearchText([
+                warehouse.code,
+                warehouse.name,
+                warehouse.physical_warehouse?.code,
+                warehouse.physical_warehouse?.name,
+            ].filter(Boolean).join(" ")).includes(keyword),
+        )
+    }, [sourceWarehouseSearch, warehouses])
+    const filteredDestinationWarehouses = useMemo(() => {
+        const keyword = normalizeSearchText(destinationWarehouseSearch)
+        if (!keyword) return warehouses
+        return warehouses.filter((warehouse) =>
+            normalizeSearchText([
+                warehouse.code,
+                warehouse.name,
+                warehouse.physical_warehouse?.code,
+                warehouse.physical_warehouse?.name,
+            ].filter(Boolean).join(" ")).includes(keyword),
+        )
+    }, [destinationWarehouseSearch, warehouses])
+    const trimmedNewLotNo = newLotNo.trim()
+    const busy = checkMutation.isPending || applyMutation.isPending
+    const canApply = Boolean(result?.valid && !result.applied && !unchangedAll && trimmedNewLotNo && newWarehouseId && newToWarehouseId && !busy)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="flex max-h-[92vh] flex-col overflow-hidden"
+                style={{ width: "min(1180px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
+            >
+                <DialogHeader>
+                    <DialogTitle>Đổi kho chuyển kho nội bộ</DialogTitle>
+                    <DialogDescription>
+                        Chọn lại kho xuất, kho nhập và lô xuất đã tồn tại. Hệ thống đồng bộ dòng nhập chuyển kho đi kèm và kiểm tra âm tồn theo lịch sử.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {row ? (
+                    <div className="space-y-4 overflow-y-auto pr-1">
+                        <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                            <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                            <InfoItem label="Ngày chứng từ" value={`${formatDate(row.posting_date)} ${formatTime(row.posting_time)}`} />
+                            <InfoItem label="Kho xuất hiện tại" value={contextData?.old_warehouse_name || row.warehouse_name} />
+                            <InfoItem label="Hàng hóa" value={`${row.product_code} - ${row.product_name}`} />
+                            <InfoItem label="Kho nhập hiện tại" value={contextData?.old_destination_warehouse_name || "-"} />
+                            <InfoItem label="Lô hiện tại" value={currentLotNo || "-"} />
+                            <InfoItem label="Số lượng xuất" value={formatNumber(Number(contextData?.quantity || row.quantity_out || row.quantity_in || 0))} />
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-3">
+                            <div className="grid gap-2">
+                                <label className="text-sm font-medium">Kho xuất mới</label>
+                                <Select
+                                    value={newWarehouseId}
+                                    open={sourceWarehouseSelectOpen}
+                                    onOpenChange={setSourceWarehouseSelectOpen}
+                                    onValueChange={(value) => {
+                                        setNewWarehouseId(value)
+                                        setNewLotNo("")
+                                        setResult(null)
+                                        setErrorMessage("")
+                                    }}
+                                >
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="Chọn kho xuất mới" />
+                                    </SelectTrigger>
+                                    <SelectContent className="max-h-[360px]">
+                                        <div className="sticky top-0 z-10 bg-popover p-2">
+                                            <Input
+                                                ref={sourceWarehouseSearchInputRef}
+                                                value={sourceWarehouseSearch}
+                                                onChange={(event) => setSourceWarehouseSearch(event.target.value)}
+                                                onKeyDown={(event) => event.stopPropagation()}
+                                                placeholder="Tìm kho xuất mới"
+                                                className="h-9"
+                                            />
+                                        </div>
+                                        {filteredSourceWarehouses.length ? filteredSourceWarehouses.map((warehouse) => (
+                                            <SelectItem key={warehouse.id} value={String(warehouse.id)}>
+                                                <span className="flex flex-col">
+                                                    <span>{warehouse.name || warehouse.code}</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {warehouse.physical_warehouse?.name || warehouse.code}
+                                                    </span>
+                                                </span>
+                                            </SelectItem>
+                                        )) : (
+                                            <div className="px-3 py-4 text-sm text-muted-foreground">Không tìm thấy kho phù hợp.</div>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                {selectedWarehouse ? (
+                                    <div className="text-xs text-muted-foreground">
+                                        Kho xuất mới: {selectedWarehouse.name || selectedWarehouse.code}
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            <div className="grid gap-2">
+                                <label className="text-sm font-medium">Kho nhập mới</label>
+                                <Select
+                                    value={newToWarehouseId}
+                                    open={destinationWarehouseSelectOpen}
+                                    onOpenChange={setDestinationWarehouseSelectOpen}
+                                    onValueChange={(value) => {
+                                        setNewToWarehouseId(value)
+                                        setResult(null)
+                                        setErrorMessage("")
+                                    }}
+                                >
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder="Chọn kho nhập mới" />
+                                    </SelectTrigger>
+                                    <SelectContent className="max-h-[360px]">
+                                        <div className="sticky top-0 z-10 bg-popover p-2">
+                                            <Input
+                                                ref={destinationWarehouseSearchInputRef}
+                                                value={destinationWarehouseSearch}
+                                                onChange={(event) => setDestinationWarehouseSearch(event.target.value)}
+                                                onKeyDown={(event) => event.stopPropagation()}
+                                                placeholder="Tìm kho nhập mới"
+                                                className="h-9"
+                                            />
+                                        </div>
+                                        {filteredDestinationWarehouses.length ? filteredDestinationWarehouses.map((warehouse) => (
+                                            <SelectItem key={warehouse.id} value={String(warehouse.id)}>
+                                                <span className="flex flex-col">
+                                                    <span>{warehouse.name || warehouse.code}</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {warehouse.physical_warehouse?.name || warehouse.code}
+                                                    </span>
+                                                </span>
+                                            </SelectItem>
+                                        )) : (
+                                            <div className="px-3 py-4 text-sm text-muted-foreground">Không tìm thấy kho phù hợp.</div>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                {selectedDestinationWarehouse ? (
+                                    <div className="text-xs text-muted-foreground">
+                                        Kho nhập mới: {selectedDestinationWarehouse.name || selectedDestinationWarehouse.code}
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            <div className="grid gap-2">
+                                <label className="text-sm font-medium">Số lô xuất đúng trong kho mới</label>
+                                <Select
+                                    value={trimmedNewLotNo ? `LOT:${trimmedNewLotNo}` : ""}
+                                    disabled={!newWarehouseId || availableLotsLoading}
+                                    onValueChange={(value) => {
+                                        const lotNo = value.startsWith("LOT:") ? value.slice(4) : value
+                                        setNewLotNo(lotNo)
+                                        setResult(null)
+                                        setErrorMessage("")
+                                    }}
+                                >
+                                    <SelectTrigger className="h-10">
+                                        <SelectValue placeholder={availableLotsLoading ? "Đang tải lô..." : "Chọn số lô trong kho mới"} />
+                                    </SelectTrigger>
+                                    <SelectContent className="max-h-[360px]">
+                                        {availableLotsLoading ? (
+                                            <SelectItem value="LOADING" disabled>Đang tải lô...</SelectItem>
+                                        ) : null}
+                                        {!availableLotsLoading && !availableLots.length ? (
+                                            <div className="px-3 py-4 text-sm text-muted-foreground">
+                                                Không có lô còn tồn tại thời điểm chứng từ trong kho này.
+                                            </div>
+                                        ) : null}
+                                        {availableLots.map((lot: TransferExportWarehouseAvailableLot) => (
+                                            <SelectItem
+                                                key={`${lot.lot_id}-${lot.lot_no}`}
+                                                value={`LOT:${lot.lot_no}`}
+                                                disabled={!lot.enough}
+                                            >
+                                                <span className="flex flex-col">
+                                                    <span className="font-mono">{lot.lot_no}</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Tồn tại thời điểm xuất: {formatNumber(Number(lot.available_quantity || 0))}
+                                                        {!lot.enough ? " | Không đủ số lượng" : ""}
+                                                    </span>
+                                                </span>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <div className="text-xs text-muted-foreground">
+                                    Chỉ hiển thị các lô có tồn trong kho mới tại thời điểm chứng từ; lô không đủ số lượng sẽ không được chọn.
+                                </div>
+                            </div>
+                        </div>
+
+                        {errorMessage ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <div className="flex items-start gap-2 font-semibold">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4" />
+                                    Không thể đổi kho xuất chuyển kho
+                                </div>
+                                <div className="mt-1 pl-6">{errorMessage}</div>
+                            </div>
+                        ) : null}
+
+                        {result ? <TransferExportWarehouseChangeResultPanel result={result} /> : null}
+                    </div>
+                ) : null}
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={busy || unchangedAll || !newWarehouseId || !newToWarehouseId || !trimmedNewLotNo}
+                        onClick={() => checkMutation.mutate()}
+                    >
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button
+                        type="button"
+                        disabled={!canApply}
+                        onClick={() => applyMutation.mutate()}
+                    >
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Đổi kho
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function TransferExportWarehouseChangeResultPanel({ result }: { result: TransferExportWarehouseChangeResult }) {
+    const applied = Boolean(result.applied)
+    const valid = Boolean(result.valid)
+    const changes = result.changes || {}
+
+    return (
+        <div className={cn(
+            "rounded-md border p-3 text-sm",
+            applied || valid
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-800",
+        )}>
+            <div className="flex items-start gap-2 font-semibold">
+                {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
+                <span>{applied ? "Đã đổi kho chuyển kho nội bộ" : valid ? "Có thể đổi kho chuyển kho nội bộ" : "Không thể đổi kho chuyển kho nội bộ"}</span>
+            </div>
+            <div className="mt-1 pl-6">{result.message}</div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+                <ResultInfo label="Kho xuất hiện tại" value={result.old_warehouse_name} />
+                <ResultInfo label="Kho xuất mới" value={result.new_warehouse_name} />
+                <ResultInfo label="Kho nhập hiện tại" value={result.old_destination_warehouse_name || result.destination_warehouse_name || "-"} />
+                <ResultInfo label="Kho nhập mới" value={result.new_destination_warehouse_name || "-"} />
+                <ResultInfo label="Lô hiện tại" value={result.old_lot_no || "-"} />
+                <ResultInfo label="Lô xuất mới" value={result.new_lot_no || "-"} />
+                <ResultInfo label="Số lượng xuất" value={formatNumber(Number(result.quantity || 0))} />
+                <ResultInfo label="Đơn giá cũ" value={formatNumber(Number(result.old_unit_price || 0))} />
+                <ResultInfo label="Đơn giá mới" value={formatNumber(Number(result.new_unit_price || 0))} />
+                <ResultInfo label="Giá trị mới" value={formatNumber(Number(result.new_amount || 0))} />
+                {applied ? <ResultInfo label="Dòng xuất đã cập nhật" value={formatNumber(Number(changes.updated_export_ledgers || 0))} /> : null}
+                {applied ? <ResultInfo label="Dòng nhập đã cập nhật" value={formatNumber(Number(changes.updated_inbound_ledgers || 0))} /> : null}
+                {applied ? <ResultInfo label="Kỳ tính giá đánh dấu lại" value={formatNumber(Number(changes.stale_cost_periods || 0))} /> : null}
+            </div>
+
+            {result.errors?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2 text-red-700">
+                    {result.errors.map((error, index) => (
+                        <div key={index}>- {error}</div>
+                    ))}
+                </div>
+            ) : null}
 
             {result.warnings?.length ? (
                 <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2">
@@ -1740,6 +2782,193 @@ function ReturnWarehouseChangeResultPanel({ result }: { result: ReturnWarehouseC
                 <ResultInfo label="Quy định địa điểm kho" value={result.same_physical_required ? "Phiếu nhiều dòng: phải cùng địa điểm kho" : "Phiếu một dòng: được đổi địa điểm kho"} />
                 {applied ? <ResultInfo label="Lô mới được tạo" value={formatNumber(Number(changes.created_lots || 0))} /> : null}
                 {applied ? <ResultInfo label="Lô cũ được dọn" value={formatNumber(Number(changes.deleted_old_lots || 0))} /> : null}
+            </div>
+
+            {result.errors?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2 text-red-700">
+                    {result.errors.map((error, index) => (
+                        <div key={index}>- {error}</div>
+                    ))}
+                </div>
+            ) : null}
+
+            {result.warnings?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2">
+                    {result.warnings.map((warning, index) => (
+                        <div key={index}>- {warning}</div>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+function SalesReturnUnitPriceChangeDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [unitPriceText, setUnitPriceText] = useState("")
+    const [result, setResult] = useState<SalesReturnUnitPriceChangeResult | null>(null)
+    const [errorMessage, setErrorMessage] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setUnitPriceText(String(row.unit_price ?? ""))
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [open, row])
+
+    const newUnitPrice = parseDecimalInput(unitPriceText)
+    const quantity = Number(row?.quantity_in || 0)
+    const currentUnitPrice = Number(row?.unit_price || 0)
+    const currentAmount = Number(row?.amount || 0)
+    const previewAmount = Number.isFinite(newUnitPrice) ? quantity * newUnitPrice : 0
+    const unchanged = Number.isFinite(newUnitPrice) && Math.abs(newUnitPrice - currentUnitPrice) < 0.000001
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkSalesReturnUnitPriceChange(Number(row?.id), newUnitPrice),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorMessage(error?.message || "Không kiểm tra được đơn giá nhập trả hàng.")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applySalesReturnUnitPriceChange(Number(row?.id), newUnitPrice),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            if (data?.valid) onChanged()
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không sửa được đơn giá nhập trả hàng.")
+        },
+    })
+
+    const busy = checkMutation.isPending || applyMutation.isPending
+    const canCheck = Boolean(row && Number.isFinite(newUnitPrice) && newUnitPrice >= 0 && !unchanged && !busy)
+    const canApply = Boolean(result?.valid && !result.applied && !unchanged && !busy)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="flex max-h-[92vh] flex-col overflow-hidden"
+                style={{ width: "min(980px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
+            >
+                <DialogHeader>
+                    <DialogTitle>Sửa đơn giá nhập trả hàng</DialogTitle>
+                    <DialogDescription>
+                        Chỉ sửa giá vốn nhập kho của hàng bán trả lại, không sửa giá bán, tiền trả khách hoặc công nợ.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {row ? (
+                    <div className="space-y-4 overflow-y-auto pr-1">
+                        <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                            <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                            <InfoItem label="Ngày chứng từ" value={`${formatDate(row.posting_date)} ${formatTime(row.posting_time)}`} />
+                            <InfoItem label="Kho" value={row.warehouse_name} />
+                            <InfoItem label="Hàng hóa" value={`${row.product_code} - ${row.product_name}`} />
+                            <InfoItem label="Số lô" value={row.lot_code || "-"} />
+                            <InfoItem label="Số lượng nhập trả" value={formatNumber(quantity)} />
+                        </div>
+
+                        <div className="grid gap-3 rounded-md border p-3 text-sm md:grid-cols-2">
+                            <InfoItem label="Đơn giá hiện tại" value={formatNumber(currentUnitPrice)} />
+                            <InfoItem label="Giá trị hiện tại" value={formatNumber(currentAmount)} />
+                            <InfoItem label="Đơn giá mới" value={Number.isFinite(newUnitPrice) ? formatNumber(newUnitPrice) : "-"} />
+                            <InfoItem label="Giá trị mới" value={Number.isFinite(newUnitPrice) ? formatNumber(previewAmount) : "-"} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Đơn giá mới</label>
+                            <Input
+                                value={unitPriceText}
+                                onChange={(event) => {
+                                    setUnitPriceText(event.target.value)
+                                    setResult(null)
+                                    setErrorMessage("")
+                                }}
+                                placeholder="Nhập đơn giá vốn mới"
+                                className="h-10 font-mono"
+                            />
+                            {!Number.isFinite(newUnitPrice) ? (
+                                <div className="text-sm text-destructive">Đơn giá mới không hợp lệ.</div>
+                            ) : null}
+                            {unchanged ? (
+                                <div className="text-sm text-muted-foreground">Đơn giá mới đang trùng đơn giá hiện tại.</div>
+                            ) : null}
+                        </div>
+
+                        {errorMessage ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <div className="flex items-start gap-2 font-semibold">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4" />
+                                    Không thể sửa đơn giá nhập trả hàng
+                                </div>
+                                <div className="mt-1 pl-6">{errorMessage}</div>
+                            </div>
+                        ) : null}
+
+                        {result ? <SalesReturnUnitPriceChangeResultPanel result={result} /> : null}
+                    </div>
+                ) : null}
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button type="button" variant="outline" disabled={!canCheck} onClick={() => checkMutation.mutate()}>
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button type="button" disabled={!canApply} onClick={() => applyMutation.mutate()}>
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Áp dụng
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function SalesReturnUnitPriceChangeResultPanel({ result }: { result: SalesReturnUnitPriceChangeResult }) {
+    const valid = Boolean(result.valid)
+    const applied = Boolean(result.applied)
+    const changes = result.changes || {}
+
+    return (
+        <div className={cn(
+            "rounded-md border p-3 text-sm",
+            valid
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-800",
+        )}>
+            <div className="flex items-start gap-2 font-semibold">
+                {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
+                <span>{applied ? "Đã sửa đơn giá nhập trả hàng" : valid ? "Có thể sửa đơn giá nhập trả hàng" : "Không thể sửa đơn giá nhập trả hàng"}</span>
+            </div>
+            <div className="mt-1 pl-6">{result.message}</div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+                <ResultInfo label="Đơn giá cũ" value={formatNumber(Number(result.current_unit_price || 0))} />
+                <ResultInfo label="Đơn giá mới" value={formatNumber(Number(result.new_unit_price || 0))} />
+                <ResultInfo label="Giá trị mới" value={formatNumber(Number(result.new_amount || 0))} />
+                <ResultInfo label="Dòng sổ kho" value={applied ? formatNumber(Number(changes.updated_ledger_rows || 0)) : "Sẽ cập nhật 1 dòng"} />
+                <ResultInfo label="Dòng phiếu kho" value={applied ? formatNumber(Number(changes.updated_voucher_items || 0)) : result.voucher_item_id ? "Sẽ đồng bộ" : "Không có"} />
+                {applied ? <ResultInfo label="Kỳ cần tính lại" value={formatNumber(Number(changes.stale_cost_periods || 0))} /> : null}
             </div>
 
             {result.errors?.length ? (
@@ -2110,7 +3339,234 @@ function PurchasePostingDateTimeChangeDialog({
     )
 }
 
-function PurchasePostingDateTimeChangeResultPanel({ result }: { result: PurchasePostingDateTimeChangeResult }) {
+const LEDGER_CORRECTION_HELP: Array<{ docType: string; actions: string }> = [
+    { docType: "Tất cả loại chứng từ", actions: "Sửa các thông số tĩnh: Diễn giải, TK Nợ, TK Có, Tên nhà cung cấp" },
+    { docType: "Mua hàng nhập khẩu nhập kho chưa thanh toán", actions: "Đổi số lô, sửa số lượng, đổi ngày/giờ chứng từ" },
+    { docType: "Mua hàng trong nước nhập kho chưa thanh toán", actions: "Đổi số lô, sửa số lượng, đổi ngày/giờ chứng từ" },
+    { docType: "Nhập kho khác", actions: "Đổi số lô, sửa số lượng, sửa giờ chứng từ" },
+    { docType: "Xuất kho khác", actions: "Đổi số lô xuất kho, sửa số lượng" },
+    { docType: "Nhập kho từ hàng bán trả lại", actions: "Đổi kho nhập trả hàng, sửa đơn giá nhập trả hàng" },
+    { docType: "Xuất kho bán hàng", actions: "Đổi số lô xuất kho, đổi ngày/giờ chứng từ" },
+    { docType: "Xuất/Nhập chuyển kho nội bộ", actions: "Đổi kho chuyển kho nội bộ" },
+    { docType: "Nhập kho thành phẩm sản xuất", actions: "Sửa giờ chứng từ" },
+]
+
+function LedgerCorrectionHelp() {
+    return (
+        <div className="flex items-center justify-center gap-1.5">
+            <span>Thao tác</span>
+            <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <button
+                            type="button"
+                            className="text-muted-foreground hover:text-foreground inline-flex h-5 w-5 items-center justify-center"
+                            aria-label="Xem các thao tác sửa sai đã hỗ trợ"
+                        >
+                            <CircleHelp className="h-3.5 w-3.5" />
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                        side="left"
+                        align="start"
+                        className="w-[520px] max-w-[calc(100vw-2rem)] overflow-hidden border bg-popover p-0 text-popover-foreground shadow-xl"
+                    >
+                        <div className="border-b bg-muted/40 px-4 py-3">
+                            <div className="text-sm font-semibold text-foreground">Các thao tác sửa sai đã hỗ trợ</div>
+                            <div className="mt-0.5 text-xs text-muted-foreground">Danh sách được phân theo loại chứng từ</div>
+                        </div>
+                        <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-5 border-b bg-muted/20 px-4 py-2 text-left text-xs font-semibold text-muted-foreground">
+                            <span>Loại chứng từ</span>
+                            <span>Thao tác hỗ trợ</span>
+                        </div>
+                        <div className="max-h-[420px] divide-y overflow-y-auto">
+                            {LEDGER_CORRECTION_HELP.map((item) => (
+                                <div
+                                    key={item.docType}
+                                    className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-5 px-4 py-2.5 text-left text-sm even:bg-muted/15"
+                                >
+                                    <span className="font-medium leading-5 text-foreground">{item.docType}</span>
+                                    <span className="leading-5 text-foreground/75">{item.actions}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        </div>
+    )
+}
+
+function DocumentPostingTimeChangeDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const canChangeDate = String(row?.doc_type || "").toUpperCase() === "SALES_EXPORT"
+    const [newDate, setNewDate] = useState("")
+    const [newTime, setNewTime] = useState("")
+    const [result, setResult] = useState<DocumentPostingTimeChangeResult | null>(null)
+    const [errorText, setErrorText] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (open && row) {
+            setNewDate(toDateInputValue(row.posting_date))
+            setNewTime(row.posting_time ? toTimeInputValue(row.posting_time) : currentTimeInputValue())
+            setResult(null)
+            setErrorText(null)
+        }
+    }, [open, row])
+
+    const oldDate = toDateInputValue(row?.posting_date)
+    const oldTime = row?.posting_time ? toTimeInputValue(row.posting_time) : ""
+    const changed = Boolean(
+        row && newTime && (normalizeTimeForApi(newTime) !== normalizeTimeForApi(oldTime) || (canChangeDate && newDate !== oldDate)),
+    )
+    const applied = Boolean(result?.applied)
+
+    const handleTimeChange = (value: string) => {
+        setNewTime(value)
+        setResult(null)
+        setErrorText(null)
+    }
+
+    const handleDateChange = (value: string) => {
+        setNewDate(value)
+        setResult(null)
+        setErrorText(null)
+    }
+
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkDocumentPostingTimeChange(
+            Number(row?.id),
+            normalizeTimeForApi(newTime),
+            canChangeDate ? newDate : undefined,
+        ),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorText(null)
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorText(error?.message || "Không kiểm tra được giờ chứng từ")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applyDocumentPostingTimeChange(
+            Number(row?.id),
+            normalizeTimeForApi(newTime),
+            canChangeDate ? newDate : undefined,
+        ),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorText(null)
+            if (data?.valid) onChanged()
+        },
+        onError: (error: any) => {
+            setErrorText(error?.message || "Không đổi được giờ chứng từ")
+        },
+    })
+
+    if (!row) return null
+
+    const working = checkMutation.isPending || applyMutation.isPending
+    const flowLabel = documentPostingTimeLabel(row.doc_type)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-h-[calc(100vh-32px)] !w-[min(1180px,calc(100vw-32px))] !max-w-[calc(100vw-32px)] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>{canChangeDate ? "Đổi ngày/giờ" : "Sửa giờ"} {flowLabel}</DialogTitle>
+                    <DialogDescription>
+                        Flow sửa sai riêng cho {flowLabel}. Hệ thống giả lập lại lịch sử tồn trước khi cập nhật toàn bộ chứng từ và nguồn phát sinh trong một giao dịch.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                    <div className="grid gap-3 rounded-md border bg-muted/20 p-3 md:grid-cols-4">
+                        <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                        <InfoItem label="Loại chứng từ" value={getDocTypeMeta(row.doc_type).label} />
+                        <InfoItem label="Ngày chứng từ" value={formatDate(row.posting_date)} />
+                        <InfoItem label="Giờ hiện tại" value={row.posting_time ? formatTime(row.posting_time) : "Chưa có giờ"} />
+                    </div>
+
+                    <div className={cn("grid max-w-2xl gap-3", canChangeDate && "sm:grid-cols-2")}>
+                        {canChangeDate ? (
+                            <label className="block space-y-1.5">
+                                <span className="text-sm font-medium">Ngày mới</span>
+                                <Input
+                                    type="date"
+                                    value={newDate}
+                                    max={currentLocalDateInputValue()}
+                                    onChange={(event) => handleDateChange(event.target.value)}
+                                />
+                            </label>
+                        ) : null}
+                        <label className="block space-y-1.5">
+                            <span className="text-sm font-medium">Giờ mới</span>
+                            <Input
+                                type="time"
+                                step="1"
+                                value={newTime}
+                                onChange={(event) => handleTimeChange(event.target.value)}
+                            />
+                        </label>
+                    </div>
+
+                    {!changed ? (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                            {canChangeDate
+                                ? "Ngày/giờ mới phải khác ngày/giờ hiện tại của chứng từ."
+                                : "Giờ mới phải khác giờ hiện tại của chứng từ."}
+                        </div>
+                    ) : null}
+
+                    {errorText ? (
+                        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            {errorText}
+                        </div>
+                    ) : null}
+
+                    {result ? <PurchasePostingDateTimeChangeResultPanel result={result} timeOnly={!canChangeDate} /> : null}
+
+                    <div className="flex justify-end gap-2 border-t pt-3">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={working}>
+                            Đóng
+                        </Button>
+                        <Button type="button" variant="outline" disabled={!changed || working || applied} onClick={() => checkMutation.mutate()}>
+                            {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Kiểm tra
+                        </Button>
+                        <Button
+                            type="button"
+                            disabled={!changed || working || applied || !result?.valid}
+                            onClick={() => applyMutation.mutate()}
+                        >
+                            {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            {canChangeDate ? "Đổi ngày/giờ" : "Đổi giờ"}
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function PurchasePostingDateTimeChangeResultPanel({
+    result,
+    timeOnly = false,
+}: {
+    result: PurchasePostingDateTimeChangeResult
+    timeOnly?: boolean
+}) {
     const valid = Boolean(result.valid)
     const applied = Boolean(result.applied)
     const changes = result.changes || {}
@@ -2125,7 +3581,11 @@ function PurchasePostingDateTimeChangeResultPanel({ result }: { result: Purchase
         )}>
             <div className="flex items-start gap-2 font-semibold">
                 {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
-                <span>{applied ? "Đã đổi ngày/giờ chứng từ" : valid ? "Có thể đổi ngày/giờ chứng từ" : "Không thể đổi ngày/giờ chứng từ"}</span>
+                <span>{applied
+                    ? timeOnly ? "Đã đổi giờ chứng từ" : "Đã đổi ngày/giờ chứng từ"
+                    : valid
+                        ? timeOnly ? "Có thể đổi giờ chứng từ" : "Có thể đổi ngày/giờ chứng từ"
+                        : timeOnly ? "Không thể đổi giờ chứng từ" : "Không thể đổi ngày/giờ chứng từ"}</span>
             </div>
             <div className="mt-1 pl-6">{result.message}</div>
 
@@ -2259,7 +3719,7 @@ function VoucherDetailDialog({
                             </div>
 
                             <div className="overflow-x-auto rounded-md border">
-                                <table className="w-full min-w-[1320px] text-sm">
+                                <table className={cn("w-full text-sm", isTransfer ? "min-w-[1480px]" : "min-w-[1320px]")}>
                                     <thead className="bg-muted/50 text-muted-foreground border-b text-xs">
                                         <tr>
                                             <Th className="w-12 text-center">STT</Th>
@@ -2271,6 +3731,7 @@ function VoucherDetailDialog({
                                             {!isTransfer ? <Th className="w-28">Đơn giá</Th> : null}
                                             {!isTransfer ? <Th className="w-32">Thành tiền</Th> : null}
                                             <Th className="w-56">{isTransfer ? "Kho xuất" : "Kho"}</Th>
+                                            {isTransfer ? <Th className="w-56">Kho nhận</Th> : null}
                                             <Th className="min-w-[220px]">Ghi chú</Th>
                                         </tr>
                                     </thead>
@@ -2289,6 +3750,7 @@ function VoucherDetailDialog({
                                                 {!isTransfer ? <Td className="text-right tabular-nums">{formatMoney(item.unit_price)}</Td> : null}
                                                 {!isTransfer ? <Td className="text-right tabular-nums">{formatMoney(item.amount)}</Td> : null}
                                                 <Td>{formatWarehouse(isTransfer ? item.warehouse || sourceWarehouse : item.warehouse)}</Td>
+                                                {isTransfer ? <Td>{formatWarehouse(item.to_warehouse || targetWarehouse)}</Td> : null}
                                                 <Td>
                                                     <LedgerText value={item.note} />
                                                 </Td>
@@ -2375,8 +3837,18 @@ function printInventoryVoucher(voucher: InventoryVoucherPrintDetail) {
     const isInbound = String(voucher.type?.direction || "").toUpperCase() === "I"
     const title = isInbound ? "PHIẾU NHẬP KHO" : "PHIẾU XUẤT KHO"
     const voucherNo = voucher.voucher_no || `#${voucher.id}`
-    const totalQuantity = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
-    const totalAmount = items.reduce((sum, item) => sum + Number(item.amount || 0), 0)
+    const voucherTypeCode = String(voucher.voucher_type_code || voucher.type?.code || "")
+    const isTransfer = voucherTypeCode === "TRANSFER_EXPORT"
+    const printItems = isTransfer ? items.flatMap((item) => {
+        const sourceWarehouse = item.warehouse || voucher.from_physical_warehouse || voucher.physical_warehouse || voucher.warehouse
+        const targetWarehouse = item.to_warehouse || voucher.to_physical_warehouse || voucher.to_warehouse
+        return [
+            { ...item, warehouse: sourceWarehouse },
+            { ...item, warehouse: targetWarehouse },
+        ]
+    }) : items
+    const totalQuantity = printItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+    const totalAmount = printItems.reduce((sum, item) => sum + Number(item.amount || 0), 0)
 
     const html = `
         <html>
@@ -2425,7 +3897,7 @@ function printInventoryVoucher(voucher: InventoryVoucherPrintDetail) {
                     <div class="date">${escapeHtml(formatViPrintDate(voucher.posting_date || voucher.document_date))}</div>
                 </div>
                 <div class="info">
-                    <div>- Địa điểm kho ${isInbound ? "nhập" : "xuất"}: <strong>${escapeHtml(formatHeaderWarehouse(voucher.physical_warehouse || voucher.warehouse, items))}</strong></div>
+                    <div>- Địa điểm kho ${isInbound ? "nhập" : "xuất"}: <strong>${escapeHtml(formatHeaderWarehouse(voucher.physical_warehouse || voucher.warehouse, printItems))}</strong></div>
                     <div>- Lý do: ${escapeHtml(voucher.description || VOUCHER_TYPE_LABEL[voucher.voucher_type_code || ""] || "")}</div>
                 </div>
                 <table>
@@ -2444,7 +3916,7 @@ function printInventoryVoucher(voucher: InventoryVoucherPrintDetail) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${items.map((item, index) => `
+                        ${printItems.map((item, index) => `
                             <tr>
                                 <td class="center">${index + 1}</td>
                                 <td class="mono">${escapeHtml(item.product?.code || "")}</td>
@@ -2503,6 +3975,30 @@ function Quantity({ value, tone }: { value: number; tone: "in" | "out" }) {
     )
 }
 
+function QuantityValueCells({
+    quantity,
+    amount,
+    quantityTone,
+    quantityClassName,
+}: {
+    quantity: number
+    amount: number
+    quantityTone?: "in" | "out"
+    quantityClassName?: string
+}) {
+    const hasQuantity = Number(quantity || 0) !== 0
+    return (
+        <>
+            <Td className={cn("text-right tabular-nums", quantityClassName)}>
+                {quantityTone ? <Quantity value={quantity} tone={quantityTone} /> : formatNumber(quantity)}
+            </Td>
+            <Td className={cn("text-right tabular-nums", !hasQuantity && "text-muted-foreground")}>
+                {hasQuantity ? formatNumber(amount) : "-"}
+            </Td>
+        </>
+    )
+}
+
 function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
     return <th className={cn("border-r bg-slate-100 px-2 py-1 text-center font-semibold leading-tight last:border-r-0", className)} {...props} />
 }
@@ -2530,6 +4026,28 @@ function isSalesReturnInboundLedger(item: InventoryLedgerReportRow) {
         && Boolean(item.lot_code)
 }
 
+function isSalesReturnUnitPriceCorrectionLedger(item: InventoryLedgerReportRow) {
+    return String(item.doc_type || "").toUpperCase() === "SALES_RETURN"
+        && Number(item.quantity_in || 0) > 0
+}
+
+function isSalesExportLedger(item: InventoryLedgerReportRow) {
+    const docType = String(item.doc_type || "").toUpperCase()
+    return ["SALES_EXPORT", "EXPORT", "OTHER_EXPORT"].includes(docType)
+        && Number(item.quantity_out || 0) > 0
+        && Boolean(item.lot_code)
+}
+
+function isTransferLedger(item: InventoryLedgerReportRow) {
+    const docType = String(item.doc_type || "").toUpperCase()
+    const hasTransferQuantity = Number(item.quantity_out || 0) > 0 || Number(item.quantity_in || 0) > 0
+    return ["TRANSFER_EXPORT", "TRANSFER_INBOUND"].includes(docType)
+        && hasTransferQuantity
+        && Boolean(item.lot_code)
+        && Boolean(item.voucher_id)
+        && Boolean(item.voucher_item_id)
+}
+
 function isQuantityCorrectionLedger(item: InventoryLedgerReportRow) {
     const docType = String(item.doc_type || "").toUpperCase()
     if (["IMPORT_PURCHASE", "DOMESTIC_PURCHASE", "OTHER_INBOUND"].includes(docType)) {
@@ -2548,6 +4066,27 @@ function isPurchasePostingDateTimeCorrectionLedger(item: InventoryLedgerReportRo
         && Boolean(item.lot_code)
 }
 
+function isDocumentPostingTimeCorrectionLedger(item: InventoryLedgerReportRow) {
+    const docType = String(item.doc_type || "").toUpperCase()
+    if (docType === "OTHER_INBOUND") return Number(item.quantity_in || 0) > 0
+    if (docType === "SALES_EXPORT") return Number(item.quantity_out || 0) > 0
+    if (docType === "PRODUCTION") return Number(item.quantity_in || 0) > 0
+    return false
+}
+
+function documentPostingTimeLabel(docType?: string | null) {
+    switch (String(docType || "").toUpperCase()) {
+        case "OTHER_INBOUND":
+            return "phiếu nhập khác"
+        case "SALES_EXPORT":
+            return "phiếu xuất bán hàng"
+        case "PRODUCTION":
+            return "phiếu nhập thành phẩm sản xuất"
+        default:
+            return "chứng từ kho"
+    }
+}
+
 function formatDate(value?: string | null) {
     if (!value) return "-"
     const datePart = value.split("T")[0]
@@ -2561,6 +4100,13 @@ function formatDate(value?: string | null) {
 function formatTime(value?: string | null) {
     if (!value) return "-"
     return String(value).trim().split(".")[0]
+}
+
+function parseDecimalInput(value: string) {
+    const normalized = String(value || "").trim().replace(/,/g, "")
+    if (!normalized) return Number.NaN
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : Number.NaN
 }
 
 function toDateInputValue(value?: string | null) {
@@ -2588,6 +4134,11 @@ function currentTimeInputValue() {
     return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`
 }
 
+function currentLocalDateInputValue() {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+}
+
 function textFilterDescription(label: string, op: string | undefined, value: string) {
     return `${label} ${textOpLabel(op)} "${value}"`
 }
@@ -2608,6 +4159,10 @@ function normalizeSearchText(value?: string | null) {
         .replace(/Đ/g, "D")
         .toLowerCase()
         .trim()
+}
+
+function normalizeStaticValue(value?: string | null) {
+    return String(value || "").trim()
 }
 
 function dateToYmd(date: Date) {
@@ -2666,22 +4221,28 @@ function formatMoney(value?: number | string | null) {
     }).format(n)
 }
 
-function CostPeriodIcon({ label }: { label?: string | null }) {
+function CostPeriodIcon({ label, docType }: { label?: string | null; docType?: string | null }) {
+    const isOpening = String(docType || "").toUpperCase() === "OPENING"
     const hasPeriod = Boolean(label && label.trim())
-    const title = hasPeriod ? `Đã lấy từ kỳ tính giá: ${label}` : "Chưa có kỳ tính giá"
+    const isOk = hasPeriod || isOpening
+    const title = hasPeriod
+        ? `Đã lấy từ kỳ tính giá: ${label}`
+        : isOpening
+            ? "Đơn giá khai báo đầu kỳ"
+            : "Chưa có kỳ tính giá"
 
     return (
         <span
             className={cn(
                 "inline-flex size-4 shrink-0 items-center justify-center rounded-full border",
-                hasPeriod
+                isOk
                     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                     : "border-amber-200 bg-amber-50 text-amber-700",
             )}
             title={title}
             aria-label={title}
         >
-            {hasPeriod ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
+            {isOk ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
         </span>
     )
 }

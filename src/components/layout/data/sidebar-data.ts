@@ -296,7 +296,7 @@ export const sidebarData: SidebarData = {
                     icon: BarChart3,
                 },
                 {
-                    title: 'Sổ kho',
+                    title: 'Sổ chi tiết vật tư hàng hóa',
                     url: '/inventory/ledgers',
                     icon: ListOrdered,
                 },
@@ -319,6 +319,11 @@ export const sidebarData: SidebarData = {
                     title: 'Tính giá tồn kho',
                     url: '/inventory/costing',
                     icon: Scale,
+                },
+                {
+                    title: 'Giá thành',
+                    url: '/inventory/costs',
+                    icon: Calculator,
                 },
             ],
         },

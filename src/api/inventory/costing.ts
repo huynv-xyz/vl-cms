@@ -99,6 +99,17 @@ export type ProductionCostResult = {
     source_kind?: "PRODUCTION_ORDER" | "LEGACY_LEDGER"
 }
 
+export type FinishedProductCostExportRow = {
+    product_id: number
+    product_code?: string
+    product_name?: string
+    cost_object_code?: string
+    cost_object_name?: string
+    direct_material_value: number
+    finished_quantity: number
+    unit_cost: number
+}
+
 export type ProductionCostMaterial = {
     material_product_id?: number
     material_product_code?: string
@@ -151,6 +162,11 @@ export type CostingCalculationError = {
     materialWarehouse?: string
     materialQuantity?: number
     reason?: string
+    errorType?: "COSTING_DEPENDENCY" | "SALES_RETURN_MISSING_COST"
+    ledgerId?: number
+    documentNo?: string
+    postingDate?: string
+    lotNo?: string
 }
 
 export type CostingImportResult = {
@@ -225,6 +241,12 @@ export function listLotCostAllocations(id: number, productId: number) {
 export function listProductionCostResults(id: number, productId: number) {
     return apiGet<ProductionCostResult[]>(`/inventory/costing/periods/${id}/production-costs`, {
         product_id: productId,
+    })
+}
+
+export function listFinishedProductCostExport(id: number, keyword?: string) {
+    return apiGet<FinishedProductCostExportRow[]>(`/inventory/costing/periods/${id}/finished-products-export`, {
+        keyword: keyword || undefined,
     })
 }
 

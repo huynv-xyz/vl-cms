@@ -86,6 +86,8 @@ export type InventoryLedgerReportRow = {
     product_name: string
     warehouse_code?: string | null
     warehouse_name: string
+    cost_object_code?: string | null
+    cost_object_name?: string | null
 }
 
 export type InventoryLedgerTotals = {

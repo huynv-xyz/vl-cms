@@ -2,10 +2,13 @@ import { useEffect, useState } from "react"
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
     AlertTriangle,
+    CalendarClock,
     CalendarDays,
     CheckCircle2,
     Clock,
     Eye,
+    Loader2,
+    MoreHorizontal,
     Pencil,
     PackageCheck,
     SlidersHorizontal,
@@ -14,12 +17,38 @@ import {
 import { toast } from "sonner"
 
 import { getMyPermissions } from "@/api/auth/permission"
+import type { DocumentPostingTimeChangeResult } from "@/api/inventory/ledger"
 import { getAvailableLotsAt } from "@/api/inventory/lot"
-import { updateExportItemLot, updateExportItemWarehouse, updateExportStatus, updateExportTime } from "@/api/sale/export"
+import {
+    applyExportPostingDateTimeChange,
+    checkExportPostingDateTimeChange,
+    checkExportInventory,
+    type ExportInventoryCheckResult,
+    updateExportItemLot,
+    updateExportItemWarehouse,
+    updateExportStatus,
+    updateExportTime,
+} from "@/api/sale/export"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
 import {
     Select,
     SelectContent,
@@ -59,6 +88,7 @@ export function OrderExports({ exports, order }: any) {
     const [exportTimes, setExportTimes] = useState<Record<number, string>>({})
     const [draftExportTimes, setDraftExportTimes] = useState<Record<number, string>>({})
     const [editingExportTimeId, setEditingExportTimeId] = useState<number | null>(null)
+    const [correctionExport, setCorrectionExport] = useState<any | null>(null)
     const totalExportAmount = (exports ?? []).reduce(
         (sum: number, exportDoc: any) =>
             sum + sumExportAmount(exportDoc.items ?? [], order?.items ?? []),
@@ -73,6 +103,11 @@ export function OrderExports({ exports, order }: any) {
             permission.module === "sales.exports" &&
             (permission.action === "status.update" || permission.action === "update")
     )
+    const canUseCorrections = permissions.some(
+        (permission: any) =>
+            permission.module === "inventory.ledgers" &&
+            permission.action === "correction.change"
+    )
     useEffect(() => {
         setExportTimes((prev) => {
             const next = { ...prev }
@@ -85,6 +120,27 @@ export function OrderExports({ exports, order }: any) {
             return changed ? next : prev
         })
     }, [exports])
+
+    const inventoryCheckQueries = useQueries({
+        queries: (exports ?? []).map((exportDoc: any) => {
+            const exportTime = exportTimes[exportDoc.id]
+                ?? normalizeTimeForInput(exportDoc.export_time)
+                ?? currentTimeForInput()
+            const itemSignature = (exportDoc.items ?? []).map((item: any) => [
+                item.id,
+                item.product_id,
+                item.warehouse_id,
+                item.lot_code,
+                item.quantity,
+            ])
+            return {
+                queryKey: ["export-inventory-check", exportDoc.id, exportTime, itemSignature],
+                enabled: exportDoc.status === "NEW" && Boolean(exportDoc.id && exportTime),
+                queryFn: () => checkExportInventory(exportDoc.id, exportTime),
+                staleTime: 5_000,
+            }
+        }),
+    })
 
     const { mutate: changeStatus, isPending } = useMutation({
         mutationFn: ({ id, status, exportTime }: any) => updateExportStatus(id, status, exportTime),
@@ -114,6 +170,7 @@ export function OrderExports({ exports, order }: any) {
             queryClient.invalidateQueries({ queryKey: ["exports"] })
             queryClient.invalidateQueries({ queryKey: ["deliveries"] })
             queryClient.invalidateQueries({ queryKey: ["orders"] })
+            queryClient.invalidateQueries({ queryKey: ["export-inventory-check"] })
         },
     })
 
@@ -132,6 +189,7 @@ export function OrderExports({ exports, order }: any) {
             queryClient.invalidateQueries({ queryKey: ["exports"] })
             queryClient.invalidateQueries({ queryKey: ["export-item-lots"] })
             queryClient.invalidateQueries({ queryKey: ["export-item-availability"] })
+            queryClient.invalidateQueries({ queryKey: ["export-inventory-check"] })
         },
     })
 
@@ -168,7 +226,7 @@ export function OrderExports({ exports, order }: any) {
                 />
             ) : (
                 <div className="space-y-3 p-4">
-                    {exports.map((exportDoc: any) => {
+                    {exports.map((exportDoc: any, exportIndex: number) => {
                         const meta = getExportStatusMeta(exportDoc.status)
                         const isRowLocked = exportDoc.status === "DONE"
                         const allowedNextStatuses =
@@ -192,10 +250,15 @@ export function OrderExports({ exports, order }: any) {
                             const quantity = Number(item?.quantity || 0)
                             return getPayloadAvailableQuantity(item) < quantity
                         }).length
+                        const inventoryCheck = inventoryCheckQueries[exportIndex]?.data as ExportInventoryCheckResult | undefined
+                        const inventoryCheckLoading = Boolean(inventoryCheckQueries[exportIndex]?.isLoading)
+                        const historyInvalid = exportDoc.status === "NEW" && inventoryCheck?.valid === false
                         const statusDisabledReason =
                             missingWarehouseRows > 0
                                 ? "Chưa có kho xuất, không thể chuyển trạng thái"
-                                : stockShortageRows > 0
+                                : historyInvalid
+                                    ? inventoryCheck?.message
+                                    : stockShortageRows > 0
                                     ? "Không đủ tồn kho, không thể chuyển Hoàn thành"
                                     : !canUpdateStatus
                                         ? "Bạn không có quyền đổi trạng thái phiếu xuất"
@@ -316,6 +379,8 @@ export function OrderExports({ exports, order }: any) {
                                                   isPending ||
                                                   isRowLocked ||
                                                   missingWarehouseRows > 0 ||
+                                                  historyInvalid ||
+                                                  inventoryCheckLoading ||
                                                   stockShortageRows > 0 ||
                                                   !canUpdateStatus
                                               }
@@ -342,7 +407,31 @@ export function OrderExports({ exports, order }: any) {
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
-                                        </Select>
+                                         </Select>
+
+                                        {canUseCorrections && exportDoc.status === "DONE" ? (
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 px-2.5">
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                        Sửa sai
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-72">
+                                                    <DropdownMenuLabel>Thao tác sửa sai</DropdownMenuLabel>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onSelect={() => setCorrectionExport(exportDoc)}>
+                                                        <CalendarClock className="h-4 w-4" />
+                                                        <div className="min-w-0">
+                                                            <div className="font-medium">Đổi ngày/giờ chứng từ</div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                Kiểm tra lịch sử tồn trước khi cập nhật.
+                                                            </div>
+                                                        </div>
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        ) : null}
 
                                         <Button
                                             size="icon"
@@ -361,6 +450,12 @@ export function OrderExports({ exports, order }: any) {
                                         Một số dòng chưa có kho xuất, không thể chuyển trạng thái cho tới khi chọn đủ kho.
                                     </div>
                                 )}
+                                {historyInvalid && (
+                                    <div className="flex items-start gap-1.5 border-b bg-rose-50 px-4 py-2 text-xs font-medium text-rose-700 dark:bg-rose-950/30 dark:text-rose-400">
+                                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                        <span>{inventoryCheck?.message}</span>
+                                    </div>
+                                )}
                                      <ItemsTable
                                          items={exportDoc.items ?? []}
                                          exportDoc={exportDoc}
@@ -368,7 +463,8 @@ export function OrderExports({ exports, order }: any) {
                                           order={order}
                                      orderId={order.id}
                                      physicalWarehouseId={physicalWarehouseId}
-                                     canUpdateExport={canUpdateStatus}
+                                      canUpdateExport={canUpdateStatus}
+                                      inventoryCheck={inventoryCheck}
                                  />
                             </div>
                         )
@@ -381,6 +477,257 @@ export function OrderExports({ exports, order }: any) {
                 id={selectedId ?? undefined}
                 onClose={() => setSelectedId(null)}
             />
+            <ExportPostingDateTimeCorrectionDialog
+                exportDoc={correctionExport}
+                order={order}
+                open={Boolean(correctionExport)}
+                onOpenChange={(nextOpen) => {
+                    if (!nextOpen) setCorrectionExport(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["order-detail", order?.id] })
+                    queryClient.invalidateQueries({ queryKey: ["exports"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory"] })
+                }}
+            />
+        </div>
+    )
+}
+
+function ExportPostingDateTimeCorrectionDialog({
+    exportDoc,
+    order,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    exportDoc: any | null
+    order: any
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const initialDate = normalizeDateParam(exportDoc?.export_date) || currentLocalDateForInput()
+    const initialTime = normalizeTimeForInput(exportDoc?.export_time) || currentTimeForInput()
+    const [newDate, setNewDate] = useState(initialDate)
+    const [newTime, setNewTime] = useState(initialTime)
+    const [result, setResult] = useState<DocumentPostingTimeChangeResult | null>(null)
+    const [requestError, setRequestError] = useState("")
+
+    useEffect(() => {
+        if (!open || !exportDoc) return
+        setNewDate(normalizeDateParam(exportDoc.export_date) || currentLocalDateForInput())
+        setNewTime(normalizeTimeForInput(exportDoc.export_time) || currentTimeForInput())
+        setResult(null)
+        setRequestError("")
+    }, [open, exportDoc?.id, exportDoc?.export_date, exportDoc?.export_time])
+
+    const normalizedTime = normalizeTimeForApi(newTime)
+    const orderDate = normalizeDateParam(order?.order_date)
+    const currentDate = normalizeDateParam(exportDoc?.export_date)
+    const currentTime = normalizeTimeForInput(exportDoc?.export_time)
+    const changed = Boolean(
+        newDate && normalizedTime &&
+        (newDate !== currentDate || normalizedTime !== currentTime)
+    )
+    const checkedForCurrentInput = Boolean(
+        result && result.new_posting_date === newDate &&
+        normalizeTimeForInput(result.new_posting_time || undefined) === normalizedTime
+    )
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkExportPostingDateTimeChange(Number(exportDoc.id), newDate, normalizedTime),
+        onSuccess: (data) => {
+            setResult(data)
+            setRequestError("")
+        },
+        onError: (error) => {
+            setResult(null)
+            setRequestError(readRequestError(error))
+        },
+    })
+    const applyMutation = useMutation({
+        mutationFn: () => applyExportPostingDateTimeChange(Number(exportDoc.id), newDate, normalizedTime),
+        onSuccess: (data) => {
+            setResult(data)
+            setRequestError("")
+            onChanged()
+        },
+        onError: (error) => {
+            setResult(null)
+            setRequestError(readRequestError(error))
+        },
+    })
+
+    if (!exportDoc) return null
+
+    const busy = checkMutation.isPending || applyMutation.isPending
+    const dateInvalid = Boolean(orderDate && newDate && newDate < orderDate)
+    const futureDate = Boolean(newDate && newDate > currentLocalDateForInput())
+    const inputInvalid = !newDate || !normalizedTime || dateInvalid || futureDate
+    const errors = result?.errors ?? []
+    const warnings = result?.warnings ?? []
+
+    return (
+        <Dialog open={open} onOpenChange={(nextOpen) => !busy && onOpenChange(nextOpen)}>
+            <DialogContent className="flex max-h-[92vh] !w-[min(1180px,calc(100vw-32px))] !max-w-none flex-col overflow-hidden p-0">
+                <DialogHeader className="border-b px-6 py-4">
+                    <DialogTitle className="flex items-center gap-2 text-xl">
+                        <CalendarClock className="h-5 w-5 text-teal-600" />
+                        Đổi ngày/giờ chứng từ xuất kho
+                    </DialogTitle>
+                    <DialogDescription>
+                        Kiểm tra toàn bộ lịch sử tồn kho trước khi cập nhật phiếu xuất và phiếu giao liên quan.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
+                    <div className="grid gap-3 rounded-md border bg-muted/20 p-4 md:grid-cols-4">
+                        <InfoValue label="Phiếu xuất" value={result?.export_no || exportDoc.export_no || exportDoc.code || `#${exportDoc.id}`} />
+                        <InfoValue label="Đơn hàng" value={result?.order_no || order?.order_no || order?.code || "-"} />
+                        <InfoValue label="Phiếu giao" value={result?.delivery_no || exportDoc.delivery_no || "-"} />
+                        <InfoValue label="Trạng thái" value={exportDoc.status || "-"} />
+                        <InfoValue label="Thời điểm hiện tại" value={formatDateTime(currentDate, currentTime)} />
+                        <div className="space-y-1.5 md:col-span-2">
+                            <span className="text-xs text-muted-foreground">Thời điểm mới</span>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                                <Input
+                                    type="date"
+                                    value={newDate}
+                                    min={orderDate}
+                                    max={currentLocalDateForInput()}
+                                    disabled={busy || result?.applied}
+                                    onChange={(event) => {
+                                        setNewDate(event.target.value)
+                                        setResult(null)
+                                        setRequestError("")
+                                    }}
+                                />
+                                <Input
+                                    type="time"
+                                    step={1}
+                                    value={newTime}
+                                    disabled={busy || result?.applied}
+                                    onChange={(event) => {
+                                        setNewTime(event.target.value)
+                                        setResult(null)
+                                        setRequestError("")
+                                    }}
+                                />
+                            </div>
+                            {dateInvalid ? <p className="text-xs text-red-600">Ngày mới không được trước ngày đặt hàng {formatDate(orderDate)}.</p> : null}
+                            {futureDate ? <p className="text-xs text-red-600">Ngày mới không được lớn hơn ngày hiện tại.</p> : null}
+                        </div>
+                    </div>
+
+                    {requestError ? (
+                        <ResultPanel tone="error" title="Không thể xử lý" description={requestError} />
+                    ) : result ? (
+                        <ResultPanel
+                            tone={result.applied || result.valid ? "success" : "error"}
+                            title={result.applied ? "Đã đổi ngày/giờ chứng từ" : result.valid ? "Kiểm tra hợp lệ" : "Không thể đổi ngày/giờ"}
+                            description={result.applied
+                                ? "Phiếu xuất, phiếu giao và toàn bộ dòng sổ kho liên quan đã được cập nhật trong cùng một giao dịch."
+                                : result.valid
+                                    ? "Lịch sử tồn kho vẫn hợp lệ. Có thể thực hiện đổi ngày/giờ."
+                                    : "Dữ liệu chưa được thay đổi. Xem nguyên nhân bên dưới."}
+                        />
+                    ) : null}
+
+                    {errors.length ? <MessageList title="Lỗi kiểm tra" items={errors} tone="error" /> : null}
+                    {warnings.length ? <MessageList title="Lưu ý" items={warnings} tone="warning" /> : null}
+
+                    <div className="overflow-hidden rounded-md border">
+                        <div className="border-b bg-muted/40 px-4 py-2.5 text-sm font-semibold">Các dòng sổ kho bị ảnh hưởng</div>
+                        <div className="overflow-x-auto">
+                            <Table className="min-w-[940px]">
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-14 text-center">STT</TableHead>
+                                        <TableHead>Mã hàng</TableHead>
+                                        <TableHead>Tên hàng</TableHead>
+                                        <TableHead>Kho</TableHead>
+                                        <TableHead>Số lô</TableHead>
+                                        <TableHead className="text-right">Số lượng</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {(result?.lines?.length ? result.lines : exportDoc.items ?? []).map((line: any, index: number) => (
+                                        <TableRow key={line.ledger_id ?? line.id ?? index}>
+                                            <TableCell className="text-center">{index + 1}</TableCell>
+                                            <TableCell className="font-mono text-xs">{line.product_code || line.product?.code || "-"}</TableCell>
+                                            <TableCell>{line.product_name || line.product?.name || "-"}</TableCell>
+                                            <TableCell>
+                                                <div>{line.warehouse_name || line.warehouse?.name || "-"}</div>
+                                                <div className="text-xs text-muted-foreground">{line.warehouse_code || line.warehouse?.code || ""}</div>
+                                            </TableCell>
+                                            <TableCell className="font-mono text-xs">{line.lot_no || line.lot_code || "-"}</TableCell>
+                                            <TableCell className="text-right font-medium">{formatNumber(line.quantity)}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end gap-2 border-t px-6 py-4">
+                    <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>Đóng</Button>
+                    <Button variant="outline" disabled={busy || inputInvalid || !changed || result?.applied} onClick={() => checkMutation.mutate()}>
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button
+                        disabled={busy || inputInvalid || !changed || !checkedForCurrentInput || !result?.valid || result?.applied}
+                        onClick={() => applyMutation.mutate()}
+                    >
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Đổi ngày/giờ
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function InfoValue({ label, value }: { label: string; value: unknown }) {
+    return (
+        <div className="min-w-0">
+            <div className="text-xs text-muted-foreground">{label}</div>
+            <div className="truncate font-medium" title={String(value ?? "-")}>{String(value ?? "-")}</div>
+        </div>
+    )
+}
+
+function ResultPanel({ tone, title, description }: { tone: "success" | "error"; title: string; description: string }) {
+    const success = tone === "success"
+    return (
+        <div className={success
+            ? "rounded-md border border-emerald-200 bg-emerald-50 p-4 text-emerald-800"
+            : "rounded-md border border-red-200 bg-red-50 p-4 text-red-800"}
+        >
+            <div className="flex items-start gap-2">
+                {success ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" /> : <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />}
+                <div>
+                    <div className="font-semibold">{title}</div>
+                    <div className="mt-0.5 text-sm">{description}</div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+function MessageList({ title, items, tone }: { title: string; items: string[]; tone: "error" | "warning" }) {
+    const error = tone === "error"
+    return (
+        <div className={error
+            ? "rounded-md border border-red-200 bg-red-50 p-4 text-red-800"
+            : "rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800"}
+        >
+            <div className="font-semibold">{title}</div>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                {items.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}
+            </ul>
         </div>
     )
 }
@@ -393,6 +740,7 @@ function ItemsTable({
     orderId,
     physicalWarehouseId,
     canUpdateExport,
+    inventoryCheck,
 }: {
     items: any[]
     exportDoc: any
@@ -401,6 +749,7 @@ function ItemsTable({
     orderId: number
     physicalWarehouseId?: number
     canUpdateExport: boolean
+    inventoryCheck?: ExportInventoryCheckResult
 }) {
     const queryClient = useQueryClient()
     const { mutate: changeWarehouse, isPending } = useMutation({
@@ -410,6 +759,7 @@ function ItemsTable({
             toast.success("Đã cập nhật kho xuất")
             queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] })
             queryClient.invalidateQueries({ queryKey: ["exports"] })
+            queryClient.invalidateQueries({ queryKey: ["export-inventory-check"] })
         },
         onError: () => toast.error("Cập nhật kho xuất thất bại"),
     })
@@ -420,6 +770,7 @@ function ItemsTable({
             toast.success("Đã cập nhật lô xuất")
             queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] })
             queryClient.invalidateQueries({ queryKey: ["exports"] })
+            queryClient.invalidateQueries({ queryKey: ["export-inventory-check"] })
         },
         onError: () => toast.error("Cập nhật lô xuất thất bại"),
     })
@@ -534,6 +885,12 @@ function ItemsTable({
                                 : undefined
                         const lotsLoading = Boolean(availabilityQueries[idx]?.isLoading && !availabilityData)
                         const stockShortage = isNew && warehouseId && availableQuantity < quantity
+                        const historyIssue = Boolean(
+                            isNew &&
+                            inventoryCheck?.valid === false &&
+                            (!inventoryCheck.product_id || Number(inventoryCheck.product_id) === Number(productId)) &&
+                            (!inventoryCheck.warehouse_id || Number(inventoryCheck.warehouse_id) === Number(warehouseId))
+                        )
                         const orderItem = resolveOrderItem(item, orderItemById, orderItemByProductId)
                         const unitPrice = resolveUnitPrice(orderItem)
                         const discount = resolveProratedDiscount(orderItem, quantity)
@@ -543,7 +900,7 @@ function ItemsTable({
                             <TableRow
                                 key={item.id}
                                 className={
-                                    missingWarehouse
+                                    missingWarehouse || historyIssue
                                         ? "bg-rose-50/70 dark:bg-rose-950/20"
                                         : stockShortage
                                             ? "bg-amber-50/70 dark:bg-amber-950/20"
@@ -570,14 +927,17 @@ function ItemsTable({
                                 <TableCell className="text-right font-medium tabular-nums">
                                     {formatNumber(quantity)}
                                 </TableCell>
-                                <TableCell className={stockShortage ? "text-right font-semibold tabular-nums text-rose-600" : "text-right font-medium tabular-nums text-muted-foreground"}>
+                                <TableCell className={stockShortage || historyIssue ? "text-right font-semibold tabular-nums text-rose-600" : "text-right font-medium tabular-nums text-muted-foreground"}>
                                     {warehouseId ? formatNumber(availableQuantity) : "-"}
                                 </TableCell>
                                 <TableCell className="text-center">
                                     {warehouseId ? (
-                                        <span className={`inline-flex items-center gap-1 text-xs font-medium ${stockShortage ? "text-rose-600" : "text-emerald-600"}`}>
-                                            {stockShortage ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                                            {stockShortage ? "Vượt tồn" : "Đạt tồn"}
+                                        <span
+                                            className={`inline-flex items-center gap-1 text-xs font-medium ${stockShortage || historyIssue ? "text-rose-600" : "text-emerald-600"}`}
+                                            title={historyIssue ? inventoryCheck?.message : undefined}
+                                        >
+                                            {stockShortage || historyIssue ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                                            {historyIssue ? "Làm âm lịch sử" : stockShortage ? "Vượt tồn" : "Đạt tồn"}
                                         </span>
                                     ) : (
                                         <span className="text-xs text-muted-foreground">-</span>
@@ -891,8 +1251,44 @@ function resolveItemLotCode(item: any) {
 
 function normalizeDateParam(value?: string) {
     if (!value) return undefined
-    const [date] = value.split("T")
-    return date || undefined
+    const [rawDate] = String(value).trim().split("T")
+    if (!rawDate) return undefined
+
+    const isoMatch = rawDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+    if (isoMatch) {
+        return `${isoMatch[1]}-${isoMatch[2].padStart(2, "0")}-${isoMatch[3].padStart(2, "0")}`
+    }
+
+    const displayMatch = rawDate.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+    if (displayMatch) {
+        return `${displayMatch[3]}-${displayMatch[2].padStart(2, "0")}-${displayMatch[1].padStart(2, "0")}`
+    }
+
+    return undefined
+}
+
+function currentLocalDateForInput() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, "0")
+    const day = String(now.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+}
+
+function normalizeTimeForApi(value?: string) {
+    return normalizeTimeForInput(value) || ""
+}
+
+function formatDateTime(date?: string, time?: string) {
+    if (!date) return "-"
+    const normalizedTime = normalizeTimeForInput(time)
+    return normalizedTime ? `${formatDate(date)} ${normalizedTime}` : formatDate(date)
+}
+
+function readRequestError(error: unknown) {
+    if (error instanceof Error && error.message) return error.message
+    if (typeof error === "string") return error
+    return "Không thể xử lý yêu cầu."
 }
 
 function normalizeTimeForInput(value?: string) {
