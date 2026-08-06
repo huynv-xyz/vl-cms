@@ -481,8 +481,8 @@ function ScopeDialog({ open, onOpenChange, item, roles, regions, provinces }: {
     setProvinceId(item?.province_id ? String(item.province_id) : EMPTY)
     setPersonal(String(item?.is_personal_target ?? 1))
     setManager(String(item?.is_manager_target ?? 0))
-    setFrom(item?.effective_from ?? today())
-    setTo(item?.effective_to ?? "")
+    setFrom(normalizeLocalDate(item?.effective_from) || today())
+    setTo(normalizeLocalDate(item?.effective_to))
   }, [open, item])
 
   const mutation = useMutation({
@@ -559,6 +559,13 @@ function ScopeDialog({ open, onOpenChange, item, roles, regions, provinces }: {
       </DialogContent>
     </Dialog>
   )
+}
+
+function normalizeLocalDate(value?: string | [number, number, number] | null) {
+  if (!value) return ""
+  if (typeof value === "string") return value.slice(0, 10)
+  const [year, month, day] = value
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
 }
 
 function MappingDialog({ open, onOpenChange, item, period, regions, provinces }: {

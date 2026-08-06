@@ -79,11 +79,13 @@ import { Route as AuthenticatedInventoryOutboundsIndexRouteImport } from './rout
 import { Route as AuthenticatedInventoryLotsIndexRouteImport } from './routes/_authenticated/inventory/lots/index'
 import { Route as AuthenticatedInventoryLedgersIndexRouteImport } from './routes/_authenticated/inventory/ledgers/index'
 import { Route as AuthenticatedInventoryInboundsIndexRouteImport } from './routes/_authenticated/inventory/inbounds/index'
+import { Route as AuthenticatedInventoryCostsIndexRouteImport } from './routes/_authenticated/inventory/costs/index'
 import { Route as AuthenticatedInventoryCostingIndexRouteImport } from './routes/_authenticated/inventory/costing/index'
 import { Route as AuthenticatedAccessUsersIndexRouteImport } from './routes/_authenticated/access/users/index'
 import { Route as AuthenticatedAccessUserRolesIndexRouteImport } from './routes/_authenticated/access/user-roles/index'
 import { Route as AuthenticatedAccessRolesIndexRouteImport } from './routes/_authenticated/access/roles/index'
 import { Route as AuthenticatedAccessPermissionsIndexRouteImport } from './routes/_authenticated/access/permissions/index'
+import { Route as AuthenticatedAccessAuditLogsIndexRouteImport } from './routes/_authenticated/access/audit-logs/index'
 import { Route as AuthenticatedVipCustomerIdRouteImport } from './routes/_authenticated/vip/customer/$id'
 import { Route as AuthenticatedSalesOrdersIdIndexRouteImport } from './routes/_authenticated/sales/orders/$id/index'
 import { Route as AuthenticatedSalesExportsIdIndexRouteImport } from './routes/_authenticated/sales/exports/$id/index'
@@ -502,6 +504,12 @@ const AuthenticatedInventoryInboundsIndexRoute =
     path: '/inventory/inbounds/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedInventoryCostsIndexRoute =
+  AuthenticatedInventoryCostsIndexRouteImport.update({
+    id: '/inventory/costs/',
+    path: '/inventory/costs/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInventoryCostingIndexRoute =
   AuthenticatedInventoryCostingIndexRouteImport.update({
     id: '/inventory/costing/',
@@ -530,6 +538,12 @@ const AuthenticatedAccessPermissionsIndexRoute =
   AuthenticatedAccessPermissionsIndexRouteImport.update({
     id: '/access/permissions/',
     path: '/access/permissions/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAccessAuditLogsIndexRoute =
+  AuthenticatedAccessAuditLogsIndexRouteImport.update({
+    id: '/access/audit-logs/',
+    path: '/access/audit-logs/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedVipCustomerIdRoute =
@@ -599,11 +613,13 @@ export interface FileRoutesByFullPath {
   '/user/': typeof AuthenticatedUserIndexRoute
   '/warehouses/': typeof AuthenticatedWarehousesIndexRoute
   '/vip/customer/$id': typeof AuthenticatedVipCustomerIdRoute
+  '/access/audit-logs/': typeof AuthenticatedAccessAuditLogsIndexRoute
   '/access/permissions/': typeof AuthenticatedAccessPermissionsIndexRoute
   '/access/roles/': typeof AuthenticatedAccessRolesIndexRoute
   '/access/user-roles/': typeof AuthenticatedAccessUserRolesIndexRoute
   '/access/users/': typeof AuthenticatedAccessUsersIndexRoute
   '/inventory/costing/': typeof AuthenticatedInventoryCostingIndexRoute
+  '/inventory/costs/': typeof AuthenticatedInventoryCostsIndexRoute
   '/inventory/inbounds/': typeof AuthenticatedInventoryInboundsIndexRoute
   '/inventory/ledgers/': typeof AuthenticatedInventoryLedgersIndexRoute
   '/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
@@ -682,11 +698,13 @@ export interface FileRoutesByTo {
   '/user': typeof AuthenticatedUserIndexRoute
   '/warehouses': typeof AuthenticatedWarehousesIndexRoute
   '/vip/customer/$id': typeof AuthenticatedVipCustomerIdRoute
+  '/access/audit-logs': typeof AuthenticatedAccessAuditLogsIndexRoute
   '/access/permissions': typeof AuthenticatedAccessPermissionsIndexRoute
   '/access/roles': typeof AuthenticatedAccessRolesIndexRoute
   '/access/user-roles': typeof AuthenticatedAccessUserRolesIndexRoute
   '/access/users': typeof AuthenticatedAccessUsersIndexRoute
   '/inventory/costing': typeof AuthenticatedInventoryCostingIndexRoute
+  '/inventory/costs': typeof AuthenticatedInventoryCostsIndexRoute
   '/inventory/inbounds': typeof AuthenticatedInventoryInboundsIndexRoute
   '/inventory/ledgers': typeof AuthenticatedInventoryLedgersIndexRoute
   '/inventory/lots': typeof AuthenticatedInventoryLotsIndexRoute
@@ -767,11 +785,13 @@ export interface FileRoutesById {
   '/_authenticated/user/': typeof AuthenticatedUserIndexRoute
   '/_authenticated/warehouses/': typeof AuthenticatedWarehousesIndexRoute
   '/_authenticated/vip/customer/$id': typeof AuthenticatedVipCustomerIdRoute
+  '/_authenticated/access/audit-logs/': typeof AuthenticatedAccessAuditLogsIndexRoute
   '/_authenticated/access/permissions/': typeof AuthenticatedAccessPermissionsIndexRoute
   '/_authenticated/access/roles/': typeof AuthenticatedAccessRolesIndexRoute
   '/_authenticated/access/user-roles/': typeof AuthenticatedAccessUserRolesIndexRoute
   '/_authenticated/access/users/': typeof AuthenticatedAccessUsersIndexRoute
   '/_authenticated/inventory/costing/': typeof AuthenticatedInventoryCostingIndexRoute
+  '/_authenticated/inventory/costs/': typeof AuthenticatedInventoryCostsIndexRoute
   '/_authenticated/inventory/inbounds/': typeof AuthenticatedInventoryInboundsIndexRoute
   '/_authenticated/inventory/ledgers/': typeof AuthenticatedInventoryLedgersIndexRoute
   '/_authenticated/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
@@ -852,11 +872,13 @@ export interface FileRouteTypes {
     | '/user/'
     | '/warehouses/'
     | '/vip/customer/$id'
+    | '/access/audit-logs/'
     | '/access/permissions/'
     | '/access/roles/'
     | '/access/user-roles/'
     | '/access/users/'
     | '/inventory/costing/'
+    | '/inventory/costs/'
     | '/inventory/inbounds/'
     | '/inventory/ledgers/'
     | '/inventory/lots/'
@@ -935,11 +957,13 @@ export interface FileRouteTypes {
     | '/user'
     | '/warehouses'
     | '/vip/customer/$id'
+    | '/access/audit-logs'
     | '/access/permissions'
     | '/access/roles'
     | '/access/user-roles'
     | '/access/users'
     | '/inventory/costing'
+    | '/inventory/costs'
     | '/inventory/inbounds'
     | '/inventory/ledgers'
     | '/inventory/lots'
@@ -1019,11 +1043,13 @@ export interface FileRouteTypes {
     | '/_authenticated/user/'
     | '/_authenticated/warehouses/'
     | '/_authenticated/vip/customer/$id'
+    | '/_authenticated/access/audit-logs/'
     | '/_authenticated/access/permissions/'
     | '/_authenticated/access/roles/'
     | '/_authenticated/access/user-roles/'
     | '/_authenticated/access/users/'
     | '/_authenticated/inventory/costing/'
+    | '/_authenticated/inventory/costs/'
     | '/_authenticated/inventory/inbounds/'
     | '/_authenticated/inventory/ledgers/'
     | '/_authenticated/inventory/lots/'
@@ -1581,6 +1607,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInventoryInboundsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/inventory/costs/': {
+      id: '/_authenticated/inventory/costs/'
+      path: '/inventory/costs'
+      fullPath: '/inventory/costs/'
+      preLoaderRoute: typeof AuthenticatedInventoryCostsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/inventory/costing/': {
       id: '/_authenticated/inventory/costing/'
       path: '/inventory/costing'
@@ -1614,6 +1647,13 @@ declare module '@tanstack/react-router' {
       path: '/access/permissions'
       fullPath: '/access/permissions/'
       preLoaderRoute: typeof AuthenticatedAccessPermissionsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/access/audit-logs/': {
+      id: '/_authenticated/access/audit-logs/'
+      path: '/access/audit-logs'
+      fullPath: '/access/audit-logs/'
+      preLoaderRoute: typeof AuthenticatedAccessAuditLogsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/vip/customer/$id': {
@@ -1686,11 +1726,13 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedUserIndexRoute: typeof AuthenticatedUserIndexRoute
   AuthenticatedWarehousesIndexRoute: typeof AuthenticatedWarehousesIndexRoute
   AuthenticatedVipCustomerIdRoute: typeof AuthenticatedVipCustomerIdRoute
+  AuthenticatedAccessAuditLogsIndexRoute: typeof AuthenticatedAccessAuditLogsIndexRoute
   AuthenticatedAccessPermissionsIndexRoute: typeof AuthenticatedAccessPermissionsIndexRoute
   AuthenticatedAccessRolesIndexRoute: typeof AuthenticatedAccessRolesIndexRoute
   AuthenticatedAccessUserRolesIndexRoute: typeof AuthenticatedAccessUserRolesIndexRoute
   AuthenticatedAccessUsersIndexRoute: typeof AuthenticatedAccessUsersIndexRoute
   AuthenticatedInventoryCostingIndexRoute: typeof AuthenticatedInventoryCostingIndexRoute
+  AuthenticatedInventoryCostsIndexRoute: typeof AuthenticatedInventoryCostsIndexRoute
   AuthenticatedInventoryInboundsIndexRoute: typeof AuthenticatedInventoryInboundsIndexRoute
   AuthenticatedInventoryLedgersIndexRoute: typeof AuthenticatedInventoryLedgersIndexRoute
   AuthenticatedInventoryLotsIndexRoute: typeof AuthenticatedInventoryLotsIndexRoute
@@ -1765,6 +1807,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedUserIndexRoute: AuthenticatedUserIndexRoute,
   AuthenticatedWarehousesIndexRoute: AuthenticatedWarehousesIndexRoute,
   AuthenticatedVipCustomerIdRoute: AuthenticatedVipCustomerIdRoute,
+  AuthenticatedAccessAuditLogsIndexRoute:
+    AuthenticatedAccessAuditLogsIndexRoute,
   AuthenticatedAccessPermissionsIndexRoute:
     AuthenticatedAccessPermissionsIndexRoute,
   AuthenticatedAccessRolesIndexRoute: AuthenticatedAccessRolesIndexRoute,
@@ -1773,6 +1817,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccessUsersIndexRoute: AuthenticatedAccessUsersIndexRoute,
   AuthenticatedInventoryCostingIndexRoute:
     AuthenticatedInventoryCostingIndexRoute,
+  AuthenticatedInventoryCostsIndexRoute: AuthenticatedInventoryCostsIndexRoute,
   AuthenticatedInventoryInboundsIndexRoute:
     AuthenticatedInventoryInboundsIndexRoute,
   AuthenticatedInventoryLedgersIndexRoute:

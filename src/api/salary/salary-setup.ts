@@ -8,8 +8,8 @@ export type EmployeeScopeItem = {
   province_id?: number | null
   is_personal_target?: number
   is_manager_target?: number
-  effective_from: string
-  effective_to?: string | null
+  effective_from: string | [number, number, number]
+  effective_to?: string | [number, number, number] | null
   status?: number
 }
 

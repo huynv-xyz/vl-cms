@@ -18,7 +18,7 @@ const fields = [
 ] as const
 
 export function ContractItemPriceHistoryDialog({ item, open, onOpenChange }: Props) {
-    const { data = [], isLoading, isError } = useQuery({
+    const { data, isLoading, isError } = useQuery({
         queryKey: ["contract-item-price-history", item.id],
         queryFn: () => listAuditLogs("contract_item", item.id),
         enabled: open,
@@ -38,7 +38,7 @@ export function ContractItemPriceHistoryDialog({ item, open, onOpenChange }: Pro
                     <div className="py-8 text-center text-sm text-muted-foreground">Đang tải lịch sử...</div>
                 ) : isError ? (
                     <div className="py-8 text-center text-sm text-destructive">Không tải được lịch sử sửa giá.</div>
-                ) : data.length === 0 ? (
+                ) : (data?.items ?? []).length === 0 ? (
                     <div className="py-8 text-center text-sm text-muted-foreground">Chưa có lần thay đổi giá nào được ghi nhận.</div>
                 ) : (
                     <div className="max-h-[60vh] overflow-auto rounded-md border">
@@ -51,7 +51,7 @@ export function ContractItemPriceHistoryDialog({ item, open, onOpenChange }: Pro
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {data.map((audit) => {
+                                {(data?.items ?? []).map((audit) => {
                                     const oldValues = parseObject(audit.old_values)
                                     const newValues = parseObject(audit.new_values)
                                     const changes = fields.filter(([, key]) => Number(oldValues[key]) !== Number(newValues[key]))

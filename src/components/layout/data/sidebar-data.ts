@@ -401,6 +401,11 @@ export const sidebarData: SidebarData = {
                     url: '/access/permissions',
                     icon: SlidersHorizontal,
                 },
+                {
+                    title: 'Nhật ký hệ thống',
+                    url: '/access/audit-logs',
+                    icon: History,
+                },
             ],
         },
     ],

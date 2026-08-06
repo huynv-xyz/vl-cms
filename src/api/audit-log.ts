@@ -1,4 +1,5 @@
 import { apiGet } from "@/api/client"
+import type { PagedResult } from "@/api/client"
 
 export type AuditLog = {
     id: number
@@ -15,8 +16,34 @@ export type AuditLog = {
 }
 
 export function listAuditLogs(entityType: string, entityId: number | string) {
-    return apiGet<AuditLog[]>("/audit-logs", {
+    return apiGet<PagedResult<AuditLog>>("/audit-logs", {
         entity_type: entityType,
         entity_id: entityId,
+        page: 1,
+        size: 100,
     })
 }
+
+export type AuditLogFilters = {
+    page?: number
+    size?: number
+    module?: string
+    entity_type?: string
+    entity_id?: string
+    action?: string
+    changed_by?: string
+    from_date?: string
+    to_date?: string
+    keyword?: string
+}
+
+export type AuditLogOptions = {
+    modules: string[]
+    entity_types: string[]
+}
+
+export const searchAuditLogs = (params: AuditLogFilters) =>
+    apiGet<PagedResult<AuditLog>>("/audit-logs", params)
+
+export const getAuditLogOptions = () =>
+    apiGet<AuditLogOptions>("/audit-logs/options")
