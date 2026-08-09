@@ -20,6 +20,21 @@ export type TaxBracketItem = {
   income_from: number
   income_to?: number | null
   tax_rate: number
+  quick_deduction: number
+  effective_from: string
+  effective_to?: string | null
+  status: number
+}
+
+export type TaxExemptionItem = {
+  id: number
+  exempt_code: string
+  description?: string | null
+  amount_per_month: number
+  labor_type: string
+  effective_from: string
+  effective_to?: string | null
+  status: number
 }
 
 export type EmployeeDeductionItem = {
@@ -46,6 +61,20 @@ export type TaxBracketPayload = {
   incomeFrom: number
   incomeTo?: number | null
   taxRate: number
+  quickDeduction: number
+  effectiveFrom: string
+  effectiveTo?: string | null
+  status: number
+}
+
+export type TaxExemptionPayload = {
+  exemptCode: string
+  description?: string | null
+  amountPerMonth: number
+  laborType: string
+  effectiveFrom: string
+  effectiveTo?: string | null
+  status: number
 }
 
 export type EmployeeDeductionPayload = {
@@ -68,6 +97,11 @@ export const payrollConfigApi = {
   createTaxBracket: (body: TaxBracketPayload) => apiPost<unknown>(`${base}/tax-brackets`, body),
   updateTaxBracket: (id: number, body: TaxBracketPayload) => apiPut<unknown>(`${base}/tax-brackets/${id}`, body),
   deleteTaxBracket: (id: number) => apiDelete<unknown>(`${base}/tax-brackets/${id}`),
+
+  listTaxExemptions: () => apiGet<ListResult<TaxExemptionItem>>(`${base}/tax-exemptions`),
+  createTaxExemption: (body: TaxExemptionPayload) => apiPost<unknown>(`${base}/tax-exemptions`, body),
+  updateTaxExemption: (id: number, body: TaxExemptionPayload) => apiPut<unknown>(`${base}/tax-exemptions/${id}`, body),
+  deleteTaxExemption: (id: number) => apiDelete<unknown>(`${base}/tax-exemptions/${id}`),
 
   listMonthlyIncomes: (params: { page: number; size: number; period: string; keyword?: string }) =>
     apiGet<PagedResult<EmployeeDeductionItem>>(`${base}/monthly-incomes`, params),

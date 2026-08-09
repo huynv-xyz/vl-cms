@@ -8,6 +8,7 @@ import {
   type EmployeeDeductionItem,
   type InsuranceConfigItem,
   type TaxBracketItem,
+  type TaxExemptionItem,
 } from "@/api/salary/payroll-config"
 import {
   createSystemConfig,
@@ -264,6 +265,9 @@ type TaxBracketFormState = {
   incomeFrom: string
   incomeTo: string
   taxRate: string
+  quickDeduction: string
+  effectiveFrom: string
+  effectiveTo: string
 }
 
 function TaxBracketDialog({
@@ -282,6 +286,9 @@ function TaxBracketDialog({
     incomeFrom: "",
     incomeTo: "",
     taxRate: "",
+    quickDeduction: "0",
+    effectiveFrom: "2026-07-01",
+    effectiveTo: "",
   })
 
   useEffect(() => {
@@ -292,12 +299,18 @@ function TaxBracketDialog({
       incomeFrom: String(item.income_from),
       incomeTo: item.income_to == null ? "" : String(item.income_to),
       taxRate: String(item.tax_rate * 100),
+      quickDeduction: String(item.quick_deduction),
+      effectiveFrom: item.effective_from,
+      effectiveTo: item.effective_to ?? "",
     } : {
       year: String(new Date().getFullYear()),
       bracketNo: "",
       incomeFrom: "",
       incomeTo: "",
       taxRate: "",
+      quickDeduction: "0",
+      effectiveFrom: "2026-07-01",
+      effectiveTo: "",
     })
   }, [item, open])
 
@@ -309,6 +322,10 @@ function TaxBracketDialog({
         incomeFrom: num(form.incomeFrom),
         incomeTo: form.incomeTo.trim() === "" ? null : num(form.incomeTo),
         taxRate: num(form.taxRate) / 100,
+        quickDeduction: num(form.quickDeduction),
+        effectiveFrom: form.effectiveFrom,
+        effectiveTo: form.effectiveTo || null,
+        status: 1,
       }
       return item ? payrollConfigApi.updateTaxBracket(item.id, body) : payrollConfigApi.createTaxBracket(body)
     },
@@ -346,6 +363,15 @@ function TaxBracketDialog({
           </Field>
           <Field label="Thu nhập tới">
             <Input value={form.incomeTo} onChange={e => setForm({ ...form, incomeTo: e.target.value })} placeholder="Trống = không giới hạn" />
+          </Field>
+          <Field label="Giảm trừ nhanh">
+            <Input value={form.quickDeduction} onChange={e => setForm({ ...form, quickDeduction: e.target.value })} />
+          </Field>
+          <Field label="Từ ngày">
+            <Input type="date" value={form.effectiveFrom} onChange={e => setForm({ ...form, effectiveFrom: e.target.value })} />
+          </Field>
+          <Field label="Tới ngày">
+            <Input type="date" value={form.effectiveTo} onChange={e => setForm({ ...form, effectiveTo: e.target.value })} />
           </Field>
         </div>
         <DialogFooter>
@@ -410,14 +436,16 @@ function TaxBracketTab() {
               <th className="px-4 py-3 text-right">Từ</th>
               <th className="px-4 py-3 text-right">Tới</th>
               <th className="px-4 py-3 text-right">Thuế suất</th>
+              <th className="px-4 py-3 text-right">Giảm trừ nhanh</th>
+              <th className="px-4 py-3">Hiệu lực</th>
               <th className="px-4 py-3 text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td className="px-4 py-8 text-center text-muted-foreground" colSpan={6}>Đang tải...</td></tr>
+              <tr><td className="px-4 py-8 text-center text-muted-foreground" colSpan={8}>Đang tải...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td className="px-4 py-8 text-center text-muted-foreground" colSpan={6}>Chưa có bậc thuế năm {activeYear}</td></tr>
+              <tr><td className="px-4 py-8 text-center text-muted-foreground" colSpan={8}>Chưa có bậc thuế năm {activeYear}</td></tr>
             ) : items.map(item => (
               <tr key={item.id} className="border-t">
                 <td className="px-4 py-3 font-medium">{item.bracket_no}</td>
@@ -425,6 +453,8 @@ function TaxBracketTab() {
                 <td className="px-4 py-3 text-right tabular-nums">{fmt(item.income_from)}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{item.income_to == null ? "Không giới hạn" : fmt(item.income_to)}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{pct(item.tax_rate)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{fmt(item.quick_deduction)}</td>
+                <td className="px-4 py-3">{item.effective_from}{item.effective_to ? ` → ${item.effective_to}` : " → nay"}</td>
                 <td className="px-4 py-3">
                   <ActionButtons
                     onEdit={() => { setEditing(item); setOpen(true) }}
@@ -762,6 +792,78 @@ function MonthlyIncomeTab() {
   )
 }
 
+function TaxExemptionTab() {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState<TaxExemptionItem | null>(null)
+  const [open, setOpen] = useState(false)
+  const { data, isLoading } = useQuery({
+    queryKey: ["payroll-config", "tax-exemptions"],
+    queryFn: payrollConfigApi.listTaxExemptions,
+  })
+  const del = useMutation({
+    mutationFn: payrollConfigApi.deleteTaxExemption,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["payroll-config", "tax-exemptions"] }),
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const items = data?.items ?? []
+  const totalActive = items.filter(x => x.status === 1).reduce((sum, x) => sum + x.amount_per_month, 0)
+  return <section className="space-y-3">
+    <div className="flex items-center justify-between">
+      <div>
+        <h2 className="text-base font-semibold">Khoản miễn/giảm thuế</h2>
+        <p className="text-sm text-muted-foreground">Tổng các khoản đang bật: {fmt(totalActive)} đ/tháng. Ngày hiệu lực được xét theo kỳ lương.</p>
+      </div>
+      <Button onClick={() => { setEditing(null); setOpen(true) }}><Plus className="mr-2 size-4" /> Thêm</Button>
+    </div>
+    <div className="overflow-hidden rounded-md border bg-background">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/40 text-left"><tr>
+          <th className="px-4 py-3">Mã</th><th className="px-4 py-3">Khoản</th>
+          <th className="px-4 py-3 text-right">Số tiền/tháng</th><th className="px-4 py-3">Hiệu lực</th>
+          <th className="px-4 py-3 text-right">Thao tác</th>
+        </tr></thead>
+        <tbody>{isLoading ? <tr><td colSpan={5} className="px-4 py-8 text-center">Đang tải...</td></tr> : items.map(item => <tr key={item.id} className="border-t">
+          <td className="px-4 py-3 font-medium">{item.exempt_code}</td>
+          <td className="px-4 py-3">{item.description || "-"}</td>
+          <td className="px-4 py-3 text-right tabular-nums">{fmt(item.amount_per_month)}</td>
+          <td className="px-4 py-3">{item.effective_from}{item.effective_to ? ` → ${item.effective_to}` : " → nay"}</td>
+          <td className="px-4 py-3"><ActionButtons onEdit={() => { setEditing(item); setOpen(true) }} onDelete={() => window.confirm("Xoá khoản này?") && del.mutate(item.id)} /></td>
+        </tr>)}</tbody>
+      </table>
+    </div>
+    <TaxExemptionDialog open={open} item={editing} onClose={() => { setOpen(false); setEditing(null) }} />
+  </section>
+}
+
+function TaxExemptionDialog({ open, item, onClose }: { open: boolean; item: TaxExemptionItem | null; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState({ exemptCode: "", description: "", amount: "0", effectiveFrom: "2026-07-01", effectiveTo: "" })
+  useEffect(() => {
+    if (!open) return
+    setForm(item ? { exemptCode: item.exempt_code, description: item.description ?? "", amount: String(item.amount_per_month), effectiveFrom: item.effective_from, effectiveTo: item.effective_to ?? "" }
+      : { exemptCode: "", description: "", amount: "0", effectiveFrom: "2026-07-01", effectiveTo: "" })
+  }, [item, open])
+  const mutation = useMutation({
+    mutationFn: () => {
+      const body = { exemptCode: form.exemptCode.trim(), description: form.description.trim() || null, amountPerMonth: num(form.amount), laborType: "CT", effectiveFrom: form.effectiveFrom, effectiveTo: form.effectiveTo || null, status: 1 }
+      return item ? payrollConfigApi.updateTaxExemption(item.id, body) : payrollConfigApi.createTaxExemption(body)
+    },
+    onSuccess: () => { toast.success("Đã lưu khoản miễn/giảm thuế"); qc.invalidateQueries({ queryKey: ["payroll-config", "tax-exemptions"] }); onClose() },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  return <Dialog open={open} onOpenChange={v => !v && onClose()}><DialogContent>
+    <DialogHeader><DialogTitle>{item ? "Sửa" : "Thêm"} khoản miễn/giảm thuế</DialogTitle></DialogHeader>
+    <div className="grid grid-cols-2 gap-4 py-2">
+      <Field label="Mã khoản"><Input value={form.exemptCode} onChange={e => setForm({ ...form, exemptCode: e.target.value })} /></Field>
+      <Field label="Số tiền/tháng"><Input value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} /></Field>
+      <Field label="Từ ngày"><Input type="date" value={form.effectiveFrom} onChange={e => setForm({ ...form, effectiveFrom: e.target.value })} /></Field>
+      <Field label="Tới ngày"><Input type="date" value={form.effectiveTo} onChange={e => setForm({ ...form, effectiveTo: e.target.value })} /></Field>
+      <div className="col-span-2"><Field label="Diễn giải"><Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></Field></div>
+    </div>
+    <DialogFooter><Button variant="outline" onClick={onClose}>Hủy</Button><Button disabled={mutation.isPending || !form.exemptCode.trim()} onClick={() => mutation.mutate()}>Lưu</Button></DialogFooter>
+  </DialogContent></Dialog>
+}
+
 type SystemConfigFormState = {
   configKey: string
   configValue: string
@@ -946,10 +1048,12 @@ export default function PayrollConfigPage() {
         <TabsList>
           <TabsTrigger value="insurance">Bảo hiểm</TabsTrigger>
           <TabsTrigger value="tax-brackets">Bậc thuế</TabsTrigger>
+          <TabsTrigger value="tax-exemptions">Miễn/giảm thuế</TabsTrigger>
           <TabsTrigger value="system-configs">Tham số chung</TabsTrigger>
         </TabsList>
         <TabsContent value="insurance"><InsuranceTab /></TabsContent>
         <TabsContent value="tax-brackets"><TaxBracketTab /></TabsContent>
+        <TabsContent value="tax-exemptions"><TaxExemptionTab /></TabsContent>
         <TabsContent value="system-configs"><SystemConfigTab /></TabsContent>
       </Tabs>
     </div>
