@@ -41,6 +41,9 @@ type CrudTableProps<T> = {
     onRowClick?: (row: T) => void
     enableColumnResize?: boolean
     enableStickyHorizontalScroll?: boolean
+    enableColumnPinning?: boolean
+    defaultPinnedUntil?: number
+    defaultPinnedColumnId?: string
     headerVariant?: "default" | "report"
     className?: string
 }
@@ -66,6 +69,9 @@ export function CrudTable<T>({
     onRowClick,
     enableColumnResize,
     enableStickyHorizontalScroll,
+    enableColumnPinning,
+    defaultPinnedUntil,
+    defaultPinnedColumnId,
     headerVariant,
     className,
 }: CrudTableProps<T>) {
@@ -91,6 +97,9 @@ export function CrudTable<T>({
             onRowClick={onRowClick}
             enableColumnResize={enableColumnResize}
             enableStickyHorizontalScroll={enableStickyHorizontalScroll}
+            enableColumnPinning={enableColumnPinning}
+            defaultPinnedUntil={defaultPinnedUntil}
+            defaultPinnedColumnId={defaultPinnedColumnId}
             headerVariant={headerVariant}
             className={className}
         />

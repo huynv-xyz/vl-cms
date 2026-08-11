@@ -1,7 +1,7 @@
 ﻿import type React from "react"
 import { useState } from "react"
 import { useMutation } from "@tanstack/react-query"
-import { AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CheckCircle2, ChevronDown, Loader2, Package, PackageOpen, RefreshCw, Search, TrendingDown, TrendingUp, Warehouse, type LucideIcon } from "lucide-react"
+import { AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarClock, CheckCircle2, ChevronDown, Loader2, Package, PackageOpen, RefreshCw, Search, TrendingDown, TrendingUp, Warehouse, type LucideIcon } from "lucide-react"
 
 import { checkNegativeStock, listInventoryLedgerReport, type NegativeStockAuditResult } from "@/api/inventory/ledger"
 import { PageSection } from "@/components/page-section"
@@ -20,6 +20,7 @@ import { ExportInventoryLedgerButton } from "./components/export-inventory-ledge
 import { LedgerImportButtons } from "./components/ledger-import-buttons"
 import { LedgerVoucherDialog } from "./components/ledger-voucher-dialog"
 import { LegacyConversionLotMergeTool } from "./components/legacy-conversion-lot-merge-tool"
+import { ProductionDateSyncTool } from "./components/production-date-sync-tool"
 import type { InventoryLedgerTotals } from "./data/schema"
 
 type InventoryLedgerPageMode = "all" | "in" | "out"
@@ -38,7 +39,7 @@ export function InventoryLedgerReportPage({
     const search = route.useSearch()
     const navigate = route.useNavigate()
     const { pagination, setPagination } = useUrlPagination(search, navigate)
-    const [voucherDialog, setVoucherDialog] = useState<"in" | "out" | "transfer" | "repack" | "conversion" | "negative-stock" | null>(null)
+    const [voucherDialog, setVoucherDialog] = useState<"in" | "out" | "transfer" | "repack" | "conversion" | "negative-stock" | "production-date-sync" | null>(null)
     const direction = mode === "in" ? "IN" : mode === "out" ? "OUT" : undefined
     const showValues = mode === "all"
     const pageTitle = mode === "in" ? "Nhập kho" : mode === "out" ? "Xuất kho" : "Sổ chi tiết vật tư hàng hóa"
@@ -227,6 +228,7 @@ export function InventoryLedgerReportPage({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56">
                                 <DropdownMenuItem onSelect={() => setVoucherDialog("negative-stock")}><Search className="text-rose-600" />Kiểm tra âm tồn</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setVoucherDialog("production-date-sync")}><CalendarClock className="text-blue-600" />Sửa đồng bộ ngày lệnh SX</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => setVoucherDialog("repack")}><Package className="text-amber-600" />Sang bao</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => setVoucherDialog("conversion")}><RefreshCw className="text-violet-600" />Chuyển mã</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -343,6 +345,10 @@ export function InventoryLedgerReportPage({
                     <NegativeStockAuditDialog
                         open={voucherDialog === "negative-stock"}
                         onOpenChange={(open) => setVoucherDialog(open ? "negative-stock" : null)}
+                    />
+                    <ProductionDateSyncTool
+                        open={voucherDialog === "production-date-sync"}
+                        onOpenChange={(open) => setVoucherDialog(open ? "production-date-sync" : null)}
                     />
                 </div>
                 )

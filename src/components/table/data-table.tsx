@@ -13,6 +13,7 @@ import {
     useReactTable,
     getExpandedRowModel,
 } from '@tanstack/react-table'
+import { Pin } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
     Table,
@@ -51,6 +52,9 @@ export type BaseDataTableProps<TData> = {
     onRowClick?: (row: TData) => void
     enableColumnResize?: boolean
     enableStickyHorizontalScroll?: boolean
+    enableColumnPinning?: boolean
+    defaultPinnedUntil?: number
+    defaultPinnedColumnId?: string
     headerVariant?: "default" | "report"
 }
 
@@ -76,6 +80,9 @@ export function BaseDataTable<TData>({
     onRowClick,
     enableColumnResize = false,
     enableStickyHorizontalScroll = false,
+    enableColumnPinning = false,
+    defaultPinnedUntil = -1,
+    defaultPinnedColumnId,
     headerVariant = "default",
 }: BaseDataTableProps<TData>) {
 
@@ -86,6 +93,7 @@ export function BaseDataTable<TData>({
     const [expanded, setExpanded] = useState<ExpandedState>({})
     const [initialized, setInitialized] = useState(false)
     const tableScrollRef = useRef<HTMLDivElement | null>(null)
+    const rootRef = useRef<HTMLDivElement | null>(null)
     const headerTableRef = useRef<HTMLTableElement | null>(null)
     const stickyScrollRef = useRef<HTMLDivElement | null>(null)
     const isSyncingScrollRef = useRef(false)
@@ -95,6 +103,7 @@ export function BaseDataTable<TData>({
         viewportWidth: 0,
     })
     const [stickyHeaderTop, setStickyHeaderTop] = useState(64)
+    const [pinnedUntilIndex, setPinnedUntilIndex] = useState(defaultPinnedUntil)
 
     useEffect(() => {
         if (defaultExpandAll && !initialized) {
@@ -173,6 +182,7 @@ export function BaseDataTable<TData>({
 
     const syncHeaderScroll = (scrollLeft: number) => {
         if (headerVariant !== "report" || !headerTableRef.current) return
+        rootRef.current?.style.setProperty("--data-table-scroll-left", `${scrollLeft}px`)
         headerTableRef.current.style.transform = `translateX(-${scrollLeft}px)`
     }
 
@@ -258,10 +268,57 @@ export function BaseDataTable<TData>({
 
     const isReportHeader = headerVariant === "report"
     const visibleLeafColumns = table.getVisibleLeafColumns()
+    const visibleColumnIds = visibleLeafColumns.map((column) => column.id).join("|")
     const tableWidth = Math.max(
         visibleLeafColumns.reduce((total, column) => total + column.getSize(), 0),
         table.getTotalSize(),
     )
+    const columnLeftOffsets = visibleLeafColumns.reduce<number[]>((offsets, column, index) => {
+        offsets[index] = index === 0 ? 0 : offsets[index - 1] + visibleLeafColumns[index - 1].getSize()
+        return offsets
+    }, [])
+
+    useEffect(() => {
+        if (!enableColumnPinning) {
+            setPinnedUntilIndex(-1)
+            return
+        }
+
+        if (defaultPinnedColumnId) {
+            const nextIndex = visibleLeafColumns.findIndex((column) => column.id === defaultPinnedColumnId)
+            setPinnedUntilIndex(nextIndex >= 0 ? nextIndex : defaultPinnedUntil)
+            return
+        }
+
+        setPinnedUntilIndex(defaultPinnedUntil)
+    }, [enableColumnPinning, defaultPinnedColumnId, defaultPinnedUntil, visibleColumnIds])
+
+    const togglePinnedUntil = (columnIndex: number) => {
+        setPinnedUntilIndex((current) => current === columnIndex ? -1 : columnIndex)
+    }
+
+    const getPinnedStyle = (
+        columnIndex: number,
+        section: "header" | "body" | "footer",
+    ): React.CSSProperties | undefined => {
+        if (!enableColumnPinning || columnIndex > pinnedUntilIndex) return undefined
+
+        const isLastPinned = columnIndex === pinnedUntilIndex
+        const gridShadow = "inset -1px 0 0 rgb(226 232 240), inset 0 -1px 0 rgb(226 232 240)"
+        const edgeShadow = `${gridShadow}, 8px 0 12px -10px rgba(15, 23, 42, 0.65)`
+        const zIndex = section === "header" ? 70 : section === "footer" ? 35 : 25
+
+        return {
+            position: "sticky",
+            left: columnLeftOffsets[columnIndex] ?? 0,
+            zIndex,
+            background: section === "header" ? "rgb(241 245 249)" : section === "footer" ? "hsl(var(--muted))" : "#fff",
+            boxShadow: isLastPinned ? edgeShadow : gridShadow,
+            transform: section === "header" && isReportHeader
+                ? "translateX(var(--data-table-scroll-left, 0px))"
+                : undefined,
+        }
+    }
 
     const renderColGroup = () => (
         <colgroup>
@@ -279,14 +336,18 @@ export function BaseDataTable<TData>({
 
     const renderHeaderRows = () => table.getHeaderGroups().map((hg) => (
         <TableRow key={hg.id}>
-            {hg.headers.map((header) => {
+            {hg.headers.map((header, columnIndex) => {
                 const size = header.getSize()
                 const minSize = header.column.columnDef.minSize ?? 72
+                const isPinned = enableColumnPinning && columnIndex <= pinnedUntilIndex
+                const isActivePin = enableColumnPinning && columnIndex === pinnedUntilIndex
                 return (
                     <TableHead
                         key={header.id}
                         className={cn(
-                            "relative select-none",
+                            "relative select-none overflow-hidden",
+                            enableColumnPinning && !header.isPlaceholder && "group/cell pr-6",
+                            isPinned && "bg-slate-100",
                             header.column.columnDef.meta?.className,
                             header.column.columnDef.meta?.thClassName,
                             isReportHeader &&
@@ -295,6 +356,7 @@ export function BaseDataTable<TData>({
                         style={{
                             width: size,
                             minWidth: minSize,
+                            ...getPinnedStyle(columnIndex, "header"),
                         }}
                     >
                         {header.isPlaceholder
@@ -303,6 +365,25 @@ export function BaseDataTable<TData>({
                                 header.column.columnDef.header,
                                 header.getContext()
                             )}
+                        {enableColumnPinning && !header.isPlaceholder ? (
+                            <button
+                                type="button"
+                                aria-label={isActivePin ? "Bo co dinh cot" : "Co dinh den cot nay"}
+                                title={isActivePin ? "Bo co dinh cot" : "Co dinh den cot nay"}
+                                onClick={(event) => {
+                                    event.preventDefault()
+                                    event.stopPropagation()
+                                    togglePinnedUntil(columnIndex)
+                                }}
+                                className={cn(
+                                    "absolute right-1 top-1 z-[80] inline-flex h-4 w-4 items-center justify-center rounded text-muted-foreground/70 transition-opacity hover:bg-white hover:text-primary",
+                                    isActivePin ? "bg-primary/10 text-primary opacity-100" : "opacity-0 group-hover/cell:opacity-100 focus:opacity-100",
+                                )}
+                                data-no-row-click="true"
+                            >
+                                <Pin className="h-3 w-3" />
+                            </button>
+                        ) : null}
                         {enableColumnResize && header.column.getCanResize() ? (
                             <div
                                 onMouseDown={header.getResizeHandler()}
@@ -326,7 +407,7 @@ export function BaseDataTable<TData>({
             'min-w-0 max-w-full',
             'flex flex-1 flex-col gap-4',
             className
-        )}>
+        )} ref={rootRef}>
 
             {showToolbar && (
                 <DataTableToolbar
@@ -396,16 +477,20 @@ export function BaseDataTable<TData>({
                                                 onRowClick(row.original)
                                             }}
                                         >
-                                            {row.getVisibleCells().map((cell) => {
+                                            {row.getVisibleCells().map((cell, columnIndex) => {
                                                 const size = cell.column.getSize()
                                                 const minSize = cell.column.columnDef.minSize ?? 72
                                                 return (
                                                     <TableCell
                                                         key={cell.id}
-                                                        className={cell.column.columnDef.meta?.tdClassName}
+                                                        className={cn(
+                                                            columnIndex <= pinnedUntilIndex && enableColumnPinning && "overflow-hidden bg-white",
+                                                            cell.column.columnDef.meta?.tdClassName,
+                                                        )}
                                                         style={{
                                                             width: size,
                                                             minWidth: minSize,
+                                                            ...getPinnedStyle(columnIndex, "body"),
                                                         }}
                                                     >
                                                         {flexRender(
@@ -431,15 +516,19 @@ export function BaseDataTable<TData>({
 
                                 {footer !== false && (
                                     <TableRow className="bg-muted/30 font-semibold">
-                                        {table.getVisibleLeafColumns().map((col) => {
+                                        {table.getVisibleLeafColumns().map((col, columnIndex) => {
                                             const footerFn = col.columnDef.meta?.footer
                                             return (
                                                 <TableCell
                                                     key={col.id}
-                                                    className={col.columnDef.meta?.tdClassName}
+                                                    className={cn(
+                                                        columnIndex <= pinnedUntilIndex && enableColumnPinning && "overflow-hidden bg-muted",
+                                                        col.columnDef.meta?.tdClassName,
+                                                    )}
                                                     style={{
                                                         width: col.getSize(),
                                                         minWidth: col.columnDef.minSize ?? 72,
+                                                        ...getPinnedStyle(columnIndex, "footer"),
                                                     }}
                                                 >
                                                     {footerFn ? footerFn(data) : null}

@@ -18,18 +18,31 @@ export default function ProductBomPage() {
 
     const {
         keyword,
-        setKeyword,
         singleFilters,
         setSingleFilters,
         requestFilters,
-    } = useUrlListFilters(search, navigate, [], ["product_id", "active"])
+    } = useUrlListFilters(search, navigate, [], ["bom_id", "product_id", "active"])
+    const bomKeyword = singleFilters.bom_id ? `BOM #${singleFilters.bom_id}` : ""
+    const visibleKeyword = keyword || bomKeyword
+    const setVisibleKeyword = (value: string) => {
+        navigate({
+            search: (prev) => ({
+                ...prev,
+                keyword: value || "",
+                bom_id: undefined,
+                page: 1,
+            }),
+            replace: true,
+        })
+    }
 
     const { data, isLoading, error } = usePaginatedList(
         [
             "product-boms",
             search.page,
             search.size,
-            keyword,
+            visibleKeyword,
+            singleFilters.bom_id,
             singleFilters.product_id,
             singleFilters.active,
         ],
@@ -37,7 +50,7 @@ export default function ProductBomPage() {
         {
             page: search.page,
             size: search.size,
-            keyword,
+            keyword: visibleKeyword,
             product_id: requestFilters.product_id
                 ? Number(requestFilters.product_id)
                 : undefined,
@@ -70,8 +83,8 @@ export default function ProductBomPage() {
                             pagination={pagination}
                             onPaginationChange={setPagination}
                             pageCount={data.total_page}
-                            keyword={keyword}
-                            onKeywordChange={setKeyword}
+                            keyword={visibleKeyword}
+                            onKeywordChange={setVisibleKeyword}
                             filters={{
                                 product_id: singleFilters.product_id
                                     ? Number(singleFilters.product_id)

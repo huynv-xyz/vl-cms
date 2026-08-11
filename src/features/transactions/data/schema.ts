@@ -42,6 +42,10 @@ export type Transaction = {
     common_group: string
     region?: string
     sl_hdn_k0_ma_rieng: number
+    import_batch_id?: number | null
+    source_file_hash?: string | null
+    source_sheet?: string | null
+    source_row_no?: number | null
     status: number
     created_at: string
     updated_at: string
