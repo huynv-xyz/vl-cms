@@ -891,6 +891,6 @@ function getPagedItems(data: any) {
 }
 
 function formatNumber(value: unknown) {
-    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(Number(value || 0))
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 }).format(Number(value || 0))
 }
 

@@ -634,7 +634,7 @@ export function InventoryLedgerTable({
                         </>
                     )}
                     renderFooter={() => (
-                        <LedgerTotalsRow totals={filterTotals} showValues={showValues} />
+                        <LedgerTotalsRow totals={filterTotals} showValues={showValues} direction={direction} />
                     )}
                 />
 
@@ -1241,7 +1241,16 @@ function FilterOptionButton({
     )
 }
 
-function LedgerTotalsRow({ totals, showValues }: { totals: Required<InventoryLedgerTotals>; showValues: boolean }) {
+function LedgerTotalsRow({
+    totals,
+    showValues,
+    direction,
+}: {
+    totals: Required<InventoryLedgerTotals>
+    showValues: boolean
+    direction?: "IN" | "OUT"
+}) {
+    const displayValue = (value: number) => direction === "OUT" ? Math.abs(Number(value || 0)) : Number(value || 0)
     const labelCell = (
         <Td colSpan={13} className="bg-slate-50 text-right font-semibold text-slate-700">
             Tổng theo bộ lọc
@@ -1253,10 +1262,10 @@ function LedgerTotalsRow({ totals, showValues }: { totals: Required<InventoryLed
         return (
             <tr className="border-t-2 border-slate-300">
                 {labelCell}
-                <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(totals.opening_quantity)}</Td>
-                <Td className="bg-slate-50 text-right font-semibold tabular-nums text-emerald-700">{formatNumber(totals.inbound_quantity)}</Td>
-                <Td className="bg-slate-50 text-right font-semibold tabular-nums text-rose-700">{formatNumber(totals.outbound_quantity)}</Td>
-                <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(totals.closing_quantity)}</Td>
+                <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(displayValue(totals.opening_quantity))}</Td>
+                <Td className="bg-slate-50 text-right font-semibold tabular-nums text-emerald-700">{formatNumber(displayValue(totals.inbound_quantity))}</Td>
+                <Td className="bg-slate-50 text-right font-semibold tabular-nums text-rose-700">{formatNumber(displayValue(totals.outbound_quantity))}</Td>
+                <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(displayValue(totals.closing_quantity))}</Td>
                 {trailingCell}
             </tr>
         )
@@ -1266,14 +1275,14 @@ function LedgerTotalsRow({ totals, showValues }: { totals: Required<InventoryLed
         <tr className="border-t-2 border-slate-300">
             {labelCell}
             <Td className="bg-slate-50 text-center font-semibold text-muted-foreground">-</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(totals.opening_quantity)}</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(totals.opening_value)}</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-emerald-700">{formatNumber(totals.inbound_quantity)}</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-emerald-700">{formatNumber(totals.inbound_value)}</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-rose-700">{formatNumber(totals.outbound_quantity)}</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-rose-700">{formatNumber(totals.outbound_value)}</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(totals.closing_quantity)}</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(totals.closing_value)}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(displayValue(totals.opening_quantity))}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(displayValue(totals.opening_value))}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-emerald-700">{formatNumber(displayValue(totals.inbound_quantity))}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-emerald-700">{formatNumber(displayValue(totals.inbound_value))}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-rose-700">{formatNumber(displayValue(totals.outbound_quantity))}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-rose-700">{formatNumber(displayValue(totals.outbound_value))}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(displayValue(totals.closing_quantity))}</Td>
+            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(displayValue(totals.closing_value))}</Td>
             {trailingCell}
         </tr>
     )
@@ -4238,7 +4247,7 @@ function formatQty(value?: number | string | null) {
     const n = Number(value)
     if (Number.isNaN(n)) return String(value)
     return new Intl.NumberFormat("vi-VN", {
-        maximumFractionDigits: 6,
+        maximumFractionDigits: 3,
     }).format(n)
 }
 
@@ -4247,7 +4256,7 @@ function formatMoney(value?: number | string | null) {
     const n = Number(value)
     if (Number.isNaN(n)) return String(value)
     return new Intl.NumberFormat("vi-VN", {
-        maximumFractionDigits: 2,
+        maximumFractionDigits: 3,
     }).format(n)
 }
 

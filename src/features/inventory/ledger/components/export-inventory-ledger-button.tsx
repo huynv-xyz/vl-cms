@@ -4,7 +4,7 @@ import { toast } from "sonner"
 
 import { listInventoryLedgerReport, type InventoryLedgerReportParams } from "@/api/inventory/ledger"
 import { Button } from "@/components/ui/button"
-import type { InventoryLedgerReportRow } from "../data/schema"
+import type { InventoryLedgerReportRow, InventoryLedgerTotals } from "../data/schema"
 import { getDocTypeMeta } from "../data/schema"
 
 type Props = {
@@ -21,6 +21,10 @@ type ExportColumn = {
     width?: number
     type?: "date" | "number" | "text"
     numberFormat?: "integer" | "quantity" | "money"
+    total?: boolean
+    totalKey?: keyof InventoryLedgerTotals
+    valueColumn?: boolean
+    absoluteOnOutbound?: boolean
 }
 
 const EXPORT_PAGE_SIZE = 500
@@ -39,12 +43,15 @@ const COLUMNS: ExportColumn[] = [
     { label: "Số lô", value: (row) => row.lot_code, width: 24 },
     { label: "Mã kho", value: (row) => row.warehouse_code, width: 20 },
     { label: "Kho", value: (row) => row.warehouse_name, width: 28 },
-    { label: "Đơn giá", value: (row) => row.unit_price, width: 16, type: "number", numberFormat: "money" },
-    { label: "Tồn đầu", value: (row) => Number(row.balance_quantity || 0) - Number(row.quantity_in || 0) + Number(row.quantity_out || 0), width: 16, type: "number", numberFormat: "quantity" },
-    { label: "Nhập", value: (row) => row.quantity_in, width: 16, type: "number", numberFormat: "quantity" },
-    { label: "Xuất", value: (row) => row.quantity_out, width: 16, type: "number", numberFormat: "quantity" },
-    { label: "Tồn sau", value: (row) => row.balance_quantity, width: 16, type: "number", numberFormat: "quantity" },
-    { label: "Thành tiền", value: (row) => Math.abs(Number(row.amount || 0)), width: 18, type: "number", numberFormat: "money" },
+    { label: "Đơn giá", value: (row) => row.unit_price, width: 16, type: "number", numberFormat: "money", valueColumn: true },
+    { label: "Tồn đầu - Số lượng", value: (row) => openingQuantity(row), width: 18, type: "number", numberFormat: "quantity", total: true, totalKey: "opening_quantity", absoluteOnOutbound: true },
+    { label: "Tồn đầu - Giá trị", value: (row) => openingQuantity(row) * unitPrice(row), width: 18, type: "number", numberFormat: "money", total: true, totalKey: "opening_value", valueColumn: true, absoluteOnOutbound: true },
+    { label: "Nhập - Số lượng", value: (row) => row.quantity_in, width: 18, type: "number", numberFormat: "quantity", total: true, totalKey: "inbound_quantity", absoluteOnOutbound: true },
+    { label: "Nhập - Giá trị", value: (row) => Number(row.quantity_in || 0) > 0 ? Math.abs(Number(row.amount || 0)) : 0, width: 18, type: "number", numberFormat: "money", total: true, totalKey: "inbound_value", valueColumn: true, absoluteOnOutbound: true },
+    { label: "Xuất - Số lượng", value: (row) => row.quantity_out, width: 18, type: "number", numberFormat: "quantity", total: true, totalKey: "outbound_quantity", absoluteOnOutbound: true },
+    { label: "Xuất - Giá trị", value: (row) => Number(row.quantity_out || 0) > 0 ? Math.abs(Number(row.amount || 0)) : 0, width: 18, type: "number", numberFormat: "money", total: true, totalKey: "outbound_value", valueColumn: true, absoluteOnOutbound: true },
+    { label: "Tồn sau - Số lượng", value: (row) => row.balance_quantity, width: 18, type: "number", numberFormat: "quantity", total: true, totalKey: "closing_quantity", absoluteOnOutbound: true },
+    { label: "Tồn sau - Giá trị", value: (row) => Number(row.balance_quantity || 0) * unitPrice(row), width: 18, type: "number", numberFormat: "money", total: true, totalKey: "closing_value", valueColumn: true, absoluteOnOutbound: true },
     { label: "Loại chứng từ", value: (row) => getDocTypeMeta(row.doc_type).label, width: 34 },
     { label: "Mã đối tượng tập hợp chi phí", value: (row) => row.cost_object_code, width: 26 },
     { label: "Tên đối tượng tập hợp chi phí", value: (row) => row.cost_object_name, width: 42 },
@@ -59,7 +66,7 @@ export function ExportInventoryLedgerButton({ keyword, filters, showValues = tru
     const handleExport = async () => {
         try {
             setLoading(true)
-            const rows = await fetchAllInventoryLedger({
+            const exportData = await fetchAllInventoryLedger({
                 page: 1,
                 size: EXPORT_PAGE_SIZE,
                 keyword: keyword || undefined,
@@ -94,13 +101,13 @@ export function ExportInventoryLedgerButton({ keyword, filters, showValues = tru
                 show_values: filters.show_values,
             })
 
-            if (!rows.length) {
+            if (!exportData.rows.length) {
                 toast.warning("Không có dữ liệu để xuất")
                 return
             }
 
-            await exportInventoryLedgerXlsx(rows, filters, columns, title, filePrefix)
-            toast.success(`Đã xuất ${rows.length} dòng sổ chi tiết vật tư hàng hóa`)
+            await exportInventoryLedgerXlsx(exportData.rows, exportData.totals, filters, columns, title, filePrefix, showValues)
+            toast.success(`Đã xuất ${exportData.rows.length} dòng sổ chi tiết vật tư hàng hóa`)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Xuất Excel thất bại")
         } finally {
@@ -120,41 +127,110 @@ export function ExportInventoryLedgerButton({ keyword, filters, showValues = tru
     )
 }
 
-async function fetchAllInventoryLedger(base: InventoryLedgerReportParams): Promise<InventoryLedgerReportRow[]> {
+async function fetchAllInventoryLedger(base: InventoryLedgerReportParams): Promise<{ rows: InventoryLedgerReportRow[]; totals?: InventoryLedgerTotals }> {
     const size = base.size ?? EXPORT_PAGE_SIZE
     const all: InventoryLedgerReportRow[] = []
     let page = 1
+    let totals: InventoryLedgerTotals | undefined
 
     for (let guard = 0; guard < 500; guard++) {
         const res = await listInventoryLedgerReport({ ...base, page, size })
+        if (page === 1) {
+            totals = res.totals
+        }
         all.push(...(res.items || []))
 
         if (page >= (res.total_page || 1) || !res.items?.length) break
         page += 1
     }
 
-    return all
+    return { rows: all, totals }
 }
 
 function getExportColumns(showValues: boolean) {
     if (showValues) return COLUMNS
-    return COLUMNS.filter((column) => !["Đơn giá", "Thành tiền"].includes(column.label))
+    return COLUMNS
+        .filter((column) => !column.valueColumn)
+        .map((column) => ({
+            ...column,
+            label: column.label.endsWith(" - Số lượng")
+                ? column.label.replace(" - Số lượng", "")
+                : column.label,
+        }))
+}
+
+function ledgerHeaderGroup(column: ExportColumn): { label: string; subLabel: string } | null {
+    const groups = [
+        { prefix: "Tồn đầu - ", label: "Tồn đầu" },
+        { prefix: "Nhập - ", label: "Nhập" },
+        { prefix: "Xuất - ", label: "Xuất" },
+        { prefix: "Tồn sau - ", label: "Tồn sau" },
+    ]
+    const group = groups.find((item) => column.label.startsWith(item.prefix))
+    if (!group) return null
+    return {
+        label: group.label,
+        subLabel: column.label.slice(group.prefix.length),
+    }
+}
+
+function buildGroupedHeaderTop(columns: ExportColumn[]) {
+    return columns.map((column, index) => {
+        const current = ledgerHeaderGroup(column)
+        if (!current) return column.label
+
+        const previous = index > 0 ? ledgerHeaderGroup(columns[index - 1]) : null
+        return previous?.label === current.label ? "" : current.label
+    })
+}
+
+function buildGroupedHeaderBottom(columns: ExportColumn[]) {
+    return columns.map((column) => ledgerHeaderGroup(column)?.subLabel ?? "")
+}
+
+function applyGroupedHeaderMerges(sheet: any, columns: ExportColumn[], headerStartRow: number) {
+    for (let index = 0; index < columns.length; index++) {
+        const columnNumber = index + 1
+        const current = ledgerHeaderGroup(columns[index])
+        if (!current) {
+            sheet.mergeCells(headerStartRow, columnNumber, headerStartRow + 1, columnNumber)
+            continue
+        }
+
+        const previous = index > 0 ? ledgerHeaderGroup(columns[index - 1]) : null
+        if (previous?.label === current.label) continue
+
+        let endIndex = index
+        while (endIndex + 1 < columns.length && ledgerHeaderGroup(columns[endIndex + 1])?.label === current.label) {
+            endIndex += 1
+        }
+
+        if (endIndex > index) {
+            sheet.mergeCells(headerStartRow, columnNumber, headerStartRow, endIndex + 1)
+        }
+    }
 }
 
 async function exportInventoryLedgerXlsx(
     rows: InventoryLedgerReportRow[],
+    totals: InventoryLedgerTotals | undefined,
     filters: Partial<InventoryLedgerReportParams>,
     columns: ExportColumn[],
     title: string,
     filePrefix: string,
+    showValues: boolean,
 ) {
     const { Workbook } = await import("exceljs")
     const workbook = new Workbook()
     workbook.creator = "VLIFE"
     workbook.created = new Date()
+    const groupedHeader = showValues
+    const exportDirection = filters.direction === "OUT" ? "OUT" : filters.direction === "IN" ? "IN" : undefined
+    const headerStartRow = 4
+    const dataStartRow = groupedHeader ? 6 : 5
 
     const sheet = workbook.addWorksheet("Sổ chi tiết VT HH", {
-        views: [{ state: "frozen", ySplit: 4 }],
+        views: [{ state: "frozen", ySplit: groupedHeader ? 5 : 4 }],
     })
 
     sheet.mergeCells(1, 1, 1, columns.length)
@@ -169,15 +245,36 @@ async function exportInventoryLedgerXlsx(
     sheet.getCell(2, 1).font = { italic: true, color: { argb: "FF64748B" } }
 
     sheet.addRow([])
-    sheet.addRow(columns.map((column) => column.label))
+    if (groupedHeader) {
+        sheet.addRow(buildGroupedHeaderTop(columns))
+        sheet.addRow(buildGroupedHeaderBottom(columns))
+        applyGroupedHeaderMerges(sheet, columns, headerStartRow)
+    } else {
+        sheet.addRow(columns.map((column) => column.label))
+    }
     rows.forEach((row, index) => {
-        sheet.addRow(columns.map((column) => normalizeCellValue(column.value(row, index), column)))
+        sheet.addRow(columns.map((column) => normalizeCellValue(displayExportValue(column.value(row, index), column, exportDirection), column)))
     })
+    const totalRowIndex = sheet.rowCount + 1
+    sheet.addRow(columns.map((column, index) => {
+        if (index === 0) return "Tổng"
+        if (!column.total) return ""
+        if (column.totalKey && totals && totals[column.totalKey] !== undefined && totals[column.totalKey] !== null) {
+            return displayExportValue(Number(totals[column.totalKey] || 0), column, exportDirection)
+        }
+        return rows.reduce((sum, row, rowIndex) => {
+            const value = normalizeCellValue(displayExportValue(column.value(row, rowIndex), column, exportDirection), column)
+            const numberValue = Number(value)
+            return sum + (Number.isFinite(numberValue) ? numberValue : 0)
+        }, 0)
+    }))
 
     autoFitColumns(sheet, columns)
-    sheet.autoFilter = {
-        from: { row: 4, column: 1 },
-        to: { row: 4, column: columns.length },
+    if (!groupedHeader) {
+        sheet.autoFilter = {
+            from: { row: 4, column: 1 },
+            to: { row: 4, column: columns.length },
+        }
     }
 
     const border = {
@@ -187,24 +284,35 @@ async function exportInventoryLedgerXlsx(
         right: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
     }
 
-    const header = sheet.getRow(4)
-    header.height = 28
-    header.eachCell((cell) => {
-        cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
-        cell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "FF0F766E" },
-        }
-        cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
-        cell.border = border
-    })
+    for (let rowIndex = headerStartRow; rowIndex < dataStartRow; rowIndex++) {
+        const header = sheet.getRow(rowIndex)
+        header.height = 28
+        header.eachCell({ includeEmpty: true }, (cell) => {
+            cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
+            cell.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "FF0F766E" },
+            }
+            cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
+            cell.border = border
+        })
+    }
 
-    for (let rowIndex = 5; rowIndex <= sheet.rowCount; rowIndex++) {
+    for (let rowIndex = dataStartRow; rowIndex <= sheet.rowCount; rowIndex++) {
         const row = sheet.getRow(rowIndex)
+        const isTotalRow = rowIndex === totalRowIndex
         row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
             const column = columns[colNumber - 1]
             cell.border = border
+            if (isTotalRow) {
+                cell.font = { bold: true }
+                cell.fill = {
+                    type: "pattern",
+                    pattern: "solid",
+                    fgColor: { argb: "FFF1F5F9" },
+                }
+            }
             cell.alignment = {
                 vertical: "middle",
                 horizontal: column.type === "number" ? "right" : "left",
@@ -221,6 +329,24 @@ async function exportInventoryLedgerXlsx(
 
     const buffer = await workbook.xlsx.writeBuffer()
     downloadBlob(buffer, `${filePrefix}-${todayYmd()}.xlsx`)
+}
+
+function openingQuantity(row: InventoryLedgerReportRow) {
+    return Number(row.balance_quantity || 0) - Number(row.quantity_in || 0) + Number(row.quantity_out || 0)
+}
+
+function unitPrice(row: InventoryLedgerReportRow) {
+    return Number(row.unit_price || 0)
+}
+
+function displayExportValue(
+    value: string | number | null | undefined,
+    column: ExportColumn,
+    direction?: "IN" | "OUT",
+) {
+    if (direction !== "OUT" || !column.absoluteOnOutbound || column.type !== "number") return value
+    const numberValue = Number(value)
+    return Number.isFinite(numberValue) ? Math.abs(numberValue) : value
 }
 
 function autoFitColumns(sheet: any, columns: ExportColumn[]) {
@@ -250,7 +376,7 @@ function displayLength(value: any, column: ExportColumn) {
     if (column.type === "number") {
         const numberValue = Number(value)
         if (!Number.isFinite(numberValue)) return 0
-        return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 6 }).format(numberValue).length
+        return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 3 }).format(numberValue).length
     }
     if (typeof value === "object" && "text" in value) return String(value.text || "").length
     if (typeof value === "object" && "richText" in value) {
@@ -276,7 +402,7 @@ function normalizeCellValue(
 
 function getExcelNumberFormat(value: unknown, column: ExportColumn) {
     const numberValue = Number(value)
-    if (column.numberFormat === "integer" || column.numberFormat === "money") return "#,##0"
+    if (column.numberFormat === "integer") return "#,##0"
     if (Number.isFinite(numberValue) && Number.isInteger(numberValue)) return "#,##0"
     return "#,##0.###"
 }

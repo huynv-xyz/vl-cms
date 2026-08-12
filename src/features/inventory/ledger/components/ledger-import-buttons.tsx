@@ -143,8 +143,13 @@ function readStructuredResult(result: ProductionCostObjectImportResult | Invento
             totalRows: 0,
             updated: 0,
             alreadyCorrect: 0,
+            toUpdate: 0,
+            changed: 0,
             skipped: 0,
             failed: 0,
+            preview: false,
+            requiresConfirm: false,
+            pendingChanges: [] as NonNullable<ProductionCostObjectImportResult["pending_changes"]>,
             skippedDocTypes: {} as Record<string, number>,
         }
     }
@@ -152,6 +157,9 @@ function readStructuredResult(result: ProductionCostObjectImportResult | Invento
     const raw = result as ProductionCostObjectImportResult & {
         totalRows?: number
         alreadyCorrect?: number
+        toUpdate?: number
+        requiresConfirm?: boolean
+        pendingChanges?: ProductionCostObjectImportResult["pending_changes"]
         skippedDocTypes?: Record<string, number>
     }
 
@@ -159,8 +167,13 @@ function readStructuredResult(result: ProductionCostObjectImportResult | Invento
         totalRows: raw.total_rows ?? raw.totalRows ?? 0,
         updated: raw.updated ?? 0,
         alreadyCorrect: raw.already_correct ?? raw.alreadyCorrect ?? 0,
+        toUpdate: raw.to_update ?? raw.toUpdate ?? 0,
+        changed: raw.changed ?? 0,
         skipped: raw.skipped ?? 0,
         failed: raw.failed ?? raw.errors?.length ?? 0,
+        preview: !!raw.preview,
+        requiresConfirm: raw.requires_confirm ?? raw.requiresConfirm ?? false,
+        pendingChanges: raw.pending_changes ?? raw.pendingChanges ?? [],
         skippedDocTypes: raw.skipped_doc_types ?? raw.skippedDocTypes ?? {},
     }
 }
@@ -175,6 +188,7 @@ export function LedgerImportButtons() {
     const ledgerPriceFileRef = useRef<HTMLInputElement>(null)
     const [guide, setGuide] = useState<ImportGuide | null>(null)
     const [importResultDialog, setImportResultDialog] = useState<ImportResultDialog | null>(null)
+    const [pendingCostObjectFile, setPendingCostObjectFile] = useState<File | null>(null)
     const [normalizationOpen, setNormalizationOpen] = useState(false)
 
     const importOpeningMutation = useMutation({
@@ -262,10 +276,13 @@ export function LedgerImportButtons() {
     })
 
     const importProductionCostObjectMutation = useMutation({
-        mutationFn: importProductionCostObjects,
+        mutationFn: ({ file, confirm = false }: { file: File; confirm?: boolean }) => importProductionCostObjects(file, confirm),
         onSuccess: async (res) => {
-            await invalidateInventoryQueries(queryClient)
-            await queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
+            if (!res.preview) {
+                await invalidateInventoryQueries(queryClient)
+                await queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
+                setPendingCostObjectFile(null)
+            }
             handleStructuredResult(res, "mã đối tượng SX", "cost-object")
         },
         onError: (error: any) => toast.error(error?.message || "Không thể import mã đối tượng SX"),
@@ -310,8 +327,17 @@ export function LedgerImportButtons() {
             toast.warning(`Import ${label} có lỗi, chưa cập nhật dữ liệu`)
             return
         }
+        if (mode === "cost-object" && normalized.requiresConfirm) {
+            setImportResultDialog({ title: `Xác nhận import ${label}`, result: res, mode })
+            toast.warning(`File có ${normalized.pendingChanges.length} thay đổi mã đối tượng, cần xác nhận trước khi cập nhật`)
+            return
+        }
         setImportResultDialog({ title: `Kết quả import ${label}`, result: res, mode })
-        toast.success(`Đã cập nhật ${normalized.updated} dòng ${label}`)
+        if (normalized.preview) {
+            toast.success(`Kiểm tra xong: ${normalized.alreadyCorrect} dòng đã đúng sẵn, không có thay đổi cần cập nhật`)
+        } else {
+            toast.success(`Đã cập nhật ${normalized.updated} dòng ${label}`)
+        }
     }
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>, mutate: (file: File) => void) => {
@@ -320,6 +346,20 @@ export function LedgerImportButtons() {
         if (!file) return
         setImportResultDialog(null)
         mutate(file)
+    }
+
+    const handleProductionCostObjectFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        event.target.value = ""
+        if (!file) return
+        setPendingCostObjectFile(file)
+        setImportResultDialog(null)
+        importProductionCostObjectMutation.mutate({ file })
+    }
+
+    const confirmProductionCostObjectImport = () => {
+        if (!pendingCostObjectFile) return
+        importProductionCostObjectMutation.mutate({ file: pendingCostObjectFile, confirm: true })
     }
 
     const chooseFileFromGuide = () => {
@@ -351,7 +391,7 @@ export function LedgerImportButtons() {
             <ImportFileInput inputRef={purchaseFileRef} onChange={(event) => handleFileChange(event, importPurchaseMutation.mutate)} />
             <ImportFileInput inputRef={purchaseBasePriceFileRef} onChange={(event) => handleFileChange(event, importPurchaseBasePriceMutation.mutate)} />
             <ImportFileInput inputRef={vthhDetailFileRef} onChange={(event) => handleFileChange(event, importVthhDetailMutation.mutate)} />
-            <ImportFileInput inputRef={productionCostObjectFileRef} onChange={(event) => handleFileChange(event, importProductionCostObjectMutation.mutate)} />
+            <ImportFileInput inputRef={productionCostObjectFileRef} onChange={handleProductionCostObjectFileChange} />
             <ImportFileInput inputRef={ledgerPriceFileRef} onChange={(event) => handleFileChange(event, importLedgerPriceMutation.mutate)} />
 
             <DropdownMenu>
@@ -439,6 +479,7 @@ export function LedgerImportButtons() {
                             {structuredResult ? (
                                 <>
                                     Đọc {normalized.totalRows} dòng, cập nhật {normalized.updated} dòng,
+                                    chờ cập nhật {normalized.toUpdate + normalized.changed} dòng,
                                     đã đúng sẵn {normalized.alreadyCorrect} dòng, bỏ qua {normalized.skipped} dòng,
                                     lỗi {normalized.failed} dòng.
                                 </>
@@ -459,6 +500,45 @@ export function LedgerImportButtons() {
                                     <div key={label}>{label || "(trống)"}: {count} dòng</div>
                                 ))}
                             </div>
+                        </div>
+                    ) : null}
+
+                    {structuredResult && normalized.pendingChanges.length ? (
+                        <div className="max-h-[360px] overflow-auto rounded-md border">
+                            <table className="w-full border-collapse text-sm">
+                                <thead className="sticky top-0 bg-muted text-muted-foreground">
+                                    <tr>
+                                        <th className="w-20 border-b px-3 py-2 text-left font-medium">Dòng</th>
+                                        <th className="border-b px-3 py-2 text-left font-medium">Chứng từ</th>
+                                        <th className="border-b px-3 py-2 text-left font-medium">Mã hàng</th>
+                                        <th className="border-b px-3 py-2 text-left font-medium">Kho/Lô</th>
+                                        <th className="border-b px-3 py-2 text-left font-medium">Mã cũ</th>
+                                        <th className="border-b px-3 py-2 text-left font-medium">Mã mới</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {normalized.pendingChanges.map((change, index) => {
+                                        const row = change.row
+                                        const docNo = change.docNo ?? change.doc_no ?? "-"
+                                        const postingDate = change.postingDate ?? change.posting_date ?? "-"
+                                        const productCode = change.productCode ?? change.product_code ?? "-"
+                                        const warehouseCode = change.warehouseCode ?? change.warehouse_code ?? "-"
+                                        const lotNo = change.lotNo ?? change.lot_no ?? "-"
+                                        const oldCode = change.oldCostObjectCode ?? change.old_cost_object_code ?? "(trống)"
+                                        const newCode = change.newCostObjectCode ?? change.new_cost_object_code ?? "-"
+                                        return (
+                                            <tr key={`${row}-${index}`} className="border-b last:border-b-0">
+                                                <td className="px-3 py-2 align-top font-medium">{row}</td>
+                                                <td className="px-3 py-2 align-top text-muted-foreground">{docNo}<br />{postingDate}</td>
+                                                <td className="px-3 py-2 align-top">{productCode}</td>
+                                                <td className="px-3 py-2 align-top text-muted-foreground">{warehouseCode}<br />{lotNo}</td>
+                                                <td className="px-3 py-2 align-top text-muted-foreground">{oldCode}</td>
+                                                <td className="px-3 py-2 align-top font-medium">{newCode}</td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
                     ) : null}
 
@@ -483,12 +563,21 @@ export function LedgerImportButtons() {
                         </div>
                     ) : (
                         <div className="rounded-md border bg-emerald-50 p-3 text-sm text-emerald-800">
-                            Import hoàn tất, không có lỗi.
+                            {structuredResult && normalized.requiresConfirm
+                                ? "File hợp lệ, chưa cập nhật dữ liệu. Kiểm tra danh sách thay đổi rồi xác nhận."
+                                : normalized.preview
+                                    ? "File hợp lệ, không có lỗi và không có thay đổi cần cập nhật."
+                                    : "Import hoàn tất, không có lỗi."}
                         </div>
                     )}
 
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setImportResultDialog(null)}>Đóng</Button>
+                        {structuredResult && normalized.requiresConfirm ? (
+                            <Button disabled={!pendingCostObjectFile || importProductionCostObjectMutation.isPending} onClick={confirmProductionCostObjectImport}>
+                                {importProductionCostObjectMutation.isPending ? "Đang cập nhật..." : "Xác nhận cập nhật"}
+                            </Button>
+                        ) : null}
                         {(result?.errors || []).length ? (
                             <Button variant="outline" onClick={copyImportErrors}>
                                 <Copy className="mr-2 h-4 w-4" />

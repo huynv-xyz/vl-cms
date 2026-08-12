@@ -1,9 +1,10 @@
 ﻿import type React from "react"
 import { useState } from "react"
-import { useMutation } from "@tanstack/react-query"
-import { AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarClock, CheckCircle2, ChevronDown, Loader2, Package, PackageOpen, RefreshCw, Search, TrendingDown, TrendingUp, Warehouse, type LucideIcon } from "lucide-react"
+import { useMutation, useQuery } from "@tanstack/react-query"
+import { AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarClock, CheckCircle2, ChevronDown, Loader2, Package, PackageOpen, RefreshCw, Scale, Search, TrendingDown, TrendingUp, Warehouse, type LucideIcon } from "lucide-react"
 
-import { checkNegativeStock, listInventoryLedgerReport, type NegativeStockAuditResult } from "@/api/inventory/ledger"
+import { getMyPermissions } from "@/api/auth/permission"
+import { checkCostingLedgerReconciliation, checkNegativeStock, listInventoryLedgerReport, type CostingLedgerReconciliationResult, type NegativeStockAuditResult } from "@/api/inventory/ledger"
 import { PageSection } from "@/components/page-section"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -39,7 +40,7 @@ export function InventoryLedgerReportPage({
     const search = route.useSearch()
     const navigate = route.useNavigate()
     const { pagination, setPagination } = useUrlPagination(search, navigate)
-    const [voucherDialog, setVoucherDialog] = useState<"in" | "out" | "transfer" | "repack" | "conversion" | "negative-stock" | "production-date-sync" | null>(null)
+    const [voucherDialog, setVoucherDialog] = useState<"in" | "out" | "transfer" | "repack" | "conversion" | "negative-stock" | "costing-reconciliation" | "production-date-sync" | null>(null)
     const direction = mode === "in" ? "IN" : mode === "out" ? "OUT" : undefined
     const showValues = mode === "all"
     const pageTitle = mode === "in" ? "Nhập kho" : mode === "out" ? "Xuất kho" : "Sổ chi tiết vật tư hàng hóa"
@@ -85,6 +86,11 @@ export function InventoryLedgerReportPage({
         ],
     )
     const timeSort = singleFilters.time_sort === "desc" ? "desc" : "asc"
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canCreateInventoryVoucher = hasPermission(permissions, "inventory.vouchers", "create")
 
     const { data, isLoading, error } = usePaginatedList(
         [
@@ -203,20 +209,22 @@ export function InventoryLedgerReportPage({
                             show_values: showValues,
                         }}
                     />
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button size="sm" variant="outline">
-                                <PackageOpen className="mr-2 h-4 w-4" />
-                                Giao dịch kho
-                                <ChevronDown className="ml-2 h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-52">
-                            {mode !== "out" ? <DropdownMenuItem onSelect={() => setVoucherDialog("in")}><ArrowDownLeft className="text-emerald-600" />Nhập hàng</DropdownMenuItem> : null}
-                            {mode !== "in" ? <DropdownMenuItem onSelect={() => setVoucherDialog("out")}><ArrowUpRight className="text-rose-600" />Xuất hàng</DropdownMenuItem> : null}
-                            <DropdownMenuItem onSelect={() => setVoucherDialog("transfer")}><ArrowLeftRight className="text-blue-600" />Chuyển kho</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    {canCreateInventoryVoucher ? (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button size="sm" variant="outline">
+                                    <PackageOpen className="mr-2 h-4 w-4" />
+                                    Giao dịch kho
+                                    <ChevronDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                                {mode !== "out" ? <DropdownMenuItem onSelect={() => setVoucherDialog("in")}><ArrowDownLeft className="text-emerald-600" />Nhập hàng</DropdownMenuItem> : null}
+                                {mode !== "in" ? <DropdownMenuItem onSelect={() => setVoucherDialog("out")}><ArrowUpRight className="text-rose-600" />Xuất hàng</DropdownMenuItem> : null}
+                                <DropdownMenuItem onSelect={() => setVoucherDialog("transfer")}><ArrowLeftRight className="text-blue-600" />Chuyển kho</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    ) : null}
                     {mode === "all" ? (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -228,6 +236,7 @@ export function InventoryLedgerReportPage({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56">
                                 <DropdownMenuItem onSelect={() => setVoucherDialog("negative-stock")}><Search className="text-rose-600" />Kiểm tra âm tồn</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setVoucherDialog("costing-reconciliation")}><Scale className="text-emerald-600" />Đối soát sổ kho và tính giá</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => setVoucherDialog("production-date-sync")}><CalendarClock className="text-blue-600" />Sửa đồng bộ ngày lệnh SX</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => setVoucherDialog("repack")}><Package className="text-amber-600" />Sang bao</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => setVoucherDialog("conversion")}><RefreshCw className="text-violet-600" />Chuyển mã</DropdownMenuItem>
@@ -242,7 +251,7 @@ export function InventoryLedgerReportPage({
 
                 return (
                 <div className="space-y-4">
-                    <InventoryLedgerSummary totals={ledgerData.totals} showValues={showValues} />
+                    <InventoryLedgerSummary totals={ledgerData.totals} showValues={showValues} direction={direction} />
 
                     <InventoryLedgerTable
                         data={ledgerData.items || []}
@@ -346,6 +355,10 @@ export function InventoryLedgerReportPage({
                         open={voucherDialog === "negative-stock"}
                         onOpenChange={(open) => setVoucherDialog(open ? "negative-stock" : null)}
                     />
+                    <CostingReconciliationDialog
+                        open={voucherDialog === "costing-reconciliation"}
+                        onOpenChange={(open) => setVoucherDialog(open ? "costing-reconciliation" : null)}
+                    />
                     <ProductionDateSyncTool
                         open={voucherDialog === "production-date-sync"}
                         onOpenChange={(open) => setVoucherDialog(open ? "production-date-sync" : null)}
@@ -357,7 +370,15 @@ export function InventoryLedgerReportPage({
     )
 }
 
-function InventoryLedgerSummary({ totals, showValues = true }: { totals?: InventoryLedgerTotals; showValues?: boolean }) {
+function InventoryLedgerSummary({
+    totals,
+    showValues = true,
+    direction,
+}: {
+    totals?: InventoryLedgerTotals
+    showValues?: boolean
+    direction?: "IN" | "OUT"
+}) {
     const normalized = {
         opening_quantity: 0,
         opening_value: 0,
@@ -369,15 +390,20 @@ function InventoryLedgerSummary({ totals, showValues = true }: { totals?: Invent
         closing_value: 0,
         ...(totals || {}),
     }
+    const displayValue = (value: number) => direction === "OUT" ? Math.abs(Number(value || 0)) : Number(value || 0)
 
     return (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <Metric icon={Package} label="Tồn đầu kỳ" quantity={normalized.opening_quantity} value={normalized.opening_value} showValue={showValues} />
-            <Metric icon={TrendingUp} label="Nhập kho" quantity={normalized.inbound_quantity} value={normalized.inbound_value} showValue={showValues} tone="ok" />
-            <Metric icon={TrendingDown} label="Xuất kho" quantity={normalized.outbound_quantity} value={normalized.outbound_value} showValue={showValues} tone="bad" />
-            <Metric icon={Warehouse} label="Tồn cuối kỳ" quantity={normalized.closing_quantity} value={normalized.closing_value} showValue={showValues} tone="info" />
+            <Metric icon={Package} label="Tồn đầu kỳ" quantity={displayValue(normalized.opening_quantity)} value={displayValue(normalized.opening_value)} showValue={showValues} />
+            <Metric icon={TrendingUp} label="Nhập kho" quantity={displayValue(normalized.inbound_quantity)} value={displayValue(normalized.inbound_value)} showValue={showValues} tone="ok" />
+            <Metric icon={TrendingDown} label="Xuất kho" quantity={displayValue(normalized.outbound_quantity)} value={displayValue(normalized.outbound_value)} showValue={showValues} tone="bad" />
+            <Metric icon={Warehouse} label="Tồn cuối kỳ" quantity={displayValue(normalized.closing_quantity)} value={displayValue(normalized.closing_value)} showValue={showValues} tone="info" />
         </div>
     )
+}
+
+function hasPermission(permissions: any[], module: string, action: string) {
+    return permissions.some((permission) => permission.module === module && permission.action === action)
 }
 
 function NegativeStockAuditDialog({
@@ -498,6 +524,135 @@ function NegativeStockAuditResultPanel({ result }: { result: NegativeStockAuditR
                 </div>
             ) : null}
         </div>
+    )
+}
+
+function CostingReconciliationDialog({
+    open,
+    onOpenChange,
+}: {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+}) {
+    const [result, setResult] = useState<CostingLedgerReconciliationResult | null>(null)
+    const mutation = useMutation({
+        mutationFn: checkCostingLedgerReconciliation,
+        onSuccess: setResult,
+    })
+    const busy = mutation.isPending
+
+    return (
+        <Dialog open={open} onOpenChange={(nextOpen) => !busy && onOpenChange(nextOpen)}>
+            <DialogContent className="flex max-h-[92vh] !w-[min(1440px,calc(100vw-32px))] !max-w-[calc(100vw-32px)] flex-col overflow-hidden">
+                <DialogHeader>
+                    <DialogTitle>Đối soát sổ kho và tính giá</DialogTitle>
+                    <DialogDescription>
+                        Kiểm tra các kỳ đã tính giá, so sánh tổng hợp tồn kho với sổ chi tiết vật tư hàng hóa theo giá trị đã tính trên từng dòng.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4 overflow-y-auto pr-1">
+                    {mutation.error ? (
+                        <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                            <AlertTriangle className="mt-0.5 h-4 w-4" />
+                            <span>{(mutation.error as any)?.message || "Không kiểm tra được số liệu sổ kho và tính giá."}</span>
+                        </div>
+                    ) : null}
+
+                    {result ? <CostingReconciliationResultPanel result={result} /> : (
+                        <div className="rounded-md border bg-slate-50 p-4 text-sm text-muted-foreground">
+                            Bấm Kiểm tra để đối soát toàn bộ kỳ tính giá đã tính hoặc đã khóa.
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button type="button" disabled={busy} onClick={() => mutation.mutate()}>
+                        {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Scale className="mr-2 h-4 w-4" />}
+                        Kiểm tra
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function CostingReconciliationResultPanel({ result }: { result: CostingLedgerReconciliationResult }) {
+    const hasMismatch = Number(result.mismatch_count || 0) > 0
+
+    return (
+        <div className="space-y-3">
+            <div className={cn(
+                "flex items-start gap-2 rounded-md border p-3 text-sm",
+                hasMismatch ? "border-red-200 bg-red-50 text-red-800" : "border-emerald-200 bg-emerald-50 text-emerald-800",
+            )}>
+                {hasMismatch ? <AlertTriangle className="mt-0.5 h-4 w-4" /> : <CheckCircle2 className="mt-0.5 h-4 w-4" />}
+                <div>
+                    <div className="font-semibold">{result.message}</div>
+                    <div className="mt-1">
+                        Đã kiểm tra {formatNumber(Number(result.period_count || 0))} kỳ, {formatNumber(Number(result.checked_product_rows || 0))} dòng sản phẩm/kho; phát hiện {formatNumber(Number(result.mismatch_count || 0))} dòng lệch.
+                    </div>
+                </div>
+            </div>
+
+            {hasMismatch ? (
+                <div className="overflow-auto rounded-md border">
+                    <table className="w-full min-w-[1320px] text-sm">
+                        <thead className="bg-muted text-muted-foreground">
+                            <tr>
+                                <th className="px-2 py-2 text-left">Kỳ</th>
+                                <th className="px-2 py-2 text-left">Mã hàng</th>
+                                <th className="px-2 py-2 text-left">Tên hàng</th>
+                                <th className="px-2 py-2 text-left">Kho</th>
+                                <th className="px-2 py-2 text-right">Lệch ĐK SL</th>
+                                <th className="px-2 py-2 text-right">Lệch ĐK GT</th>
+                                <th className="px-2 py-2 text-right">Lệch nhập SL</th>
+                                <th className="px-2 py-2 text-right">Lệch nhập GT</th>
+                                <th className="px-2 py-2 text-right">Lệch xuất SL</th>
+                                <th className="px-2 py-2 text-right">Lệch xuất GT</th>
+                                <th className="px-2 py-2 text-right">Lệch tồn SL</th>
+                                <th className="px-2 py-2 text-right">Lệch tồn GT</th>
+                                <th className="px-2 py-2 text-right">Xuất chưa có giá</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {result.items.map((item, index) => (
+                                <tr key={`${item.period_id}-${item.product_code}-${item.warehouse_code}-${index}`} className="border-t">
+                                    <td className="px-2 py-2">
+                                        <div className="font-medium">{item.period_name || "-"}</div>
+                                        <div className="text-xs text-muted-foreground">{[item.from_date, item.to_date].filter(Boolean).join(" - ")}</div>
+                                    </td>
+                                    <td className="px-2 py-2 font-mono">{item.product_code || "-"}</td>
+                                    <td className="px-2 py-2">{item.product_name || "-"}</td>
+                                    <td className="px-2 py-2">{item.warehouse_code || item.warehouse_name || "-"}</td>
+                                    <DiffTd value={item.diff_opening_quantity} />
+                                    <DiffTd value={item.diff_opening_value} />
+                                    <DiffTd value={item.diff_inbound_quantity} />
+                                    <DiffTd value={item.diff_inbound_value} />
+                                    <DiffTd value={item.diff_outbound_quantity} />
+                                    <DiffTd value={item.diff_outbound_value} />
+                                    <DiffTd value={item.diff_closing_quantity} />
+                                    <DiffTd value={item.diff_closing_value} />
+                                    <td className="px-2 py-2 text-right tabular-nums">{formatNumber(Number(item.missing_costed_outbound_rows || 0))}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+function DiffTd({ value }: { value?: number | string | null }) {
+    const number = Number(value || 0)
+    return (
+        <td className={cn("px-2 py-2 text-right tabular-nums", Math.abs(number) > 0.000001 ? "font-semibold text-red-700" : "text-muted-foreground")}>
+            {formatNumber(number)}
+        </td>
     )
 }
 
