@@ -46,8 +46,24 @@ export type RolePermissions = {
     permission_ids: number[]
 }
 
+export type RoleUser = {
+    id: number
+    email: string
+    name: string
+    status: number
+}
+
+export type RoleUsers = {
+    role_id: number
+    users: RoleUser[]
+}
+
 export function getRolePermissions(roleId: number) {
     return apiGet<RolePermissions>(`/auth/roles/${roleId}/permissions`)
+}
+
+export function getRoleUsers(roleId: number) {
+    return apiGet<RoleUsers>(`/auth/roles/${roleId}/users`)
 }
 
 export function updateRolePermissions(roleId: number, permissionIds: number[]) {

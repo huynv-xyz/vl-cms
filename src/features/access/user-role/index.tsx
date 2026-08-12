@@ -1,6 +1,8 @@
 import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { PageSection } from "@/components/page-section"
 import { usePaginatedList } from "@/hooks/use-paginated-list"
+import { listAccessRoles } from "@/api/auth/role"
 import { listUsers } from "@/api/user"
 import { Route } from "@/routes/_authenticated/access/user-roles"
 import { useUrlPagination } from "@/hooks/use-url-pagination"
@@ -19,6 +21,12 @@ export default function UserRolePage() {
     const [target, setTarget] = useState<User | null>(null)
     const [open, setOpen] = useState(false)
 
+    const rolesQuery = useQuery({
+        queryKey: ["admin", "access-roles", "all"],
+        queryFn: () => listAccessRoles({ page: 1, size: 1000 }),
+        staleTime: 60_000,
+    })
+
     const { data, isLoading, error } = usePaginatedList(
         ["admin", "users"],
         listUsers,
@@ -34,13 +42,14 @@ export default function UserRolePage() {
             isLoading={isLoading}
             error={error}
             title="Phân quyền người dùng"
-            description="Gán vai trò cho từng tài khoản trong hệ thống."
+            description="Xem vai trò hiện tại của từng tài khoản và gán lại khi cần."
             data={data}
         >
             {(data) => (
                 <div className="space-y-4">
                     <UserRoleTable
                         data={data.items}
+                        roles={rolesQuery.data?.items ?? []}
                         pagination={pagination}
                         onPaginationChange={setPagination}
                         pageCount={data.total_page}

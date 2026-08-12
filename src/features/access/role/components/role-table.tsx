@@ -39,6 +39,7 @@ export function RoleTable({
             pageCount={pageCount}
             keyword={keyword}
             onKeywordChange={onKeywordChange}
+            onRowClick={onAssignPermissions}
         />
     )
 }

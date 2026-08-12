@@ -1,5 +1,5 @@
 import { type Row } from "@tanstack/react-table"
-import { Key } from "lucide-react"
+import { ShieldCheck } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
@@ -35,8 +35,8 @@ export function RoleRowActions({ row, onAssignPermissions }: Props) {
             }}
             extraActions={(r) => (
                 <DropdownMenuItem onClick={() => onAssignPermissions(r)}>
-                    <Key className="mr-2 h-4 w-4" />
-                    Gán quyền
+                    <ShieldCheck className="mr-2 h-4 w-4" />
+                    Quản lý quyền
                 </DropdownMenuItem>
             )}
         />

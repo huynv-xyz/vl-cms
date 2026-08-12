@@ -1,11 +1,13 @@
 import { useMemo } from "react"
 import type { PaginationState, OnChangeFn } from "@tanstack/react-table"
 import { CrudTable } from "@/components/crud/crud-table"
+import type { AccessRole } from "@/api/auth/role"
 import type { User } from "@/features/user/data/schema"
 import { buildUserRoleColumns } from "./user-role-columns"
 
 type Props = {
     data: User[]
+    roles: AccessRole[]
     pagination: PaginationState
     onPaginationChange: OnChangeFn<PaginationState>
     pageCount: number
@@ -16,6 +18,7 @@ type Props = {
 
 export function UserRoleTable({
     data,
+    roles,
     pagination,
     onPaginationChange,
     pageCount,
@@ -23,7 +26,10 @@ export function UserRoleTable({
     onKeywordChange,
     onAssign,
 }: Props) {
-    const columns = useMemo(() => buildUserRoleColumns(onAssign), [onAssign])
+    const columns = useMemo(
+        () => buildUserRoleColumns(onAssign, roles),
+        [onAssign, roles]
+    )
 
     return (
         <CrudTable<User>

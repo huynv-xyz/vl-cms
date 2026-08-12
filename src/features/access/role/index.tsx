@@ -38,7 +38,7 @@ export default function AccessRolePage() {
                 isLoading={isLoading}
                 error={error}
                 title="Vai trò"
-                description="Danh sách vai trò trong hệ thống phân quyền."
+                description="Chọn một vai trò để rà soát và cập nhật quyền theo từng module."
                 actions={<CreateRoleButton />}
                 data={data}
             >

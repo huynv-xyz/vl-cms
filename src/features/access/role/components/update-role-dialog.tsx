@@ -76,7 +76,7 @@ export function UpdateRoleDialog({ role, open, onOpenChange }: Props) {
                 <DialogHeader>
                     <DialogTitle>Cập nhật vai trò</DialogTitle>
                     <DialogDescription>
-                        Chỉ sửa thông tin vai trò. Quyền của vai trò được chỉnh riêng ở nút Gán quyền.
+                        Chỉ sửa thông tin vai trò. Quyền của vai trò được chỉnh riêng ở nút Quản lý quyền.
                     </DialogDescription>
                 </DialogHeader>
 
