@@ -22,10 +22,12 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { listCustomerVips, getCustomerVipPlan, saveCustomerVipPlan } from "@/api/customer-vip"
-import type { CustomerVip, CustomerVipPlanItem } from "@/features/vip/customer/data/schema"
+import { listVipTiers } from "@/api/vip-tier"
+import type { CustomerVip, CustomerVipPlan, CustomerVipPlanItem } from "@/features/vip/customer/data/schema"
+import type { VipTier } from "@/features/vip/tier/data/schema"
 import { Route } from "@/routes/_authenticated/vip/customer-plan"
 import { cn } from "@/lib/utils"
-import { AlertTriangle, CheckCircle2, Loader2, Save, Wand2 } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Download, Loader2, Save, Wand2 } from "lucide-react"
 import { toast } from "sonner"
 
 type AllocationStrategy = "PRO_RATA" | "FACTOR_HIGH" | "EQUAL" | "PRIORITY"
@@ -270,6 +272,15 @@ export default function VipCustomerPlanPage() {
         <PageSection
             title="Kế hoạch điểm"
             description="Xem điểm/hạng hiện tại và lập kế hoạch số lượng dự kiến để đạt hạng mục tiêu năm nay."
+            actions={
+                <ExportCustomerPlanButton
+                    selectedYear={selectedYear}
+                    customerListYear={customerListYear}
+                    customerId={customerId}
+                    currentPlan={data}
+                    currentItems={items}
+                />
+            }
             isLoading={false}
             error={null}
             data
@@ -712,4 +723,366 @@ function allocationStrategyLabel(value: AllocationStrategy) {
 
 function cleanId(value?: string) {
     return value?.replace(/^"+|"+$/g, "")
+}
+
+type PlanExportColumn = {
+    label: string
+    width: number
+    type?: "number" | "text"
+    value: (row: PlanExportRow, index: number) => string | number | null | undefined
+}
+
+type PlanExportRow = {
+    customer_code: string
+    customer_name: string
+    customer_type?: string | null
+    current_point: number
+    tier_name: string
+    projected_tier_name: string
+    projected_total_point: number
+    groups: Record<string, PlanExportGroupValue>
+}
+
+type PlanExportGroupValue = {
+    achieved_qty: number
+    achieved_point: number
+    planned_qty: number
+    projected_point: number
+}
+
+const PLAN_EXPORT_PAGE_SIZE = 200
+
+const PLAN_EXPORT_COLUMNS: PlanExportColumn[] = [
+    { label: "STT", width: 8, type: "number", value: (_row, index) => index + 1 },
+    { label: "Mã khách hàng", width: 20, value: (row) => row.customer_code },
+    { label: "Tên khách hàng", width: 36, value: (row) => row.customer_name },
+    { label: "Điểm hiện tại", width: 18, type: "number", value: (row) => numberOrBlank(row.current_point) },
+    { label: "Bậc hiện tại", width: 18, value: (row) => row.tier_name },
+    { label: "Hạng dự kiến", width: 18, value: (row) => row.projected_tier_name },
+    { label: "Tổng điểm dự kiến", width: 20, type: "number", value: (row) => numberOrBlank(row.projected_total_point) },
+]
+
+function ExportCustomerPlanButton({
+    selectedYear,
+    customerListYear,
+    customerId,
+    currentPlan,
+    currentItems,
+}: {
+    selectedYear: number
+    customerListYear: number
+    customerId?: string
+    currentPlan?: CustomerVipPlan
+    currentItems: CustomerVipPlanItem[]
+}) {
+    const [isExporting, setIsExporting] = React.useState(false)
+
+    const handleExport = async () => {
+        try {
+            setIsExporting(true)
+            const rows = customerId
+                ? await buildSelectedCustomerPlanRows(customerId, selectedYear, currentPlan, currentItems)
+                : await fetchAllCustomerPlanRows(selectedYear, customerListYear)
+
+            if (!rows.length) {
+                toast.warning("Không có dữ liệu để xuất")
+                return
+            }
+
+            const tiers = await fetchActiveVipTiersForPlan()
+            await exportCustomerPlanXlsx(rows, tiers, selectedYear, customerId ? "Một khách hàng" : "Toàn bộ khách hàng theo bộ lọc")
+            toast.success(`Đã xuất ${rows.length} dòng kế hoạch điểm`)
+        } catch (error) {
+            console.error(error)
+            toast.error(error instanceof Error ? error.message : "Xuất Excel thất bại")
+        } finally {
+            setIsExporting(false)
+        }
+    }
+
+    return (
+        <Button type="button" variant="outline" onClick={handleExport} disabled={isExporting}>
+            {isExporting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+                <Download className="mr-2 h-4 w-4" />
+            )}
+            Xuất Excel
+        </Button>
+    )
+}
+
+async function buildSelectedCustomerPlanRows(
+    customerId: string,
+    selectedYear: number,
+    currentPlan?: CustomerVipPlan,
+    currentItems?: CustomerVipPlanItem[],
+): Promise<PlanExportRow[]> {
+    const plan = currentPlan ?? await getCustomerVipPlan(customerId, { calc_year: selectedYear })
+    const items = currentPlan ? currentItems ?? [] : plan.items ?? []
+    return buildPlanExportRows(plan, items)
+}
+
+async function fetchAllCustomerPlanRows(selectedYear: number, customerListYear: number): Promise<PlanExportRow[]> {
+    const customers = await fetchAllCustomerVipsForPlan(customerListYear)
+    const rows: PlanExportRow[] = []
+
+    for (const customer of customers) {
+        const plan = await getCustomerVipPlan(customer.id, { calc_year: selectedYear })
+        rows.push(...buildPlanExportRows(plan, plan.items ?? []))
+    }
+
+    return rows
+}
+
+async function fetchAllCustomerVipsForPlan(calcYear: number): Promise<CustomerVip[]> {
+    const rows: CustomerVip[] = []
+    let page = 1
+
+    for (let guard = 0; guard < 300; guard += 1) {
+        const res = await listCustomerVips({
+            page,
+            size: PLAN_EXPORT_PAGE_SIZE,
+            calc_year: calcYear,
+        })
+        const items = res.items ?? []
+        rows.push(...items)
+        if (page >= (res.total_page || 1) || items.length === 0) break
+        page += 1
+    }
+
+    return rows
+}
+
+async function fetchActiveVipTiersForPlan(): Promise<VipTier[]> {
+    const res = await listVipTiers({ page: 1, size: 200 })
+    return (res.items ?? [])
+        .filter((tier) => Number(tier.status ?? 1) === 1)
+        .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+}
+
+function buildPlanExportRows(plan: CustomerVipPlan, items: CustomerVipPlanItem[]): PlanExportRow[] {
+    const tierName = plan.tier_name || "Chưa đủ VIP"
+    const plannedPoint = sum(items.map((item) => item.projected_point))
+    const projectedTotalPoint = round2(Number(plan.total_vip_point || 0) + plannedPoint)
+
+    return [{
+        customer_code: plan.customer_code || "",
+        customer_name: plan.customer_name || "",
+        customer_type: plan.customer_type,
+        current_point: Number(plan.total_vip_point || 0),
+        tier_name: tierName,
+        projected_tier_name: "",
+        projected_total_point: projectedTotalPoint,
+        groups: buildPlanExportGroups(items),
+    }]
+}
+
+async function exportCustomerPlanXlsx(rows: PlanExportRow[], tiers: VipTier[], selectedYear: number, scopeLabel: string) {
+    const { Workbook } = await import("exceljs")
+    const workbook = new Workbook()
+    workbook.creator = "VLIFE"
+    workbook.created = new Date()
+    const exportRows = rows.map((row) => ({
+        ...row,
+        projected_tier_name: resolveProjectedTierName(row, tiers),
+    }))
+
+    const sheet = workbook.addWorksheet("Kế hoạch điểm", {
+        views: [{ state: "frozen", ySplit: 5 }],
+    })
+    const groupCodes = collectPlanExportGroupCodes(exportRows)
+    const totalColumns = PLAN_EXPORT_COLUMNS.length + groupCodes.length * 4
+
+    sheet.mergeCells(1, 1, 1, totalColumns)
+    sheet.getCell(1, 1).value = "KẾ HOẠCH ĐIỂM VIP"
+    sheet.getCell(1, 1).font = { bold: true, size: 16 }
+    sheet.getCell(1, 1).alignment = { horizontal: "center", vertical: "middle" }
+    sheet.getRow(1).height = 24
+
+    sheet.mergeCells(2, 1, 2, totalColumns)
+    sheet.getCell(2, 1).value = `Năm: ${selectedYear} · Phạm vi: ${scopeLabel} · Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}`
+    sheet.getCell(2, 1).alignment = { horizontal: "right", vertical: "middle" }
+    sheet.getCell(2, 1).font = { italic: true, color: { argb: "FF64748B" } }
+
+    sheet.addRow([])
+    writePlanExportHeaders(sheet, groupCodes)
+    exportRows.forEach((row, index) => {
+        sheet.addRow(buildPlanExportSheetRow(row, index, groupCodes))
+    })
+
+    sheet.columns = [
+        ...PLAN_EXPORT_COLUMNS.map((column) => ({ width: column.width })),
+        ...groupCodes.flatMap(() => [
+            { width: 16 },
+            { width: 16 },
+            { width: 16 },
+            { width: 16 },
+        ]),
+    ]
+
+    const border = {
+        top: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        left: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        bottom: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+        right: { style: "thin" as const, color: { argb: "FFE2E8F0" } },
+    }
+
+    for (const rowIndex of [4, 5]) {
+        const header = sheet.getRow(rowIndex)
+        header.height = rowIndex === 4 ? 30 : 26
+        header.eachCell({ includeEmpty: true }, (cell) => {
+            cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
+            cell.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: "FF0F766E" },
+            }
+            cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
+            cell.border = border
+        })
+    }
+
+    for (let rowIndex = 6; rowIndex <= sheet.rowCount; rowIndex += 1) {
+        const row = sheet.getRow(rowIndex)
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            const isNumberColumn = isPlanExportNumberColumn(colNumber)
+            cell.border = border
+            cell.alignment = {
+                vertical: "middle",
+                horizontal: isNumberColumn ? "right" : "left",
+                wrapText: true,
+            }
+            if (isNumberColumn && typeof cell.value === "number") {
+                cell.numFmt = hasFraction(cell.value) ? "#,##0.##" : "#,##0"
+            }
+        })
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    downloadPlanExcelBuffer(buffer, `ke-hoach-diem-vip-${selectedYear}-${new Date().toISOString().slice(0, 10)}.xlsx`)
+}
+
+function normalizePlanExportValue(value: string | number | null | undefined, column: PlanExportColumn) {
+    if (value == null || value === "") return ""
+    if (column.type === "number") {
+        const numeric = Number(value)
+        return Number.isFinite(numeric) ? numeric : ""
+    }
+    return value
+}
+
+function numberOrBlank(value: number | null | undefined) {
+    const numeric = Number(value || 0)
+    return numeric === 0 ? "" : numeric
+}
+
+function hasFraction(value: number) {
+    return Math.abs(value - Math.trunc(value)) > 0.0000001
+}
+
+function buildPlanExportGroups(items: CustomerVipPlanItem[]): Record<string, PlanExportGroupValue> {
+    const groups: Record<string, PlanExportGroupValue> = {}
+    for (const item of items) {
+        const groupCode = String(item.group_code || "").trim()
+        if (!groupCode) continue
+        const current = groups[groupCode] ?? {
+            achieved_qty: 0,
+            achieved_point: 0,
+            planned_qty: 0,
+            projected_point: 0,
+        }
+        current.achieved_qty = round2(current.achieved_qty + Number(item.achieved_qty || 0))
+        current.achieved_point = round2(current.achieved_point + Number(item.achieved_point || 0))
+        current.planned_qty = round2(current.planned_qty + Number(item.planned_qty || 0))
+        current.projected_point = round2(current.projected_point + Number(item.projected_point || 0))
+        groups[groupCode] = current
+    }
+    return groups
+}
+
+function collectPlanExportGroupCodes(rows: PlanExportRow[]) {
+    const seen = new Set<string>()
+    const groupCodes: string[] = []
+    for (const row of rows) {
+        for (const groupCode of Object.keys(row.groups)) {
+            if (!seen.has(groupCode)) {
+                seen.add(groupCode)
+                groupCodes.push(groupCode)
+            }
+        }
+    }
+    return groupCodes
+}
+
+function resolveProjectedTierName(row: PlanExportRow, tiers: VipTier[]) {
+    const point = Number(row.projected_total_point || 0)
+    const matched = tiers
+        .filter((tier) => point >= getPlanTierPoint(tier, row.customer_type))
+        .sort((a, b) => getPlanTierPoint(b, row.customer_type) - getPlanTierPoint(a, row.customer_type))[0]
+    return matched?.name || "Chưa đủ VIP"
+}
+
+function getPlanTierPoint(tier: VipTier, customerType?: string | null) {
+    const type = String(customerType || "").trim().toUpperCase()
+    if (type === "B2C") return Number(tier.b2c_point || 0)
+    if (type === "B2B") return Number(tier.b2b_point || 0)
+    return Number(tier.mb_b2b_point || 0)
+}
+
+function writePlanExportHeaders(sheet: import("exceljs").Worksheet, groupCodes: string[]) {
+    const topHeader = sheet.getRow(4)
+    const subHeader = sheet.getRow(5)
+
+    PLAN_EXPORT_COLUMNS.forEach((column, index) => {
+        const col = index + 1
+        sheet.mergeCells(4, col, 5, col)
+        topHeader.getCell(col).value = column.label
+    })
+
+    let col = PLAN_EXPORT_COLUMNS.length + 1
+    for (const groupCode of groupCodes) {
+        sheet.mergeCells(4, col, 4, col + 3)
+        topHeader.getCell(col).value = groupCode
+        subHeader.getCell(col).value = "Thực đạt (SL)"
+        subHeader.getCell(col + 1).value = "Thực đạt (Điểm)"
+        subHeader.getCell(col + 2).value = "Dự kiến (SL)"
+        subHeader.getCell(col + 3).value = "Dự kiến (Điểm)"
+        col += 4
+    }
+}
+
+function buildPlanExportSheetRow(row: PlanExportRow, index: number, groupCodes: string[]) {
+    const base = PLAN_EXPORT_COLUMNS.map((column) => normalizePlanExportValue(column.value(row, index), column))
+    const groupValues = groupCodes.flatMap((groupCode) => {
+        const group = row.groups[groupCode]
+        return [
+            numberOrBlank(group?.achieved_qty),
+            numberOrBlank(group?.achieved_point),
+            numberOrBlank(group?.planned_qty),
+            numberOrBlank(group?.projected_point),
+        ]
+    })
+    return [...base, ...groupValues]
+}
+
+function isPlanExportNumberColumn(colNumber: number) {
+    if (colNumber <= PLAN_EXPORT_COLUMNS.length) {
+        return PLAN_EXPORT_COLUMNS[colNumber - 1]?.type === "number"
+    }
+    return true
+}
+
+function downloadPlanExcelBuffer(buffer: ArrayBuffer, filename: string) {
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
 }
