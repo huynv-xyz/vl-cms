@@ -61,6 +61,7 @@ export function CreateShipmentDialog({
     const mappedItems = useMemo<ShipmentFormItem[]>(
         () =>
             rawItems.map((item: any) => ({
+                contract_item_id: item.id,
                 warehouse_id: item.warehouse_id,
                 product_id: item.product_id,
                 product: item.product,
@@ -162,8 +163,10 @@ export function CreateShipmentDialog({
                 note: headerFormData.note,
 
                 items: selectedItems.map((item) => ({
+                    contract_item_id: item.contract_item_id,
                     product_id: item.product_id,
                     quantity: item.quantity ?? 0,
+                    defect_quantity: item.defect_quantity ?? 0,
                     unit_price: item.unit_price ?? 0,
                     packaging_price: item.packaging_price ?? 0,
                     freight_price: item.freight_price ?? 0,

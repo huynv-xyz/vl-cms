@@ -6,6 +6,7 @@ export type ShipmentItem = {
     shipment_id?: number
     shipment?: Shipment
 
+    contract_item_id?: number
     product_id?: number
 
     product?: Product

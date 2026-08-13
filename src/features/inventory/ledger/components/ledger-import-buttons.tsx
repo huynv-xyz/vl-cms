@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent, type RefObject } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { ChevronDown, Copy, Database, Upload } from "lucide-react"
+import { ChevronDown, Copy, Database, FileCheck2, PlayCircle, RotateCcw, ShieldCheck, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -13,6 +13,9 @@ import {
     importInventoryLedgerPrices,
     importProductionCostObjects,
     importPurchaseBasePrices,
+    runOpeningCostNormalizationStep,
+    uploadOpeningCostNormalization,
+    type OpeningCostNormalizationRun,
     type InventoryLedgerPriceImportResult,
     type ProductionCostObjectImportResult,
 } from "@/api/inventory/ledger"
@@ -140,8 +143,13 @@ function readStructuredResult(result: ProductionCostObjectImportResult | Invento
             totalRows: 0,
             updated: 0,
             alreadyCorrect: 0,
+            toUpdate: 0,
+            changed: 0,
             skipped: 0,
             failed: 0,
+            preview: false,
+            requiresConfirm: false,
+            pendingChanges: [] as NonNullable<ProductionCostObjectImportResult["pending_changes"]>,
             skippedDocTypes: {} as Record<string, number>,
         }
     }
@@ -149,6 +157,9 @@ function readStructuredResult(result: ProductionCostObjectImportResult | Invento
     const raw = result as ProductionCostObjectImportResult & {
         totalRows?: number
         alreadyCorrect?: number
+        toUpdate?: number
+        requiresConfirm?: boolean
+        pendingChanges?: ProductionCostObjectImportResult["pending_changes"]
         skippedDocTypes?: Record<string, number>
     }
 
@@ -156,8 +167,13 @@ function readStructuredResult(result: ProductionCostObjectImportResult | Invento
         totalRows: raw.total_rows ?? raw.totalRows ?? 0,
         updated: raw.updated ?? 0,
         alreadyCorrect: raw.already_correct ?? raw.alreadyCorrect ?? 0,
+        toUpdate: raw.to_update ?? raw.toUpdate ?? 0,
+        changed: raw.changed ?? 0,
         skipped: raw.skipped ?? 0,
         failed: raw.failed ?? raw.errors?.length ?? 0,
+        preview: !!raw.preview,
+        requiresConfirm: raw.requires_confirm ?? raw.requiresConfirm ?? false,
+        pendingChanges: raw.pending_changes ?? raw.pendingChanges ?? [],
         skippedDocTypes: raw.skipped_doc_types ?? raw.skippedDocTypes ?? {},
     }
 }
@@ -172,6 +188,8 @@ export function LedgerImportButtons() {
     const ledgerPriceFileRef = useRef<HTMLInputElement>(null)
     const [guide, setGuide] = useState<ImportGuide | null>(null)
     const [importResultDialog, setImportResultDialog] = useState<ImportResultDialog | null>(null)
+    const [pendingCostObjectFile, setPendingCostObjectFile] = useState<File | null>(null)
+    const [normalizationOpen, setNormalizationOpen] = useState(false)
 
     const importOpeningMutation = useMutation({
         mutationFn: importOpeningStock,
@@ -258,10 +276,13 @@ export function LedgerImportButtons() {
     })
 
     const importProductionCostObjectMutation = useMutation({
-        mutationFn: importProductionCostObjects,
+        mutationFn: ({ file, confirm = false }: { file: File; confirm?: boolean }) => importProductionCostObjects(file, confirm),
         onSuccess: async (res) => {
-            await invalidateInventoryQueries(queryClient)
-            await queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
+            if (!res.preview) {
+                await invalidateInventoryQueries(queryClient)
+                await queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
+                setPendingCostObjectFile(null)
+            }
             handleStructuredResult(res, "mã đối tượng SX", "cost-object")
         },
         onError: (error: any) => toast.error(error?.message || "Không thể import mã đối tượng SX"),
@@ -306,8 +327,17 @@ export function LedgerImportButtons() {
             toast.warning(`Import ${label} có lỗi, chưa cập nhật dữ liệu`)
             return
         }
+        if (mode === "cost-object" && normalized.requiresConfirm) {
+            setImportResultDialog({ title: `Xác nhận import ${label}`, result: res, mode })
+            toast.warning(`File có ${normalized.pendingChanges.length} thay đổi mã đối tượng, cần xác nhận trước khi cập nhật`)
+            return
+        }
         setImportResultDialog({ title: `Kết quả import ${label}`, result: res, mode })
-        toast.success(`Đã cập nhật ${normalized.updated} dòng ${label}`)
+        if (normalized.preview) {
+            toast.success(`Kiểm tra xong: ${normalized.alreadyCorrect} dòng đã đúng sẵn, không có thay đổi cần cập nhật`)
+        } else {
+            toast.success(`Đã cập nhật ${normalized.updated} dòng ${label}`)
+        }
     }
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>, mutate: (file: File) => void) => {
@@ -316,6 +346,20 @@ export function LedgerImportButtons() {
         if (!file) return
         setImportResultDialog(null)
         mutate(file)
+    }
+
+    const handleProductionCostObjectFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        event.target.value = ""
+        if (!file) return
+        setPendingCostObjectFile(file)
+        setImportResultDialog(null)
+        importProductionCostObjectMutation.mutate({ file })
+    }
+
+    const confirmProductionCostObjectImport = () => {
+        if (!pendingCostObjectFile) return
+        importProductionCostObjectMutation.mutate({ file: pendingCostObjectFile, confirm: true })
     }
 
     const chooseFileFromGuide = () => {
@@ -347,7 +391,7 @@ export function LedgerImportButtons() {
             <ImportFileInput inputRef={purchaseFileRef} onChange={(event) => handleFileChange(event, importPurchaseMutation.mutate)} />
             <ImportFileInput inputRef={purchaseBasePriceFileRef} onChange={(event) => handleFileChange(event, importPurchaseBasePriceMutation.mutate)} />
             <ImportFileInput inputRef={vthhDetailFileRef} onChange={(event) => handleFileChange(event, importVthhDetailMutation.mutate)} />
-            <ImportFileInput inputRef={productionCostObjectFileRef} onChange={(event) => handleFileChange(event, importProductionCostObjectMutation.mutate)} />
+            <ImportFileInput inputRef={productionCostObjectFileRef} onChange={handleProductionCostObjectFileChange} />
             <ImportFileInput inputRef={ledgerPriceFileRef} onChange={(event) => handleFileChange(event, importLedgerPriceMutation.mutate)} />
 
             <DropdownMenu>
@@ -383,8 +427,18 @@ export function LedgerImportButtons() {
                         <Upload className="h-4 w-4" />
                         {importLedgerPriceMutation.isPending ? "Đang import..." : "Import giá nhập/xuất khác"}
                     </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setNormalizationOpen(true)}>
+                        <ShieldCheck className="h-4 w-4" />
+                        Chuẩn hóa đơn giá đầu kỳ
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
+
+            <OpeningCostNormalizationDialog
+                open={normalizationOpen}
+                onOpenChange={setNormalizationOpen}
+                onChanged={() => invalidateInventoryQueries(queryClient)}
+            />
 
             <Dialog open={!!guide} onOpenChange={(open) => !open && setGuide(null)}>
                 <DialogContent className="max-w-2xl">
@@ -425,6 +479,7 @@ export function LedgerImportButtons() {
                             {structuredResult ? (
                                 <>
                                     Đọc {normalized.totalRows} dòng, cập nhật {normalized.updated} dòng,
+                                    chờ cập nhật {normalized.toUpdate + normalized.changed} dòng,
                                     đã đúng sẵn {normalized.alreadyCorrect} dòng, bỏ qua {normalized.skipped} dòng,
                                     lỗi {normalized.failed} dòng.
                                 </>
@@ -445,6 +500,45 @@ export function LedgerImportButtons() {
                                     <div key={label}>{label || "(trống)"}: {count} dòng</div>
                                 ))}
                             </div>
+                        </div>
+                    ) : null}
+
+                    {structuredResult && normalized.pendingChanges.length ? (
+                        <div className="max-h-[360px] overflow-auto rounded-md border">
+                            <table className="w-full border-collapse text-sm">
+                                <thead className="sticky top-0 bg-muted text-muted-foreground">
+                                    <tr>
+                                        <th className="w-20 border-b px-3 py-2 text-left font-medium">Dòng</th>
+                                        <th className="border-b px-3 py-2 text-left font-medium">Chứng từ</th>
+                                        <th className="border-b px-3 py-2 text-left font-medium">Mã hàng</th>
+                                        <th className="border-b px-3 py-2 text-left font-medium">Kho/Lô</th>
+                                        <th className="border-b px-3 py-2 text-left font-medium">Mã cũ</th>
+                                        <th className="border-b px-3 py-2 text-left font-medium">Mã mới</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {normalized.pendingChanges.map((change, index) => {
+                                        const row = change.row
+                                        const docNo = change.docNo ?? change.doc_no ?? "-"
+                                        const postingDate = change.postingDate ?? change.posting_date ?? "-"
+                                        const productCode = change.productCode ?? change.product_code ?? "-"
+                                        const warehouseCode = change.warehouseCode ?? change.warehouse_code ?? "-"
+                                        const lotNo = change.lotNo ?? change.lot_no ?? "-"
+                                        const oldCode = change.oldCostObjectCode ?? change.old_cost_object_code ?? "(trống)"
+                                        const newCode = change.newCostObjectCode ?? change.new_cost_object_code ?? "-"
+                                        return (
+                                            <tr key={`${row}-${index}`} className="border-b last:border-b-0">
+                                                <td className="px-3 py-2 align-top font-medium">{row}</td>
+                                                <td className="px-3 py-2 align-top text-muted-foreground">{docNo}<br />{postingDate}</td>
+                                                <td className="px-3 py-2 align-top">{productCode}</td>
+                                                <td className="px-3 py-2 align-top text-muted-foreground">{warehouseCode}<br />{lotNo}</td>
+                                                <td className="px-3 py-2 align-top text-muted-foreground">{oldCode}</td>
+                                                <td className="px-3 py-2 align-top font-medium">{newCode}</td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
                     ) : null}
 
@@ -469,12 +563,21 @@ export function LedgerImportButtons() {
                         </div>
                     ) : (
                         <div className="rounded-md border bg-emerald-50 p-3 text-sm text-emerald-800">
-                            Import hoàn tất, không có lỗi.
+                            {structuredResult && normalized.requiresConfirm
+                                ? "File hợp lệ, chưa cập nhật dữ liệu. Kiểm tra danh sách thay đổi rồi xác nhận."
+                                : normalized.preview
+                                    ? "File hợp lệ, không có lỗi và không có thay đổi cần cập nhật."
+                                    : "Import hoàn tất, không có lỗi."}
                         </div>
                     )}
 
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setImportResultDialog(null)}>Đóng</Button>
+                        {structuredResult && normalized.requiresConfirm ? (
+                            <Button disabled={!pendingCostObjectFile || importProductionCostObjectMutation.isPending} onClick={confirmProductionCostObjectImport}>
+                                {importProductionCostObjectMutation.isPending ? "Đang cập nhật..." : "Xác nhận cập nhật"}
+                            </Button>
+                        ) : null}
                         {(result?.errors || []).length ? (
                             <Button variant="outline" onClick={copyImportErrors}>
                                 <Copy className="mr-2 h-4 w-4" />
@@ -486,6 +589,439 @@ export function LedgerImportButtons() {
             </Dialog>
         </>
     )
+}
+
+function OpeningCostNormalizationDialog({
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const fileRef = useRef<HTMLInputElement>(null)
+    const [run, setRun] = useState<OpeningCostNormalizationRun | null>(null)
+    const [errorText, setErrorText] = useState<string | null>(null)
+
+    const uploadMutation = useMutation({
+        mutationFn: uploadOpeningCostNormalization,
+        onSuccess: (data) => {
+            setRun(data)
+            setErrorText(null)
+            toast.success("Đã tải file chuẩn hóa đầu kỳ")
+        },
+        onError: (error: any) => setErrorText(error?.message || "Không tải được file"),
+    })
+
+    const stepMutation = useMutation({
+        mutationFn: ({ runId, step }: { runId: number; step: Parameters<typeof runOpeningCostNormalizationStep>[1] }) =>
+            runOpeningCostNormalizationStep(runId, step),
+        onSuccess: async (data) => {
+            setRun(data)
+            setErrorText(null)
+            if (["APPLIED", "DOWNSTREAM_NORMALIZED", "RECALC_MARKED", "RECALCULATED", "AUDITED", "COMPLETED", "ROLLED_BACK"].includes(data.status)) {
+                await onChanged()
+            }
+            toast.success(stepSuccessText(data.status))
+        },
+        onError: (error: any) => setErrorText(error?.message || "Không chạy được bước"),
+    })
+
+    const busy = uploadMutation.isPending || stepMutation.isPending
+    const status = run?.status || "NEW"
+    const canRollback = Boolean(run?.id && !["NEW", "UPLOADED", "CHECKED", "IMPACTED", "COMPLETED", "ROLLED_BACK"].includes(status))
+
+    const uploadFile = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        event.target.value = ""
+        if (!file) return
+        setRun(null)
+        setErrorText(null)
+        uploadMutation.mutate(file)
+    }
+
+    const runStep = (step: Parameters<typeof runOpeningCostNormalizationStep>[1]) => {
+        if (!run?.id) return
+        stepMutation.mutate({ runId: run.id, step })
+    }
+
+    const check = run?.check || {}
+    const impact = run?.impact || {}
+    const snapshot = run?.snapshot || {}
+    const apply = run?.apply || {}
+    const downstream = run?.downstream || {}
+    const recalc = run?.recalc || {}
+    const audit = run?.audit || {}
+    const verify = run?.verify || {}
+
+    return (
+        <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
+            <DialogContent className="flex max-h-[92vh] !w-[min(1080px,calc(100vw-32px))] !max-w-[calc(100vw-32px)] flex-col overflow-hidden">
+                <DialogHeader>
+                    <DialogTitle>Chuẩn hóa đơn giá đầu kỳ</DialogTitle>
+                    <DialogDescription>
+                        Flow tạm để giữ Thành tiền đầu kỳ đúng theo file phần mềm cũ, tính lại đơn giá 3 chữ số và chỉ cập nhật dữ liệu phát sinh mới có liên kết rõ.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <input
+                    ref={fileRef}
+                    type="file"
+                    accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    className="hidden"
+                    onChange={uploadFile}
+                />
+
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+                    <div className="rounded-md border bg-muted/20 p-3 text-sm">
+                        <div className="font-medium">File import cần có các cột</div>
+                        <div className="mt-2 grid gap-1 text-muted-foreground sm:grid-cols-2">
+                            {["Mã hàng", "Mã kho hoặc Tên kho", "Số lô", "Số lượng", "Thành tiền"].map((column) => (
+                                <div key={column} className="rounded border bg-background px-2 py-1">{column}</div>
+                            ))}
+                        </div>
+                        <div className="mt-2 text-muted-foreground">
+                            Thành tiền được giữ nguyên theo file; mỗi dòng file phải khớp đúng một lô OPENING theo Mã hàng/Kho/Số lô. Đơn giá mới = Thành tiền / Số lượng, làm tròn HALF_UP đến 3 chữ số thập phân. Dòng Số lượng = 0 được chấp nhận khi Thành tiền = 0.
+                        </div>
+                    </div>
+
+                    {errorText ? (
+                        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{errorText}</div>
+                    ) : null}
+
+                    {run ? (
+                        <div className="grid gap-2 text-sm sm:grid-cols-4">
+                            <NormInfo label="Run" value={`#${run.id}`} />
+                            <NormInfo label="Trạng thái" value={status} />
+                            <NormInfo label="File" value={run.file_name || "-"} />
+                            <NormInfo label="Số dòng file" value={fmt(run.import_rows)} />
+                        </div>
+                    ) : null}
+
+                    {run ? (
+                        <div className="rounded-md border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900">
+                            <div className="font-medium">Nghiệp vụ chuẩn hóa này làm gì?</div>
+                            <div className="mt-1 space-y-1 text-blue-800">
+                                <div>1. Lấy Thành tiền trong file phần mềm cũ làm số chuẩn của tồn đầu kỳ.</div>
+                                <div>2. Tìm đúng lô tồn đầu kỳ trong DB theo Mã hàng + Kho + Số lô. Nếu không khớp số lô, hệ thống báo lỗi và không tự phân bổ sang lô khác.</div>
+                                <div>3. Tính lại đơn giá lô = Thành tiền / Số lượng, làm tròn 3 chữ số thập phân.</div>
+                                <div>4. Cập nhật lại giá vốn các phát sinh mới có link trực tiếp tới lô đầu kỳ đó; dữ liệu legacy/import cũ không có link rõ chỉ được thống kê bỏ qua.</div>
+                                <div>5. Sau cùng audit trace giá vốn, tính lại costing và chỉ hoàn tất khi Tổng DB = Tổng file, Lệch = 0.</div>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    <div className="space-y-2">
+                        <NormalizationStep
+                            title="1. Upload file"
+                            description="Tải file chứa Thành tiền chuẩn từ phần mềm cũ."
+                            done={Boolean(run?.id)}
+                            disabled={busy}
+                            buttonText="Chọn file"
+                            onClick={() => fileRef.current?.click()}
+                        />
+                        <NormalizationStep
+                            title="2. Kiểm tra tồn đầu kỳ"
+                            description="Đối chiếu Mã hàng/Kho/Số lô/Số lượng với tồn đầu kỳ trong DB và tính thử đơn giá mới."
+                            done={["CHECKED", "IMPACTED", "SNAPSHOT_CREATED", "APPLIED", "DOWNSTREAM_NORMALIZED", "RECALC_MARKED", "RECALCULATED", "AUDITED", "COMPLETED"].includes(status)}
+                            disabled={!run?.id || busy || status === "COMPLETED"}
+                            buttonText="Kiểm tra"
+                            onClick={() => runStep("check")}
+                        />
+                        <NormalizationStep
+                            title="3. Phân tích ảnh hưởng"
+                            description="Chỉ đọc DB để khoanh vùng lô đầu kỳ, giá vốn đã phát sinh và các kỳ costing cần chạy lại; chưa sửa dữ liệu."
+                            done={["IMPACTED", "SNAPSHOT_CREATED", "APPLIED", "DOWNSTREAM_NORMALIZED", "RECALC_MARKED", "RECALCULATED", "AUDITED", "COMPLETED"].includes(status)}
+                            disabled={status !== "CHECKED" || busy}
+                            buttonText="Phân tích"
+                            onClick={() => runStep("impact")}
+                        />
+                        <NormalizationStep
+                            title="4. Tạo snapshot rollback"
+                            description="Chụp lại từng bản ghi trước khi sửa vào bảng snapshot riêng để có thể quay lại nguyên trạng."
+                            done={["SNAPSHOT_CREATED", "APPLIED", "DOWNSTREAM_NORMALIZED", "RECALC_MARKED", "RECALCULATED", "AUDITED", "COMPLETED"].includes(status)}
+                            disabled={status !== "IMPACTED" || busy}
+                            buttonText="Tạo snapshot"
+                            onClick={() => runStep("snapshot")}
+                        />
+                        <NormalizationStep
+                            title="5. Cập nhật tồn đầu kỳ"
+                            description="Chốt lại Thành tiền tồn đầu kỳ theo file và cập nhật đơn giá từng lô sau khi phân bổ."
+                            done={["APPLIED", "DOWNSTREAM_NORMALIZED", "RECALC_MARKED", "RECALCULATED", "AUDITED", "COMPLETED"].includes(status)}
+                            disabled={status !== "SNAPSHOT_CREATED" || busy}
+                            buttonText="Cập nhật"
+                            onClick={() => runStep("apply-opening")}
+                        />
+                        <NormalizationStep
+                            title="6. Cập nhật giá vốn phát sinh mới"
+                            description="Sửa giá vốn các phiếu xuất/chuyển/sản xuất đã lấy giá từ lô đầu kỳ vừa chuẩn hóa."
+                            done={["DOWNSTREAM_NORMALIZED", "RECALC_MARKED", "RECALCULATED", "AUDITED", "COMPLETED"].includes(status)}
+                            disabled={status !== "APPLIED" || busy}
+                            buttonText="Cập nhật giá vốn"
+                            onClick={() => runStep("normalize-downstream")}
+                        />
+                        <NormalizationStep
+                            title="7. Đánh dấu kỳ cần tính lại"
+                            description="Đánh dấu các kỳ sau tồn đầu kỳ cần tính lại để không dùng lại giá vốn cũ."
+                            done={["RECALC_MARKED", "RECALCULATED", "AUDITED", "COMPLETED"].includes(status)}
+                            disabled={status !== "DOWNSTREAM_NORMALIZED" || busy}
+                            buttonText="Đánh dấu"
+                            onClick={() => runStep("mark-recalculate")}
+                        />
+                        <NormalizationStep
+                            title="8. Tính lại costing"
+                            description="Chạy lại giá vốn các kỳ bị ảnh hưởng theo thứ tự thời gian."
+                            done={["RECALCULATED", "AUDITED", "COMPLETED"].includes(status)}
+                            disabled={!((status === "RECALC_MARKED") || (status === "FAILED" && run?.audit)) || busy}
+                            buttonText="Tính lại"
+                            onClick={() => runStep("recalculate")}
+                        />
+                        <NormalizationStep
+                            title="9. Audit trace giá vốn"
+                            description="Đọc lại FIFO sản xuất, cost layer, cost consumption, ledger sản xuất và kết quả giá thành để chắc chắn giá đã lan đúng."
+                            done={["AUDITED", "COMPLETED"].includes(status)}
+                            disabled={!((status === "RECALCULATED") || (status === "FAILED" && run?.audit)) || busy}
+                            buttonText="Audit giá vốn"
+                            onClick={() => runStep("audit-costing")}
+                        />
+                        <NormalizationStep
+                            title="10. Kiểm tra đối chiếu"
+                            description="Đọc lại DB sau khi chạy; đạt khi tổng Thành tiền OPENING bằng đúng tổng file."
+                            done={status === "COMPLETED"}
+                            disabled={status !== "AUDITED" || busy}
+                            buttonText="Kiểm tra cuối"
+                            onClick={() => runStep("verify")}
+                        />
+                    </div>
+
+                    {run ? (
+                        <div className="grid gap-3 text-sm lg:grid-cols-2 xl:grid-cols-3">
+                            <ResultBox
+                                title="2. Kiểm tra trước khi sửa"
+                                note="Chỉ đọc file và DB. Dòng lỗi phải bằng 0 mới được đi tiếp; Số lô là bắt buộc và phải khớp đúng lô OPENING."
+                                items={[
+                                    ["Dòng file tạo cập nhật", fmt(check.validRows)],
+                                    ["Dòng bỏ qua", fmt(check.skippedRows)],
+                                    ["Dòng lỗi cần sửa", fmt(check.failedRows)],
+                                    ["Tổng đang có trong DB", money(check.totalOldAmount)],
+                                    ["Tổng theo file", money(check.totalImportedAmount)],
+                                    ["Chênh lệch sẽ sửa", money(check.totalDiff)],
+                                ]}
+                            />
+                            <ResultBox
+                                title="3. Phạm vi bị ảnh hưởng"
+                                note="Cho biết sửa tồn đầu kỳ này sẽ kéo theo bao nhiêu phát sinh mới và kỳ costing cần tính lại."
+                                items={[
+                                    ["Lô đầu kỳ liên quan", fmt((impact.affectedLotIds || []).length)],
+                                    ["Kỳ costing cần tính lại", fmt((impact.affectedPeriodIds || []).length)],
+                                    ["Xuất kho bán hàng cần cập nhật", fmt(impact.salesFifoAllocations)],
+                                    ["Xuất NVL sản xuất cần cập nhật", fmt(impact.productionFifoAllocations)],
+                                    ["Lớp giá vốn cần cập nhật", fmt(impact.costLayers)],
+                                    ["Tiêu hao giá vốn cần cập nhật", fmt(impact.costConsumptions)],
+                                    ["Dữ liệu legacy/import không sửa", fmt(impact.legacySkippedRows)],
+                                ]}
+                            />
+                            <ResultBox
+                                title="4. Snapshot rollback"
+                                note="Bản sao trước khi sửa. Nếu rollback, hệ thống phục hồi từ đúng các bản ghi này."
+                                items={[
+                                    ["Bảng đã snapshot", fmt(snapshot.table_count)],
+                                    ["Bản ghi đã snapshot", fmt(snapshot.total_records)],
+                                ]}
+                            />
+                            <ResultBox
+                                title="5. Cập nhật tồn đầu kỳ"
+                                note="Giữ Thành tiền theo file, phân bổ xuống từng lô và tính lại đơn giá 3 chữ số."
+                                items={[
+                                    ["Lot đã cập nhật", fmt(apply.updated_lots)],
+                                    ["Dòng opening cập nhật", fmt(apply.updated_opening_ledgers)],
+                                    ["Dòng phân bổ đã chạy", fmt(apply.normalized_rows)],
+                                ]}
+                            />
+                            <ResultBox
+                                title="6. Cập nhật giá vốn phát sinh mới"
+                                note="Chỉ sửa phát sinh mới có link trực tiếp tới lô đầu kỳ; dữ liệu import cũ không có link rõ không bị đụng."
+                                items={[
+                                    ["Xuất kho bán hàng", fmt(downstream.inventory_fifo_allocations)],
+                                    ["Xuất NVL sản xuất", fmt(downstream.production_fifo_allocations)],
+                                    ["Lớp giá vốn tồn kho", fmt(downstream.inventory_cost_layers)],
+                                    ["Dòng tiêu hao giá vốn", fmt(downstream.inventory_cost_consumptions)],
+                                ]}
+                            />
+                            <ResultBox
+                                title="7-8. Tính lại costing"
+                                note="Không cho dùng lại giá vốn cũ; đánh dấu kỳ cần tính lại rồi chạy costing theo thứ tự thời gian."
+                                items={[
+                                    ["Dòng ledger đã xóa giá vốn cũ", fmt(recalc.cleared_ledger_rows)],
+                                    ["Kỳ đã đánh dấu tính lại", fmt(recalc.periods_marked_stale)],
+                                    ["Kỳ đã tính lại", fmt(recalc.recalculated_periods)],
+                                ]}
+                            />
+                            <ResultBox
+                                title="9. Audit trace giá vốn"
+                                note="Kiểm tra công thức sau chuẩn hóa: FIFO sản xuất, lớp giá vốn, tiêu hao giá vốn, ledger xuất NVL và giá thành thành phẩm."
+                                items={[
+                                    ["Kết quả", audit.ok === undefined ? "-" : audit.ok ? "Đúng" : "Còn lỗi"],
+                                    ["Check lỗi", fmt(audit.failed_checks)],
+                                    ["Lô đầu kỳ audit", fmt(audit.affected_lots)],
+                                    ["Lệnh/mẻ SX ảnh hưởng", fmt(audit.affected_production_items)],
+                                    ["Kỳ costing audit", fmt(audit.affected_periods)],
+                                ]}
+                            />
+                            <ResultBox
+                                title="10. Đối chiếu cuối"
+                                note="Điều kiện hoàn tất: Tổng DB bằng đúng Tổng file và Lệch = 0."
+                                items={[
+                                    ["Kết quả", verify.ok === undefined ? "-" : verify.ok ? "Đúng" : "Lệch"],
+                                    ["Dòng opening", fmt(verify.opening_rows)],
+                                    ["Tổng file", money(verify.file_opening_amount)],
+                                    ["Tổng DB", money(verify.db_opening_amount)],
+                                    ["Lệch", money(verify.difference)],
+                                ]}
+                            />
+                        </div>
+                    ) : null}
+
+                    {Array.isArray(audit.checks) && audit.checks.length ? (
+                        <div className="rounded-md border text-sm">
+                            <div className="border-b bg-muted/40 px-3 py-2 font-medium">Chi tiết audit trace giá vốn</div>
+                            <div className="divide-y">
+                                {audit.checks.map((item: any) => (
+                                    <div key={item.code} className="grid gap-2 px-3 py-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+                                        <div>
+                                            <div className="font-medium">{item.label}</div>
+                                            <div className="text-xs text-muted-foreground">{item.code}</div>
+                                        </div>
+                                        <div className={item.ok ? "text-emerald-700" : "text-red-700"}>{item.ok ? "Đúng" : "Còn lỗi"}</div>
+                                        <div className="font-medium">{fmt(item.failed_rows)} lỗi</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {Array.isArray(check.errors) && check.errors.length ? (
+                        <div className="max-h-56 overflow-auto rounded-md border text-sm">
+                            <table className="w-full">
+                                <thead className="bg-muted/50">
+                                    <tr>
+                                        <th className="w-24 px-3 py-2 text-left">Dòng</th>
+                                        <th className="px-3 py-2 text-left">Lỗi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {check.errors.map((error: any, index: number) => (
+                                        <tr key={`${error.row}-${index}`} className="border-t">
+                                            <td className="px-3 py-2">{error.row}</td>
+                                            <td className="px-3 py-2 text-muted-foreground">{error.message}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : null}
+                </div>
+
+                <DialogFooter className="border-t pt-3">
+                    <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>Đóng</Button>
+                    {canRollback ? (
+                        <Button variant="destructive" disabled={busy} onClick={() => runStep("rollback")}>
+                            {stepMutation.isPending ? <RotateCcw className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                            Rollback
+                        </Button>
+                    ) : null}
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function NormalizationStep({
+    title,
+    description,
+    done,
+    disabled,
+    buttonText,
+    onClick,
+}: {
+    title: string
+    description: string
+    done: boolean
+    disabled: boolean
+    buttonText: string
+    onClick: () => void
+}) {
+    return (
+        <div className="grid gap-3 rounded-md border bg-background p-3 sm:grid-cols-[1fr_auto] sm:items-center">
+            <div>
+                <div className="flex items-center gap-2 font-medium">
+                    {done ? <FileCheck2 className="h-4 w-4 text-emerald-600" /> : <PlayCircle className="h-4 w-4 text-muted-foreground" />}
+                    {title}
+                </div>
+                <div className="mt-1 text-sm text-muted-foreground">{description}</div>
+            </div>
+            <Button type="button" size="sm" variant={done ? "outline" : "default"} disabled={disabled} onClick={onClick}>
+                {buttonText}
+            </Button>
+        </div>
+    )
+}
+
+function NormInfo({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-md border bg-muted/20 p-2">
+            <div className="text-xs text-muted-foreground">{label}</div>
+            <div className="mt-0.5 truncate font-medium">{value}</div>
+        </div>
+    )
+}
+
+function ResultBox({ title, note, items }: { title: string; note?: string; items: Array<[string, string]> }) {
+    return (
+        <div className="rounded-md border p-3">
+            <div className="font-medium">{title}</div>
+            {note ? <div className="mt-1 text-xs leading-5 text-muted-foreground">{note}</div> : null}
+            <div className="mt-2 space-y-1">
+                {items.map(([label, value]) => (
+                    <div key={label} className="flex justify-between gap-3">
+                        <span className="text-muted-foreground">{label}</span>
+                        <span className="font-medium">{value}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+function stepSuccessText(status: string) {
+    switch (status) {
+        case "CHECKED": return "Kiểm tra file hợp lệ"
+        case "IMPACTED": return "Đã phân tích phạm vi ảnh hưởng"
+        case "SNAPSHOT_CREATED": return "Đã tạo snapshot rollback"
+        case "APPLIED": return "Đã cập nhật tồn đầu kỳ"
+        case "DOWNSTREAM_NORMALIZED": return "Đã chuẩn hóa dữ liệu phát sinh mới"
+        case "RECALC_MARKED": return "Đã đánh dấu kỳ cần tính lại"
+        case "RECALCULATED": return "Đã tính lại costing"
+        case "AUDITED": return "Audit trace giá vốn đạt"
+        case "COMPLETED": return "Đối chiếu hoàn tất"
+        case "ROLLED_BACK": return "Đã rollback về snapshot"
+        default: return "Đã cập nhật bước"
+    }
+}
+
+function fmt(value: unknown) {
+    if (value === null || value === undefined || value === "") return "0"
+    const num = Number(value)
+    if (!Number.isFinite(num)) return String(value)
+    return new Intl.NumberFormat("vi-VN").format(num)
+}
+
+function money(value: unknown) {
+    if (value === null || value === undefined || value === "") return "0"
+    const num = Number(value)
+    if (!Number.isFinite(num)) return String(value)
+    return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 3 }).format(num)
 }
 
 function ImportFileInput({ inputRef, onChange }: { inputRef: RefObject<HTMLInputElement | null>; onChange: (event: ChangeEvent<HTMLInputElement>) => void }) {

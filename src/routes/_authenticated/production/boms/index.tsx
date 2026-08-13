@@ -7,6 +7,11 @@ export const Route = createFileRoute("/_authenticated/production/boms/")({
         size: Number(search.size ?? 20),
         keyword: typeof search.keyword === "string" ? search.keyword : "",
 
+        bom_id:
+            search.bom_id !== undefined && !isNaN(Number(search.bom_id))
+                ? Number(search.bom_id)
+                : undefined,
+
         product_id:
             search.product_id !== undefined && !isNaN(Number(search.product_id))
                 ? Number(search.product_id)

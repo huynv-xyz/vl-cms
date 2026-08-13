@@ -1433,7 +1433,6 @@ function normalizeCostingExportCell(value: string | number | null | undefined, c
 
 function getCostingExcelNumberFormat(value: unknown, column: CostingExportColumn) {
     const numberValue = Number(value)
-    if (column.numberFormat === "money") return "#,##0"
     if (Number.isFinite(numberValue) && Number.isInteger(numberValue)) return "#,##0"
     return "#,##0.###"
 }

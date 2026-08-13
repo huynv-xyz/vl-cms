@@ -19,22 +19,26 @@ export type ShipmentListParams = {
 export type ShipmentItemPayload = {
     id?: number
     contract_item_id: number
-    quantity_shipped: number
-    quantity_received?: number
-    purchase_price_per_unit?: number
+    product_id?: number
+    quantity: number
+    defect_quantity?: number
+    unit_price?: number
+    packaging_price?: number
+    freight_price?: number
     note?: string
 }
 
 export type CreateShipmentRequest = {
     contract_id: number
     code: string
-    shipment_date?: string
     etd?: string
     eta?: string
-    actual_arrival_date?: string
-    warehouse_date?: string
-    container?: string
-    destination_port?: string
+    ata?: string
+    warehouse_at?: string
+    warehouse_id?: number
+    container_no?: string
+    destination_port_id?: number
+    exchange_rate?: number
     status?: string
     note?: string
     items: ShipmentItemPayload[]

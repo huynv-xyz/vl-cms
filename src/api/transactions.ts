@@ -86,3 +86,7 @@ export const importTransactionsCsv = importTransactionsFile
 export function updateTransactionNpp(id: number, npp: string) {
     return apiPut<Transaction>(`/transactions/${id}/npp`, { npp })
 }
+
+export function updateTransactionUnitPrice(id: number, unitPrice: number) {
+    return apiPut<Transaction>(`/transactions/${id}/unit-price`, { unitPrice })
+}

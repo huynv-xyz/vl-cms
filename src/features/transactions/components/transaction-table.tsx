@@ -1,11 +1,21 @@
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { ClipboardList, Layers, MapPin, Users } from "lucide-react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { ClipboardList, Layers, Loader2, MapPin, Users } from "lucide-react"
 import { useEffect, useState } from "react"
-import { listTransactionOptions } from "@/api/transactions"
+import { getMyPermissions } from "@/api/auth/permission"
+import { listTransactionOptions, updateTransactionUnitPrice } from "@/api/transactions"
 import { CrudTable } from "@/components/crud/crud-table"
 import { DatePicker } from "@/components/date-picker"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { Button } from "@/components/ui/button"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -14,6 +24,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
+import { toast } from "sonner"
 import type { Transaction } from "../data/schema"
 import { buildTransactionColumns } from "./transaction-columns"
 
@@ -84,6 +96,13 @@ export function TransactionTable({
     filters,
     onFiltersChange,
 }: TransactionTableProps) {
+    const queryClient = useQueryClient()
+    const [unitPriceRow, setUnitPriceRow] = useState<Transaction | null>(null)
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canUseCorrections = hasPermission(permissions, "transactions", "correction.change")
     const setFilter = <K extends keyof TransactionFilters>(
         key: K,
         value: TransactionFilters[K],
@@ -95,6 +114,9 @@ export function TransactionTable({
         saleQty: totalSaleQty,
         returnQty: totalReturnQty,
         actualQty: totalActualQty,
+    }, {
+        canUseCorrections,
+        onEditUnitPrice: setUnitPriceRow,
     })
 
     return (
@@ -182,7 +204,21 @@ export function TransactionTable({
                 showToolbar={false}
                 enableColumnResize
                 enableStickyHorizontalScroll
+                enableColumnPinning
+                defaultPinnedColumnId="customer_name"
                 headerVariant="report"
+            />
+            <UnitPriceCorrectionDialog
+                row={unitPriceRow}
+                open={!!unitPriceRow}
+                onOpenChange={(open) => {
+                    if (!open) setUnitPriceRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["transactions"] })
+                    queryClient.invalidateQueries({ queryKey: ["transactions-summary"] })
+                    setUnitPriceRow(null)
+                }}
             />
         </div>
     )
@@ -190,6 +226,132 @@ export function TransactionTable({
 
 type IconComponent = React.ComponentType<{ className?: string }>
 type Option = { value: string; label: string }
+
+function UnitPriceCorrectionDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: Transaction | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [value, setValue] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setValue(String(row.unit_price ?? ""))
+        }
+    }, [open, row])
+
+    const unitPrice = parseDecimalInput(value)
+    const currentUnitPrice = Number(row?.unit_price || 0)
+    const quantity = Number(row?.sale_qty || 0) > 0
+        ? Number(row?.sale_qty || 0)
+        : Math.max(Number(row?.return_qty || 0), 0)
+    const discount = Number(row?.discount || 0)
+    const previewRevenue = Number.isFinite(unitPrice)
+        ? Math.max(unitPrice * quantity - discount, 0)
+        : 0
+    const unchanged = Number.isFinite(unitPrice) && Math.abs(unitPrice - currentUnitPrice) < 0.000001
+
+    const mutation = useMutation({
+        mutationFn: () => updateTransactionUnitPrice(Number(row?.id), unitPrice),
+        onSuccess: () => {
+            toast.success("Da cap nhat don gia va doanh thu")
+            onChanged()
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || "Khong cap nhat duoc don gia")
+        },
+    })
+
+    const canSubmit = Boolean(row && row.import_batch_id && Number.isFinite(unitPrice) && unitPrice >= 0 && !unchanged && !mutation.isPending)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-[560px]">
+                <DialogHeader>
+                    <DialogTitle>Sửa đơn giá theo ĐVC</DialogTitle>
+                    <DialogDescription>
+                        Chỉ sửa dòng được import từ file. Doanh thu sẽ được tính lại theo số lượng tương ứng và chiết khấu.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {row ? (
+                    <div className="space-y-4">
+                        <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-sm">
+                            <InfoLine label="Chứng từ" value={row.document_no || `#${row.id}`} />
+                            <InfoLine label="Khách hàng" value={`${row.customer_code || "-"} - ${row.customer_name || "-"}`} />
+                            <InfoLine label="Hàng hóa" value={`${row.product_code || "-"} - ${row.product_name || "-"}`} />
+                            <InfoLine label="Số lượng tính doanh thu" value={formatNumber(quantity)} />
+                            <InfoLine label="Chiết khấu" value={formatMoney(discount)} />
+                            <InfoLine label="Doanh thu hiện tại" value={formatMoney(Number(row.revenue || 0))} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Đơn giá mới</label>
+                            <Input
+                                value={value}
+                                onChange={(event) => setValue(event.target.value)}
+                                placeholder="Nhap don gia moi"
+                                className="h-10 font-mono"
+                            />
+                            {!Number.isFinite(unitPrice) ? (
+                                <div className="text-sm text-destructive">Don gia moi khong hop le.</div>
+                            ) : null}
+                            {unchanged ? (
+                                <div className="text-sm text-muted-foreground">Don gia moi dang trung don gia hien tai.</div>
+                            ) : null}
+                        </div>
+
+                        <div className="grid gap-2 rounded-md border p-3 text-sm">
+                            <InfoLine label="Đơn giá hiện tại" value={formatMoney(currentUnitPrice)} />
+                            <InfoLine label="Đơn giá mới" value={Number.isFinite(unitPrice) ? formatMoney(unitPrice) : "-"} />
+                            <InfoLine label="Doanh thu mới" value={Number.isFinite(unitPrice) ? formatMoney(previewRevenue) : "-"} />
+                        </div>
+                    </div>
+                ) : null}
+
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Hủy
+                    </Button>
+                    <Button type="button" disabled={!canSubmit} onClick={() => mutation.mutate()}>
+                        {mutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Cập nhật
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function InfoLine({ label, value }: { label: string; value: React.ReactNode }) {
+    return (
+        <div className="grid grid-cols-[150px_minmax(0,1fr)] gap-3">
+            <span className="text-muted-foreground">{label}</span>
+            <span className="min-w-0 truncate font-medium" title={typeof value === "string" ? value : undefined}>{value}</span>
+        </div>
+    )
+}
+
+function parseDecimalInput(value: string) {
+    const normalized = value.trim().replace(/\s/g, "").replace(/,/g, "")
+    if (!normalized) return Number.NaN
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : Number.NaN
+}
+
+function formatMoney(value: number) {
+    return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(value)
+}
+
+function formatNumber(value: number) {
+    return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(value)
+}
 
 function MultiSelectFilter({
     icon: Icon,
@@ -431,4 +593,8 @@ function mergeSelectedOptions(selected: string[], options: Option[]) {
     selected.forEach((item) => map.set(item, { value: item, label: item }))
     options.forEach((item) => map.set(item.value, item))
     return Array.from(map.values())
+}
+
+function hasPermission(permissions: any[], module: string, action: string) {
+    return permissions.some((permission) => permission.module === module && permission.action === action)
 }

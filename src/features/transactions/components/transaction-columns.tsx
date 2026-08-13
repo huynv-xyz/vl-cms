@@ -28,7 +28,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn, formatCurrency } from "@/lib/utils"
-import { Check, Funnel, X } from "lucide-react"
+import { Check, Funnel, MoreHorizontal, Pencil, X } from "lucide-react"
 import { toast } from "sonner"
 import { listTransactionOptions, updateTransactionNpp } from "@/api/transactions"
 import type { Transaction } from "../data/schema"
@@ -312,6 +312,10 @@ export function buildTransactionColumns(
         returnQty: 0,
         actualQty: 0,
     },
+    options: {
+        canUseCorrections?: boolean
+        onEditUnitPrice?: (row: Transaction) => void
+    } = {},
 ): ColumnDef<Transaction>[] {
     const setColumnFilter = (key: ColumnMultiFilterKey, value?: string[]) => {
         onFiltersChange({
@@ -331,6 +335,27 @@ export function buildTransactionColumns(
     )
 
     return [
+        ...(options.canUseCorrections ? [
+        {
+            id: "correction_actions",
+            enableSorting: false,
+            enableHiding: false,
+            size: 92,
+            minSize: 86,
+            header: () => <span className="block text-center">Thao tác</span>,
+            cell: ({ row }) => (
+                <TransactionCorrectionActions
+                    row={row.original}
+                    canUseCorrections={Boolean(options.canUseCorrections)}
+                    onEditUnitPrice={options.onEditUnitPrice}
+                />
+            ),
+            meta: {
+                thClassName: "w-[92px] whitespace-nowrap text-center",
+                tdClassName: "w-[92px] whitespace-nowrap text-center",
+            },
+        },
+        ] : []),
         {
             ...buildIndexColumn<Transaction>(),
             size: 56,
@@ -442,6 +467,46 @@ export function buildTransactionColumns(
         textColumn("region", "KHU_VUC", 120),
         numberColumn("sl_hdn_k0_ma_rieng", "SL_HDN_K0_MA_RIENG", 190),
     ]
+}
+
+function TransactionCorrectionActions({
+    row,
+    canUseCorrections,
+    onEditUnitPrice,
+}: {
+    row: Transaction
+    canUseCorrections: boolean
+    onEditUnitPrice?: (row: Transaction) => void
+}) {
+    const canEditUnitPrice = canUseCorrections && Boolean(row.import_batch_id) && Boolean(onEditUnitPrice)
+
+    if (!canEditUnitPrice) {
+        return <span className="text-muted-foreground">-</span>
+    }
+
+    return (
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Thao tác sửa sai">
+                    <MoreHorizontal className="h-4 w-4" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-64 p-1">
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Thao tác sửa sai</div>
+                <button
+                    type="button"
+                    className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                    onClick={() => onEditUnitPrice?.(row)}
+                >
+                    <Pencil className="mt-0.5 h-4 w-4 text-primary" />
+                    <span>
+                        <span className="block font-medium">Sửa đơn giá theo ĐVC</span>
+                        <span className="block text-xs text-muted-foreground">Chỉ áp dụng cho dữ liệu được import từ file.</span>
+                    </span>
+                </button>
+            </PopoverContent>
+        </Popover>
+    )
 }
 
 type Option = {

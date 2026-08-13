@@ -102,15 +102,120 @@ export function checkNegativeStock(productCodes: string) {
     })
 }
 
+export type CostingLedgerReconciliationItem = {
+    period_id: number
+    period_name: string
+    from_date?: string | null
+    to_date?: string | null
+    status?: string | null
+    product_code?: string | null
+    product_name?: string | null
+    warehouse_code?: string | null
+    warehouse_name?: string | null
+    diff_opening_quantity?: number | string | null
+    diff_opening_value?: number | string | null
+    diff_inbound_quantity?: number | string | null
+    diff_inbound_value?: number | string | null
+    diff_outbound_quantity?: number | string | null
+    diff_outbound_value?: number | string | null
+    diff_closing_quantity?: number | string | null
+    diff_closing_value?: number | string | null
+    missing_costed_outbound_rows?: number | string | null
+}
+
+export type CostingLedgerReconciliationResult = {
+    ok: boolean
+    message: string
+    period_count: number
+    checked_product_rows: number
+    mismatch_count: number
+    items: CostingLedgerReconciliationItem[]
+}
+
+export function checkCostingLedgerReconciliation() {
+    return apiPost<CostingLedgerReconciliationResult>("/inventory/ledger/costing-reconciliation/check", {})
+}
+
+export type ProductionDateSyncDetail = {
+    kind: "VOUCHER" | "LEDGER" | "OUTPUT" | string
+    id?: number | null
+    doc_no?: string | null
+    doc_type?: string | null
+    current_date?: string | null
+    expected_date?: string | null
+}
+
+export type ProductionDateSyncIssue = {
+    production_id: number
+    production_no: string
+    production_date: string
+    status?: string | null
+    voucher_mismatch_count: number
+    ledger_mismatch_count: number
+    output_mismatch_count: number
+    details: ProductionDateSyncDetail[]
+}
+
+export type ProductionDateSyncResult = {
+    ok: boolean
+    applied: boolean
+    checked_count: number
+    mismatch_count: number
+    requested_production_nos: string[]
+    issues: ProductionDateSyncIssue[]
+    changes?: Record<string, number>
+    negative_count: number
+    negative_items: NegativeStockAuditItem[]
+    message: string
+}
+
+export function checkProductionDateSync(productionNos: string) {
+    return apiPost<ProductionDateSyncResult>("/inventory/ledger/production-date-sync/check", {
+        productionNos,
+    })
+}
+
+export function applyProductionDateSync(productionNos: string) {
+    return apiPost<ProductionDateSyncResult>("/inventory/ledger/production-date-sync/apply", {
+        productionNos,
+    })
+}
+
 export type ProductionCostObjectImportResult = {
     total_rows?: number
     totalRows?: number
     success: number
     failed: number
     updated: number
+    to_update?: number
+    toUpdate?: number
+    changed?: number
     already_correct?: number
     alreadyCorrect?: number
     skipped: number
+    preview?: boolean
+    requires_confirm?: boolean
+    requiresConfirm?: boolean
+    pending_changes?: Array<{
+        row: number
+        ledgerId?: number
+        ledger_id?: number
+        docNo?: string
+        doc_no?: string
+        postingDate?: string
+        posting_date?: string
+        productCode?: string
+        product_code?: string
+        warehouseCode?: string
+        warehouse_code?: string
+        lotNo?: string
+        lot_no?: string
+        oldCostObjectCode?: string | null
+        old_cost_object_code?: string | null
+        newCostObjectCode?: string
+        new_cost_object_code?: string
+    }>
+    pendingChanges?: ProductionCostObjectImportResult["pending_changes"]
     errors: Array<{ row: number; message: string }>
     skipped_doc_types?: Record<string, number>
     skippedDocTypes?: Record<string, number>
@@ -497,12 +602,12 @@ export function applyDocumentPostingTimeChange(ledgerId: number, newPostingTime:
     })
 }
 
-export async function importProductionCostObjects(file: File) {
+export async function importProductionCostObjects(file: File, confirm = false) {
     const formData = new FormData()
     formData.append("file", file)
 
     return apiPostMultipart<ProductionCostObjectImportResult>(
-        "/inventory/ledger/production-cost-objects/import",
+        `/inventory/ledger/production-cost-objects/import${confirm ? "?confirm=true" : ""}`,
         formData
     )
 }
@@ -525,5 +630,53 @@ export async function importPurchaseBasePrices(file: File) {
         "/inventory/ledger/purchase-base-prices/import",
         formData
     )
+}
+
+export type OpeningCostNormalizationRun = {
+    id: number
+    status: string
+    file_name?: string | null
+    opening_date?: string | null
+    import_rows?: number
+    error_message?: string | null
+    check?: Record<string, any>
+    impact?: Record<string, any>
+    snapshot?: Record<string, any>
+    apply?: Record<string, any>
+    downstream?: Record<string, any>
+    recalc?: Record<string, any>
+    audit?: Record<string, any>
+    verify?: Record<string, any>
+}
+
+export async function uploadOpeningCostNormalization(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<OpeningCostNormalizationRun>(
+        "/inventory/ledger/opening-cost-normalization/upload",
+        formData
+    )
+}
+
+export function getOpeningCostNormalization(runId: number) {
+    return apiGet<OpeningCostNormalizationRun>(`/inventory/ledger/opening-cost-normalization/${runId}`)
+}
+
+export function runOpeningCostNormalizationStep(
+    runId: number,
+    step:
+        | "check"
+        | "impact"
+        | "snapshot"
+        | "apply-opening"
+        | "normalize-downstream"
+        | "mark-recalculate"
+        | "recalculate"
+        | "audit-costing"
+        | "verify"
+        | "rollback",
+) {
+    return apiPost<OpeningCostNormalizationRun>(`/inventory/ledger/opening-cost-normalization/${runId}/${step}`, {})
 }
 

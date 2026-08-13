@@ -2,6 +2,8 @@ import type { ShipmentStatus } from "../data/shipment-status"
 export type { ShipmentStatus }
 
 export type ShipmentFormItem = {
+    id?: number
+    contract_item_id?: number
     product_id?: number
 
     product?: {

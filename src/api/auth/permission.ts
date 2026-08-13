@@ -20,6 +20,17 @@ export type PermissionItem = {
     name?: string
 }
 
+export type PermissionRole = {
+    id: number
+    code: string
+    name: string
+}
+
+export type PermissionRoles = {
+    permission_id: number
+    roles: PermissionRole[]
+}
+
 export type PermissionListParams = {
     page: number
     size: number
@@ -52,3 +63,7 @@ export const getPermission = permissionApi.detail
 export const createPermission = permissionApi.create
 export const updatePermission = permissionApi.update
 export const deletePermission = permissionApi.delete
+
+export function getPermissionRoles(permissionId: number) {
+    return apiGet<PermissionRoles>(`/auth/permissions/${permissionId}/roles`)
+}

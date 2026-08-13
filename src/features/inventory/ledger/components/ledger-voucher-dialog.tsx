@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Plus, Save, SlidersHorizontal, Trash2 } from "lucide-react"
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ClipboardPaste, Plus, Save, SlidersHorizontal, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { listAppLookups } from "@/api/app-lookup"
@@ -138,6 +138,11 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     const [toPhysicalWarehouseId, setToPhysicalWarehouseId] = useState<number | undefined>()
     const [description, setDescription] = useState("")
     const [lines, setLines] = useState<VoucherLine[]>(isPaired ? createPairedLines() : [createEmptyLine()])
+    const [bulkPasteOpen, setBulkPasteOpen] = useState(false)
+    const [bulkProductCodes, setBulkProductCodes] = useState("")
+    const [bulkDefaultQuantity, setBulkDefaultQuantity] = useState("1")
+    const [bulkMissingCodes, setBulkMissingCodes] = useState<string[]>([])
+    const [bulkLoading, setBulkLoading] = useState(false)
 
     const title = mode === "repack" ? "Tạo phiếu sang bao" : mode === "conversion" ? "Tạo phiếu chuyển mã" : isTransfer ? "Tạo phiếu chuyển kho" : isInbound ? "Tạo phiếu nhập kho" : "Tạo phiếu xuất kho"
     const Icon = isTransfer ? ArrowLeftRight : isInbound ? ArrowDownLeft : ArrowUpRight
@@ -175,6 +180,10 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         setPostingTime(currentTimeInputValue())
         setToPhysicalWarehouseId(undefined)
         setLines(isPaired ? createPairedLines() : [createEmptyLine()])
+        setBulkPasteOpen(false)
+        setBulkProductCodes("")
+        setBulkDefaultQuantity("1")
+        setBulkMissingCodes([])
     }, [isPaired, isTransfer, mode, open])
 
     useEffect(() => {
@@ -277,6 +286,75 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         setLines((current) => [...current, createEmptyLine(direction, itemRole)])
     }
 
+    const handleBulkLoadProducts = async () => {
+        const codes = parseBulkProductCodes(bulkProductCodes)
+        if (!codes.length) {
+            toast.error("Dán danh sách mã hàng trước khi load")
+            return
+        }
+
+        const defaultQuantity = parseBulkQuantity(bulkDefaultQuantity)
+        if (defaultQuantity <= 0) {
+            toast.error("Số lượng mặc định phải lớn hơn 0")
+            return
+        }
+
+        setBulkLoading(true)
+        try {
+            const foundLines: VoucherLine[] = []
+            const missingCodes: string[] = []
+
+            for (const code of codes) {
+                const product = await findProductByCode(code)
+                if (!product?.id) {
+                    missingCodes.push(code)
+                    continue
+                }
+
+                const defaultWarehouseId = product.default_warehouse_id
+                    ? Number(product.default_warehouse_id)
+                    : undefined
+                const matchedWarehouseId = await resolveDefaultWarehouseForPhysical(defaultWarehouseId, physicalWarehouseId)
+                const nextLine: VoucherLine = {
+                    ...createEmptyLine(),
+                    product_id: Number(product.id),
+                    warehouse_id: matchedWarehouseId,
+                    unit: product.unit || undefined,
+                    product_inventory_account: product.inventory_account_code || undefined,
+                    quantity: formatBulkQuantity(defaultQuantity),
+                }
+
+                foundLines.push({
+                    ...nextLine,
+                    ...(selectedVoucherType ? resolveLineAccounts(nextLine, selectedVoucherType) : {}),
+                })
+            }
+
+            setBulkMissingCodes(missingCodes)
+            if (foundLines.length) {
+                setLines((current) => {
+                    const hasData = current.some((line) =>
+                        line.product_id
+                        || Number(line.quantity) > 0
+                        || line.lot_code.trim()
+                        || line.note.trim(),
+                    )
+                    return hasData ? [...current, ...foundLines] : foundLines
+                })
+            }
+
+            if (missingCodes.length && foundLines.length) {
+                toast.warning(`Đã load ${foundLines.length} dòng, ${missingCodes.length} mã không tìm thấy`)
+            } else if (missingCodes.length) {
+                toast.error("Không tìm thấy mã hàng nào trong danh sách")
+            } else {
+                toast.success(`Đã load ${foundLines.length} dòng sản phẩm`)
+            }
+        } finally {
+            setBulkLoading(false)
+        }
+    }
+
     const removeLine = (id: string) => {
         setLines((current) => current.some((line) => line.id === id && line.direction === "I")
             ? current
@@ -292,6 +370,10 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         setToPhysicalWarehouseId(undefined)
         setDescription("")
         setLines(isPaired ? createPairedLines() : [createEmptyLine()])
+        setBulkPasteOpen(false)
+        setBulkProductCodes("")
+        setBulkDefaultQuantity("1")
+        setBulkMissingCodes([])
     }
 
     const buildPayload = (): CreateVoucherRequest => {
@@ -544,10 +626,18 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                     </Button>
                                 </div>
                             ) : (
-                                <Button type="button" size="sm" variant="outline" onClick={() => addLine()}>
-                                    <Plus className="mr-1 h-4 w-4" />
-                                    Thêm dòng
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                    {!isTransfer ? (
+                                        <Button type="button" size="sm" variant="outline" onClick={() => setBulkPasteOpen((current) => !current)}>
+                                            <ClipboardPaste className="mr-1 h-4 w-4" />
+                                            Nhập DS mã
+                                        </Button>
+                                    ) : null}
+                                    <Button type="button" size="sm" variant="outline" onClick={() => addLine()}>
+                                        <Plus className="mr-1 h-4 w-4" />
+                                        Thêm dòng
+                                    </Button>
+                                </div>
                             )}
                         </div>
                         {isPaired ? (
@@ -555,6 +645,48 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                 {mode === "repack"
                                     ? "Chỉ có một thành phẩm đầu ra. Giá trị thành phẩm bằng tổng giá trị hàng nguồn và bao bì đã xuất."
                                     : "Chỉ có một mã đích. Tổng số lượng mã nguồn phải bằng số lượng mã đích; giá trị mã đích được dẫn từ các dòng xuất."}
+                            </div>
+                        ) : null}
+                        {!isPaired && !isTransfer && bulkPasteOpen ? (
+                            <div className="space-y-3 border-b bg-slate-50/70 p-3">
+                                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_auto] lg:items-end">
+                                    <div className="space-y-1.5">
+                                        <Label>Danh sách mã hàng</Label>
+                                        <Textarea
+                                            value={bulkProductCodes}
+                                            onChange={(event) => {
+                                                setBulkProductCodes(event.target.value)
+                                                setBulkMissingCodes([])
+                                            }}
+                                            placeholder="Dán mã hàng từ Excel, mỗi dòng một mã"
+                                            className="min-h-24 bg-white"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label>Số lượng mặc định</Label>
+                                        <Input
+                                            value={bulkDefaultQuantity}
+                                            onChange={(event) => setBulkDefaultQuantity(event.target.value)}
+                                            inputMode="decimal"
+                                            placeholder="1"
+                                            className="bg-white text-right"
+                                        />
+                                    </div>
+                                    <Button type="button" onClick={() => void handleBulkLoadProducts()} disabled={bulkLoading}>
+                                        <ClipboardPaste className="mr-2 h-4 w-4" />
+                                        {bulkLoading ? "Đang load..." : "Load vào phiếu"}
+                                    </Button>
+                                </div>
+                                {bulkMissingCodes.length ? (
+                                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
+                                        <div className="font-medium text-amber-800">
+                                            Không tìm thấy {bulkMissingCodes.length} mã hàng trong DB
+                                        </div>
+                                        <div className="mt-1 break-words font-mono text-xs text-amber-900">
+                                            {bulkMissingCodes.join(", ")}
+                                        </div>
+                                    </div>
+                                ) : null}
                             </div>
                         ) : null}
 
@@ -801,6 +933,44 @@ function extractVoucherError(error: any) {
     return message && message !== "Failed to fetch" ? message : null
 }
 
+function parseBulkProductCodes(text: string) {
+    return text
+        .split(/\r?\n|\t|;|,/)
+        .map((value) => value.trim())
+        .filter(Boolean)
+}
+
+function parseBulkQuantity(value: string) {
+    const raw = value.trim()
+    const normalized = raw.includes(",")
+        ? raw.replace(/\./g, "").replace(",", ".")
+        : /^\d{1,3}(\.\d{3})+$/.test(raw)
+            ? raw.replace(/\./g, "")
+            : raw
+    const quantity = Number(normalized)
+    return Number.isFinite(quantity) ? quantity : 0
+}
+
+function formatBulkQuantity(quantity: number) {
+    return Number.isInteger(quantity) ? String(quantity) : String(quantity)
+}
+
+function normalizeProductCode(code: string) {
+    return code.trim().toUpperCase()
+}
+
+async function findProductByCode(code: string) {
+    const normalizedCode = normalizeProductCode(code)
+    const result = await listProducts({
+        page: 1,
+        size: 50,
+        keyword: code,
+        status: "1",
+    })
+    const products = getPagedItems(result)
+    return products.find((product: any) => normalizeProductCode(String(product.code || "")) === normalizedCode)
+}
+
 function PreferredLotSelector({
     productId,
     warehouseId,
@@ -891,6 +1061,6 @@ function getPagedItems(data: any) {
 }
 
 function formatNumber(value: unknown) {
-    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(Number(value || 0))
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 }).format(Number(value || 0))
 }
 

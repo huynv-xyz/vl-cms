@@ -8,6 +8,7 @@ export type ProductBomListParams = {
     page: number
     size: number
     keyword?: string
+    bom_id?: number
     product_id?: number
     active?: boolean
 }
@@ -17,6 +18,7 @@ export function listProductBoms(params: ProductBomListParams) {
         page: params.page,
         limit: params.size,
         keyword: params.keyword,
+        bom_id: params.bom_id,
         product_id: params.product_id,
         active: params.active,
     })

@@ -28,7 +28,7 @@ import {
     Wand2,
     Warehouse,
 } from "lucide-react"
-import { useNavigate } from "@tanstack/react-router"
+import { Link, useNavigate } from "@tanstack/react-router"
 
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { DatePicker } from "@/components/date-picker"
@@ -340,7 +340,10 @@ function ProductionActionBar({ production }: { production: Production }) {
             toast.success("Đã sinh vật tư")
             refresh()
         },
-        onError: (e: any) => toast.error(e.message || "Không thể sinh vật tư"),
+        onError: () => {
+            showGenerateMaterialsError()
+            refresh()
+        },
     })
 
     const fifoMutation = useMutation({
@@ -484,6 +487,10 @@ function ProductionActionBar({ production }: { production: Production }) {
             ) : null}
         </div>
     )
+}
+
+function showGenerateMaterialsError() {
+    toast.error("Không thể sinh vật tư. Xem dòng màu đỏ trong danh sách để kiểm tra chi tiết.")
 }
 
 type OutputConfirmRow = {
@@ -813,15 +820,27 @@ function MaterialsTable({ production }: { production: Production }) {
                 const itemMaterials = item.materials ?? []
                 const isOpen = openItemId === item.id
                 const itemShortage = itemMaterials.filter((m) => Number(m.shortage_quantity) > 0).length
+                const itemBomError = getItemBomError(item)
+                const hasItemError = Boolean(itemBomError)
                 const requiredQty = sumBy(itemMaterials, (m) => m.quantity_required)
                 const allocatedQty = sumBy(itemMaterials, (m) => m.allocated_quantity)
 
                 return (
-                    <div key={item.id} className="overflow-hidden rounded-md border bg-background">
-                        <div className="flex items-start justify-between gap-2 border-b px-3 py-2">
-                            <button
-                                type="button"
-                                className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                    <div
+                        key={item.id}
+                        className={cn(
+                            "overflow-hidden rounded-md border bg-background",
+                            hasItemError && "border-destructive/50 bg-destructive/5",
+                        )}
+                    >
+                        <div
+                            className={cn(
+                                "flex items-start justify-between gap-2 border-b px-3 py-2",
+                                hasItemError && "border-destructive/30 bg-destructive/10",
+                            )}
+                        >
+                            <div
+                                className="flex min-w-0 flex-1 cursor-pointer items-start gap-2 text-left"
                                 onClick={() => setOpenItemId(item.id)}
                             >
                                 <ArrowRight
@@ -834,12 +853,25 @@ function MaterialsTable({ production }: { production: Production }) {
                                     <div className="font-semibold leading-tight">
                                         {item.product?.name || "-"}
                                     </div>
-                                    <div className="mt-0.5 text-sm text-muted-foreground">
-                                        {item.product?.code || `#${item.product_id}`} · BOM {item.bom_version || "-"} · SL KH {formatQty(item.quantity_plan, item.product?.unit)} · SL nhập {formatQty(item.quantity_done, item.product?.unit)}
+                                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                                        <span>{item.product?.code || `#${item.product_id}`}</span>
+                                        <span>·</span>
+                                        <BomLink item={item} />
+                                        <span>· SL KH {formatQty(item.quantity_plan, item.product?.unit)}</span>
+                                        <span>· SL nhập {formatQty(item.quantity_done, item.product?.unit)}</span>
                                     </div>
+                                    {itemBomError ? (
+                                        <div className="mt-2 flex items-start gap-1.5 rounded-md border border-destructive/30 bg-background px-2 py-1.5 text-xs font-medium text-destructive">
+                                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                            <span>{itemBomError}</span>
+                                        </div>
+                                    ) : null}
                                 </div>
-                            </button>
+                            </div>
                             <div className="flex flex-wrap items-center gap-2">
+                                {itemBomError ? (
+                                    <Badge variant="destructive">Lỗi BOM</Badge>
+                                ) : null}
                                 {itemShortage > 0 ? (
                                     <Badge variant="destructive">{itemShortage} thiếu</Badge>
                                 ) : (
@@ -880,14 +912,39 @@ function MaterialsTable({ production }: { production: Production }) {
                                                 const shortage = Number(material.shortage_quantity) || 0
                                                 const allocations = material.fifo_allocations ?? []
                                                 const hasExpandedFifo = hasExpandedFifoResult(material)
+                                                const materialErrors = getMaterialErrors(material, production)
+                                                const hasMaterialError = materialErrors.length > 0
                                                 return (
-                                                    <tr key={material.id} className={cn("border-t", hasExpandedFifo && "bg-amber-50/40")}>
+                                                    <tr
+                                                        key={material.id}
+                                                        className={cn(
+                                                            "border-t",
+                                                            hasExpandedFifo && "bg-amber-50/40",
+                                                            hasMaterialError && "border-destructive/30 bg-destructive/5",
+                                                        )}
+                                                    >
                                                         <Td className="text-muted-foreground">{index + 1}</Td>
                                                         <Td>
                                                             <div className="font-medium leading-tight">{material.product?.name || "-"}</div>
-                                                            <div className="mt-0.5 text-xs text-muted-foreground">
-                                                                {material.product?.code || `#${material.product_id}`} · ĐM {formatNumber(material.quantity_per_unit)}
+                                                            <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+                                                                <span>{material.product?.code || `#${material.product_id}`}</span>
+                                                                <span>· ĐM {formatNumber(material.quantity_per_unit)}</span>
+                                                                <span>·</span>
+                                                                <BomLink item={item} bomItemId={material.bom_item_id} />
                                                             </div>
+                                                            {hasMaterialError ? (
+                                                                <div className="mt-2 space-y-1">
+                                                                    {materialErrors.map((error, errorIndex) => (
+                                                                        <div
+                                                                            key={`${material.id}-error-${errorIndex}`}
+                                                                            className="flex items-start gap-1.5 rounded-md border border-destructive/30 bg-background px-2 py-1 text-xs font-medium text-destructive"
+                                                                        >
+                                                                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                                                            <span>{error}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ) : null}
                                                         </Td>
                                                         <Td className="text-muted-foreground">{material.product?.unit || "-"}</Td>
                                                         <Td>
@@ -931,7 +988,9 @@ function MaterialsTable({ production }: { production: Production }) {
                                 </div>
                             ) : (
                                 <div className="border-t px-4 py-6 text-center text-sm text-muted-foreground">
-                                    Chưa có vật tư. Bấm biểu tượng chỉnh vật tư để thêm vật tư cho thành phẩm này.
+                                    {itemBomError
+                                        ? "Không sinh được vật tư cho thành phẩm này. Xem lỗi màu đỏ ở dòng thành phẩm và mở BOM để kiểm tra."
+                                        : "Chưa sinh vật tư. Bấm Sinh vật tư để hệ thống tạo danh sách theo BOM."}
                                 </div>
                             )
                         ) : null}
@@ -940,6 +999,83 @@ function MaterialsTable({ production }: { production: Production }) {
             })}
         </div>
     )
+}
+
+function BomLink({
+    item,
+    bomItemId,
+}: {
+    item: ProductionItem
+    bomItemId?: number
+}) {
+    if (!item.bom_id) {
+        return <span>BOM -</span>
+    }
+
+    return (
+        <Link
+            to="/production/boms"
+            search={{ keyword: `BOM #${item.bom_id}`, page: 1, size: 20 } as any}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center rounded-sm font-medium text-primary underline-offset-2 hover:underline"
+            onClick={(event) => event.stopPropagation()}
+        >
+            BOM #{item.bom_id}
+            {item.bom_version ? ` (${item.bom_version})` : ""}
+            {bomItemId ? ` · dòng #${bomItemId}` : ""}
+        </Link>
+    )
+}
+
+function getItemBomError(item: ProductionItem) {
+    const status = String(item.check_status ?? "").toUpperCase()
+
+    if (status === "THIEU_BOM" || status === "MISSING_BOM") {
+        return "Thành phẩm này chưa có BOM hiệu lực để sinh vật tư. Kiểm tra mã thành phẩm và ngày lệnh."
+    }
+
+    if (status === "EMPTY_BOM") {
+        return "BOM của thành phẩm này chưa có dòng vật tư/bao bì. Mở BOM để bổ sung định mức."
+    }
+
+    return undefined
+}
+
+function getMaterialErrors(
+    material: ProductionMaterial,
+    production: Production,
+) {
+    const messages: string[] = []
+    const shortage = Number(material.shortage_quantity) || 0
+    const status = String(material.check_status ?? "").toUpperCase()
+    const fifoStatus = String(material.fifo_status ?? "").toUpperCase()
+
+    if (shortage > 0) {
+        messages.push(
+            `Thiếu tồn FIFO: cần ${formatNumber(material.quantity_required)}, đã FIFO ${formatNumber(material.allocated_quantity)}, còn thiếu ${formatNumber(shortage)}.`,
+        )
+    }
+
+    if (material.validation_message) {
+        messages.push(material.validation_message)
+    }
+
+    if (["NOT_ENOUGH", "NOT_ENOUGH_STOCK", "ERROR"].includes(status)) {
+        messages.push(`Trạng thái kiểm tra: ${getProductionSubStatusLabel(status)}.`)
+    }
+
+    if (["FIFO_NOT_FULL", "ERROR"].includes(fifoStatus)) {
+        messages.push(`Trạng thái FIFO: ${getProductionSubStatusLabel(fifoStatus)}.`)
+    }
+
+    for (const warning of production.warnings ?? []) {
+        if (warning.production_material_id === material.id && !warning.resolved_at && warning.message) {
+            messages.push(warning.message)
+        }
+    }
+
+    return Array.from(new Set(messages))
 }
 
 function MaterialManagerDialog({

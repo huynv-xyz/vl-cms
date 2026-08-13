@@ -25,7 +25,7 @@ export function PermissionTable({
             data={data}
             columns={permissionColumns}
             entityName="permission"
-            searchPlaceholder="Tìm theo module..."
+            searchPlaceholder="Tìm theo module, ví dụ sale.order..."
             pagination={pagination}
             onPaginationChange={onPaginationChange}
             pageCount={pageCount}

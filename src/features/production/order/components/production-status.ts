@@ -67,6 +67,8 @@ export function getProductionSubStatusLabel(value?: string) {
         case "THIEU_BOM":
         case "MISSING_BOM":
             return "Thiếu BOM"
+        case "EMPTY_BOM":
+            return "BOM rỗng"
         case "FIFO_NOT_FULL":
             return "FIFO chưa đủ"
         case "ERROR":
@@ -85,7 +87,7 @@ export function getProductionSubStatusVariant(value?: string): StatusVariant {
         return "secondary"
     }
 
-    if (["NOT_ENOUGH", "NOT_ENOUGH_STOCK", "THIEU_BOM", "MISSING_BOM", "FIFO_NOT_FULL", "ERROR", "CANCELLED"].includes(status)) {
+    if (["NOT_ENOUGH", "NOT_ENOUGH_STOCK", "THIEU_BOM", "MISSING_BOM", "EMPTY_BOM", "FIFO_NOT_FULL", "ERROR", "CANCELLED"].includes(status)) {
         return "destructive"
     }
 
