@@ -25,9 +25,9 @@ export type ShipmentItemPayload = {
     shipment_id: number
     contract_item_id: number
     product_id: number
-    quantity_shipped: number
-    quantity_received?: number
-    purchase_price_per_unit?: number
+    quantity: number
+    defect_quantity?: number
+    unit_price?: number
     note?: string
 }
 

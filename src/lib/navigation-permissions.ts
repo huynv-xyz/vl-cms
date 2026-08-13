@@ -16,6 +16,13 @@ function permissionSet(permissions: Permission[]) {
     return new Set(permissions.map((permission) => `${permission.module}.${permission.action}`))
 }
 
+const PATH_MODULE_ALIASES = [
+    {
+        path: "/tools",
+        module: "admin.tools",
+    },
+]
+
 export function hasViewPermissionForUrl(url: string, permissions: Permission[]) {
     const module = urlToPermissionModule(url)
     if (!module) return true
@@ -77,6 +84,14 @@ function collectUrls(data: SidebarData) {
 export function getRequiredViewModuleForPath(path: string, data: SidebarData = sidebarData) {
     const pathname = normalizePath(path)
     if (pathname === "/") return null
+
+    const alias = PATH_MODULE_ALIASES.find((item) => {
+        const aliasPath = normalizePath(item.path)
+        return pathname === aliasPath || pathname.startsWith(`${aliasPath}/`)
+    })
+    if (alias) {
+        return alias.module
+    }
 
     const matchedUrl = collectUrls(data)
         .filter((url) => pathname === url || pathname.startsWith(`${url}/`))

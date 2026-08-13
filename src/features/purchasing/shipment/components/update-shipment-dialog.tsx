@@ -81,6 +81,7 @@ export function UpdateShipmentDialog({
     const mappedContractItems: ShipmentFormItem[] = useMemo(
         () =>
             rawContractItems.map((item: any) => ({
+                contract_item_id: item.id,
                 warehouse_id: item.warehouse_id,
                 product_id: item.product_id,
                 product: item.product,
@@ -119,14 +120,18 @@ export function UpdateShipmentDialog({
         const map = new Map<number, ShipmentFormItem>()
 
         mappedContractItems.forEach((i) => {
-            if (i.product_id != null) {
-                map.set(i.product_id, i)
+            if (i.contract_item_id != null) {
+                map.set(i.contract_item_id, i)
             }
         })
 
         detailItems.forEach((i: any) => {
-            map.set(i.product_id, {
+            const key = i.contract_item_id ?? findUniqueContractItemId(mappedContractItems, i.product_id)
+            if (key == null) return
+
+            map.set(key, {
                 id: i.id,
+                contract_item_id: key,
                 product_id: i.product_id,
                 product: i.product,
                 selected: true,
@@ -166,6 +171,7 @@ export function UpdateShipmentDialog({
 
                 items: selectedItems.map((item: any) => ({
                     id: item.id,
+                    contract_item_id: item.contract_item_id,
                     product_id: item.product_id,
                     quantity: item.quantity ?? 0,
                     defect_quantity: item.defect_quantity ?? 0,
@@ -265,4 +271,11 @@ function toDateInputValue(value?: string) {
 
 function todayInputValue() {
     return new Date().toISOString().slice(0, 10)
+}
+
+function findUniqueContractItemId(items: ShipmentFormItem[], productId?: number) {
+    if (productId == null) return undefined
+
+    const matches = items.filter((item) => item.product_id === productId && item.contract_item_id != null)
+    return matches.length === 1 ? matches[0].contract_item_id : undefined
 }
