@@ -190,7 +190,7 @@ function ReturnItemsTable({ items }: { items?: any[] }) {
                                     {item.product?.name || "-"}
                                 </td>
                                 <td className="px-3 py-2 align-top text-muted-foreground">
-                                    {item.product?.sale_unit_name || item.product?.unit || "-"}
+                                    {item.product?.unit || "-"}
                                 </td>
                                 <td className="px-3 py-2 text-right align-top font-medium">
                                     {formatNumber(Number(item.quantity || 0))}
@@ -345,7 +345,7 @@ function ReturnStockInItems({ data, items }: { data: Return; items: any[] }) {
                                 {item.product?.name ?? ""}
                             </td>
                             <td className="border border-gray-400 px-1 py-1.5 text-center">
-                                {item.product?.sale_unit_name || item.product?.unit || ""}
+                                {item.product?.unit || ""}
                             </td>
                             <td className="border border-gray-400 px-1 py-1.5 text-right tabular-nums">
                                 {formatQty(item.quantity)}

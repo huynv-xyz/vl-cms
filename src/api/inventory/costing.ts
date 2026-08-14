@@ -218,6 +218,10 @@ export function lockCostPeriod(id: number) {
     return apiPost<CostPeriod>(`/inventory/costing/periods/${id}/lock`)
 }
 
+export function deleteCostPeriod(id: number) {
+    return apiDelete<{ deleted: boolean; stale_periods: number }>(`/inventory/costing/periods/${id}`)
+}
+
 export function listPeriodCosts(id: number, params: { page: number; size: number; keyword?: string; production_only?: boolean; lot_allocated_only?: boolean }) {
     return apiGet<PagedResult<ProductPeriodCost> & {
         period: CostPeriod
