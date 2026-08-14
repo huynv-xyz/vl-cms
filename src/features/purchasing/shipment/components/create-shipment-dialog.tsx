@@ -85,7 +85,7 @@ export function CreateShipmentDialog({
             etd: "",
             eta: "",
             ata: "",
-            warehouse_id: 0,
+            warehouse_id: undefined,
             warehouse_at: "",
             container_no: "",
             destination_port_id: undefined,
@@ -108,7 +108,7 @@ export function CreateShipmentDialog({
             eta: "",
             ata: "",
             warehouse_at: "",
-            warehouse_id: 0,
+            warehouse_id: undefined,
             container_no: "",
             destination_port_id: undefined,
             exchange_rate: contract?.currency?.exchange_rate ?? 1, // ✅ FIX
@@ -133,6 +133,11 @@ export function CreateShipmentDialog({
                 throw new Error("Chọn ngày về kho trước khi hoàn tất lô hàng")
             }
 
+            const warehouseId = Number(headerFormData.warehouse_id)
+            if (!Number.isFinite(warehouseId) || warehouseId <= 0) {
+                throw new Error("Chọn kho trước khi tạo lô hàng")
+            }
+
             const selectedItems = items.filter((x) => x.selected)
 
             if (!selectedItems.length) {
@@ -154,7 +159,7 @@ export function CreateShipmentDialog({
                 etd: headerFormData.etd,
                 eta: headerFormData.eta,
                 warehouse_at: warehouseAt || undefined,
-                warehouse_id: headerFormData.warehouse_id,
+                warehouse_id: warehouseId,
                 container_no: headerFormData.container_no,
                 destination_port_id: headerFormData.destination_port_id,
 
