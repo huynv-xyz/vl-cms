@@ -1,4 +1,5 @@
 import { createCrudApi } from "@/api/crud"
+import { apiPut } from "@/api/client"
 import type { User } from "@/features/user/data/schema"
 
 export type UserListParams = {
@@ -13,6 +14,7 @@ export type CreateUserRequest = {
     email: string
     password: string
     name: string
+    employee_id?: number
     status?: number
 }
 
@@ -21,6 +23,7 @@ export type UpdateUserRequest = {
     email: string
     password?: string
     name: string
+    employee_id?: number
     status?: number
 }
 
@@ -35,3 +38,6 @@ export const listUsers = userApi.list
 export const createUser = userApi.create
 export const updateUser = userApi.update
 export const deleteUser = userApi.delete
+
+export const changeUserPassword = (id: number, password: string) =>
+    apiPut<User>(`/users/${id}/password`, { password })

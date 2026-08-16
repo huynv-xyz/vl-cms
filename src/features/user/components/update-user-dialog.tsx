@@ -4,7 +4,10 @@ import {
     type UpdateUserRequest,
 } from "@/api/user"
 import type { User } from "../data/schema"
-import { userSchema, userUiSchema } from "./user-form-schema"
+import {
+    updateUserSchema,
+    updateUserUiSchema,
+} from "./user-form-schema"
 import type { UserFormValues } from "./types"
 
 type Props = {
@@ -24,12 +27,12 @@ export function UpdateUserDialog({
             open={open}
             onOpenChange={onOpenChange}
             hideTrigger
-            schema={userSchema}
-            uiSchema={userUiSchema}
+            schema={updateUserSchema}
+            uiSchema={updateUserUiSchema}
             defaultValues={{
                 email: user.email,
                 name: user.name,
-                password: "",
+                employee_id: user.employee_id,
                 status: user.status === 1,
             }}
             submitText="Lưu"
@@ -40,6 +43,7 @@ export function UpdateUserDialog({
                 id: user.id,
                 email: values.email.trim(),
                 name: values.name.trim(),
+                employee_id: values.employee_id,
                 status: values.status === false ? 0 : 1,
             })}
         />

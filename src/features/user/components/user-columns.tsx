@@ -25,6 +25,13 @@ export const userColumns: ColumnDef<User>[] = [
         maxWidth: 220,
     }),
 
+    buildTextColumn<User>({
+        accessorKey: "employee_id",
+        title: "Nhân viên sale",
+        width: 200,
+        render: (user) => user.employee?.name || user.employee_id || "-",
+    }),
+
     buildBadgeColumn<User>({
         accessorKey: "status",
         title: "Trạng thái",

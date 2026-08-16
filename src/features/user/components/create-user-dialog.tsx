@@ -27,6 +27,7 @@ export function CreateUserDialog({
                 email: "",
                 name: "",
                 password: "",
+                employee_id: undefined,
                 status: true,
             }}
             submitText="Tạo mới"
@@ -37,6 +38,7 @@ export function CreateUserDialog({
                 email: values.email.trim(),
                 name: values.name.trim(),
                 password: values.password ?? "",
+                employee_id: values.employee_id,
                 status: values.status === false ? 0 : 1,
             })}
         />

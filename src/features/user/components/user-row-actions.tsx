@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { type Row } from "@tanstack/react-table"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -6,6 +7,8 @@ import type { User } from "../data/schema"
 import { CrudRowActions } from "@/components/crud/crud-row-actions"
 import { useUsers } from "./users-provider"
 import { deleteUser } from "@/api/user"
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { ChangePasswordDialog } from "./change-password-dialog"
 
 type UserRowActionsProps = {
     row: Row<User>
@@ -14,11 +17,18 @@ type UserRowActionsProps = {
 export function UserRowActions({ row }: UserRowActionsProps) {
     const { openEdit } = useUsers()
     const queryClient = useQueryClient()
+    const [passwordOpen, setPasswordOpen] = useState(false)
 
     return (
+        <>
         <CrudRowActions<User>
             row={row.original}
             onEdit={(r) => openEdit(r)}
+            extraActions={() => (
+                <DropdownMenuItem onSelect={() => setPasswordOpen(true)}>
+                    Đổi mật khẩu
+                </DropdownMenuItem>
+            )}
             onDelete={async (r) => {
                 try {
                     await deleteUser(r.id)
@@ -31,5 +41,7 @@ export function UserRowActions({ row }: UserRowActionsProps) {
                 }
             }}
         />
+        <ChangePasswordDialog user={row.original} open={passwordOpen} onOpenChange={setPasswordOpen} />
+        </>
     )
 }
