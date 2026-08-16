@@ -143,33 +143,53 @@ export const productSchema: RJSFSchema = {
 
 export const productUiSchema: UiSchema = {
     "ui:options": {
-        separatorAfter: "inventory_account_code",
+        sectionBefore: {
+            code: {
+                title: "Thông tin cơ bản",
+            },
+            nature: {
+                title: "Phân loại",
+                description: "Nhóm trường ảnh hưởng cách sản phẩm tham gia các luồng bán hàng, kho và sản xuất.",
+            },
+            unit: {
+                title: "Đơn vị & quy đổi",
+                description: "Các giá trị này dùng làm mặc định cho phát sinh mới.",
+            },
+            default_warehouse_id: {
+                title: "Kho & kế toán",
+                description: "Kho ngầm định và tài khoản kho là gợi ý cho chứng từ mới.",
+            },
+            rounding_mode: {
+                title: "Tính giá & thuế",
+                description: "Cấu hình phục vụ bảng giá, tính giá mua và VAT.",
+            },
+        },
     },
     "ui:order": [
         "code",
         "name",
         "quote_name",
-        "nature",
-        "group_id",
-        "unit",
-        "default_warehouse_id",
-        "inventory_account_code",
         "quote_code",
         "misa_material_code",
+        "description",
+        "status",
+        "nature",
+        "group_id",
         "pricing_group_id",
+        "unit",
         "base_unit_code",
         "sale_unit_code",
         "sale_unit_name",
         "sale_unit_factor",
         "size_value",
         "size_unit_code",
+        "default_warehouse_id",
+        "inventory_account_code",
         "rounding_mode",
         "rounding_unit",
         "vat_rate",
         "price_method_override",
         "manual_price_vnd",
-        "description",
-        "status",
     ],
     status: {
         "ui:widget": "select",

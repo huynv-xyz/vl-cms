@@ -42,7 +42,7 @@ const defaultHeader: ShipmentHeaderFormValues = {
     eta: "",
     ata: "",
     warehouse_at: "",
-    warehouse_id: 0,
+    warehouse_id: undefined,
     container_no: "",
     destination_port_id: undefined,
     exchange_rate: 1,
@@ -64,6 +64,9 @@ export function UpdateShipmentDialog({
     })
 
     const detail = data?.data ?? data
+
+    const resolvedWarehouseId = detail?.warehouse_id ?? shipment?.warehouse_id
+    const resolvedWarehouseOption = buildWarehouseOption(detail?.warehouse ?? shipment?.warehouse, resolvedWarehouseId)
 
     const { data: contractItemsData } = useQuery({
         queryKey: ["contract-items-for-shipment", shipment.contract_id],
@@ -103,16 +106,32 @@ export function UpdateShipmentDialog({
 
     const [items, setItems] = useState<ShipmentFormItem[]>([])
 
+    const formUiSchema = useMemo(() => ({
+        ...shipmentUiSchema,
+        warehouse_id: {
+            ...(shipmentUiSchema as any).warehouse_id,
+            "ui:options": {
+                ...((shipmentUiSchema as any).warehouse_id?.["ui:options"] || {}),
+                initialOption: resolvedWarehouseOption,
+            },
+        },
+    }), [resolvedWarehouseOption])
+
     useEffect(() => {
         if (!open || !detail) return
 
         setHeaderFormData({
-            ...defaultHeader,
-            ...detail,
+            code: detail.code ?? defaultHeader.code,
             etd: toDateInputValue(detail.etd),
             eta: toDateInputValue(detail.eta),
             ata: toDateInputValue(detail.ata),
             warehouse_at: toDateInputValue(detail.warehouse_at),
+            warehouse_id: resolvedWarehouseId ?? defaultHeader.warehouse_id,
+            container_no: detail.container_no ?? defaultHeader.container_no,
+            destination_port_id: optionalPositiveNumber(detail.destination_port_id),
+            exchange_rate: detail.exchange_rate ?? defaultHeader.exchange_rate,
+            status: detail.status ?? defaultHeader.status,
+            note: detail.note ?? defaultHeader.note,
         })
 
         const detailItems = detail.items ?? []
@@ -145,28 +164,39 @@ export function UpdateShipmentDialog({
         })
 
         setItems(Array.from(map.values()))
-    }, [open, detail, mappedContractItems])
+    }, [open, detail, mappedContractItems, resolvedWarehouseId])
 
     const { mutate, isPending } = useMutation({
-        mutationFn: async () => {
-            const warehouseAt = headerFormData.warehouse_at || (
-                headerFormData.status === "IN_WAREHOUSE" ? todayInputValue() : ""
+        mutationFn: async (formValues?: ShipmentHeaderFormValues) => {
+            const current = formValues ?? headerFormData
+
+            const warehouseAt = current.warehouse_at || (
+                current.status === "IN_WAREHOUSE" ? todayInputValue() : ""
             )
-            if (headerFormData.status === "IN_WAREHOUSE" && !warehouseAt) {
+            if (current.status === "IN_WAREHOUSE" && !warehouseAt) {
                 throw new Error("Chọn ngày về kho trước khi hoàn tất lô hàng")
             }
 
             const selectedItems: any = items.filter((x) => x.selected)
+            const warehouseId = Number(current.warehouse_id)
+
+            if (!Number.isFinite(warehouseId) || warehouseId <= 0) {
+                throw new Error("Chọn kho trước khi cập nhật lô hàng")
+            }
+
+            if (!selectedItems.length) {
+                throw new Error("Vui lòng chọn ít nhất 1 hàng hóa.")
+            }
 
             return updateShipment({
                 id: shipment.id,
                 contract_id: shipment.contract_id,
-                ...headerFormData,
-                warehouse_id: headerFormData.warehouse_id ? Number(headerFormData.warehouse_id) : undefined,
+                ...current,
+                warehouse_id: warehouseId,
                 warehouse_at: warehouseAt || undefined,
-                container_no: headerFormData.container_no,
-                destination_port_id: headerFormData.destination_port_id
-                    ? Number(headerFormData.destination_port_id)
+                container_no: current.container_no,
+                destination_port_id: current.destination_port_id
+                    ? Number(current.destination_port_id)
                     : undefined,
 
                 items: selectedItems.map((item: any) => ({
@@ -195,6 +225,9 @@ export function UpdateShipmentDialog({
             toast.success("Cập nhật thành công")
             onOpenChange(false)
         },
+        onError: (error: any) => {
+            toast.error(error?.message || "Cập nhật lô hàng thất bại")
+        },
     })
 
     return (
@@ -217,7 +250,7 @@ export function UpdateShipmentDialog({
                             className="space-y-4"
                             validator={rjsfValidator}
                             schema={shipmentSchema}
-                            uiSchema={shipmentUiSchema}
+                            uiSchema={formUiSchema}
                             formData={headerFormData}
                             widgets={widgets}
                             templates={{
@@ -230,7 +263,7 @@ export function UpdateShipmentDialog({
                                 }
                                 setHeaderFormData(next)
                             }}
-                            onSubmit={() => mutate()}
+                            onSubmit={({ formData }) => mutate(formData as ShipmentHeaderFormValues)}
                         >
                             <div className="col-span-full">
                                 <ShipmentItemsEditor
@@ -271,6 +304,22 @@ function toDateInputValue(value?: string) {
 
 function todayInputValue() {
     return new Date().toISOString().slice(0, 10)
+}
+
+function optionalPositiveNumber(value: unknown) {
+    if (value === undefined || value === null || value === "") return undefined
+
+    const numberValue = Number(value)
+    return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : undefined
+}
+
+function buildWarehouseOption(warehouse: any, warehouseId?: number) {
+    if (!warehouseId || !warehouse) return undefined
+
+    return {
+        value: warehouseId,
+        label: warehouse.name || warehouse.code || `Kho #${warehouseId}`,
+    }
 }
 
 function findUniqueContractItemId(items: ShipmentFormItem[], productId?: number) {

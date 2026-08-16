@@ -23,7 +23,7 @@ export function ShadcnFieldTemplate(props: FieldTemplateProps) {
         : []
 
     return (
-        <div className={`flex flex-col gap-1 py-2 ${classNames ?? ""}`}>
+        <div className={`flex flex-col gap-1 py-1 ${classNames ?? ""}`}>
             {!isBoolean && label && (
                 <Label htmlFor={id} className="text-sm font-medium">
                     {label}

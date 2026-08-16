@@ -37,6 +37,7 @@ type CrudFormDialogProps<TFormValues, TRequest, TResponse> = {
     onSuccess?: (response: TResponse) => void
     successMessage?: string
     errorMessage?: string
+    beforeSubmit?: (values: TFormValues) => boolean | Promise<boolean>
 
     // 🔥 NEW
     onFormChange?: (formData: TFormValues) => Promise<TFormValues> | TFormValues
@@ -63,6 +64,7 @@ export function CrudFormDialog<TFormValues, TRequest, TResponse>({
     onSuccess,
     successMessage = "Thao tác thành công",
     errorMessage = "Thao tác thất bại",
+    beforeSubmit,
     onFormChange,
 }: CrudFormDialogProps<TFormValues, TRequest, TResponse>) {
     const [internalOpen, setInternalOpen] = useState(false)
@@ -147,7 +149,14 @@ export function CrudFormDialog<TFormValues, TRequest, TResponse>({
                             setFormData(data)
                         }}
 
-                        onSubmit={({ formData }) => mutate(formData as TFormValues)}
+                        onSubmit={async ({ formData }) => {
+                            const values = formData as TFormValues
+                            if (beforeSubmit) {
+                                const canSubmit = await beforeSubmit(values)
+                                if (!canSubmit) return
+                            }
+                            mutate(values)
+                        }}
                     >
                         <div className="sticky bottom-0 col-span-full bg-background pt-4">
                             <Button
@@ -173,6 +182,9 @@ function GridObjectFieldTemplate({
     uiSchema,
 }: ObjectFieldTemplateProps & { className: string }) {
     const separatorAfter = uiSchema?.["ui:options"]?.separatorAfter as string | undefined
+    const sectionBefore = uiSchema?.["ui:options"]?.sectionBefore as
+        | Record<string, { title: string; description?: string }>
+        | undefined
 
     return (
         <div className={className}>
@@ -185,6 +197,18 @@ function GridObjectFieldTemplate({
                     </div>
                 ) : (
                     <Fragment key={property.name}>
+                        {sectionBefore?.[property.name] ? (
+                            <div className="col-span-full mt-1 border-t pt-2 first:mt-0 first:border-t-0 first:pt-0">
+                                <div className="text-sm font-semibold text-foreground">
+                                    {sectionBefore[property.name].title}
+                                </div>
+                                {sectionBefore[property.name].description ? (
+                                    <div className="text-xs text-muted-foreground">
+                                        {sectionBefore[property.name].description}
+                                    </div>
+                                ) : null}
+                            </div>
+                        ) : null}
                         {property.content}
                         {separatorAfter === property.name ? (
                             <div className="col-span-full my-3 border-t" />

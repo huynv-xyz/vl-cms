@@ -1,13 +1,14 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
 import type React from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { AlertCircle, Calculator, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Download, Loader2, Play, Plus, Search } from "lucide-react"
+import { AlertCircle, Calculator, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Download, Loader2, Play, Plus, Search, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { listInventoryLedgerReport } from "@/api/inventory/ledger"
 import {
     calculateCostPeriod,
     createCostPeriod,
+    deleteCostPeriod,
     getCostBasis,
     listCostPeriods,
     listFinishedProductCostExport,
@@ -26,6 +27,17 @@ import { CardPagination } from "@/components/table/card-pagination"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { StickyReportTable } from "@/features/inventory/components/sticky-report-table"
@@ -65,6 +77,7 @@ function quarterOf(date?: string) {
 }
 
 export default function InventoryCostingPage() {
+    const queryClient = useQueryClient()
     const [selectedPeriodId, setSelectedPeriodId] = useState<number>()
     const [costKeyword, setCostKeyword] = useState("")
     const [periodYear, setPeriodYear] = useState(new Date().getFullYear())
@@ -86,6 +99,20 @@ export default function InventoryCostingPage() {
         },
         [yearPeriods, selectedPeriodId],
     )
+    const deletePeriodMutation = useMutation({
+        mutationFn: (period: CostPeriod) => deleteCostPeriod(period.id),
+        onSuccess: (result, period) => {
+            const staleNotice = result.stale_periods > 0 ? `; ${result.stale_periods} kỳ sau cần tính lại` : ""
+            toast.success(`Đã xóa kỳ ${period.name}${staleNotice}`)
+            if (selectedPeriodId === period.id) {
+                setSelectedPeriodId(undefined)
+            }
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-periods"] })
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-period-costs"] })
+            queryClient.invalidateQueries({ queryKey: ["inventory-production-cost-results"] })
+        },
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Không xóa được kỳ tính giá"),
+    })
 
     return (
         <Main className="flex w-full min-w-0 flex-col gap-2">
@@ -127,13 +154,21 @@ export default function InventoryCostingPage() {
                                             </div>
                                             <div className="max-h-[260px] space-y-1.5 overflow-y-auto pr-1">
                                                 {quarterPeriods.map((period) => (
-                                                    <button
+                                                    <div
                                                         key={period.id}
+                                                        role="button"
+                                                        tabIndex={0}
                                                         className={cn(
-                                                            "w-full rounded-md bg-white px-2.5 py-1.5 text-left shadow-sm transition hover:bg-teal-50",
+                                                            "w-full cursor-pointer rounded-md bg-white px-2.5 py-1.5 text-left shadow-sm transition hover:bg-teal-50",
                                                             selectedPeriod?.id === period.id && "bg-teal-50 ring-1 ring-teal-300",
                                                         )}
                                                         onClick={() => setSelectedPeriodId(period.id)}
+                                                        onKeyDown={(event) => {
+                                                            if (event.key === "Enter" || event.key === " ") {
+                                                                event.preventDefault()
+                                                                setSelectedPeriodId(period.id)
+                                                            }
+                                                        }}
                                                     >
                                                         <div className="flex items-start justify-between gap-2">
                                                             <div className="min-w-0">
@@ -142,9 +177,14 @@ export default function InventoryCostingPage() {
                                                                     {formatDate(period.from_date)} - {formatDate(period.to_date)}
                                                                 </div>
                                                             </div>
+                                                            <DeletePeriodButton
+                                                                period={period}
+                                                                isDeleting={deletePeriodMutation.isPending}
+                                                                onDelete={() => deletePeriodMutation.mutate(period)}
+                                                            />
                                                         </div>
                                                         <StatusBadge status={period.status} />
-                                                    </button>
+                                                    </div>
                                                 ))}
                                                 {!quarterPeriods.length && (
                                                     <div className="rounded-md bg-white/70 px-3 py-5 text-center text-sm text-muted-foreground">
@@ -171,6 +211,57 @@ export default function InventoryCostingPage() {
                 )}
             </div>
         </Main>
+    )
+}
+
+function DeletePeriodButton({
+    period,
+    isDeleting,
+    onDelete,
+}: {
+    period: CostPeriod
+    isDeleting: boolean
+    onDelete: () => void
+}) {
+    const locked = period.status === "LOCKED"
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                    disabled={locked || isDeleting}
+                    title={locked ? "Kỳ đã khóa, không thể xóa" : "Xóa kỳ"}
+                    onClick={(event) => {
+                        event.stopPropagation()
+                    }}
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent onClick={(event) => event.stopPropagation()}>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Xóa kỳ tính giá?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Kỳ {period.name} sẽ bị xóa cùng toàn bộ kết quả tính giá đã lưu. Các kỳ sau nếu đã tính sẽ được đánh dấu cần tính lại.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={(event) => event.stopPropagation()}>Đóng</AlertDialogCancel>
+                    <AlertDialogAction
+                        className="bg-red-600 text-white hover:bg-red-700"
+                        onClick={(event) => {
+                            event.stopPropagation()
+                            onDelete()
+                        }}
+                    >
+                        Xóa kỳ
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     )
 }
 

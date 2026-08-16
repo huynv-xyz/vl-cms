@@ -2,6 +2,7 @@ import { CrudFormDialog } from "@/components/crud/crud-form-dialog"
 import { updateProduct, type UpdateProductRequest } from "@/api/product"
 import { getProductGroup } from "@/api/product-group"
 import { getWarehouse } from "@/api/warehouse"
+import { toast } from "sonner"
 import type { Product } from "../data/schema"
 import { productSchema, productUiSchema } from "./product-form-schema"
 import { toProductNatureValue } from "./product-nature"
@@ -56,8 +57,8 @@ export function UpdateProductDialog({ product, open, onOpenChange }: any) {
             submitText="Lưu"
             loadingText="Đang lưu..."
             dialogClassName="max-h-[86vh] !w-[calc(100vw-32px)] !max-w-6xl"
-            formClassName="space-y-4"
-            objectFieldClassName="grid grid-cols-1 gap-x-5 gap-y-1 md:grid-cols-2 xl:grid-cols-3"
+            formClassName="space-y-2"
+            objectFieldClassName="grid grid-cols-1 gap-x-4 gap-y-0 md:grid-cols-2 xl:grid-cols-3"
             queryKeyToInvalidate={["product"]}
             mutationFn={updateProduct}
             onFormChange={async (v) => {
@@ -83,6 +84,7 @@ export function UpdateProductDialog({ product, open, onOpenChange }: any) {
 
                 return next
             }}
+            beforeSubmit={(v) => confirmProductUpdateRisk(product, v)}
             mapFormToRequest={(v) => ({
                 id: product.id,
                 code: v.code,
@@ -112,6 +114,163 @@ export function UpdateProductDialog({ product, open, onOpenChange }: any) {
             })}
         />
     )
+}
+
+type ChangeLevel = "NONE" | "BASIC" | "CONFIG" | "SENSITIVE"
+
+const BASIC_FIELDS = [
+    "name",
+    "quote_name",
+    "quote_code",
+    "misa_material_code",
+    "description",
+    "status",
+] as const
+
+const CONFIG_FIELDS = [
+    "default_warehouse_id",
+    "inventory_account_code",
+    "pricing_group_id",
+    "rounding_mode",
+    "rounding_unit",
+    "vat_rate",
+    "price_method_override",
+    "manual_price_vnd",
+] as const
+
+const SENSITIVE_FIELDS = [
+    "code",
+    "nature",
+    "group_id",
+    "unit",
+    "base_unit_code",
+    "sale_unit_code",
+    "sale_unit_name",
+    "sale_unit_factor",
+    "size_value",
+    "size_unit_code",
+] as const
+
+function confirmProductUpdateRisk(product: Product, values: ProductFormValues) {
+    const changeSet = classifyProductChanges(product, values)
+    if (changeSet.highestLevel === "NONE") {
+        toast.info("Không có thay đổi nào để lưu")
+        return false
+    }
+
+    if (changeSet.highestLevel !== "SENSITIVE") return true
+
+    return window.confirm(
+        [
+            "Bạn đang thay đổi trường nhạy cảm của sản phẩm.",
+            "",
+            "Các trường thay đổi:",
+            changeSet.sensitive.join(", "),
+            "",
+            "Nhóm này có thể ảnh hưởng cách hiểu dữ liệu đã phát sinh như đơn hàng, tồn kho, sổ kho, BOM hoặc sản xuất.",
+            "Bạn vẫn muốn lưu thay đổi?",
+        ].join("\n")
+    )
+}
+
+function classifyProductChanges(product: Product, values: ProductFormValues) {
+    const oldValues = normalizeComparableProduct(product)
+    const newValues = normalizeComparableForm(values)
+
+    const basic = changedFields(BASIC_FIELDS, oldValues, newValues)
+    const config = changedFields(CONFIG_FIELDS, oldValues, newValues)
+    const sensitive = changedFields(SENSITIVE_FIELDS, oldValues, newValues)
+    const changedFieldsAll = [...basic, ...config, ...sensitive]
+
+    const highestLevel: ChangeLevel = sensitive.length
+        ? "SENSITIVE"
+        : config.length
+            ? "CONFIG"
+            : basic.length
+                ? "BASIC"
+                : "NONE"
+
+    return {
+        highestLevel,
+        changedFields: changedFieldsAll,
+        basic,
+        config,
+        sensitive,
+    }
+}
+
+function changedFields(
+    fields: readonly string[],
+    oldValues: Record<string, unknown>,
+    newValues: Record<string, unknown>
+) {
+    return fields.filter((field) => oldValues[field] !== newValues[field])
+}
+
+function normalizeComparableProduct(product: Product): Record<string, unknown> {
+    return {
+        code: normalizeText(product.code),
+        name: normalizeText(product.name),
+        quote_name: normalizeText(product.quote_name),
+        quote_code: normalizeText(product.quote_code),
+        misa_material_code: normalizeText(product.misa_material_code),
+        unit: normalizeText(product.unit),
+        nature: normalizeText(toProductNatureValue(product.nature)),
+        group_id: normalizeNumber(product.group_id),
+        pricing_group_id: normalizeNumber(product.pricing_group_id),
+        base_unit_code: normalizeText(product.base_unit_code || "KG"),
+        sale_unit_code: normalizeText(product.sale_unit_code),
+        sale_unit_name: normalizeText(product.sale_unit_name),
+        sale_unit_factor: normalizeNumber(product.sale_unit_factor ?? 1),
+        size_value: normalizeNumber(product.size_value),
+        size_unit_code: normalizeText(product.size_unit_code),
+        rounding_mode: normalizeText(product.rounding_mode || "KG_STEP"),
+        rounding_unit: normalizeNumber(product.rounding_unit ?? 1000),
+        vat_rate: normalizeNumber(product.vat_rate ?? 5),
+        description: normalizeText(product.description),
+        default_warehouse_id: normalizeNumber(product.default_warehouse_id),
+        inventory_account_code: normalizeText(product.inventory_account_code),
+        price_method_override: normalizeText(product.price_method_override),
+        manual_price_vnd: normalizeNumber(product.manual_price_vnd),
+        status: product.status === 1 ? 1 : 0,
+    }
+}
+
+function normalizeComparableForm(values: ProductFormValues): Record<string, unknown> {
+    return {
+        code: normalizeText(values.code),
+        name: normalizeText(values.name),
+        quote_name: normalizeText(values.quote_name),
+        quote_code: normalizeText(values.quote_code),
+        misa_material_code: normalizeText(values.misa_material_code),
+        unit: normalizeText(values.unit),
+        nature: normalizeText(toProductNatureValue(values.nature)),
+        group_id: normalizeNumber(values.group_id),
+        pricing_group_id: normalizeNumber(values.pricing_group_id),
+        base_unit_code: normalizeText(values.base_unit_code || "KG"),
+        sale_unit_code: normalizeText(values.sale_unit_code),
+        sale_unit_name: normalizeText(values.sale_unit_name),
+        sale_unit_factor: normalizeNumber(values.sale_unit_factor ?? 1),
+        size_value: normalizeNumber(values.size_value),
+        size_unit_code: normalizeText(values.size_unit_code),
+        rounding_mode: normalizeText(values.rounding_mode || "KG_STEP"),
+        rounding_unit: normalizeNumber(values.rounding_unit ?? 1000),
+        vat_rate: normalizeNumber(values.vat_rate ?? 5),
+        description: normalizeText(values.description),
+        default_warehouse_id: normalizeNumber(values.default_warehouse_id),
+        inventory_account_code: normalizeText(values.inventory_account_code),
+        price_method_override: normalizeText(values.price_method_override),
+        manual_price_vnd: normalizeNumber(values.manual_price_vnd),
+        status: values.status === 0 ? 0 : 1,
+    }
+}
+
+function normalizeText(value?: string | null) {
+    return value?.trim() || ""
+}
+
+function normalizeNumber(value?: number | null) {
+    return value == null || Number.isNaN(Number(value)) ? null : Number(value)
 }
 
 function normalizeProductUnit(value?: string) {

@@ -51,8 +51,8 @@ export function CreateProductDialog({ open, onOpenChange }: any) {
             submitText="Tạo"
             loadingText="Đang tạo..."
             dialogClassName="max-h-[86vh] !w-[calc(100vw-32px)] !max-w-6xl"
-            formClassName="space-y-4"
-            objectFieldClassName="grid grid-cols-1 gap-x-5 gap-y-1 md:grid-cols-2 xl:grid-cols-3"
+            formClassName="space-y-2"
+            objectFieldClassName="grid grid-cols-1 gap-x-4 gap-y-0 md:grid-cols-2 xl:grid-cols-3"
             queryKeyToInvalidate={["product"]}
             mutationFn={createProduct}
             onFormChange={async (v) => {
