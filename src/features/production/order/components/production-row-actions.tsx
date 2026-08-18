@@ -25,8 +25,8 @@ export function ProductionRowActions({ row }: Props) {
     const permissions = useProductionPermissions()
     const [changeDateOpen, setChangeDateOpen] = useState(false)
     const [adjustOpen, setAdjustOpen] = useState(false)
-    const canEdit = canEditProduction(row.original)
-    const canDelete = canDeleteProduction(row.original)
+    const canEdit = permissions.canUpdate && canEditProduction(row.original)
+    const canDelete = permissions.canDelete && canDeleteProduction(row.original)
 
     const { deleteById } = useCrudDelete(
         deleteProduction,

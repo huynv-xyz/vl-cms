@@ -7,6 +7,7 @@ import {
     DetailSummary,
 } from "@/components/base-detail-dialog"
 import { deliveryStatusMeta } from "./delivery-status"
+import { formatDeliveryDate } from "./delivery-date"
 
 export function DeliveryDetailDialog({
     open,
@@ -37,7 +38,7 @@ export function DeliveryDetailDialog({
                     <DetailInfoGrid>
                         <DetailInfoItem label="Đơn hàng" value={data.order?.order_no} />
                         <DetailInfoItem label="Công ty" value={data.company?.name} />
-                        <DetailInfoItem label="Ngày giao" value={data.delivery_date} />
+                        <DetailInfoItem label="Ngày giao" value={formatDeliveryDate(data.delivery_date)} />
                         <DetailInfoItem label="Địa chỉ" value={data.delivery_address} className="lg:col-span-2" />
                         <DetailInfoItem label="Ghi chú" value={data.note} className="lg:col-span-3" />
                     </DetailInfoGrid>

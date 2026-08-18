@@ -30,3 +30,12 @@ export const deleteReturn = returnApi.delete
 export function updateReturnStatus(id: number, status: string) {
     return apiPut(`/sales/returns/${id}/status`, { status })
 }
+
+export type ReturnUnitPriceCorrectionItem = {
+    return_item_id: number
+    unit_price: number
+}
+
+export function correctReturnUnitPrices(id: number, items: ReturnUnitPriceCorrectionItem[]) {
+    return apiPut(`/sales/returns/${id}/unit-prices`, { items })
+}

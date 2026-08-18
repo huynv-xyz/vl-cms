@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { useQuery } from "@tanstack/react-query"
-import { Printer } from "lucide-react"
+import { Pencil, Printer } from "lucide-react"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
 import { buildActionsColumn } from "@/components/crud/build-actions-column"
@@ -21,6 +21,7 @@ import { useUpdateStatus } from "@/hooks/use-update-status"
 import { getMyPermissions } from "@/api/auth/permission"
 import { updateReturnStatus } from "@/api/sale/return"
 import { ReturnDetailDialog } from "../components/return-detail-dialog"
+import { ReturnUnitPriceCorrectionDialog } from "./return-unit-price-correction-dialog"
 import { RETURN_STATUSES, returnStatusLabel } from "./return-status"
 
 export function useReturnColumns() {
@@ -31,11 +32,15 @@ export function useReturnColumns() {
     const canChangeDoneStatus = permissions.some(
         (p: any) => p.module === "sales.returns" && p.action === "status.after-done"
     )
+    const canCorrectReturnPrice = permissions.some(
+        (p: any) => p.module === "sales.returns" && p.action === "price.change"
+    )
 
     const [selectedReturn, setSelectedReturn] = useState<{
         id: number
         printOnOpen?: boolean
     } | null>(null)
+    const [priceCorrectionReturn, setPriceCorrectionReturn] = useState<Return | null>(null)
 
     const mutation = useUpdateStatus<Return>({
         queryKey: ["returns"],
@@ -194,7 +199,23 @@ export function useReturnColumns() {
 
         buildActionsColumn({
             renderActions: (_, row) => {
-                if (row.original.status === "DONE") return null
+                if (row.original.status === "DONE") {
+                    if (canCorrectReturnPrice && isManualDoneWithoutExport(row.original)) {
+                        return (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                title="Sửa giá phiếu trả"
+                                onClick={() => setPriceCorrectionReturn(row.original)}
+                            >
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                        )
+                    }
+                    return null
+                }
                 return <ReturnRowActions row={row} />
             },
         }),
@@ -203,14 +224,27 @@ export function useReturnColumns() {
     return {
         columns,
         dialog: (
-            <ReturnDetailDialog
-                open={!!selectedReturn}
-                id={selectedReturn?.id}
-                printOnOpen={selectedReturn?.printOnOpen}
-                onClose={() => setSelectedReturn(null)}
-            />
+            <>
+                <ReturnDetailDialog
+                    open={!!selectedReturn}
+                    id={selectedReturn?.id}
+                    printOnOpen={selectedReturn?.printOnOpen}
+                    onClose={() => setSelectedReturn(null)}
+                />
+                <ReturnUnitPriceCorrectionDialog
+                    open={!!priceCorrectionReturn}
+                    returnData={priceCorrectionReturn}
+                    onOpenChange={(open) => {
+                        if (!open) setPriceCorrectionReturn(null)
+                    }}
+                />
+            </>
         ),
     }
+}
+
+function isManualDoneWithoutExport(row: Return) {
+    return row.status === "DONE" && row.return_type === "MANUAL" && !row.export_id
 }
 
 function formatReturnDate(value?: string | number[]) {

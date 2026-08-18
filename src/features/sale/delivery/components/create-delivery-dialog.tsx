@@ -19,6 +19,7 @@ import { getOrder } from "@/api/sale/order"
 import { DeliveryItemsEditor } from "./delivery-items-editor"
 import type { DeliveryFormItem } from "./types"
 import { DeliveryHeaderFields } from "./delivery-header-fields"
+import { todayDeliveryDateInputValue } from "./delivery-date"
 
 export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
     const queryClient = useQueryClient()
@@ -26,7 +27,7 @@ export function CreateDeliveryDialog({ order, open, onOpenChange }: any) {
 
     const [formData, setFormData] = useState<any>({
         order_id: order?.id, // FIX
-        delivery_date: new Date().toISOString().slice(0, 10),
+        delivery_date: todayDeliveryDateInputValue(),
         company_id: 1,
         status: "NEW",
         note: "",

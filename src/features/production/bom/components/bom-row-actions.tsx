@@ -6,26 +6,32 @@ import { CrudRowActions } from "@/components/crud/crud-row-actions"
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { useCrudDelete } from "@/hooks/use-crud-delete"
 import type { ProductBom } from "../data/schema"
+import { useProductBomPermissions } from "../hooks/use-product-bom-permissions"
 import { useProductBoms } from "./boms-provider"
 
 export function ProductBomRowActions({ row }: { row: Row<ProductBom> }) {
     const queryClient = useQueryClient()
     const { openDetail, openEdit } = useProductBoms()
+    const permissions = useProductBomPermissions()
     const { deleteById } = useCrudDelete((id) => deleteProductBom(Number(id)), ["product-boms"])
 
     return (
         <CrudRowActions
             row={row.original}
-            onEdit={() => openEdit(row.original)}
+            onEdit={permissions.canUpdate ? () => openEdit(row.original) : undefined}
             extraActions={(bom) => (
                 <DropdownMenuItem onClick={() => openDetail(bom)}>
                     Chi tiết định mức
                 </DropdownMenuItem>
             )}
-            onDelete={async (bom) => {
-                await deleteById(bom.id)
-                void queryClient.invalidateQueries({ queryKey: ["product-boms"] })
-            }}
+            onDelete={
+                permissions.canDelete
+                    ? async (bom) => {
+                        await deleteById(bom.id)
+                        void queryClient.invalidateQueries({ queryKey: ["product-boms"] })
+                    }
+                    : undefined
+            }
         />
     )
 }

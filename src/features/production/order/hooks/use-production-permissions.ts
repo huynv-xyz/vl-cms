@@ -18,6 +18,12 @@ import { getMyPermissions, type Permission } from "@/api/auth/permission"
  * Nếu user có quyền "production.*" (admin) thì được mở tất cả field.
  */
 export type ProductionPermissions = {
+    /** Tạo lệnh sản xuất */
+    canCreate: boolean
+    /** Sửa thông tin lệnh sản xuất */
+    canUpdate: boolean
+    /** Xóa lệnh sản xuất */
+    canDelete: boolean
     /** Sửa lô, kho, số lượng kế hoạch, số lượng nhập TP */
     canEditQuantity: boolean
     /** Sửa đơn giá, giá thành, chi phí */
@@ -39,13 +45,22 @@ export type ProductionPermissions = {
 }
 
 const PROD = "production"
+const ORDERS = "production.orders"
 
-function has(permissions: Permission[], action: string) {
+function hasInModule(permissions: Permission[], module: string, action: string) {
     return permissions.some(
         (p) =>
-            p.module === PROD &&
+            (p.module === module || p.module === "*") &&
             (p.action === action || p.action === "*"),
     )
+}
+
+function has(permissions: Permission[], action: string) {
+    return hasInModule(permissions, PROD, action)
+}
+
+function hasOrder(permissions: Permission[], action: string) {
+    return hasInModule(permissions, ORDERS, action) || has(permissions, action)
 }
 
 function hasAny(permissions: Permission[], actions: string[]) {
@@ -62,6 +77,9 @@ export function useProductionPermissions(): ProductionPermissions {
     const isAdmin = has(permissions, "*")
 
     return {
+        canCreate: isAdmin || hasOrder(permissions, "create"),
+        canUpdate: isAdmin || hasOrder(permissions, "update"),
+        canDelete: isAdmin || hasOrder(permissions, "delete"),
         canEditQuantity:
             isAdmin ||
             hasAny(permissions, [

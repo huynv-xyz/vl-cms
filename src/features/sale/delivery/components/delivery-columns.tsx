@@ -5,6 +5,7 @@ import { buildActionsColumn } from "@/components/crud/build-actions-column"
 import type { Delivery } from "../data/schema"
 import { DeliveryRowActions } from "./delivery-row-actions"
 import { Badge } from "@/components/ui/badge"
+import { formatDeliveryDate } from "./delivery-date"
 
 export const deliveryColumns: ColumnDef<Delivery>[] = [
     buildIndexColumn(),
@@ -42,6 +43,7 @@ export const deliveryColumns: ColumnDef<Delivery>[] = [
     buildTextColumn({
         accessorKey: "delivery_date",
         title: "Ngày giao",
+        render: (row) => formatDeliveryDate(row.delivery_date),
     }),
 
     buildTextColumn({

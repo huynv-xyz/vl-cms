@@ -325,6 +325,11 @@ export const sidebarData: SidebarData = {
                     url: '/inventory/costs',
                     icon: Calculator,
                 },
+                {
+                    title: 'Tài khoản phát sinh',
+                    url: '/inventory/account-postings',
+                    icon: DollarSign,
+                },
             ],
         },
         {
