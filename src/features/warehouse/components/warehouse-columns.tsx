@@ -38,6 +38,14 @@ export const warehouseColumns: ColumnDef<Warehouse>[] = [
         mapValueToLabel: (v) => (v === "ACTIVE" ? "Hoạt động" : "Ngừng"),
     }),
 
+    buildBadgeColumn({
+        accessorKey: "visible_in_sales_inventory_summary",
+        title: "Tồn kho kinh doanh",
+        width: 160,
+        mapValueToLabel: (v) => (v === false ? "Ẩn" : "Hiện"),
+        mapValueToVariant: (v) => (v === false ? "outline" : "secondary"),
+    }),
+
     buildActionsColumn({
         renderActions: (_, row) => <WarehouseRowActions row={row} />,
     }),

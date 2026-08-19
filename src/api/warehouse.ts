@@ -8,6 +8,7 @@ export type WarehouseListParams = {
     keyword?: string
     status?: string
     physical_warehouse_id?: number
+    sales_inventory_visible?: boolean | string
 }
 
 export type CreateWarehouseRequest = Partial<Warehouse>

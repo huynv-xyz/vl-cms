@@ -81,6 +81,7 @@ type Props = {
     filters: SummaryFilters
     onFiltersChange: (f: SummaryFilters) => void
     showValues?: boolean
+    salesInventoryVisibleOnly?: boolean
 }
 
 type ExportColumn = {
@@ -214,6 +215,7 @@ export function SummaryTable({
     filters,
     onFiltersChange,
     showValues = true,
+    salesInventoryVisibleOnly = false,
 }: Props) {
     const { data: natureLookupPage } = useQuery({
         queryKey: ["inventory-summary-product-nature-lookups"],
@@ -505,6 +507,7 @@ export function SummaryTable({
 
                         <WarehouseTreeFilter
                             value={filters.warehouse_ids || []}
+                            salesInventoryVisibleOnly={salesInventoryVisibleOnly}
                             onChange={(value) =>
                                 onFiltersChange({
                                     ...filters,
@@ -828,9 +831,11 @@ function SummaryRow({
 function WarehouseTreeFilter({
     value,
     onChange,
+    salesInventoryVisibleOnly = false,
 }: {
     value: number[]
     onChange: (value: number[]) => void
+    salesInventoryVisibleOnly?: boolean
 }) {
     const [open, setOpen] = useState(false)
     const [draftValue, setDraftValue] = useState<number[]>(value)
@@ -852,8 +857,13 @@ function WarehouseTreeFilter({
         queryFn: () => listPhysicalWarehouses({ page: 1, size: 500, status: "ACTIVE" }),
     })
     const { data: warehouseData, isLoading: loadingWarehouses } = useQuery({
-        queryKey: ["inventory-summary-warehouses"],
-        queryFn: () => listWarehouses({ page: 1, size: 1000, status: "ACTIVE" }),
+        queryKey: ["inventory-summary-warehouses", salesInventoryVisibleOnly],
+        queryFn: () => listWarehouses({
+            page: 1,
+            size: 1000,
+            status: "ACTIVE",
+            sales_inventory_visible: salesInventoryVisibleOnly ? true : undefined,
+        }),
     })
 
     const physicalWarehouses = physicalData?.items || []

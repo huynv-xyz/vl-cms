@@ -511,6 +511,49 @@ export function applyPurchaseQuantityChange(ledgerId: number, newQuantity: numbe
     })
 }
 
+export type PurchaseProductChangeResult = {
+    valid: boolean
+    applied: boolean
+    message: string
+    ledger_id: number
+    voucher_id?: number | null
+    voucher_item_id?: number | null
+    old_product_id: number
+    old_product_code: string
+    old_product_name: string
+    old_unit?: string | null
+    new_product_id: number
+    new_product_code: string
+    new_product_name: string
+    new_unit?: string | null
+    warehouse_id: number
+    warehouse_code?: string | null
+    warehouse_name: string
+    doc_no?: string | null
+    doc_type?: string | null
+    posting_date?: string | null
+    lot_id?: number | null
+    lot_no?: string | null
+    quantity: number
+    counts: Record<string, number>
+    affected_period_ids?: number[]
+    errors: string[]
+    warnings: string[]
+    changes: Record<string, number>
+}
+
+export function checkPurchaseProductChange(ledgerId: number, newProductId: number) {
+    return apiPost<PurchaseProductChangeResult>(`/inventory/ledger/${ledgerId}/purchase-product-change/check`, {
+        newProductId,
+    })
+}
+
+export function applyPurchaseProductChange(ledgerId: number, newProductId: number) {
+    return apiPost<PurchaseProductChangeResult>(`/inventory/ledger/${ledgerId}/purchase-product-change/apply`, {
+        newProductId,
+    })
+}
+
 export type PurchasePostingDateTimeChangeResult = {
     valid: boolean
     applied: boolean
@@ -600,6 +643,45 @@ export function applyDocumentPostingTimeChange(ledgerId: number, newPostingTime:
         newPostingDate,
         newPostingTime,
     })
+}
+
+export type OtherExportLineDeleteResult = {
+    valid: boolean
+    applied: boolean
+    message: string
+    ledger_id: number
+    voucher_id?: number | null
+    voucher_item_id?: number | null
+    product_id?: number | null
+    product_code?: string | null
+    product_name?: string | null
+    warehouse_id?: number | null
+    warehouse_code?: string | null
+    warehouse_name?: string | null
+    doc_no?: string | null
+    doc_type?: string | null
+    posting_date?: string | null
+    lot_id?: number | null
+    lot_no?: string | null
+    quantity?: number | null
+    unit_price?: number | null
+    amount?: number | null
+    operation_code?: string | null
+    voucher_item_count?: number
+    delete_voucher?: boolean
+    counts?: Record<string, number>
+    affected_period_ids?: number[]
+    errors?: string[]
+    warnings?: string[]
+    changes?: Record<string, number>
+}
+
+export function checkOtherExportLineDelete(ledgerId: number) {
+    return apiPost<OtherExportLineDeleteResult>(`/inventory/ledger/${ledgerId}/other-export-line-delete/check`, {})
+}
+
+export function applyOtherExportLineDelete(ledgerId: number) {
+    return apiPost<OtherExportLineDeleteResult>(`/inventory/ledger/${ledgerId}/other-export-line-delete/apply`, {})
 }
 
 export async function importProductionCostObjects(file: File, confirm = false) {
