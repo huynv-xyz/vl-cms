@@ -1,13 +1,15 @@
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ClipboardList, Layers, Loader2, MapPin, Users } from "lucide-react"
-import { useEffect, useState } from "react"
+import { ClipboardList, Layers, Loader2, MapPin, Users, X } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { listProductGroupPpStatusLookups } from "@/api/app-lookup"
 import { getMyPermissions } from "@/api/auth/permission"
 import { listTransactionOptions, updateTransactionUnitPrice } from "@/api/transactions"
 import { CrudTable } from "@/components/crud/crud-table"
 import { DatePicker } from "@/components/date-picker"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
     Dialog,
     DialogContent,
@@ -37,6 +39,7 @@ type TransactionFilters = {
     product_group_name?: string[]
     unit?: string[]
     customer_type?: string[]
+    is_gift?: string[]
     npp?: string[]
     hdn_status?: string[]
     region?: string
@@ -67,17 +70,17 @@ const CUSTOMER_TYPE_OPTIONS = [
     { value: "MB_B2B", label: "MB B2B" },
 ]
 
-const NPP_OPTIONS = [
-    { value: "PPH", label: "PPH" },
-    { value: "PPL", label: "PPL" },
-    { value: "PPN.C", label: "PPN.C" },
-    { value: "PPN.K", label: "PPN.K" },
-]
+const NO_NPP_VALUE = "__NO_NPP__"
 
 const HDN_STATUS_OPTIONS = [
     { value: "VALID", label: "Hop le" },
     { value: "INVALID", label: "Khong hop le" },
     { value: "PENDING", label: "Cho xu ly" },
+]
+
+const IS_GIFT_OPTIONS = [
+    { value: "0", label: "0 - Không tặng" },
+    { value: "1", label: "1 - Hàng tặng" },
 ]
 
 export function TransactionTable({
@@ -102,7 +105,26 @@ export function TransactionTable({
         queryKey: ["my-permissions"],
         queryFn: getMyPermissions,
     })
+    const { data: nppLookupPage } = useQuery({
+        queryKey: ["app-lookups", "PRODUCT_GROUP_PP_STATUS"],
+        queryFn: () => listProductGroupPpStatusLookups({ page: 1, size: 100 }),
+    })
+    const nppOptions = useMemo(() => uniqueOptions([
+        { value: NO_NPP_VALUE, label: "Không có" },
+        ...(nppLookupPage?.items ?? []).map((item) => ({
+            value: item.code,
+            label: item.name || item.code,
+        })),
+    ]), [nppLookupPage])
     const canUseCorrections = hasPermission(permissions, "transactions", "correction.change")
+    const { data: productGroupOptionPage } = useQuery({
+        queryKey: ["transactions-product-group-options"],
+        queryFn: () => listTransactionOptions({ field: "product_group_name", page: 1, size: 100 }),
+    })
+    const productGroupOptions = (productGroupOptionPage?.items ?? []).map((item) => ({
+        value: String(item.value),
+        label: String(item.label || item.value),
+    }))
     const setFilter = <K extends keyof TransactionFilters>(
         key: K,
         value: TransactionFilters[K],
@@ -117,7 +139,91 @@ export function TransactionTable({
     }, {
         canUseCorrections,
         onEditUnitPrice: setUnitPriceRow,
+        nppFilterOptions: nppOptions,
     })
+    const activeFilterChips = [
+        keyword
+            ? { key: "keyword", label: `Tìm kiếm "${keyword}"`, onClear: () => onKeywordChange("") }
+            : null,
+        filters.customer_type?.length
+            ? {
+                key: "customer_type",
+                label: `Loại KH: ${filterValueLabels(filters.customer_type, CUSTOMER_TYPE_OPTIONS)}`,
+                onClear: () => setFilter("customer_type", undefined),
+            }
+            : null,
+        filters.npp?.length
+            ? {
+                key: "npp",
+                label: `NPP: ${filterValueLabels(filters.npp, nppOptions)}`,
+                onClear: () => setFilter("npp", undefined),
+            }
+            : null,
+        filters.product_group_name?.length
+            ? {
+                key: "product_group_name",
+                label: `Nhóm VTHH: ${filterValueLabels(filters.product_group_name, productGroupOptions)}`,
+                onClear: () => setFilter("product_group_name", undefined),
+            }
+            : null,
+        filters.is_gift?.length
+            ? {
+                key: "is_gift",
+                label: `Hàng tặng: ${filterValueLabels(filters.is_gift, IS_GIFT_OPTIONS)}`,
+                onClear: () => setFilter("is_gift", undefined),
+            }
+            : null,
+        filters.customer_code?.length
+            ? { key: "customer_code", label: `Mã KH: ${filters.customer_code.join(", ")}`, onClear: () => setFilter("customer_code", undefined) }
+            : null,
+        filters.customer_name?.length
+            ? { key: "customer_name", label: `Tên KH: ${filters.customer_name.join(", ")}`, onClear: () => setFilter("customer_name", undefined) }
+            : null,
+        filters.product_code?.length
+            ? { key: "product_code", label: `Mã hàng: ${filters.product_code.join(", ")}`, onClear: () => setFilter("product_code", undefined) }
+            : null,
+        filters.product_name?.length
+            ? { key: "product_name", label: `Tên hàng: ${filters.product_name.join(", ")}`, onClear: () => setFilter("product_name", undefined) }
+            : null,
+        filters.unit?.length
+            ? { key: "unit", label: `ĐVC: ${filters.unit.join(", ")}`, onClear: () => setFilter("unit", undefined) }
+            : null,
+        filters.hdn_status?.length
+            ? {
+                key: "hdn_status",
+                label: `Tình trạng HDN: ${filterValueLabels(filters.hdn_status, HDN_STATUS_OPTIONS)}`,
+                onClear: () => setFilter("hdn_status", undefined),
+            }
+            : null,
+        filters.region
+            ? { key: "region", label: `Khu vực: ${filters.region}`, onClear: () => setFilter("region", undefined) }
+            : null,
+        filters.document_date_from
+            ? { key: "document_date_from", label: `Từ ngày CT: ${filters.document_date_from}`, onClear: () => setFilter("document_date_from", undefined) }
+            : null,
+        filters.document_date_to
+            ? { key: "document_date_to", label: `Đến ngày CT: ${filters.document_date_to}`, onClear: () => setFilter("document_date_to", undefined) }
+            : null,
+    ].filter(Boolean) as Array<{ key: string; label: string; onClear: () => void }>
+
+    const clearAllActiveFilters = () => {
+        onKeywordChange("")
+        onFiltersChange({
+            customer_code: undefined,
+            customer_name: undefined,
+            product_code: undefined,
+            product_name: undefined,
+            product_group_name: undefined,
+            unit: undefined,
+            customer_type: undefined,
+            is_gift: undefined,
+            npp: undefined,
+            hdn_status: undefined,
+            region: undefined,
+            document_date_from: undefined,
+            document_date_to: undefined,
+        })
+    }
 
     return (
         <div className="space-y-4">
@@ -145,7 +251,7 @@ export function TransactionTable({
                         label="NPP"
                         value={filters.npp}
                         onChange={(v) => setFilter("npp", v)}
-                        options={NPP_OPTIONS}
+                        options={nppOptions}
                         className="min-w-[150px] flex-1"
                     />
 
@@ -194,6 +300,34 @@ export function TransactionTable({
                 </div>
             </div>
 
+            {activeFilterChips.length ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-md border bg-white px-3 py-2">
+                    {activeFilterChips.map((chip) => (
+                        <Badge key={chip.key} variant="secondary" className="gap-1.5 rounded-md font-medium">
+                            {chip.label}
+                            <button
+                                type="button"
+                                className="text-muted-foreground hover:text-foreground"
+                                onClick={chip.onClear}
+                                aria-label={`Xóa bộ lọc ${chip.label}`}
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        </Badge>
+                    ))}
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={clearAllActiveFilters}
+                    >
+                        <X className="mr-1 h-3 w-3" />
+                        Xóa tất cả
+                    </Button>
+                </div>
+            ) : null}
+
             <CrudTable<Transaction>
                 data={data}
                 columns={columns}
@@ -207,6 +341,7 @@ export function TransactionTable({
                 enableColumnPinning
                 defaultPinnedColumnId="customer_name"
                 headerVariant="report"
+                className="[&_td]:border-r [&_td]:border-slate-200 [&_td:last-child]:border-r-0 [&_tbody_tr]:border-b [&_th]:border-r [&_th]:border-slate-200 [&_th:last-child]:border-r-0"
             />
             <UnitPriceCorrectionDialog
                 row={unitPriceRow}
@@ -593,6 +728,22 @@ function mergeSelectedOptions(selected: string[], options: Option[]) {
     selected.forEach((item) => map.set(item, { value: item, label: item }))
     options.forEach((item) => map.set(item.value, item))
     return Array.from(map.values())
+}
+
+function uniqueOptions(options: Option[]) {
+    const map = new Map<string, Option>()
+    options.forEach((option) => {
+        const value = option.value.trim()
+        if (value && !map.has(value)) {
+            map.set(value, { value, label: option.label.trim() || value })
+        }
+    })
+    return Array.from(map.values())
+}
+
+function filterValueLabels(values: string[], options: Option[]) {
+    const labels = new Map(options.map((option) => [option.value, option.label]))
+    return values.map((value) => labels.get(value) ?? value).join(", ")
 }
 
 function hasPermission(permissions: any[], module: string, action: string) {

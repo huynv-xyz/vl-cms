@@ -28,7 +28,7 @@ export default function TransactionPage() {
     } = useUrlListFilters(
         search,
         navigate,
-        ['customer_type', 'npp', 'hdn_status', 'customer_code', 'customer_name', 'product_code', 'product_name', 'product_group_name', 'unit'],
+        ['customer_type', 'is_gift', 'npp', 'hdn_status', 'customer_code', 'customer_name', 'product_code', 'product_name', 'product_group_name', 'unit'],
         ['region', 'document_date_from', 'document_date_to'],
     )
 
@@ -45,6 +45,7 @@ export default function TransactionPage() {
             multiFilters.product_group_name,
             multiFilters.unit,
             multiFilters.customer_type,
+            multiFilters.is_gift,
             multiFilters.npp,
             multiFilters.hdn_status,
             singleFilters.region,
@@ -63,6 +64,7 @@ export default function TransactionPage() {
             product_group_name: requestFilters.product_group_name,
             unit: requestFilters.unit,
             customer_type: requestFilters.customer_type,
+            is_gift: requestFilters.is_gift,
             npp: requestFilters.npp,
             hdn_status: requestFilters.hdn_status,
             region: requestFilters.region,
@@ -98,6 +100,7 @@ export default function TransactionPage() {
             multiFilters.product_group_name,
             multiFilters.unit,
             multiFilters.customer_type,
+            multiFilters.is_gift,
             multiFilters.npp,
             multiFilters.hdn_status,
             singleFilters.region,
@@ -128,6 +131,7 @@ export default function TransactionPage() {
                         keyword={keyword}
                         filters={{
                             customer_type: requestFilters.customer_type,
+                            is_gift: requestFilters.is_gift,
                             npp: requestFilters.npp,
                             customer_code: requestFilters.customer_code,
                             customer_name: requestFilters.customer_name,
@@ -176,6 +180,7 @@ export default function TransactionPage() {
 
                         filters={{
                             customer_type: multiFilters.customer_type,
+                            is_gift: multiFilters.is_gift,
                             npp: multiFilters.npp,
                             customer_code: multiFilters.customer_code,
                             customer_name: multiFilters.customer_name,
@@ -194,6 +199,7 @@ export default function TransactionPage() {
 
                             setMultiFilters({
                                 customer_type: next.customer_type,
+                                is_gift: next.is_gift,
                                 npp: next.npp,
                                 customer_code: next.customer_code,
                                 customer_name: next.customer_name,

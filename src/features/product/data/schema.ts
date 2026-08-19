@@ -14,6 +14,7 @@ export type Product = {
         id: number
         code?: string
         name?: string
+        pp_status?: string
     } | null
     pricing_group_id?: number
     pricing_group?: {

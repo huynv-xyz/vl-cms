@@ -14,6 +14,11 @@ export const Route = createFileRoute("/_authenticated/transactions/")({
                 ? search.customer_type
                 : undefined,
 
+        is_gift:
+            typeof search.is_gift === "string"
+                ? search.is_gift
+                : undefined,
+
         customer_code:
             typeof search.customer_code === "string"
                 ? search.customer_code

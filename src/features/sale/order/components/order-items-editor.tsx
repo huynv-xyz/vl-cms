@@ -1,10 +1,13 @@
 import type React from "react"
 import { Fragment, useEffect, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { listProductGroupPpStatusLookups } from "@/api/app-lookup"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { listProducts, getProduct } from "@/api/product"
@@ -22,6 +25,7 @@ type OrderItem = {
     discount?: number
     line_type?: string
     hdn_status?: string
+    pp_status?: string
     description?: string
     note?: string
     sort_order?: number
@@ -35,13 +39,22 @@ type Props = {
     enableReorder?: boolean
     lockCommittedLines?: boolean
     itemError?: { orderItemId: number; message: string } | null
+    customerType?: string
 }
 
-export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorder = false, lockCommittedLines = false, itemError }: Props) {
+const NO_PP_STATUS_VALUE = "__NO_PP_STATUS__"
+
+export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorder = false, lockCommittedLines = false, itemError, customerType }: Props) {
     const rowRefs = useRef<Array<HTMLTableRowElement | null>>([])
     const pendingFocusIndexRef = useRef<number | null>(null)
     const lastAddRequestRef = useRef(addRequest)
     const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
+    const isB2bCustomer = String(customerType ?? "").trim().toUpperCase() === "B2B"
+    const { data: ppStatusLookupPage } = useQuery({
+        queryKey: ["app-lookups", "PRODUCT_GROUP_PP_STATUS"],
+        queryFn: () => listProductGroupPpStatusLookups({ page: 1, size: 100 }),
+    })
+    const ppStatusOptions = ppStatusLookupPage?.items ?? []
 
     const createEmptyRow = (): OrderItem => ({
         product_id: undefined,
@@ -85,6 +98,25 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
             rowRefs.current[index]?.scrollIntoView({ behavior: "smooth", block: "center" })
         })
     }, [itemError, items])
+
+    useEffect(() => {
+        if (!items.length) return
+
+        const nextItems = items.map((item) => {
+            if (!isB2bCustomer) {
+                return item.pp_status ? { ...item, pp_status: undefined } : item
+            }
+            if (item.pp_status) {
+                return item
+            }
+            const ppStatus = item.product?.group?.pp_status
+            return ppStatus ? { ...item, pp_status: ppStatus } : item
+        })
+
+        if (nextItems.some((item, index) => item !== items[index])) {
+            setItems(nextItems)
+        }
+    }, [isB2bCustomer])
 
     const addRow = () => {
         const lastIndex = items.length - 1
@@ -163,12 +195,14 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
 
     const selectProduct = (index: number, value: number | undefined, option: any) => {
         const isPromotion = items[index]?.line_type === "PROMOTION"
+        const ppStatus = isB2bCustomer ? option?.raw?.group?.pp_status : undefined
 
         updateRow(index, {
             product_id: value,
             product: option?.raw,
             unit_price: isPromotion ? 0 : option?.raw?.price ?? 0,
             unit: option?.raw?.unit,
+            pp_status: ppStatus || undefined,
         })
     }
 
@@ -181,6 +215,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
         discount: 0,
         line_type: "NORMAL",
         hdn_status: undefined,
+        pp_status: isB2bCustomer ? product?.group?.pp_status || undefined : undefined,
         description: "",
         note: "",
     })
@@ -218,7 +253,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
             }}
         >
             <div className="overflow-x-auto rounded-md border">
-                <table className="w-full min-w-[2110px] table-fixed text-sm">
+                <table className="w-full min-w-[2250px] table-fixed text-sm">
                     <colgroup>
                         <col className="w-9" />
                         <col className="w-11" />
@@ -231,6 +266,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                         <col className="w-[95px]" />
                         <col className="w-[70px]" />
                         <col className="w-[95px]" />
+                        <col className="w-[140px]" />
                         <col className="w-[260px]" />
                         <col className="w-[130px]" />
                         <col className="w-[70px]" />
@@ -248,6 +284,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                             <th className="px-2 py-2 text-right font-semibold">Chiết khấu</th>
                             <th className="px-2 py-2 text-center font-semibold">Hàng KM</th>
                             <th className="px-2 py-2 text-center font-semibold">Không tính HĐN</th>
+                            <th className="px-2 py-2 text-center font-semibold">Tình trạng PP</th>
                             <th className="px-2 py-2 text-left font-semibold">Ghi chú</th>
                             <th className="px-2 py-2 text-right font-semibold">Thành tiền</th>
                             <th className="px-2 py-2" />
@@ -442,6 +479,28 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                         />
                                     </td>
 
+                                    <td className="px-2 py-2 align-middle">
+                                        <Select
+                                            value={row.pp_status || NO_PP_STATUS_VALUE}
+                                            disabled={isCommitted}
+                                            onValueChange={(value) => updateRow(i, {
+                                                pp_status: value === NO_PP_STATUS_VALUE ? undefined : value,
+                                            })}
+                                        >
+                                            <SelectTrigger className="h-9 bg-white">
+                                                <SelectValue placeholder="-" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={NO_PP_STATUS_VALUE}>Không có</SelectItem>
+                                                {ppStatusOptions.map((option) => (
+                                                    <SelectItem key={option.code} value={option.code}>
+                                                        {option.name || option.code}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </td>
+
                                     <td className="min-w-0 px-2 py-2 align-middle">
                                         <Input
                                             value={row.note ?? ""}
@@ -499,7 +558,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
 
                         {!items.length && (
                             <tr>
-                                <td colSpan={14} className="px-4 py-14">
+                                <td colSpan={15} className="px-4 py-14">
                                     <div
                                         className="text-muted-foreground flex flex-col items-center gap-3 text-center text-sm"
                                         tabIndex={0}

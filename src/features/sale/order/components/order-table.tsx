@@ -52,6 +52,7 @@ import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import { OrderDocumentDialog } from "./order-document-dialog"
 import { CreateOrderDialog } from "./create-order-dialog"
 import { OrderPriceAdjustmentDialog } from "./order-price-adjustment-dialog"
+import { OrderPpStatusAdjustmentDialog } from "./order-pp-status-adjustment-dialog"
 import { OrderQuantityAdjustmentDialog } from "./order-quantity-adjustment-dialog"
 import { OrderSalespersonAdjustmentDialog } from "./order-salesperson-adjustment-dialog"
 
@@ -83,6 +84,7 @@ export function OrderTable({
         hasPermission(permissions, "sales.orders", "status.update")
     const canCreateOrder = hasPermission(permissions, "sales.orders", "create")
     const canAdjustPrice = hasPermission(permissions, "sales.orders", "price.adjust")
+    const canAdjustPpStatus = hasPermission(permissions, "sales.orders", "pp-status.adjust")
     const canAdjustQuantity = hasPermission(permissions, "sales.orders", "quantity.adjust")
     const canAdjustSalesperson = hasPermission(permissions, "sales.orders", "salesperson.adjust")
 
@@ -314,6 +316,7 @@ export function OrderTable({
                                      canUpdateOrderStatus={canUpdateOrderStatus}
                                      canCreateOrder={canCreateOrder}
                                      canAdjustPrice={canAdjustPrice}
+                                     canAdjustPpStatus={canAdjustPpStatus}
                                      canAdjustQuantity={canAdjustQuantity}
                                      canAdjustSalesperson={canAdjustSalesperson}
                                      returnTo={returnTo}
@@ -448,6 +451,7 @@ function OrderCard({
     canUpdateOrderStatus,
     canCreateOrder,
     canAdjustPrice,
+    canAdjustPpStatus,
     canAdjustQuantity,
     canAdjustSalesperson,
     returnTo,
@@ -457,6 +461,7 @@ function OrderCard({
     canUpdateOrderStatus: boolean
     canCreateOrder: boolean
     canAdjustPrice: boolean
+    canAdjustPpStatus: boolean
     canAdjustQuantity: boolean
     canAdjustSalesperson: boolean
     returnTo: string
@@ -466,6 +471,7 @@ function OrderCard({
     const [documentOpen, setDocumentOpen] = useState(false)
     const [cloneOpen, setCloneOpen] = useState(false)
     const [priceOpen, setPriceOpen] = useState(false)
+    const [ppStatusOpen, setPpStatusOpen] = useState(false)
     const [quantityOpen, setQuantityOpen] = useState(false)
     const [salespersonOpen, setSalespersonOpen] = useState(false)
 
@@ -689,11 +695,13 @@ function OrderCard({
                         canEdit={!isLocked && canUpdateOrder}
                         canClone={canCreateOrder}
                         canAdjustPrice={canAdjustPrice && hasDoneExport}
+                        canAdjustPpStatus={canAdjustPpStatus && hasDoneExport}
                         canAdjustQuantity={canAdjustQuantity && hasDoneExport}
                         canAdjustSalesperson={canAdjustSalesperson && order.status !== "NEW"}
                         onEdit={() => openEdit(order)}
                         onClone={() => setCloneOpen(true)}
                         onAdjustPrice={() => setPriceOpen(true)}
+                        onAdjustPpStatus={() => setPpStatusOpen(true)}
                         onAdjustQuantity={() => setQuantityOpen(true)}
                         onAdjustSalesperson={() => setSalespersonOpen(true)}
                     />
@@ -717,6 +725,11 @@ function OrderCard({
                 order={order}
                 onOpenChange={setPriceOpen}
             />
+            <OrderPpStatusAdjustmentDialog
+                open={ppStatusOpen}
+                order={order}
+                onOpenChange={setPpStatusOpen}
+            />
             <OrderQuantityAdjustmentDialog
                 open={quantityOpen}
                 order={order}
@@ -736,11 +749,13 @@ function OrderRowMenu({
     canEdit,
     canClone,
     canAdjustPrice,
+    canAdjustPpStatus,
     canAdjustQuantity,
     canAdjustSalesperson,
     onEdit,
     onClone,
     onAdjustPrice,
+    onAdjustPpStatus,
     onAdjustQuantity,
     onAdjustSalesperson,
 }: {
@@ -748,11 +763,13 @@ function OrderRowMenu({
     canEdit: boolean
     canClone: boolean
     canAdjustPrice: boolean
+    canAdjustPpStatus: boolean
     canAdjustQuantity: boolean
     canAdjustSalesperson: boolean
     onEdit: () => void
     onClone: () => void
     onAdjustPrice: () => void
+    onAdjustPpStatus: () => void
     onAdjustQuantity: () => void
     onAdjustSalesperson: () => void
 }) {
@@ -786,6 +803,12 @@ function OrderRowMenu({
                     <DropdownMenuItem onClick={onAdjustPrice} className="gap-2">
                         <Pencil className="h-4 w-4" />
                         Sửa giá
+                    </DropdownMenuItem>
+                )}
+                {canAdjustPpStatus && (
+                    <DropdownMenuItem onClick={onAdjustPpStatus} className="gap-2">
+                        <Pencil className="h-4 w-4" />
+                        Sửa PP
                     </DropdownMenuItem>
                 )}
                 {canAdjustQuantity && (

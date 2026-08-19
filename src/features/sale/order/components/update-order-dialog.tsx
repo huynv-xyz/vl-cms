@@ -30,6 +30,7 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
 
         setHeaderFormData({
             customer_id: detail.customer_id ?? undefined,
+            customer_type: detail.customer?.type ?? undefined,
             employee_id: detail.employee_id ?? undefined,
             order_date: normalizeDate(detail.order_date),
             status: detail.status ?? "NEW",
@@ -46,6 +47,7 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
                 discount: item.discount ?? 0,
                 line_type: item.line_type ?? "NORMAL",
                 hdn_status: item.hdn_status ?? undefined,
+                pp_status: item.pp_status ?? undefined,
                 description: item.description ?? "",
                 note: item.note ?? "",
                 exported_quantity: item.exported_quantity ?? 0,
@@ -69,6 +71,7 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
                 discount: item.discount ?? 0,
                 line_type: item.line_type ?? "NORMAL",
                 hdn_status: item.hdn_status === "KO" ? "KO" : undefined,
+                pp_status: item.pp_status ?? undefined,
                 description: item.description ?? "",
                 note: item.note ?? "",
             })),

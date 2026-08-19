@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import type { ColumnDef, OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { AlertTriangle, Filter, RotateCcw } from "lucide-react"
+import { AlertTriangle, Download, Filter, Loader2, RotateCcw, Search } from "lucide-react"
+import { toast } from "sonner"
 
 import { listInventoryAccountPostings, type InventoryAccountPosting, type InventoryAccountPostingTotals } from "@/api/inventory/account-posting"
 import type { PagedResult } from "@/api/client"
@@ -10,10 +11,11 @@ import { CrudTable } from "@/components/crud/crud-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatNumber } from "@/lib/utils"
 import { Route } from "@/routes/_authenticated/inventory/account-postings"
+
+const EXPORT_PAGE_SIZE = 200
 
 export default function InventoryAccountPostingsPage() {
     const search = Route.useSearch()
@@ -89,11 +91,21 @@ export default function InventoryAccountPostingsPage() {
 
     return (
         <div className="flex w-full min-w-0 flex-col gap-4 p-6">
-            <div>
-                <h1 className="text-2xl font-bold">Tài khoản phát sinh</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    Tổng hợp phát sinh Nợ/Có từ tài khoản hạch toán trên sổ chi tiết vật tư hàng hóa.
-                </p>
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <h1 className="text-2xl font-bold">Tài khoản phát sinh</h1>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Tổng hợp phát sinh Nợ/Có từ tài khoản hạch toán trên sổ chi tiết vật tư hàng hóa.
+                    </p>
+                </div>
+                <ExportAccountPostingsButton
+                    filters={{
+                        from_date: search.from_date,
+                        to_date: search.to_date,
+                        account: search.account,
+                    }}
+                    totals={totals}
+                />
             </div>
 
             <div className="space-y-2">
@@ -170,6 +182,197 @@ export default function InventoryAccountPostingsPage() {
             </div>
         </div>
     )
+}
+
+function ExportAccountPostingsButton({
+    filters,
+    totals,
+}: {
+    filters: {
+        from_date?: string
+        to_date?: string
+        account?: string
+    }
+    totals: InventoryAccountPostingTotals
+}) {
+    const [loading, setLoading] = useState(false)
+
+    const handleExport = async () => {
+        try {
+            setLoading(true)
+            const rows = await fetchAllAccountPostings(filters)
+            if (!rows.length) {
+                toast.warning("Không có dữ liệu để xuất")
+                return
+            }
+            await exportAccountPostingsXlsx(rows, filters, totals)
+            toast.success(`Đã xuất ${formatNumber(rows.length)} dòng tài khoản phát sinh`)
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Xuất Excel thất bại")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <Button type="button" size="sm" variant="outline" onClick={handleExport} disabled={loading}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            Xuất Excel
+        </Button>
+    )
+}
+
+async function fetchAllAccountPostings(filters: {
+    from_date?: string
+    to_date?: string
+    account?: string
+}) {
+    const all: InventoryAccountPosting[] = []
+    let page = 1
+
+    for (let guard = 0; guard < 500; guard++) {
+        const res = await listInventoryAccountPostings({
+            page,
+            size: EXPORT_PAGE_SIZE,
+            from_date: filters.from_date,
+            to_date: filters.to_date,
+            account: filters.account,
+        })
+        all.push(...(res.items || []))
+        if (page >= (res.total_page || 1) || !res.items?.length) {
+            break
+        }
+        page += 1
+    }
+
+    return all
+}
+
+async function exportAccountPostingsXlsx(
+    rows: InventoryAccountPosting[],
+    filters: {
+        from_date?: string
+        to_date?: string
+        account?: string
+    },
+    totals: InventoryAccountPostingTotals,
+) {
+    const { Workbook } = await import("exceljs")
+    const workbook = new Workbook()
+    workbook.creator = "VLIFE"
+    workbook.created = new Date()
+
+    const sheet = workbook.addWorksheet("Tài khoản phát sinh", {
+        views: [{ state: "frozen", ySplit: 4 }],
+    })
+
+    const columns = [
+        { key: "stt", title: "STT", width: 8 },
+        { key: "account", title: "Tài khoản", width: 24 },
+        { key: "debit_amount", title: "Phát sinh nợ", width: 22 },
+        { key: "credit_amount", title: "Phát sinh có", width: 22 },
+    ]
+
+    sheet.mergeCells(1, 1, 1, columns.length)
+    sheet.getCell(1, 1).value = "TÀI KHOẢN PHÁT SINH"
+    sheet.getCell(1, 1).font = { bold: true, size: 16 }
+    sheet.getCell(1, 1).alignment = { horizontal: "center", vertical: "middle" }
+
+    sheet.mergeCells(2, 1, 2, columns.length)
+    const filterText = [
+        filters.from_date || filters.to_date ? `Thời gian: ${filters.from_date || "..."} - ${filters.to_date || "..."}` : undefined,
+        filters.account ? `Tài khoản: ${filters.account}` : undefined,
+        `Ngày xuất: ${todayYmd()}`,
+    ].filter(Boolean).join(" | ")
+    sheet.getCell(2, 1).value = filterText
+    sheet.getCell(2, 1).font = { italic: true, color: { argb: "64748B" } }
+    sheet.getCell(2, 1).alignment = { horizontal: "center" }
+
+    sheet.addRow([])
+    sheet.addRow(columns.map((column) => column.title))
+    sheet.getRow(4).height = 24
+    sheet.getRow(4).eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F766E" } }
+        cell.alignment = { horizontal: "center", vertical: "middle" }
+        cell.border = thinBorder()
+    })
+
+    rows.forEach((row, index) => {
+        const excelRow = sheet.addRow([
+            index + 1,
+            row.account,
+            Number(row.debit_amount || 0),
+            Number(row.credit_amount || 0),
+        ])
+        excelRow.eachCell((cell, colNumber) => {
+            cell.border = thinBorder()
+            cell.alignment = {
+                horizontal: colNumber === 2 ? "left" : colNumber >= 3 ? "right" : "center",
+                vertical: "middle",
+            }
+            if (colNumber >= 3) {
+                cell.numFmt = "#,##0.###"
+            }
+        })
+    })
+
+    const totalRow = sheet.addRow([
+        "",
+        "Tổng theo bộ lọc",
+        Number(totals.debit_amount || 0),
+        Number(totals.credit_amount || 0),
+    ])
+    totalRow.eachCell((cell, colNumber) => {
+        cell.font = { bold: true, color: totals.balanced ? { argb: "FF0F172A" } : { argb: "FFB91C1C" } }
+        cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: totals.balanced ? "FFF8FAFC" : "FFFEF2F2" },
+        }
+        cell.border = thinBorder()
+        cell.alignment = {
+            horizontal: colNumber >= 3 ? "right" : "center",
+            vertical: "middle",
+        }
+        if (colNumber >= 3) {
+            cell.numFmt = "#,##0.###"
+        }
+    })
+
+    columns.forEach((column, index) => {
+        sheet.getColumn(index + 1).width = column.width
+    })
+    sheet.autoFilter = {
+        from: { row: 4, column: 1 },
+        to: { row: 4, column: columns.length },
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    downloadBlob(buffer, `tai-khoan-phat-sinh-${todayYmd()}.xlsx`)
+}
+
+function thinBorder() {
+    return {
+        top: { style: "thin", color: { argb: "FFE2E8F0" } },
+        left: { style: "thin", color: { argb: "FFE2E8F0" } },
+        bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+        right: { style: "thin", color: { argb: "FFE2E8F0" } },
+    } as const
+}
+
+function downloadBlob(buffer: ArrayBuffer | BlobPart, filename: string) {
+    const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
 }
 
 function buildColumns(totals: InventoryAccountPostingTotals): ColumnDef<InventoryAccountPosting>[] {

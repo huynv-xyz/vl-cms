@@ -3,6 +3,7 @@ export type Transaction = {
     posting_date: string
     document_date: string
     document_no: string
+    order_id?: number | null
     customer_code: string
     customer_name: string
     customer_address?: string

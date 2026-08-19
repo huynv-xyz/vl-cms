@@ -58,5 +58,12 @@ export const listProductUnitLookups = (params: Omit<AppLookupListParams, "type_c
         status: params.status ?? "ACTIVE",
     })
 
+export const listProductGroupPpStatusLookups = (params: Omit<AppLookupListParams, "type_code">) =>
+    listAppLookups({
+        ...params,
+        type_code: "PRODUCT_GROUP_PP_STATUS",
+        status: params.status ?? "ACTIVE",
+    })
+
 export const getProductNatureLookup = (code: unknown) =>
     getAppLookupByCode("PRODUCT_NATURE", code)

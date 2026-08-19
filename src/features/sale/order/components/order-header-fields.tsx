@@ -35,6 +35,7 @@ export function OrderHeaderFields({ value, onChange, showStatus = true, lockAfte
                     onChange={(customerId: any, customerOption: any) =>
                         update({
                             customer_id: customerId,
+                            customer_type: customerOption?.raw?.type,
                             employee_id: customerEmployeeId(customerOption),
                         })
                     }
