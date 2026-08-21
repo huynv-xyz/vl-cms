@@ -82,6 +82,13 @@ export type InventoryVoucherType = {
     prefix?: string
     tk_no?: string | null
     tk_co?: string | null
+    account_rules?: Array<{
+        id?: number
+        voucher_type_code?: string
+        movement_side: "DEFAULT" | "OUTBOUND" | "INBOUND" | string
+        tk_no?: string | null
+        tk_co?: string | null
+    }>
     active?: number
     allow_manual_create?: number
     allow_system_create?: number

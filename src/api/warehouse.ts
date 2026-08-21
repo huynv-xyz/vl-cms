@@ -7,7 +7,7 @@ export type WarehouseListParams = {
     size: number
     keyword?: string
     status?: string
-    physical_warehouse_id?: number
+    physical_warehouse_id?: number | string
     sales_inventory_visible?: boolean | string
 }
 

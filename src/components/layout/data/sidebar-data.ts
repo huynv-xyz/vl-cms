@@ -335,6 +335,11 @@ export const sidebarData: SidebarData = {
                     url: '/inventory/account-postings',
                     icon: DollarSign,
                 },
+                {
+                    title: 'Cấu hình tài khoản',
+                    url: '/inventory/account-config',
+                    icon: SlidersHorizontal,
+                },
             ],
         },
         {

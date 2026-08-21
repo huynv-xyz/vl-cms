@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent, type RefObject } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronDown, Copy, Database, FileCheck2, FileUp, Loader2, PlayCircle, RotateCcw, ShieldCheck, Upload } from "lucide-react"
+import { ChevronDown, Copy, Database, FileCheck2, FileSearch, FileUp, Loader2, PlayCircle, RotateCcw, ShieldCheck, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -11,12 +11,15 @@ import {
 } from "@/api/inventory/lot"
 import { getMyPermissions } from "@/api/auth/permission"
 import {
+    applyInventoryLedgerAccountRules,
+    checkInventoryLedgerAccountRules,
     importInventoryLedgerPrices,
     importProductionCostObjects,
     importPurchaseBasePrices,
     runOpeningCostNormalizationStep,
     uploadOpeningCostNormalization,
     type OpeningCostNormalizationRun,
+    type InventoryLedgerAccountRuleAuditResult,
     type InventoryLedgerPriceImportResult,
     type ProductionCostObjectImportResult,
 } from "@/api/inventory/ledger"
@@ -205,6 +208,8 @@ export function LedgerImportButtons() {
     const [pendingCostObjectFile, setPendingCostObjectFile] = useState<File | null>(null)
     const [activeImport, setActiveImport] = useState<{ label: string; fileName: string } | null>(null)
     const [normalizationOpen, setNormalizationOpen] = useState(false)
+    const [accountRuleAuditOpen, setAccountRuleAuditOpen] = useState(false)
+    const [accountRuleAudit, setAccountRuleAudit] = useState<InventoryLedgerAccountRuleAuditResult | null>(null)
 
     const importOpeningMutation = useMutation({
         mutationFn: importOpeningStock,
@@ -337,6 +342,30 @@ export function LedgerImportButtons() {
         },
     })
 
+    const checkAccountRulesMutation = useMutation({
+        mutationFn: checkInventoryLedgerAccountRules,
+        onSuccess: (res) => {
+            setAccountRuleAudit(res)
+            toast.success(res.ok ? "TK Nợ/TK Có đã khớp rules" : `Có ${fmt(res.mismatch_rows)} dòng lệch TK theo rules`)
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || "Không kiểm tra được TK Nợ/TK Có")
+        },
+    })
+
+    const applyAccountRulesMutation = useMutation({
+        mutationFn: applyInventoryLedgerAccountRules,
+        onSuccess: async (res) => {
+            setAccountRuleAudit(res)
+            await invalidateInventoryQueries(queryClient)
+            await queryClient.invalidateQueries({ queryKey: ["inventory-account-postings"] })
+            toast.success(`Đã cập nhật ${fmt(res.updated_rows)} dòng TK Nợ/TK Có`)
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || "Không cập nhật được TK Nợ/TK Có")
+        },
+    })
+
     const handleStructuredResult = (
         res: ProductionCostObjectImportResult | InventoryLedgerPriceImportResult,
         label: string,
@@ -455,6 +484,10 @@ export function LedgerImportButtons() {
                             <ShieldCheck className="h-4 w-4" />
                             Chuẩn hóa đơn giá đầu kỳ
                         </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setAccountRuleAuditOpen(true)}>
+                            <FileSearch className="h-4 w-4" />
+                            Kiểm tra TK theo rules
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             ) : null}
@@ -553,6 +586,16 @@ export function LedgerImportButtons() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <AccountRuleAuditDialog
+                open={accountRuleAuditOpen}
+                onOpenChange={setAccountRuleAuditOpen}
+                result={accountRuleAudit}
+                checking={checkAccountRulesMutation.isPending}
+                applying={applyAccountRulesMutation.isPending}
+                onCheck={() => checkAccountRulesMutation.mutate()}
+                onApply={() => applyAccountRulesMutation.mutate()}
+            />
 
             <Dialog open={!!importResultDialog} onOpenChange={(open) => !open && setImportResultDialog(null)}>
                 <DialogContent className="w-[calc(100vw-48px)] !max-w-[64rem]">
@@ -671,6 +714,193 @@ export function LedgerImportButtons() {
                 </DialogContent>
             </Dialog>
         </>
+    )
+}
+
+function AccountRuleAuditDialog({
+    open,
+    onOpenChange,
+    result,
+    checking,
+    applying,
+    onCheck,
+    onApply,
+}: {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    result: InventoryLedgerAccountRuleAuditResult | null
+    checking: boolean
+    applying: boolean
+    onCheck: () => void
+    onApply: () => void
+}) {
+    const busy = checking || applying
+    const canApply = !!result
+        && result.mismatch_rows > 0
+        && result.missing_rule_rows === 0
+        && result.missing_product_account_rows === 0
+        && !busy
+    const missingProductCount = result?.missing_product_accounts?.length ?? 0
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="flex max-h-[calc(100vh-48px)] w-[calc(100vw-48px)] !max-w-[72rem] flex-col overflow-hidden">
+                <DialogHeader>
+                    <DialogTitle>Kiểm tra TK Nợ/TK Có theo rules</DialogTitle>
+                    <DialogDescription>
+                        Đối chiếu `inventory_ledger.tk_no/tk_co` với Cấu hình tài khoản hiện tại. Dòng chuyển kho/vận chuyển dùng vế xuất hoặc vế nhập theo dấu số lượng.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-2">
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                        Tool này chỉ cập nhật TK Nợ/TK Có trên sổ kho đã phát sinh. Không sửa số lượng, giá trị, chứng từ gốc hoặc rules cấu hình.
+                    </div>
+
+                    {result ? (
+                        <>
+                            <div className="grid gap-3 md:grid-cols-4">
+                                <ResultBox
+                                    title="Tổng quan"
+                                    items={[
+                                        ["Dòng sổ kho", fmt(result.ledger_rows)],
+                                        ["Có rules", fmt(result.matched_rule_rows)],
+                                    ]}
+                                />
+                                <ResultBox
+                                    title="Kết quả"
+                                    items={[
+                                        ["Đã đúng", fmt(result.correct_rows)],
+                                        ["Còn lệch", fmt(result.mismatch_rows)],
+                                    ]}
+                                />
+                                <ResultBox
+                                    title="Cấu hình"
+                                    items={[
+                                        ["Thiếu rules", fmt(result.missing_rule_rows)],
+                                        ["Dòng thiếu TK SP", fmt(result.missing_product_account_rows)],
+                                    ]}
+                                />
+                                <ResultBox
+                                    title="Cập nhật"
+                                    items={[
+                                        ["Đã chạy", result.applied ? "Có" : "Chưa"],
+                                        ["Dòng cập nhật", fmt(result.updated_rows)],
+                                    ]}
+                                />
+                            </div>
+
+                            {result.missing_rules?.length ? (
+                                <div className="rounded-md border text-sm">
+                                    <div className="border-b bg-red-50 px-3 py-2 font-medium text-red-700">Thiếu rules, chưa nên cập nhật</div>
+                                    <div className="divide-y">
+                                        {result.missing_rules.map((item, index) => (
+                                            <div key={`${item.doc_type}-${item.movement_side}-${index}`} className="grid grid-cols-[1fr_120px_120px] gap-3 px-3 py-2">
+                                                <span>{item.doc_type || "-"}</span>
+                                                <span>{sideLabelForAudit(item.movement_side)}</span>
+                                                <span className="text-right font-medium">{fmt(item.ledger_rows)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {result.missing_product_accounts?.length ? (
+                                <div className="rounded-md border text-sm">
+                                    <div className="flex items-center justify-between gap-3 border-b bg-red-50 px-3 py-2 font-medium text-red-700">
+                                        <span>Sản phẩm thiếu TK kho, chưa thể cập nhật</span>
+                                        <span>{fmt(missingProductCount)} sản phẩm / {fmt(result.missing_product_account_rows)} dòng</span>
+                                    </div>
+                                    <div className="divide-y">
+                                        {result.missing_product_accounts.map((item, index) => (
+                                            <div key={`${item.product_id}-${item.product_code}-${index}`} className="grid grid-cols-[180px_1fr_120px] gap-3 px-3 py-2">
+                                                <span className="font-mono">{item.product_code || "-"}</span>
+                                                <span>{item.product_name || "-"}</span>
+                                                <span className="text-right font-medium">{fmt(item.ledger_rows)} dòng</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {result.by_doc_type?.length ? (
+                                <div className="rounded-md border text-sm">
+                                    <div className="border-b bg-muted/40 px-3 py-2 font-medium">Loại chứng từ còn lệch</div>
+                                    <div className="divide-y">
+                                        {result.by_doc_type.map((item, index) => (
+                                            <div key={`${item.doc_type}-${item.movement_side}-${index}`} className="grid grid-cols-[1fr_120px_120px_120px] gap-3 px-3 py-2">
+                                                <span>{item.doc_type || "-"}</span>
+                                                <span>{sideLabelForAudit(item.movement_side)}</span>
+                                                <span className="text-right">Lệch {fmt(item.mismatch_rows)}</span>
+                                                <span className="text-right text-muted-foreground">Thiếu {fmt(item.missing_rule_rows)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {result.samples?.length ? (
+                                <div className="max-h-72 overflow-auto rounded-md border text-sm">
+                                    <table className="w-full min-w-[980px]">
+                                        <thead className="sticky top-0 bg-muted/50">
+                                            <tr>
+                                                <th className="border px-2 py-1 text-left">ID</th>
+                                                <th className="border px-2 py-1 text-left">Ngày</th>
+                                                <th className="border px-2 py-1 text-left">Chứng từ</th>
+                                                <th className="border px-2 py-1 text-left">Loại/vế</th>
+                                                <th className="border px-2 py-1 text-left">Mã hàng</th>
+                                                <th className="border px-2 py-1 text-right">SL</th>
+                                                <th className="border px-2 py-1 text-left">TK hiện tại</th>
+                                                <th className="border px-2 py-1 text-left">TK theo rules</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {result.samples.map((item) => (
+                                                <tr key={item.id}>
+                                                    <td className="border px-2 py-1">{item.id}</td>
+                                                    <td className="border px-2 py-1">{item.posting_date || "-"}</td>
+                                                    <td className="border px-2 py-1">{item.doc_no || "-"}</td>
+                                                    <td className="border px-2 py-1">{item.doc_type || "-"} / {sideLabelForAudit(item.movement_side)}</td>
+                                                    <td className="border px-2 py-1">{item.product_code || "-"}</td>
+                                                    <td className="border px-2 py-1 text-right">{fmt(item.quantity)}</td>
+                                                    <td className="border px-2 py-1 font-mono">Nợ {item.current_tk_no || "-"} / Có {item.current_tk_co || "-"}</td>
+                                                    <td className="border px-2 py-1 font-mono">Nợ {item.expected_tk_no || "-"} / Có {item.expected_tk_co || "-"}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : null}
+                        </>
+                    ) : (
+                        <div className="rounded-md border bg-muted/20 p-4 text-sm text-muted-foreground">
+                            Bấm “Kiểm tra” để đối chiếu TK Nợ/TK Có hiện tại với rules.
+                        </div>
+                    )}
+                    {result && !canApply && result.mismatch_rows > 0 ? (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                            {result.missing_rule_rows > 0
+                                ? "Còn thiếu rules cho một số loại chứng từ/vế, cần bổ sung cấu hình trước khi cập nhật."
+                                : result.missing_product_account_rows > 0
+                                    ? "Còn sản phẩm thiếu TK kho, cần cập nhật TK kho trong danh mục sản phẩm trước khi cập nhật theo rules."
+                                    : "Còn dữ liệu lệch nhưng chưa đủ điều kiện cập nhật."}
+                        </div>
+                    ) : null}
+                </div>
+
+                <DialogFooter className="shrink-0 border-t pt-3">
+                    <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>Đóng</Button>
+                    <Button variant="outline" disabled={busy} onClick={onCheck}>
+                        {checking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSearch className="mr-2 h-4 w-4" />}
+                        Kiểm tra
+                    </Button>
+                    <Button disabled={!canApply} onClick={onApply}>
+                        {applying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileCheck2 className="mr-2 h-4 w-4" />}
+                        Cập nhật theo rules
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     )
 }
 
@@ -1105,6 +1335,12 @@ function money(value: unknown) {
     const num = Number(value)
     if (!Number.isFinite(num)) return String(value)
     return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 3 }).format(num)
+}
+
+function sideLabelForAudit(side?: string | null) {
+    if (side === "OUTBOUND") return "Vế xuất"
+    if (side === "INBOUND") return "Vế nhập"
+    return "Mặc định"
 }
 
 function ImportFileInput({ inputRef, onChange }: { inputRef: RefObject<HTMLInputElement | null>; onChange: (event: ChangeEvent<HTMLInputElement>) => void }) {

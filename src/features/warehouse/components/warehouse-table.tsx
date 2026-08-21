@@ -3,7 +3,7 @@ import { Building2, CheckCircle2, Eye, Warehouse as WarehouseIcon, type LucideIc
 
 import { getPhysicalWarehouse, listPhysicalWarehouses } from "@/api/physical-warehouse"
 import { CrudTable } from "@/components/crud/crud-table"
-import { AsyncSelect } from "@/components/rjsf/async-select"
+import { AsyncMultiSelect } from "@/components/rjsf/async-multi-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import {
     Select,
@@ -18,7 +18,7 @@ import { warehouseColumns } from "./warehouse-columns"
 
 type WarehouseFilters = {
     status?: string[]
-    physical_warehouse_id?: number
+    physical_warehouse_ids?: string[]
     sales_inventory_visible?: string
 }
 
@@ -86,16 +86,17 @@ export function WarehouseTable({
                     </SelectContent>
                 </Select>
 
-                <AsyncSelect
+                <AsyncMultiSelect
                     className={filterControlClass("min-w-[220px] flex-1")}
-                    value={filters.physical_warehouse_id}
-                    onChange={(value: any) =>
+                    value={filters.physical_warehouse_ids ?? []}
+                    onChange={(value: Array<string | number>) =>
                         onFiltersChange({
                             ...filters,
-                            physical_warehouse_id: value || undefined,
+                            physical_warehouse_ids: value.map(String),
                         })
                     }
                     placeholder="Địa điểm kho"
+                    searchPlaceholder="Tìm địa điểm kho..."
                     dataSource={{
                         getList: listPhysicalWarehouses,
                         getById: getPhysicalWarehouse,
@@ -106,6 +107,7 @@ export function WarehouseTable({
                         label: `${physical.name}${physical.code ? ` (${physical.code})` : ""}`,
                         raw: physical,
                     })}
+                    deferChange
                 />
 
                 <Select

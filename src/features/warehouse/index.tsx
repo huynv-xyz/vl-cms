@@ -21,20 +21,18 @@ export default function WarehousePage() {
     const filters = useUrlListFilters(
         search,
         navigate,
-        ["status"] as const,
-        ["physical_warehouse_id", "sales_inventory_visible"] as const,
+        ["status", "physical_warehouse_id"] as const,
+        ["sales_inventory_visible"] as const,
     )
 
     const status = filters.getMulti("status")
-    const physicalWarehouseId = filters.getSingle("physical_warehouse_id")
+    const physicalWarehouseIds = filters.getMulti("physical_warehouse_id")
     const salesInventoryVisible = filters.getSingle("sales_inventory_visible")
 
     const requestParams = {
         keyword: filters.keyword,
         status: filters.requestFilters.status,
-        physical_warehouse_id: filters.requestFilters.physical_warehouse_id
-            ? Number(filters.requestFilters.physical_warehouse_id)
-            : undefined,
+        physical_warehouse_id: filters.requestFilters.physical_warehouse_id,
         sales_inventory_visible: filters.requestFilters.sales_inventory_visible,
     }
 
@@ -45,7 +43,7 @@ export default function WarehousePage() {
             search.size,
             filters.keyword,
             status,
-            physicalWarehouseId,
+            physicalWarehouseIds,
             salesInventoryVisible,
         ],
         listWarehouses,
@@ -61,7 +59,7 @@ export default function WarehousePage() {
             "warehouse-summary",
             filters.keyword,
             status,
-            physicalWarehouseId,
+            physicalWarehouseIds,
             salesInventoryVisible,
         ],
         queryFn: () => fetchWarehouseSummary(requestParams),
@@ -92,9 +90,7 @@ export default function WarehousePage() {
                             }}
                             filters={{
                                 status,
-                                physical_warehouse_id: physicalWarehouseId
-                                    ? Number(physicalWarehouseId)
-                                    : undefined,
+                                physical_warehouse_ids: physicalWarehouseIds,
                                 sales_inventory_visible: salesInventoryVisible,
                             }}
                             onFiltersChange={(next) => {
@@ -104,8 +100,8 @@ export default function WarehousePage() {
                                         ...prev,
                                         page: 1,
                                         status: next.status?.length ? next.status.join(",") : undefined,
-                                        physical_warehouse_id: next.physical_warehouse_id
-                                            ? String(next.physical_warehouse_id)
+                                        physical_warehouse_id: next.physical_warehouse_ids?.length
+                                            ? next.physical_warehouse_ids.join(",")
                                             : undefined,
                                         sales_inventory_visible: next.sales_inventory_visible || undefined,
                                     }),

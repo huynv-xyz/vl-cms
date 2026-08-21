@@ -1,14 +1,13 @@
 import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import type { ColumnDef, OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { AlertTriangle, Download, Filter, Loader2, RotateCcw, Search } from "lucide-react"
+import { Download, Filter, Loader2, RotateCcw, Search } from "lucide-react"
 import { toast } from "sonner"
 
 import { listInventoryAccountPostings, type InventoryAccountPosting, type InventoryAccountPostingTotals } from "@/api/inventory/account-posting"
 import type { PagedResult } from "@/api/client"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { CrudTable } from "@/components/crud/crud-table"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -152,16 +151,6 @@ export default function InventoryAccountPostingsPage() {
                     </div>
                 </div>
             </div>
-
-            {!totals.balanced && (
-                <Alert className="border-red-200 bg-red-50 text-red-700">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Phát sinh Nợ/Có đang lệch</AlertTitle>
-                    <AlertDescription>
-                        Chênh lệch: {formatNumber(Number(totals.difference || 0))}. Kiểm tra các dòng thiếu TK Nợ hoặc TK Có trong sổ kho.
-                    </AlertDescription>
-                </Alert>
-            )}
 
             <div className="space-y-2">
                 <div className="text-sm text-muted-foreground">

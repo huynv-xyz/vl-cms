@@ -136,6 +136,62 @@ export function checkCostingLedgerReconciliation() {
     return apiPost<CostingLedgerReconciliationResult>("/inventory/ledger/costing-reconciliation/check", {})
 }
 
+export type InventoryLedgerAccountRuleAuditSample = {
+    id: number
+    posting_date?: string | null
+    posting_time?: string | null
+    doc_type?: string | null
+    doc_no?: string | null
+    movement_side?: string | null
+    product_code?: string | null
+    product_name?: string | null
+    quantity?: number | string | null
+    current_tk_no?: string | null
+    current_tk_co?: string | null
+    expected_tk_no?: string | null
+    expected_tk_co?: string | null
+}
+
+export type InventoryLedgerAccountRuleAuditResult = {
+    ok: boolean
+    applied: boolean
+    updated_rows: number
+    ledger_rows: number
+    matched_rule_rows: number
+    missing_rule_rows: number
+    mismatch_rows: number
+    correct_rows: number
+    missing_product_account_rows: number
+    message: string
+    by_doc_type: Array<{
+        doc_type?: string | null
+        movement_side?: string | null
+        ledger_rows?: number | string | null
+        missing_rule_rows?: number | string | null
+        mismatch_rows?: number | string | null
+    }>
+    samples: InventoryLedgerAccountRuleAuditSample[]
+    missing_rules: Array<{
+        doc_type?: string | null
+        movement_side?: string | null
+        ledger_rows?: number | string | null
+    }>
+    missing_product_accounts: Array<{
+        product_id?: number | string | null
+        product_code?: string | null
+        product_name?: string | null
+        ledger_rows?: number | string | null
+    }>
+}
+
+export function checkInventoryLedgerAccountRules() {
+    return apiPost<InventoryLedgerAccountRuleAuditResult>("/inventory/ledger/account-rules/check", {})
+}
+
+export function applyInventoryLedgerAccountRules() {
+    return apiPost<InventoryLedgerAccountRuleAuditResult>("/inventory/ledger/account-rules/apply", {})
+}
+
 export type ProductionDateSyncDetail = {
     kind: "VOUCHER" | "LEDGER" | "OUTPUT" | string
     id?: number | null
