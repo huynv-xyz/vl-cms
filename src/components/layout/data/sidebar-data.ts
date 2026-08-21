@@ -240,6 +240,11 @@ export const sidebarData: SidebarData = {
                     icon: ListOrdered,
                 },
                 {
+                    title: 'Bảng báo giá',
+                    url: '/sales/price-quotes',
+                    icon: TableProperties,
+                },
+                {
                     title: 'Giao hàng',
                     url: '/sales/deliveries',
                     icon: Truck,
