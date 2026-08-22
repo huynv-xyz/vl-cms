@@ -8,6 +8,7 @@ import { ProductBomDialogs } from "./components/bom-dialogs"
 import { ProductBomTable } from "./components/bom-table"
 import { ProductBomsProvider } from "./components/boms-provider"
 import { CreateBomButton } from "./components/create-bom-button"
+import { ExportProductBomsButton } from "./components/export-product-boms-button"
 import { ImportVthhBomButton } from "./components/import-vthh-bom-button"
 
 export default function ProductBomPage() {
@@ -70,6 +71,18 @@ export default function ProductBomPage() {
                 error={error}
                 actions={
                     <div className="flex flex-wrap items-center gap-2">
+                        <ExportProductBomsButton
+                            keyword={visibleKeyword}
+                            filters={{
+                                product_id: requestFilters.product_id
+                                    ? Number(requestFilters.product_id)
+                                    : undefined,
+                                active:
+                                    requestFilters.active === undefined
+                                        ? undefined
+                                        : requestFilters.active === "true",
+                            }}
+                        />
                         <ImportVthhBomButton />
                         <CreateBomButton />
                     </div>

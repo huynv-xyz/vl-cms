@@ -350,6 +350,11 @@ export const sidebarData: SidebarData = {
                     url: '/production/orders',
                     icon: Package,
                 },
+                {
+                    title: 'Lịch sử sản xuất',
+                    url: '/production/history',
+                    icon: History,
+                },
 
                 {
                     title: 'Định mức BOM',

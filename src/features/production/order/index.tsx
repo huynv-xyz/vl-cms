@@ -8,6 +8,7 @@ import { ProductionsProvider } from "./components/productions-provider"
 import { ProductionDialogs } from "./components/production-dialogs"
 import { ProductionTable } from "./components/production-table"
 import { CreateProductionButton } from "./components/create-production-button"
+import { ExportProductionOrdersButton } from "./components/export-production-orders-button"
 
 export default function ProductionOrderPage() {
     const search = Route.useSearch()
@@ -63,7 +64,25 @@ export default function ProductionOrderPage() {
                 title="Lệnh sản xuất"
                 isLoading={isLoading}
                 error={error}
-                actions={<CreateProductionButton />}
+                actions={
+                    <div className="flex flex-wrap items-center gap-2">
+                        <ExportProductionOrdersButton
+                            keyword={keyword}
+                            filters={{
+                                product_id: requestFilters.product_id
+                                    ? Number(requestFilters.product_id)
+                                    : undefined,
+                                physical_warehouse_id: requestFilters.physical_warehouse_id
+                                    ? Number(requestFilters.physical_warehouse_id)
+                                    : undefined,
+                                status: requestFilters.status,
+                                from_date: requestFilters.from_date,
+                                to_date: requestFilters.to_date,
+                            }}
+                        />
+                        <CreateProductionButton />
+                    </div>
+                }
                 data={data}
             >
                 {(data) => (
