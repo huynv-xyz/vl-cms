@@ -2,13 +2,15 @@ import { useState } from "react"
 import { Download, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
-import { listProductBoms, type ProductBomListParams } from "@/api/production/bom"
+import { listProductionHistory, type ProductionHistoryListParams } from "@/api/production/history"
 import { Button } from "@/components/ui/button"
-import type { ProductBom, ProductBomItem } from "../data/schema"
+import type { ProductionHistoryMaterial, ProductionHistoryOutput, ProductionHistoryRow, ProductionHistoryVoucher } from "../data/schema"
+import { statusLabel } from "./production-history-columns"
+import { materialTypeLabel, voucherTypeLabel } from "./production-history-labels"
 
 type Props = {
     keyword?: string
-    filters: Pick<ProductBomListParams, "bom_id" | "product_id" | "active">
+    filters: Omit<ProductionHistoryListParams, "page" | "size" | "keyword" | "limit">
 }
 
 type ExcelColumn<T> = {
@@ -16,56 +18,72 @@ type ExcelColumn<T> = {
     width: number
     type?: "date" | "number" | "text"
     numberFormat?: "integer" | "quantity"
-    value: (row: T, index: number) => string | number | Date | null | undefined
+    value: (row: T, index: number) => string | number | null | undefined
 }
 
-type BomItemRow = {
-    bom: ProductBom
-    item: ProductBomItem
+type DetailRow = {
+    history: ProductionHistoryRow
+    detailType: "MATERIAL" | "OUTPUT" | "VOUCHER"
+    material?: ProductionHistoryMaterial
+    output?: ProductionHistoryOutput
+    voucher?: ProductionHistoryVoucher
 }
 
-const EXPORT_PAGE_SIZE = 200
+const EXPORT_PAGE_SIZE = 300
 
-const BOM_COLUMNS: ExcelColumn<ProductBom>[] = [
+const PRODUCT_COLUMNS: ExcelColumn<ProductionHistoryRow>[] = [
     { label: "STT", width: 8, type: "number", numberFormat: "integer", value: (_row, index) => index + 1 },
-    { label: "Mã BOM", width: 16, type: "number", numberFormat: "integer", value: (row) => row.id },
-    { label: "Phiên bản", width: 24, value: (row) => row.version },
-    { label: "Mã thành phẩm", width: 22, value: (row) => row.product?.code || row.product_id },
-    { label: "Tên thành phẩm", width: 42, value: (row) => row.product?.name },
-    { label: "Từ ngày", width: 14, type: "date", value: (row) => row.valid_from },
-    { label: "Đến ngày", width: 14, type: "date", value: (row) => row.valid_to },
-    { label: "Trạng thái", width: 16, value: (row) => activeOf(row) ? "Đang dùng" : "Ngưng dùng" },
-    { label: "Số dòng vật tư", width: 14, type: "number", numberFormat: "integer", value: (row) => row.items?.length ?? 0 },
-    { label: "Ghi chú", width: 36, value: (row) => row.note },
+    { label: "Lệnh SX", width: 22, value: (row) => row.production_no || row.production_id },
+    { label: "Ngày lệnh", width: 14, type: "date", value: (row) => row.production_date },
+    { label: "Mã thành phẩm", width: 22, value: (row) => row.product_code || row.product_id },
+    { label: "Tên thành phẩm", width: 42, value: (row) => row.product_name },
+    { label: "ĐVT", width: 10, value: (row) => row.product_unit },
+    { label: "Địa điểm kho", width: 28, value: (row) => row.physical_warehouse_name || row.physical_warehouse_code },
+    { label: "Kho nhập", width: 26, value: (row) => row.warehouse_name || row.warehouse_code },
+    { label: "Mã BOM", width: 14, type: "number", numberFormat: "integer", value: (row) => row.bom_id },
+    { label: "SL kế hoạch", width: 16, type: "number", numberFormat: "quantity", value: (row) => row.quantity_plan },
+    { label: "SL nhập TP", width: 16, type: "number", numberFormat: "quantity", value: (row) => row.quantity_done },
+    { label: "Lô TP", width: 22, value: (row) => row.output_lot_no },
+    { label: "HSD TP", width: 14, type: "date", value: (row) => row.output_expiry_date },
+    { label: "Số dòng vật tư", width: 14, type: "number", numberFormat: "integer", value: (row) => row.material_count },
+    { label: "Số chứng từ", width: 14, type: "number", numberFormat: "integer", value: (row) => row.voucher_count },
+    { label: "Trạng thái", width: 20, value: (row) => statusLabel(row.status) },
 ]
 
-const ITEM_COLUMNS: ExcelColumn<BomItemRow>[] = [
+const DETAIL_COLUMNS: ExcelColumn<DetailRow>[] = [
     { label: "STT", width: 8, type: "number", numberFormat: "integer", value: (_row, index) => index + 1 },
-    { label: "Mã BOM", width: 16, type: "number", numberFormat: "integer", value: (row) => row.bom.id },
-    { label: "Phiên bản", width: 24, value: (row) => row.bom.version },
-    { label: "Mã thành phẩm", width: 22, value: (row) => row.bom.product?.code || row.bom.product_id },
-    { label: "Tên thành phẩm", width: 42, value: (row) => row.bom.product?.name },
-    { label: "Loại vật tư", width: 14, value: (row) => materialTypeLabel(row.item.material_type) },
-    { label: "Mã vật tư", width: 22, value: (row) => row.item.material_product?.code || row.item.material_product_id },
-    { label: "Tên vật tư", width: 42, value: (row) => row.item.material_product?.name },
-    { label: "ĐVT", width: 12, value: (row) => row.item.unit || row.item.material_product?.unit },
-    { label: "Định mức", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.item.quantity },
-    { label: "Ghi chú dòng", width: 36, value: (row) => row.item.note },
+    { label: "Lệnh SX", width: 22, value: (row) => row.history.production_no || row.history.production_id },
+    { label: "Mã thành phẩm", width: 22, value: (row) => row.history.product_code || row.history.product_id },
+    { label: "Tên thành phẩm", width: 42, value: (row) => row.history.product_name },
+    { label: "Loại chi tiết", width: 18, value: (row) => detailTypeLabel(row.detailType) },
+    { label: "Mã vật tư/TP", width: 22, value: (row) => row.material?.product_code || row.output?.product_id || "" },
+    { label: "Tên vật tư/TP", width: 42, value: (row) => row.material?.product_name || row.history.product_name },
+    { label: "Loại vật tư", width: 18, value: (row) => row.material ? materialTypeLabel(row.material.material_type) : "" },
+    { label: "Kho", width: 28, value: (row) => row.material?.warehouse_name || row.output?.warehouse_name || "" },
+    { label: "Định mức", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.material?.quantity_per_unit },
+    { label: "SL cần", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.material?.quantity_required },
+    { label: "SL FIFO", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.material?.allocated_quantity },
+    { label: "SL thiếu", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.material?.shortage_quantity },
+    { label: "SL nhập TP", width: 14, type: "number", numberFormat: "quantity", value: (row) => row.output?.quantity },
+    { label: "Lô", width: 24, value: (row) => row.output?.lot_no || materialLots(row.material) },
+    { label: "HSD", width: 14, type: "date", value: (row) => row.output?.expiry_date },
+    { label: "Số phiếu", width: 24, value: (row) => row.voucher?.voucher_no },
+    { label: "Loại chứng từ", width: 32, value: (row) => row.voucher ? voucherTypeLabel(row.voucher.operation_code, row.voucher.voucher_type_code) : "" },
+    { label: "Ngày chứng từ", width: 14, type: "date", value: (row) => row.voucher?.posting_date || row.voucher?.document_date },
+    { label: "Trạng thái/Ghi chú", width: 36, value: (row) => row.material?.validation_message || row.material?.fifo_status || row.output?.status || row.voucher?.status || "" },
 ]
 
-export function ExportProductBomsButton({ keyword, filters }: Props) {
+export function ExportProductionHistoryButton({ keyword, filters }: Props) {
     const [loading, setLoading] = useState(false)
 
     const handleExport = async () => {
         try {
             setLoading(true)
-            const rows = await fetchAllProductBoms({
+            const rows = await fetchAllProductionHistory({
                 page: 1,
                 size: EXPORT_PAGE_SIZE,
                 keyword: keyword || undefined,
-                bom_id: filters.bom_id,
-                product_id: filters.product_id,
-                active: filters.active,
+                ...filters,
             })
 
             if (!rows.length) {
@@ -73,8 +91,8 @@ export function ExportProductBomsButton({ keyword, filters }: Props) {
                 return
             }
 
-            await exportProductBomsXlsx(rows)
-            toast.success(`Đã xuất ${rows.length} BOM`)
+            await exportProductionHistoryXlsx(rows)
+            toast.success(`Đã xuất ${rows.length} dòng lịch sử sản xuất`)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Xuất Excel thất bại")
         } finally {
@@ -94,13 +112,13 @@ export function ExportProductBomsButton({ keyword, filters }: Props) {
     )
 }
 
-async function fetchAllProductBoms(base: ProductBomListParams): Promise<ProductBom[]> {
+async function fetchAllProductionHistory(base: ProductionHistoryListParams): Promise<ProductionHistoryRow[]> {
     const size = base.size ?? EXPORT_PAGE_SIZE
-    const all: ProductBom[] = []
+    const all: ProductionHistoryRow[] = []
     let page = 1
 
     for (let guard = 0; guard < 500; guard++) {
-        const res = await listProductBoms({ ...base, page, size })
+        const res = await listProductionHistory({ ...base, page, size })
         all.push(...(res.items ?? []))
 
         if (page >= (res.total_page || 1) || !res.items?.length) break
@@ -110,17 +128,17 @@ async function fetchAllProductBoms(base: ProductBomListParams): Promise<ProductB
     return all
 }
 
-async function exportProductBomsXlsx(rows: ProductBom[]) {
+async function exportProductionHistoryXlsx(rows: ProductionHistoryRow[]) {
     const { Workbook } = await import("exceljs")
     const workbook = new Workbook()
     workbook.creator = "VLIFE"
     workbook.created = new Date()
 
-    addSheet(workbook, "BOM", "DANH SÁCH ĐỊNH MỨC BOM", BOM_COLUMNS, rows)
-    addSheet(workbook, "Dòng vật tư", "CHI TIẾT VẬT TƯ BOM", ITEM_COLUMNS, bomItemRows(rows))
+    addSheet(workbook, "Thành phẩm", "LỊCH SỬ SẢN XUẤT - THÀNH PHẨM", PRODUCT_COLUMNS, rows)
+    addSheet(workbook, "Chi tiết", "LỊCH SỬ SẢN XUẤT - CHI TIẾT", DETAIL_COLUMNS, detailRows(rows))
 
     const buffer = await workbook.xlsx.writeBuffer()
-    downloadBlob(buffer, `dinh-muc-bom-${todayYmd()}.xlsx`)
+    downloadBlob(buffer, `lich-su-san-xuat-${todayYmd()}.xlsx`)
 }
 
 function addSheet<T>(
@@ -187,7 +205,7 @@ function styleSheet<T>(sheet: any, columns: ExcelColumn<T>[]) {
             cell.alignment = {
                 vertical: "middle",
                 horizontal: column.type === "number" ? "right" : "left",
-                wrapText: false,
+                wrapText: true,
             }
             if (column.type === "date") cell.numFmt = "dd/mm/yyyy"
             if (column.type === "number") cell.numFmt = excelNumberFormat(cell.value, column)
@@ -196,25 +214,29 @@ function styleSheet<T>(sheet: any, columns: ExcelColumn<T>[]) {
     }
 }
 
-function bomItemRows(rows: ProductBom[]): BomItemRow[] {
-    return rows.flatMap((bom) => (bom.items ?? []).map((item) => ({ bom, item })))
+function detailRows(rows: ProductionHistoryRow[]): DetailRow[] {
+    return rows.flatMap((history) => [
+        ...(history.materials ?? []).map((material) => ({ history, detailType: "MATERIAL" as const, material })),
+        ...(history.outputs ?? []).map((output) => ({ history, detailType: "OUTPUT" as const, output })),
+        ...(history.vouchers ?? []).map((voucher) => ({ history, detailType: "VOUCHER" as const, voucher })),
+    ])
 }
 
-function activeOf(bom: ProductBom) {
-    return bom.active ?? bom.is_active ?? false
+function detailTypeLabel(value: DetailRow["detailType"]) {
+    if (value === "MATERIAL") return "Vật tư sử dụng"
+    if (value === "OUTPUT") return "Nhập thành phẩm"
+    return "Chứng từ"
 }
 
-function materialTypeLabel(value?: string) {
-    const type = String(value || "").toUpperCase()
-    if (type === "NVL") return "Nguyên vật liệu"
-    if (type === "BB") return "Bao bì"
-    if (type === "TP") return "Thành phẩm"
-    if (type === "HH") return "Hàng hóa"
-    return value || ""
+function materialLots(material?: ProductionHistoryMaterial) {
+    return (material?.allocations ?? [])
+        .map((allocation) => allocation.lot_no)
+        .filter(Boolean)
+        .join(", ")
 }
 
 function normalizeCellValue<T>(
-    value: string | number | Date | null | undefined,
+    value: string | number | null | undefined,
     column: ExcelColumn<T>,
 ) {
     if (value == null || value === "") return ""

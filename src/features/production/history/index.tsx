@@ -5,6 +5,7 @@ import { useUrlPagination } from "@/hooks/use-url-pagination"
 import { listProductionHistory } from "@/api/production/history"
 import { Route } from "@/routes/_authenticated/production/history"
 import { ProductionHistoryTable } from "./components/production-history-table"
+import { ExportProductionHistoryButton } from "./components/export-production-history-button"
 
 export default function ProductionHistoryPage() {
     const search = Route.useSearch()
@@ -56,6 +57,19 @@ export default function ProductionHistoryPage() {
             isLoading={isLoading}
             error={error}
             data={data}
+            actions={
+                <ExportProductionHistoryButton
+                    keyword={keyword}
+                    filters={{
+                        product_id: requestFilters.product_id ? Number(requestFilters.product_id) : undefined,
+                        physical_warehouse_id: requestFilters.physical_warehouse_id ? Number(requestFilters.physical_warehouse_id) : undefined,
+                        status: requestFilters.status,
+                        from_date: requestFilters.from_date,
+                        to_date: requestFilters.to_date,
+                        completion: requestFilters.completion,
+                    }}
+                />
+            }
         >
             {(data) => (
                 <ProductionHistoryTable

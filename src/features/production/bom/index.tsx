@@ -23,7 +23,7 @@ export default function ProductBomPage() {
         setSingleFilters,
         requestFilters,
     } = useUrlListFilters(search, navigate, [], ["bom_id", "product_id", "active"])
-    const bomKeyword = singleFilters.bom_id ? `BOM #${singleFilters.bom_id}` : ""
+    const bomKeyword = singleFilters.bom_id ? String(singleFilters.bom_id) : ""
     const visibleKeyword = keyword || bomKeyword
     const setVisibleKeyword = (value: string) => {
         navigate({
@@ -42,7 +42,7 @@ export default function ProductBomPage() {
             "product-boms",
             search.page,
             search.size,
-            visibleKeyword,
+            keyword,
             singleFilters.bom_id,
             singleFilters.product_id,
             singleFilters.active,
@@ -51,7 +51,10 @@ export default function ProductBomPage() {
         {
             page: search.page,
             size: search.size,
-            keyword: visibleKeyword,
+            keyword: keyword || undefined,
+            bom_id: requestFilters.bom_id
+                ? Number(requestFilters.bom_id)
+                : undefined,
             product_id: requestFilters.product_id
                 ? Number(requestFilters.product_id)
                 : undefined,
@@ -72,8 +75,11 @@ export default function ProductBomPage() {
                 actions={
                     <div className="flex flex-wrap items-center gap-2">
                         <ExportProductBomsButton
-                            keyword={visibleKeyword}
+                            keyword={keyword}
                             filters={{
+                                bom_id: requestFilters.bom_id
+                                    ? Number(requestFilters.bom_id)
+                                    : undefined,
                                 product_id: requestFilters.product_id
                                     ? Number(requestFilters.product_id)
                                     : undefined,

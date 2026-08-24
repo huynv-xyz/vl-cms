@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
@@ -27,13 +26,9 @@ export const productionHistoryColumns: ColumnDef<ProductionHistoryRow>[] = [
         className: `w-[190px] ${gridCell}`,
         render: (row) => (
             <div className="min-w-0">
-                <Link
-                    to="/production/orders/$id"
-                    params={{ id: String(row.production_id) }}
-                    className="block truncate font-semibold text-primary hover:underline"
-                >
+                <div className="truncate font-semibold">
                     {row.production_no || `#${row.production_id}`}
-                </Link>
+                </div>
                 <div className="truncate text-xs text-muted-foreground">
                     {formatDate(row.production_date)}
                 </div>

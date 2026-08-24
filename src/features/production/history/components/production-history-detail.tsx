@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router"
-import { ExternalLink } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import type { ProductionHistoryRow } from "../data/schema"
 import { formatDate, formatQty, statusLabel } from "./production-history-columns"
+import { materialTypeLabel, voucherTypeLabel } from "./production-history-labels"
 
 export function ProductionHistoryDetail({ row }: { row: ProductionHistoryRow }) {
     return (
@@ -11,7 +11,26 @@ export function ProductionHistoryDetail({ row }: { row: ProductionHistoryRow }) 
                 <Info label="Lệnh SX" value={row.production_no || `#${row.production_id}`} />
                 <Info label="Ngày lệnh" value={formatDate(row.production_date)} />
                 <Info label="Bước xử lý" value={statusLabel(row.status)} />
-                <Info label="BOM" value={row.bom_id ? `BOM ${row.bom_id}` : "-"} />
+                <Info
+                    label="BOM"
+                    value={row.bom_id ? (
+                        <Link
+                            to="/production/boms"
+                            search={{
+                                page: 1,
+                                size: 20,
+                                keyword: "",
+                                bom_id: row.bom_id,
+                                product_id: undefined,
+                                active: undefined,
+                            }}
+                            target="_blank"
+                            className="text-primary underline-offset-2 hover:underline"
+                        >
+                            BOM {row.bom_id}
+                        </Link>
+                    ) : "-"}
+                />
             </div>
 
             <DetailBlock title="Vật tư sử dụng">
@@ -37,7 +56,7 @@ export function ProductionHistoryDetail({ row }: { row: ProductionHistoryRow }) 
                                         <div className="font-medium">{item.product_name || "-"}</div>
                                         <div className="text-xs text-muted-foreground">{item.product_code || `#${item.product_id}`}</div>
                                     </Td>
-                                    <Td>{item.material_type || "-"}</Td>
+                                    <Td>{materialTypeLabel(item.material_type)}</Td>
                                     <Td>
                                         <div>{item.warehouse_name || "-"}</div>
                                         <div className="text-xs text-muted-foreground">{item.warehouse_code || ""}</div>
@@ -120,7 +139,7 @@ export function ProductionHistoryDetail({ row }: { row: ProductionHistoryRow }) 
                                 {row.vouchers?.length ? row.vouchers.map((voucher) => (
                                     <tr key={voucher.id} className="border-t">
                                         <Td>{voucher.voucher_no || `#${voucher.id}`}</Td>
-                                        <Td>{voucher.operation_code || voucher.voucher_type_code || "-"}</Td>
+                                        <Td>{voucherTypeLabel(voucher.operation_code, voucher.voucher_type_code)}</Td>
                                         <Td>{formatDate(voucher.posting_date || voucher.document_date)}</Td>
                                         <Td>{voucher.status || "-"}</Td>
                                     </tr>
@@ -135,17 +154,6 @@ export function ProductionHistoryDetail({ row }: { row: ProductionHistoryRow }) 
                         </table>
                     </div>
                 </DetailBlock>
-            </div>
-
-            <div className="flex justify-end">
-                <Link
-                    to="/production/orders/$id"
-                    params={{ id: String(row.production_id) }}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
-                >
-                    Mở chi tiết lệnh
-                    <ExternalLink className="h-4 w-4" />
-                </Link>
             </div>
         </div>
     )

@@ -228,14 +228,24 @@ export function BaseDataTable<TData>({
                 {
                     id: "expand",
                     header: "",
+                    size: 32,
+                    minSize: 32,
+                    maxSize: 32,
                     cell: ({ row }: { row: Row<TData> }) => (
                         <button
                             onClick={() => row.toggleExpanded()}
-                            className="text-xs"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                         >
                             {row.getIsExpanded() ? "▼" : "▶"}
                         </button>
                     ),
+                    meta: {
+                        thClassName: "w-8 px-1 text-center",
+                        tdClassName: "w-8 px-1 text-center",
+                    },
+                    enableSorting: false,
+                    enableHiding: false,
+                    enableResizing: false,
                 },
                 ...columns,
             ]
