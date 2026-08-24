@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { listPayrollResults } from "@/api/salary/payroll-result"
 import { PayrollResultTable } from "./components/payroll-result-table"
+import { ExportPayrollButton } from "./components/export-payroll-button"
 import { Route } from "@/routes/_authenticated/salary/payroll-result"
 import { useUrlListFilters } from "@/hooks/use-url-list-filters"
 import { useUrlPagination } from "@/hooks/use-url-pagination"
@@ -97,9 +98,10 @@ export default function PayrollResultPage() {
     <div className="space-y-6 p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">Bảng lương</h1>
             <Badge variant="outline" className="rounded-md">Kỳ {activePeriod}</Badge>
+            <ExportPayrollButton period={activePeriod} keyword={keyword} />
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
             Tổng hợp lương chốt kỳ, bảo hiểm, thuế, phát sinh và thực nhận. Bấm tên nhân viên để xem chi tiết.

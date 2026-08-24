@@ -1,5 +1,4 @@
-import { apiGet } from "@/api/client"
-import type { PagedResult } from "@/api/client"
+import { apiGet, type PagedResult } from "@/api/client"
 
 export type PayrollResultItem = {
   employee_id: number
@@ -82,6 +81,7 @@ export type PayrollTaxBracketDetail = {
   income_from: number
   income_to?: number | null
   tax_rate: number
+  quick_deduction: number
 }
 
 export type PayrollTaxExemptionDetail = {
