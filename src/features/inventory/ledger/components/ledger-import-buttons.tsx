@@ -28,6 +28,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -197,6 +198,8 @@ export function LedgerImportButtons() {
         queryFn: getMyPermissions,
     })
     const canUseDataMenu = hasPermission(permissions, "inventory.ledgers", "data-admin")
+    const canUsePriceCorrections = hasPermission(permissions, "inventory.ledgers", "correction.change")
+        || hasPermission(permissions, "inventory.ledgers", "price-correction.change")
     const openingFileRef = useRef<HTMLInputElement>(null)
     const purchaseFileRef = useRef<HTMLInputElement>(null)
     const purchaseBasePriceFileRef = useRef<HTMLInputElement>(null)
@@ -505,10 +508,6 @@ export function LedgerImportButtons() {
                         <Upload className="h-4 w-4" />
                         {importPurchaseMutation.isPending ? "Đang import..." : "Import mua hàng"}
                     </DropdownMenuItem>
-                    <DropdownMenuItem disabled={importPurchaseBasePriceMutation.isPending} onSelect={() => setGuide(purchaseBasePriceGuide(purchaseBasePriceFileRef))}>
-                        <Upload className="h-4 w-4" />
-                        {importPurchaseBasePriceMutation.isPending ? "Đang sửa..." : "Sửa đơn giá mua hàng"}
-                    </DropdownMenuItem>
                     <DropdownMenuItem disabled={importVthhDetailMutation.isPending} onSelect={() => setGuide(vthhGuide(vthhDetailFileRef))}>
                         <Upload className="h-4 w-4" />
                         {importVthhDetailMutation.isPending ? "Đang import..." : "Import chi tiết VTHH"}
@@ -517,10 +516,19 @@ export function LedgerImportButtons() {
                         <Upload className="h-4 w-4" />
                         {importProductionCostObjectMutation.isPending ? "Đang import..." : "Import mã đối tượng SX"}
                     </DropdownMenuItem>
-                    <DropdownMenuItem disabled={importLedgerPriceMutation.isPending} onSelect={() => setGuide(ledgerPriceGuide(ledgerPriceFileRef))}>
-                        <Upload className="h-4 w-4" />
-                        {importLedgerPriceMutation.isPending ? "Đang import..." : "Import giá nhập/xuất khác"}
-                    </DropdownMenuItem>
+                    {canUsePriceCorrections ? (
+                        <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem disabled={importPurchaseBasePriceMutation.isPending} onSelect={() => setGuide(purchaseBasePriceGuide(purchaseBasePriceFileRef))}>
+                                <Upload className="h-4 w-4" />
+                                {importPurchaseBasePriceMutation.isPending ? "Đang sửa..." : "Sửa đơn giá mua hàng"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled={importLedgerPriceMutation.isPending} onSelect={() => setGuide(ledgerPriceGuide(ledgerPriceFileRef))}>
+                                <Upload className="h-4 w-4" />
+                                {importLedgerPriceMutation.isPending ? "Đang import..." : "Import giá nhập/xuất khác"}
+                            </DropdownMenuItem>
+                        </>
+                    ) : null}
                 </DropdownMenuContent>
             </DropdownMenu>
 
