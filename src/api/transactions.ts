@@ -12,6 +12,7 @@ export type TransactionListParams = {
     product_code?: string
     product_name?: string
     product_group_name?: string
+    sale_user_name?: string
     unit?: string
     customer_type?: string
     is_gift?: string
@@ -20,6 +21,7 @@ export type TransactionListParams = {
     process_month?: string
     hdn_status?: string
     region?: string
+    time_sort?: "asc" | "desc" | string
     document_date_from?: string
     document_date_to?: string
 }
@@ -33,6 +35,7 @@ export type TransactionOptionParams = Omit<TransactionListParams, "page" | "size
         | "product_code"
         | "product_name"
         | "product_group_name"
+        | "sale_user_name"
         | "customer_type"
         | "is_gift"
         | "region"

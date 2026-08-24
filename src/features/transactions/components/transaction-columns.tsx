@@ -34,6 +34,7 @@ export type TransactionColumnFilters = {
     product_code?: string[]
     product_name?: string[]
     product_group_name?: string[]
+    sale_user_name?: string[]
     unit?: string[]
     customer_type?: string[]
     is_gift?: string[]
@@ -50,6 +51,7 @@ type FilterableColumnKey =
     | "product_code"
     | "product_name"
     | "product_group_name"
+    | "sale_user_name"
     | "customer_type"
     | "is_gift"
     | "npp"
@@ -274,6 +276,25 @@ function DocumentNoCell({ row }: { row: Transaction }) {
     )
 }
 
+function processMonthColumn(): ColumnDef<Transaction> {
+    return {
+        accessorKey: "process_month",
+        enableSorting: false,
+        minSize: 110,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Tháng xử lý" />,
+        cell: ({ row }) => (
+            <span className="block whitespace-nowrap text-sm tabular-nums">
+                {formatProcessMonth(row.getValue("process_month"))}
+            </span>
+        ),
+        size: 130,
+        meta: {
+            thClassName: "w-[130px] whitespace-nowrap",
+            tdClassName: "w-[130px] whitespace-nowrap",
+        },
+    }
+}
+
 export function buildTransactionColumns(
     filters: TransactionColumnFilters,
     onFiltersChange: (filters: TransactionColumnFilters) => void,
@@ -376,7 +397,7 @@ export function buildTransactionColumns(
         moneyColumn("unit_price", "Đơn giá theo ĐVC", 150),
         computedMoneyColumn({
             id: "sale_revenue",
-            title: "Doanh số bán",
+            title: "Doanh thu",
             width: 170,
             value: saleRevenue,
             footer: (
@@ -387,7 +408,7 @@ export function buildTransactionColumns(
         }),
         computedMoneyColumn({
             id: "return_revenue",
-            title: "Doanh số trả lại",
+            title: "Giá trị trả lại",
             width: 180,
             value: returnRevenue,
             footer: (
@@ -398,7 +419,7 @@ export function buildTransactionColumns(
         }),
         computedMoneyColumn({
             id: "actual_revenue",
-            title: "Doanh số bán thực tế",
+            title: "Doanh thu thuần",
             width: 190,
             value: (row) => saleRevenue(row) - returnRevenue(row),
             footer: (
@@ -417,7 +438,7 @@ export function buildTransactionColumns(
         ),
         actualQuantityColumn(totals.actualQty),
         textColumn("sale_user_code", "Mã nhân viên bán hàng", 180),
-        textColumn("sale_user_name", "Tên nhân viên bán hàng", 220),
+        textColumn("sale_user_name", "Tên nhân viên bán hàng", 220, () => filterHeader("sale_user_name", "Tên nhân viên bán hàng")),
         textColumn("warehouse_code", "Mã kho", 120),
         textColumn("warehouse_name", "Tên kho", 180),
         textColumn("description", "Mô tả HH", 260),
@@ -449,7 +470,7 @@ export function buildTransactionColumns(
         numberColumn("sl_lb2b", "SL_L_B2B", 120),
         numberColumn("sl_hdn", "SL_HDN", 110),
         numberColumn("diem_hdn", "DIEM_HDN", 120),
-        numberColumn("process_month", "THANG_XU_LY", 130),
+        processMonthColumn(),
         textColumn("valid_code", "MA_HOP _LE", 130),
         textColumn("hdn_status", "TINH_TRANG_HDN", 160),
         textColumn("common_group", "NHÓM-CHUNG", 150),
@@ -709,6 +730,7 @@ function buildOptionParams(filters: TransactionColumnFilters, currentField: Filt
         customer_name: currentField === "customer_name" ? undefined : encodeMulti(filters.customer_name),
         product_code: currentField === "product_code" ? undefined : encodeMulti(filters.product_code),
         product_name: currentField === "product_name" ? undefined : encodeMulti(filters.product_name),
+        sale_user_name: currentField === "sale_user_name" ? undefined : encodeMulti(filters.sale_user_name),
         unit: encodeMulti(filters.unit),
         product_group_name: currentField === "product_group_name" ? undefined : encodeMulti(filters.product_group_name),
         customer_type: currentField === "customer_type" ? undefined : encodeMulti(filters.customer_type),
@@ -852,6 +874,14 @@ function formatNumber(value: number) {
     return value.toLocaleString("en-US", {
         maximumFractionDigits: 6,
     })
+}
+
+function formatProcessMonth(value: unknown) {
+    if (value == null || value === "") return "-"
+    const raw = String(value).trim()
+    const match = raw.match(/^(\d{4})(\d{2})$/)
+    if (!match) return raw
+    return `${match[2]} - ${match[1]}`
 }
 
 function formatDate(value: unknown) {

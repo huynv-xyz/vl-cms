@@ -698,6 +698,7 @@ export function InventoryLedgerTable({
                     if (!open) setDetailVoucherId(null)
                 }}
                 canUseScopedCorrections={canUseLedgerCorrections || canUseScopedLedgerCorrections}
+                canUseFullCorrections={canUseLedgerCorrections}
                 canUsePriceCorrections={canUseLedgerPriceCorrections}
                 onChangeLot={setLotChangeRow}
                 onChangeSalesExportLot={setSalesExportLotChangeRow}
@@ -4125,7 +4126,9 @@ function SalesExportWarehouseChangeResultPanel({ result }: { result: SalesExport
                                 <tr>
                                     <Th className="w-14 text-center">#</Th>
                                     <Th>Số lô</Th>
-                                    <Th className="w-36 text-right">Số lượng</Th>
+                                    <Th className="w-36 text-right">Tồn tại thời điểm</Th>
+                                    <Th className="w-36 text-right">SL an toàn</Th>
+                                    <Th className="w-36 text-right">Số lượng lấy</Th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -4133,6 +4136,8 @@ function SalesExportWarehouseChangeResultPanel({ result }: { result: SalesExport
                                     <tr key={`${item.lot_id}-${index}`} className="border-t">
                                         <Td className="text-center">{index + 1}</Td>
                                         <Td className="font-mono">{item.lot_no}</Td>
+                                        <Td className="text-right tabular-nums">{formatNumber(Number(item.available_quantity || 0))}</Td>
+                                        <Td className="text-right tabular-nums">{formatNumber(Number(item.history_safe_quantity || item.quantity || 0))}</Td>
                                         <Td className="text-right tabular-nums">{formatNumber(Number(item.quantity || 0))}</Td>
                                     </tr>
                                 ))}
@@ -4989,6 +4994,7 @@ function VoucherDetailDialog({
     open,
     onOpenChange,
     canUseScopedCorrections,
+    canUseFullCorrections,
     canUsePriceCorrections,
     onChangeLot,
     onChangeSalesExportLot,
@@ -5011,6 +5017,7 @@ function VoucherDetailDialog({
     open: boolean
     onOpenChange: (open: boolean) => void
     canUseScopedCorrections?: boolean
+    canUseFullCorrections?: boolean
     canUsePriceCorrections?: boolean
     onChangeLot?: (row: InventoryLedgerReportRow) => void
     onChangeSalesExportLot?: (row: InventoryLedgerReportRow) => void
@@ -5042,7 +5049,7 @@ function VoucherDetailDialog({
     const sourceWarehouse = voucher?.from_physical_warehouse || voucher?.from_warehouse || voucher?.physical_warehouse || voucher?.warehouse
     const targetWarehouse = voucher?.to_physical_warehouse || voucher?.to_warehouse
     const headerWarehouseText = formatHeaderWarehouse(voucher?.physical_warehouse || voucher?.warehouse, items)
-    const showScopedCorrectionColumn = Boolean((canUseScopedCorrections || canUsePriceCorrections) && items.some((item: any) => item.ledger_id))
+    const showScopedCorrectionColumn = Boolean((canUseScopedCorrections || canUseFullCorrections || canUsePriceCorrections) && items.some((item: any) => item.ledger_id))
     const voucherLedgerRow = useMemo(() => {
         if (!voucher) return null
         for (const item of items) {
@@ -5153,7 +5160,7 @@ function VoucherDetailDialog({
                                                                     onChangeLedgerAmount={canUsePriceCorrections ? onChangeLedgerAmount : undefined}
                                                                     onChangePurchaseQuantity={canUseScopedCorrections ? onChangePurchaseQuantity : undefined}
                                                                     onChangePurchaseProduct={canUseScopedCorrections ? onChangePurchaseProduct : undefined}
-                                                                    onChangeSalesReturnProduct={canUseScopedCorrections ? onChangeSalesReturnProduct : undefined}
+                                                                    onChangeSalesReturnProduct={canUseFullCorrections ? onChangeSalesReturnProduct : undefined}
                                                                     onChangeSalesReturnUnitPrice={canUsePriceCorrections ? onChangeSalesReturnUnitPrice : undefined}
                                                                     onDeleteOtherExportLine={canUseScopedCorrections ? onDeleteOtherExportLine : undefined}
                                                                     onDeleteOtherInboundLine={canUseScopedCorrections ? onDeleteOtherInboundLine : undefined}

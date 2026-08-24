@@ -28,9 +28,10 @@ export default function TransactionPage() {
     } = useUrlListFilters(
         search,
         navigate,
-        ['customer_type', 'is_gift', 'npp', 'hdn_status', 'customer_code', 'customer_name', 'product_code', 'product_name', 'product_group_name', 'unit'],
-        ['region', 'document_date_from', 'document_date_to'],
+        ['customer_type', 'is_gift', 'npp', 'hdn_status', 'customer_code', 'customer_name', 'product_code', 'product_name', 'product_group_name', 'sale_user_name', 'unit'],
+        ['region', 'time_sort', 'document_date_from', 'document_date_to'],
     )
+    const timeSort = singleFilters.time_sort === "desc" ? "desc" : "asc"
 
     const { data, isLoading, error } = usePaginatedList(
         [
@@ -43,12 +44,14 @@ export default function TransactionPage() {
             multiFilters.product_code,
             multiFilters.product_name,
             multiFilters.product_group_name,
+            multiFilters.sale_user_name,
             multiFilters.unit,
             multiFilters.customer_type,
             multiFilters.is_gift,
             multiFilters.npp,
             multiFilters.hdn_status,
             singleFilters.region,
+            timeSort,
             singleFilters.document_date_from,
             singleFilters.document_date_to,
         ],
@@ -62,12 +65,14 @@ export default function TransactionPage() {
             product_code: requestFilters.product_code,
             product_name: requestFilters.product_name,
             product_group_name: requestFilters.product_group_name,
+            sale_user_name: requestFilters.sale_user_name,
             unit: requestFilters.unit,
             customer_type: requestFilters.customer_type,
             is_gift: requestFilters.is_gift,
             npp: requestFilters.npp,
             hdn_status: requestFilters.hdn_status,
             region: requestFilters.region,
+            time_sort: timeSort,
             document_date_from: requestFilters.document_date_from,
             document_date_to: requestFilters.document_date_to,
         },
@@ -80,6 +85,7 @@ export default function TransactionPage() {
         product_code: requestFilters.product_code,
         product_name: requestFilters.product_name,
         product_group_name: requestFilters.product_group_name,
+        sale_user_name: requestFilters.sale_user_name,
         unit: requestFilters.unit,
         customer_type: requestFilters.customer_type,
         npp: requestFilters.npp,
@@ -98,6 +104,7 @@ export default function TransactionPage() {
             multiFilters.product_code,
             multiFilters.product_name,
             multiFilters.product_group_name,
+            multiFilters.sale_user_name,
             multiFilters.unit,
             multiFilters.customer_type,
             multiFilters.is_gift,
@@ -138,9 +145,11 @@ export default function TransactionPage() {
                             product_code: requestFilters.product_code,
                             product_name: requestFilters.product_name,
                             product_group_name: requestFilters.product_group_name,
+                            sale_user_name: requestFilters.sale_user_name,
                             unit: requestFilters.unit,
                             hdn_status: requestFilters.hdn_status,
                             region: requestFilters.region,
+                            time_sort: timeSort,
                             document_date_from: requestFilters.document_date_from,
                             document_date_to: requestFilters.document_date_to,
                         }}
@@ -187,9 +196,11 @@ export default function TransactionPage() {
                             product_code: multiFilters.product_code,
                             product_name: multiFilters.product_name,
                             product_group_name: multiFilters.product_group_name,
+                            sale_user_name: multiFilters.sale_user_name,
                             unit: multiFilters.unit,
                             hdn_status: multiFilters.hdn_status,
                             region: singleFilters.region,
+                            time_sort: timeSort,
                             document_date_from: singleFilters.document_date_from,
                             document_date_to: singleFilters.document_date_to,
                         }}
@@ -206,12 +217,14 @@ export default function TransactionPage() {
                                 product_code: next.product_code,
                                 product_name: next.product_name,
                                 product_group_name: next.product_group_name,
+                                sale_user_name: next.sale_user_name,
                                 unit: next.unit,
                                 hdn_status: next.hdn_status,
                             })
 
                             setSingleFilters({
                                 region: next.region,
+                                time_sort: next.time_sort === "desc" ? "desc" : "asc",
                                 document_date_from: next.document_date_from,
                                 document_date_to: next.document_date_to,
                             })

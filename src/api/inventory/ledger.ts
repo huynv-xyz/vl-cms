@@ -384,6 +384,8 @@ export type SalesExportWarehouseChangeResult = {
     fifo_plan: Array<{
         lot_id: number
         lot_no: string
+        available_quantity?: number | string | null
+        history_safe_quantity?: number | string | null
         quantity: number | string
         unit_cost?: number | string | null
         amount?: number | string | null

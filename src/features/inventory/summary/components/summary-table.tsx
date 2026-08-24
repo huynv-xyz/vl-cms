@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react"
 import type React from "react"
 import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import {
     AlertTriangle,
@@ -770,15 +771,45 @@ function SummaryRow({
     natureLabelMap: Map<string, string>
 }) {
     const status = getInventoryStatus(item)
+    const ledgerSearch = (prev: any) => ({
+        ...prev,
+        product_ids: String(item.product_id),
+        page: 1,
+        size: 50,
+    })
 
     return (
         <tr className="hover:bg-muted/30 border-b">
             <Td className="text-muted-foreground text-center font-mono">{formatNumber(index)}</Td>
             <Td className="text-muted-foreground text-center font-mono text-xs">
-                {item.product_code || "-"}
+                {item.product_id ? (
+                    <Link
+                        to="/inventory/ledgers"
+                        search={ledgerSearch}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline-offset-2 hover:underline"
+                    >
+                        {item.product_code || "-"}
+                    </Link>
+                ) : (
+                    item.product_code || "-"
+                )}
             </Td>
             <Td className="font-semibold text-foreground">
-                {item.product_name || "-"}
+                {item.product_id ? (
+                    <Link
+                        to="/inventory/ledgers"
+                        search={ledgerSearch}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline-offset-2 hover:underline"
+                    >
+                        {item.product_name || "-"}
+                    </Link>
+                ) : (
+                    item.product_name || "-"
+                )}
             </Td>
             <Td className="text-muted-foreground text-center">{item.unit || "-"}</Td>
             <Td className="text-muted-foreground text-center font-mono text-xs">
