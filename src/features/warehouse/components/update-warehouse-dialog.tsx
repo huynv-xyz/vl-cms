@@ -18,6 +18,7 @@ export function UpdateWarehouseDialog({ warehouse, open, onOpenChange }: any) {
                 name: warehouse.name,
                 address: warehouse.address ?? "",
                 inventory_account_code: warehouse.inventory_account_code ?? "",
+                visible_in_sales_inventory_summary: warehouse.visible_in_sales_inventory_summary !== false,
                 physical_warehouse_id: warehouse.physical_warehouse_id,
                 status: warehouse.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
             }}
@@ -31,6 +32,7 @@ export function UpdateWarehouseDialog({ warehouse, open, onOpenChange }: any) {
                 name: v.name?.trim(),
                 address: v.address?.trim() || "",
                 inventory_account_code: v.inventory_account_code?.trim() || undefined,
+                visible_in_sales_inventory_summary: v.visible_in_sales_inventory_summary !== false,
                 physical_warehouse_id: v.physical_warehouse_id,
                 status: v.status ?? "ACTIVE",
             })}

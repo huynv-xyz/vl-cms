@@ -41,9 +41,9 @@ export function useUpdateStatus<T>({
             return { prev }
         },
 
-        onError: (_, __, context) => {
+        onError: (error: any, __, context) => {
             queryClient.setQueryData(queryKey, context?.prev)
-            toast.error("Cập nhật thất bại")
+            toast.error(error?.message || "Cập nhật thất bại")
         },
 
         onSuccess: () => {

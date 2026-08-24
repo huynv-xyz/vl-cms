@@ -24,6 +24,11 @@ export const warehouseSchema: RJSFSchema = {
             type: "string",
             title: "Tài khoản kho",
         },
+        visible_in_sales_inventory_summary: {
+            type: "boolean",
+            title: "Hiển thị ở tồn kho kinh doanh",
+            default: true,
+        },
         physical_warehouse_id: {
             type: "integer",
             title: "Địa điểm kho",
@@ -51,6 +56,9 @@ export const warehouseUiSchema: UiSchema = {
     },
     status: {
         "ui:widget": "select",
+    },
+    visible_in_sales_inventory_summary: {
+        "ui:widget": "checkbox",
     },
     physical_warehouse_id: {
         "ui:widget": "asyncSelect",

@@ -12,13 +12,16 @@ export type TransactionListParams = {
     product_code?: string
     product_name?: string
     product_group_name?: string
+    sale_user_name?: string
     unit?: string
     customer_type?: string
+    is_gift?: string
     vthh_con?: string
     npp?: string
     process_month?: string
     hdn_status?: string
     region?: string
+    time_sort?: "asc" | "desc" | string
     document_date_from?: string
     document_date_to?: string
 }
@@ -26,7 +29,17 @@ export type TransactionListParams = {
 export type TransactionOptionParams = Omit<TransactionListParams, "page" | "size"> & {
     page?: number
     size?: number
-    field: "customer_code" | "customer_name" | "product_code" | "product_name" | "product_group_name" | "region" | "npp"
+    field:
+        | "customer_code"
+        | "customer_name"
+        | "product_code"
+        | "product_name"
+        | "product_group_name"
+        | "sale_user_name"
+        | "customer_type"
+        | "is_gift"
+        | "region"
+        | "npp"
 }
 
 export type TransactionColumnOption = {
@@ -82,10 +95,6 @@ export function importTransactionsFile(file: File) {
 }
 
 export const importTransactionsCsv = importTransactionsFile
-
-export function updateTransactionNpp(id: number, npp: string) {
-    return apiPut<Transaction>(`/transactions/${id}/npp`, { npp })
-}
 
 export function updateTransactionUnitPrice(id: number, unitPrice: number) {
     return apiPut<Transaction>(`/transactions/${id}/unit-price`, { unitPrice })

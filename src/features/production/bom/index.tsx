@@ -8,6 +8,7 @@ import { ProductBomDialogs } from "./components/bom-dialogs"
 import { ProductBomTable } from "./components/bom-table"
 import { ProductBomsProvider } from "./components/boms-provider"
 import { CreateBomButton } from "./components/create-bom-button"
+import { ExportProductBomsButton } from "./components/export-product-boms-button"
 import { ImportVthhBomButton } from "./components/import-vthh-bom-button"
 
 export default function ProductBomPage() {
@@ -22,7 +23,7 @@ export default function ProductBomPage() {
         setSingleFilters,
         requestFilters,
     } = useUrlListFilters(search, navigate, [], ["bom_id", "product_id", "active"])
-    const bomKeyword = singleFilters.bom_id ? `BOM #${singleFilters.bom_id}` : ""
+    const bomKeyword = singleFilters.bom_id ? String(singleFilters.bom_id) : ""
     const visibleKeyword = keyword || bomKeyword
     const setVisibleKeyword = (value: string) => {
         navigate({
@@ -41,7 +42,7 @@ export default function ProductBomPage() {
             "product-boms",
             search.page,
             search.size,
-            visibleKeyword,
+            keyword,
             singleFilters.bom_id,
             singleFilters.product_id,
             singleFilters.active,
@@ -50,7 +51,10 @@ export default function ProductBomPage() {
         {
             page: search.page,
             size: search.size,
-            keyword: visibleKeyword,
+            keyword: keyword || undefined,
+            bom_id: requestFilters.bom_id
+                ? Number(requestFilters.bom_id)
+                : undefined,
             product_id: requestFilters.product_id
                 ? Number(requestFilters.product_id)
                 : undefined,
@@ -70,6 +74,21 @@ export default function ProductBomPage() {
                 error={error}
                 actions={
                     <div className="flex flex-wrap items-center gap-2">
+                        <ExportProductBomsButton
+                            keyword={keyword}
+                            filters={{
+                                bom_id: requestFilters.bom_id
+                                    ? Number(requestFilters.bom_id)
+                                    : undefined,
+                                product_id: requestFilters.product_id
+                                    ? Number(requestFilters.product_id)
+                                    : undefined,
+                                active:
+                                    requestFilters.active === undefined
+                                        ? undefined
+                                        : requestFilters.active === "true",
+                            }}
+                        />
                         <ImportVthhBomButton />
                         <CreateBomButton />
                     </div>

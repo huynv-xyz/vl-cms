@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { ArrowRight, Boxes, DatabaseZap, PackageCheck } from "lucide-react"
+import { ArrowRight, Boxes, DatabaseBackup, DatabaseZap, PackageCheck } from "lucide-react"
 
 import { Main } from "@/components/layout/main"
 import { Badge } from "@/components/ui/badge"
@@ -38,6 +38,14 @@ const tools: ToolItem[] = [
         url: "/tools/sales-export-inventory-rollback",
         status: "Tạm thời",
         icon: DatabaseZap,
+    },
+    {
+        title: "Sửa TK kho sync quá tay",
+        description:
+            "Rollback TK kho từ vlife_ss rồi chỉ cập nhật lại sản phẩm/sổ kho theo danh sách kho hard-code.",
+        url: "/tools/inventory-account-over-sync-repair",
+        status: "Tạm thời",
+        icon: DatabaseBackup,
     },
 ]
 

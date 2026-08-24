@@ -178,6 +178,7 @@ export default function SalesInventorySummaryPage() {
                     onKeywordChange={setKeyword}
                     filters={tableFilters}
                     showValues={false}
+                    salesInventoryVisibleOnly
                     onFiltersChange={(next) => {
                         setMultiFilters({
                             product_ids: next.product_ids || [],

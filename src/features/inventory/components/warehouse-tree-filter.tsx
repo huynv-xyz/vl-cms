@@ -14,9 +14,10 @@ type WarehouseTreeFilterProps = {
     value: number[]
     onChange: (value: number[]) => void
     className?: string
+    salesInventoryVisibleOnly?: boolean
 }
 
-export function WarehouseTreeFilter({ value, onChange, className }: WarehouseTreeFilterProps) {
+export function WarehouseTreeFilter({ value, onChange, className, salesInventoryVisibleOnly = false }: WarehouseTreeFilterProps) {
     const [open, setOpen] = useState(false)
     const [draftValue, setDraftValue] = useState<number[]>(value)
     const [warehouseKeyword, setWarehouseKeyword] = useState("")
@@ -37,8 +38,13 @@ export function WarehouseTreeFilter({ value, onChange, className }: WarehouseTre
         queryFn: () => listPhysicalWarehouses({ page: 1, size: 500, status: "ACTIVE" }),
     })
     const { data: warehouseData, isLoading: loadingWarehouses } = useQuery({
-        queryKey: ["inventory-warehouse-filter-warehouses"],
-        queryFn: () => listWarehouses({ page: 1, size: 1000, status: "ACTIVE" }),
+        queryKey: ["inventory-warehouse-filter-warehouses", salesInventoryVisibleOnly],
+        queryFn: () => listWarehouses({
+            page: 1,
+            size: 1000,
+            status: "ACTIVE",
+            sales_inventory_visible: salesInventoryVisibleOnly ? true : undefined,
+        }),
     })
 
     const physicalWarehouses = physicalData?.items || []

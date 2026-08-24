@@ -14,7 +14,6 @@ import { cn, formatNumber } from "@/lib/utils"
 import { DatePicker } from "@/components/date-picker"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -64,20 +63,19 @@ export function DeliveryTable({
         })
 
     return (
-        <div className="space-y-5">
-            {/* KPI */}
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="space-y-4">
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                 <SummaryCard
                     icon={Files}
                     label="Tổng phiếu giao"
                     value={formatNumber(totalCount)}
-                    tone="info"
+                    tone="opening"
                 />
                 <SummaryCard
                     icon={Truck}
                     label="Đang giao"
                     value={formatNumber(deliveringCount)}
-                    tone={deliveringCount > 0 ? "warn" : "muted"}
+                    tone={deliveringCount > 0 ? "neutral" : "closing"}
                 />
                 <SummaryCard
                     icon={CheckCircle2}
@@ -87,17 +85,16 @@ export function DeliveryTable({
                             ? `${formatNumber(doneCount)} (${donePct}%)`
                             : formatNumber(doneCount)
                     }
-                    tone="success"
+                    tone="credit"
                 />
                 <SummaryCard
                     icon={Layers}
                     label="Tổng dòng hàng"
                     value={formatNumber(totalItems)}
-                    tone="primary"
+                    tone="closing"
                 />
             </div>
 
-            {/* FILTERS */}
             <div className="space-y-2">
                 <div className="flex w-full flex-wrap items-center gap-2">
                     <SearchOnBlurInput
@@ -205,6 +202,8 @@ export function DeliveryTable({
                 showToolbar={false}
                 enableColumnResize
                 enableStickyHorizontalScroll
+                headerVariant="report"
+                footer={false}
             />
             {dialog}
         </div>
@@ -282,36 +281,26 @@ function StatusFilter({
     )
 }
 
-/* ---------------- KPI Card (same tone as orders) ---------------- */
-
 const SUMMARY_TONES = {
-    info: {
-        ring: "border-blue-200/60 dark:border-blue-900/40",
-        iconBg:
-            "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400",
-        value: "",
+    opening: {
+        card: "border-sky-200 bg-sky-50 text-sky-800",
+        icon: "bg-white/75 text-sky-700",
+        value: "text-sky-950",
     },
-    primary: {
-        ring: "border-primary/20 bg-primary/[0.02]",
-        iconBg: "bg-primary/10 text-primary",
-        value: "text-primary",
+    credit: {
+        card: "border-emerald-200 bg-emerald-50 text-emerald-800",
+        icon: "bg-white/75 text-emerald-700",
+        value: "text-emerald-700",
     },
-    success: {
-        ring: "border-emerald-200/60 dark:border-emerald-900/40",
-        iconBg:
-            "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400",
-        value: "",
+    closing: {
+        card: "border-blue-200 bg-blue-50 text-blue-800",
+        icon: "bg-white/75 text-blue-700",
+        value: "text-blue-950",
     },
-    warn: {
-        ring: "border-amber-300/70 bg-amber-50/40 dark:border-amber-900/60 dark:bg-amber-950/20",
-        iconBg:
-            "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
-        value: "text-amber-700 dark:text-amber-400",
-    },
-    muted: {
-        ring: "border-border/60",
-        iconBg: "bg-muted text-muted-foreground",
-        value: "text-muted-foreground",
+    neutral: {
+        card: "border-amber-200 bg-amber-50 text-amber-800",
+        icon: "bg-white/75 text-amber-700",
+        value: "text-amber-700",
     },
 } as const
 
@@ -319,7 +308,7 @@ function SummaryCard({
     icon: Icon,
     label,
     value,
-    tone = "muted",
+    tone = "neutral",
 }: {
     icon: LucideIcon
     label: string
@@ -328,35 +317,25 @@ function SummaryCard({
 }) {
     const styles = SUMMARY_TONES[tone]
     return (
-        <Card
-            className={cn(
-                "gap-0 py-4 shadow-sm transition-shadow hover:shadow-md",
-                styles.ring
-            )}
-        >
-            <CardContent className="flex items-center gap-3 px-4">
-                <div
-                    className={cn(
-                        "flex h-11 w-11 shrink-0 items-center justify-center rounded-lg",
-                        styles.iconBg
-                    )}
-                >
+        <div className={cn("rounded-lg border p-2.5 shadow-sm", styles.card)}>
+            <div className="flex items-center gap-2">
+                <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-md", styles.icon)}>
                     <Icon className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <div className="text-muted-foreground truncate text-[11px] font-semibold uppercase tracking-wider">
+                    <div className="text-center text-[11px] font-semibold uppercase leading-tight tracking-wide">
                         {label}
                     </div>
                     <div
                         className={cn(
-                            "mt-1 truncate text-xl font-bold tabular-nums",
+                            "mt-1 truncate text-right text-lg font-semibold tabular-nums",
                             styles.value
                         )}
                     >
                         {value}
                     </div>
                 </div>
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     )
 }

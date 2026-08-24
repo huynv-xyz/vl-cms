@@ -56,6 +56,7 @@ export type BaseDataTableProps<TData> = {
     defaultPinnedUntil?: number
     defaultPinnedColumnId?: string
     headerVariant?: "default" | "report"
+    showCellBorders?: boolean
 }
 
 export function BaseDataTable<TData>({
@@ -84,6 +85,7 @@ export function BaseDataTable<TData>({
     defaultPinnedUntil = -1,
     defaultPinnedColumnId,
     headerVariant = "default",
+    showCellBorders = false,
 }: BaseDataTableProps<TData>) {
 
     const [rowSelection, setRowSelection] = useState({})
@@ -226,14 +228,24 @@ export function BaseDataTable<TData>({
                 {
                     id: "expand",
                     header: "",
+                    size: 32,
+                    minSize: 32,
+                    maxSize: 32,
                     cell: ({ row }: { row: Row<TData> }) => (
                         <button
                             onClick={() => row.toggleExpanded()}
-                            className="text-xs"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                         >
                             {row.getIsExpanded() ? "▼" : "▶"}
                         </button>
                     ),
+                    meta: {
+                        thClassName: "w-8 px-1 text-center",
+                        tdClassName: "w-8 px-1 text-center",
+                    },
+                    enableSorting: false,
+                    enableHiding: false,
+                    enableResizing: false,
                 },
                 ...columns,
             ]
@@ -350,6 +362,7 @@ export function BaseDataTable<TData>({
                             isPinned && "bg-slate-100",
                             header.column.columnDef.meta?.className,
                             header.column.columnDef.meta?.thClassName,
+                            showCellBorders && "border-b border-r border-slate-200 last:border-r-0",
                             isReportHeader &&
                             "h-12 border-r border-slate-200 bg-slate-100/95 !text-center text-xs font-semibold uppercase tracking-wide text-slate-600 last:border-r-0 [&_*]:!justify-center [&_*]:!text-center",
                         )}
@@ -485,6 +498,7 @@ export function BaseDataTable<TData>({
                                                         key={cell.id}
                                                         className={cn(
                                                             columnIndex <= pinnedUntilIndex && enableColumnPinning && "overflow-hidden bg-white",
+                                                            showCellBorders && "border-b border-r border-slate-200 last:border-r-0",
                                                             cell.column.columnDef.meta?.tdClassName,
                                                         )}
                                                         style={{
@@ -523,6 +537,7 @@ export function BaseDataTable<TData>({
                                                     key={col.id}
                                                     className={cn(
                                                         columnIndex <= pinnedUntilIndex && enableColumnPinning && "overflow-hidden bg-muted",
+                                                        showCellBorders && "border-b border-r border-slate-200 last:border-r-0",
                                                         col.columnDef.meta?.tdClassName,
                                                     )}
                                                     style={{

@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent, type RefObject } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { ChevronDown, Copy, Database, FileCheck2, PlayCircle, RotateCcw, ShieldCheck, Upload } from "lucide-react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { ChevronDown, Copy, Database, FileCheck2, FileSearch, FileUp, Loader2, PlayCircle, RotateCcw, ShieldCheck, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -9,13 +9,17 @@ import {
     importVthhDetail,
     type OpeningStockImportResult,
 } from "@/api/inventory/lot"
+import { getMyPermissions } from "@/api/auth/permission"
 import {
+    applyInventoryLedgerAccountRules,
+    checkInventoryLedgerAccountRules,
     importInventoryLedgerPrices,
     importProductionCostObjects,
     importPurchaseBasePrices,
     runOpeningCostNormalizationStep,
     uploadOpeningCostNormalization,
     type OpeningCostNormalizationRun,
+    type InventoryLedgerAccountRuleAuditResult,
     type InventoryLedgerPriceImportResult,
     type ProductionCostObjectImportResult,
 } from "@/api/inventory/ledger"
@@ -24,6 +28,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -58,7 +63,6 @@ const PURCHASE_STOCK_REQUIRED_COLUMNS = [
     "Số lượng mua",
     "Số lượng trả lại",
     "Mã kho",
-    "Đơn giá",
     "Diễn giải",
     "Tên nhà cung cấp",
     "TK Nợ",
@@ -73,7 +77,7 @@ const PURCHASE_PRICE_REQUIRED_COLUMNS = [
     "Số lô",
     "Số lượng mua",
     "Mã kho",
-    "Đơn giá bao gồm PLH",
+    "Tổng giá trị",
 ]
 
 const VTHH_DETAIL_REQUIRED_COLUMNS = [
@@ -118,13 +122,14 @@ const LEDGER_PRICE_IMPORT_REQUIRED_COLUMNS = [
     "Số lô",
     "Nhập",
     "Xuất",
-    "Đơn giá",
+    "Tổng giá trị",
 ]
 
 type ImportGuide = {
     title: string
     description: string
     columns: string[]
+    optionalColumns?: string[]
     notes: string[]
     inputRef: RefObject<HTMLInputElement | null>
 }
@@ -178,8 +183,23 @@ function readStructuredResult(result: ProductionCostObjectImportResult | Invento
     }
 }
 
+function hasPermission(permissions: any[], module: string, action: string) {
+    return permissions.some((permission) =>
+        (permission.module === module && permission.action === action)
+        || permission.module === "*"
+        || permission.action === "*",
+    )
+}
+
 export function LedgerImportButtons() {
     const queryClient = useQueryClient()
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canUseDataMenu = hasPermission(permissions, "inventory.ledgers", "data-admin")
+    const canUsePriceCorrections = hasPermission(permissions, "inventory.ledgers", "correction.change")
+        || hasPermission(permissions, "inventory.ledgers", "price-correction.change")
     const openingFileRef = useRef<HTMLInputElement>(null)
     const purchaseFileRef = useRef<HTMLInputElement>(null)
     const purchaseBasePriceFileRef = useRef<HTMLInputElement>(null)
@@ -189,11 +209,15 @@ export function LedgerImportButtons() {
     const [guide, setGuide] = useState<ImportGuide | null>(null)
     const [importResultDialog, setImportResultDialog] = useState<ImportResultDialog | null>(null)
     const [pendingCostObjectFile, setPendingCostObjectFile] = useState<File | null>(null)
+    const [activeImport, setActiveImport] = useState<{ label: string; fileName: string } | null>(null)
     const [normalizationOpen, setNormalizationOpen] = useState(false)
+    const [accountRuleAuditOpen, setAccountRuleAuditOpen] = useState(false)
+    const [accountRuleAudit, setAccountRuleAudit] = useState<InventoryLedgerAccountRuleAuditResult | null>(null)
 
     const importOpeningMutation = useMutation({
         mutationFn: importOpeningStock,
         onSuccess: async (res) => {
+            setActiveImport(null)
             await invalidateInventoryQueries(queryClient)
             if (res.failed > 0) {
                 setImportResultDialog({ title: "Lỗi import tồn đầu kỳ", result: res, mode: "opening" })
@@ -203,12 +227,16 @@ export function LedgerImportButtons() {
             setImportResultDialog(null)
             toast.success(`Đã import ${res.success} dòng tồn đầu kỳ`)
         },
-        onError: (error: any) => toast.error(error?.message || "Không thể import tồn đầu kỳ"),
+        onError: (error: any) => {
+            setActiveImport(null)
+            toast.error(error?.message || "Không thể import tồn đầu kỳ")
+        },
     })
 
     const importPurchaseMutation = useMutation({
         mutationFn: importPurchaseStock,
         onSuccess: async (res) => {
+            setActiveImport(null)
             await invalidateInventoryQueries(queryClient)
             const skippedText = res.skipped ? `, bỏ qua ${res.skipped} dòng` : ""
             if (res.failed > 0) {
@@ -219,12 +247,16 @@ export function LedgerImportButtons() {
             setImportResultDialog(null)
             toast.success(`Đã import ${res.success} dòng mua hàng${skippedText}`)
         },
-        onError: (error: any) => toast.error(error?.message || "Không thể import mua hàng"),
+        onError: (error: any) => {
+            setActiveImport(null)
+            toast.error(error?.message || "Không thể import mua hàng")
+        },
     })
 
     const importPurchaseBasePriceMutation = useMutation({
         mutationFn: importPurchaseBasePrices,
         onSuccess: async (res) => {
+            setActiveImport(null)
             await invalidateInventoryQueries(queryClient)
             await queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
             const normalized = readStructuredResult(res)
@@ -257,12 +289,16 @@ export function LedgerImportButtons() {
             setImportResultDialog({ title: "Kết quả sửa đơn giá mua hàng", result: res, mode: "purchase-base-price" })
             toast.success(`Đã cập nhật ${normalized.updated} dòng đơn giá mua hàng`)
         },
-        onError: (error: any) => toast.error(error?.message || "Không thể sửa đơn giá mua hàng"),
+        onError: (error: any) => {
+            setActiveImport(null)
+            toast.error(error?.message || "Không thể sửa đơn giá mua hàng")
+        },
     })
 
     const importVthhDetailMutation = useMutation({
         mutationFn: importVthhDetail,
         onSuccess: async (res) => {
+            setActiveImport(null)
             await invalidateInventoryQueries(queryClient)
             if (res.failed > 0) {
                 setImportResultDialog({ title: "Lỗi import chi tiết VTHH", result: res, mode: "opening" })
@@ -272,12 +308,16 @@ export function LedgerImportButtons() {
             setImportResultDialog(null)
             toast.success(`Đã import ${res.success} dòng chi tiết VTHH`)
         },
-        onError: (error: any) => toast.error(error?.message || "Không thể import chi tiết VTHH"),
+        onError: (error: any) => {
+            setActiveImport(null)
+            toast.error(error?.message || "Không thể import chi tiết VTHH")
+        },
     })
 
     const importProductionCostObjectMutation = useMutation({
         mutationFn: ({ file, confirm = false }: { file: File; confirm?: boolean }) => importProductionCostObjects(file, confirm),
         onSuccess: async (res) => {
+            setActiveImport(null)
             if (!res.preview) {
                 await invalidateInventoryQueries(queryClient)
                 await queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
@@ -285,17 +325,48 @@ export function LedgerImportButtons() {
             }
             handleStructuredResult(res, "mã đối tượng SX", "cost-object")
         },
-        onError: (error: any) => toast.error(error?.message || "Không thể import mã đối tượng SX"),
+        onError: (error: any) => {
+            setActiveImport(null)
+            toast.error(error?.message || "Không thể import mã đối tượng SX")
+        },
     })
 
     const importLedgerPriceMutation = useMutation({
         mutationFn: importInventoryLedgerPrices,
         onSuccess: async (res) => {
+            setActiveImport(null)
             await invalidateInventoryQueries(queryClient)
             await queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
             handleStructuredResult(res, "giá nhập/xuất khác", "ledger-price")
         },
-        onError: (error: any) => toast.error(error?.message || "Không thể import giá nhập/xuất khác"),
+        onError: (error: any) => {
+            setActiveImport(null)
+            toast.error(error?.message || "Không thể import giá nhập/xuất khác")
+        },
+    })
+
+    const checkAccountRulesMutation = useMutation({
+        mutationFn: checkInventoryLedgerAccountRules,
+        onSuccess: (res) => {
+            setAccountRuleAudit(res)
+            toast.success(res.ok ? "TK Nợ/TK Có đã khớp rules" : `Có ${fmt(res.mismatch_rows)} dòng lệch TK theo rules`)
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || "Không kiểm tra được TK Nợ/TK Có")
+        },
+    })
+
+    const applyAccountRulesMutation = useMutation({
+        mutationFn: applyInventoryLedgerAccountRules,
+        onSuccess: async (res) => {
+            setAccountRuleAudit(res)
+            await invalidateInventoryQueries(queryClient)
+            await queryClient.invalidateQueries({ queryKey: ["inventory-account-postings"] })
+            toast.success(`Đã cập nhật ${fmt(res.updated_rows)} dòng TK Nợ/TK Có`)
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || "Không cập nhật được TK Nợ/TK Có")
+        },
     })
 
     const handleStructuredResult = (
@@ -340,11 +411,13 @@ export function LedgerImportButtons() {
         }
     }
 
-    const handleFileChange = (event: ChangeEvent<HTMLInputElement>, mutate: (file: File) => void) => {
+    const handleFileChange = (event: ChangeEvent<HTMLInputElement>, label: string, mutate: (file: File) => void) => {
         const file = event.target.files?.[0]
         event.target.value = ""
         if (!file) return
+        setGuide(null)
         setImportResultDialog(null)
+        setActiveImport({ label, fileName: file.name })
         mutate(file)
     }
 
@@ -352,8 +425,10 @@ export function LedgerImportButtons() {
         const file = event.target.files?.[0]
         event.target.value = ""
         if (!file) return
+        setGuide(null)
         setPendingCostObjectFile(file)
         setImportResultDialog(null)
+        setActiveImport({ label: "Import mã đối tượng SX", fileName: file.name })
         importProductionCostObjectMutation.mutate({ file })
     }
 
@@ -387,33 +462,51 @@ export function LedgerImportButtons() {
 
     return (
         <>
-            <ImportFileInput inputRef={openingFileRef} onChange={(event) => handleFileChange(event, importOpeningMutation.mutate)} />
-            <ImportFileInput inputRef={purchaseFileRef} onChange={(event) => handleFileChange(event, importPurchaseMutation.mutate)} />
-            <ImportFileInput inputRef={purchaseBasePriceFileRef} onChange={(event) => handleFileChange(event, importPurchaseBasePriceMutation.mutate)} />
-            <ImportFileInput inputRef={vthhDetailFileRef} onChange={(event) => handleFileChange(event, importVthhDetailMutation.mutate)} />
+            <ImportFileInput inputRef={openingFileRef} onChange={(event) => handleFileChange(event, "Import tồn đầu kỳ", importOpeningMutation.mutate)} />
+            <ImportFileInput inputRef={purchaseFileRef} onChange={(event) => handleFileChange(event, "Import mua hàng", importPurchaseMutation.mutate)} />
+            <ImportFileInput inputRef={purchaseBasePriceFileRef} onChange={(event) => handleFileChange(event, "Sửa đơn giá mua hàng", importPurchaseBasePriceMutation.mutate)} />
+            <ImportFileInput inputRef={vthhDetailFileRef} onChange={(event) => handleFileChange(event, "Import chi tiết VTHH", importVthhDetailMutation.mutate)} />
             <ImportFileInput inputRef={productionCostObjectFileRef} onChange={handleProductionCostObjectFileChange} />
-            <ImportFileInput inputRef={ledgerPriceFileRef} onChange={(event) => handleFileChange(event, importLedgerPriceMutation.mutate)} />
+            <ImportFileInput inputRef={ledgerPriceFileRef} onChange={(event) => handleFileChange(event, "Import giá nhập/xuất khác", importLedgerPriceMutation.mutate)} />
+
+            {canUseDataMenu ? (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="outline">
+                            <Database className="mr-2 h-4 w-4" />
+                            Dữ liệu
+                            <ChevronDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64">
+                        <DropdownMenuItem disabled={importOpeningMutation.isPending} onSelect={() => setGuide(openingGuide(openingFileRef))}>
+                            <Upload className="h-4 w-4" />
+                            {importOpeningMutation.isPending ? "Đang import..." : "Import tồn đầu kỳ"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setNormalizationOpen(true)}>
+                            <ShieldCheck className="h-4 w-4" />
+                            Chuẩn hóa đơn giá đầu kỳ
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setAccountRuleAuditOpen(true)}>
+                            <FileSearch className="h-4 w-4" />
+                            Kiểm tra TK theo rules
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ) : null}
 
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button size="sm" variant="outline">
-                        <Database className="mr-2 h-4 w-4" />
-                        Dữ liệu
+                        <FileUp className="mr-2 h-4 w-4" />
+                        Import nghiệp vụ
                         <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64">
-                    <DropdownMenuItem disabled={importOpeningMutation.isPending} onSelect={() => setGuide(openingGuide(openingFileRef))}>
-                        <Upload className="h-4 w-4" />
-                        {importOpeningMutation.isPending ? "Đang import..." : "Import tồn đầu kỳ"}
-                    </DropdownMenuItem>
                     <DropdownMenuItem disabled={importPurchaseMutation.isPending} onSelect={() => setGuide(purchaseGuide(purchaseFileRef))}>
                         <Upload className="h-4 w-4" />
                         {importPurchaseMutation.isPending ? "Đang import..." : "Import mua hàng"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem disabled={importPurchaseBasePriceMutation.isPending} onSelect={() => setGuide(purchaseBasePriceGuide(purchaseBasePriceFileRef))}>
-                        <Upload className="h-4 w-4" />
-                        {importPurchaseBasePriceMutation.isPending ? "Đang sửa..." : "Sửa đơn giá mua hàng"}
                     </DropdownMenuItem>
                     <DropdownMenuItem disabled={importVthhDetailMutation.isPending} onSelect={() => setGuide(vthhGuide(vthhDetailFileRef))}>
                         <Upload className="h-4 w-4" />
@@ -423,14 +516,19 @@ export function LedgerImportButtons() {
                         <Upload className="h-4 w-4" />
                         {importProductionCostObjectMutation.isPending ? "Đang import..." : "Import mã đối tượng SX"}
                     </DropdownMenuItem>
-                    <DropdownMenuItem disabled={importLedgerPriceMutation.isPending} onSelect={() => setGuide(ledgerPriceGuide(ledgerPriceFileRef))}>
-                        <Upload className="h-4 w-4" />
-                        {importLedgerPriceMutation.isPending ? "Đang import..." : "Import giá nhập/xuất khác"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setNormalizationOpen(true)}>
-                        <ShieldCheck className="h-4 w-4" />
-                        Chuẩn hóa đơn giá đầu kỳ
-                    </DropdownMenuItem>
+                    {canUsePriceCorrections ? (
+                        <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem disabled={importPurchaseBasePriceMutation.isPending} onSelect={() => setGuide(purchaseBasePriceGuide(purchaseBasePriceFileRef))}>
+                                <Upload className="h-4 w-4" />
+                                {importPurchaseBasePriceMutation.isPending ? "Đang sửa..." : "Sửa đơn giá mua hàng"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled={importLedgerPriceMutation.isPending} onSelect={() => setGuide(ledgerPriceGuide(ledgerPriceFileRef))}>
+                                <Upload className="h-4 w-4" />
+                                {importLedgerPriceMutation.isPending ? "Đang import..." : "Import giá nhập/xuất khác"}
+                            </DropdownMenuItem>
+                        </>
+                    ) : null}
                 </DropdownMenuContent>
             </DropdownMenu>
 
@@ -453,6 +551,14 @@ export function LedgerImportButtons() {
                                 {(guide?.columns || []).join("\n")}
                             </pre>
                         </div>
+                        {guide?.optionalColumns?.length ? (
+                            <div className="rounded-md border bg-muted/30 p-3">
+                                <div className="mb-2 text-sm font-medium">Cột tùy chọn</div>
+                                <pre className="max-h-[200px] select-text overflow-auto whitespace-pre-wrap rounded bg-background p-3 text-sm leading-6 text-foreground">
+                                    {guide.optionalColumns.join("\n")}
+                                </pre>
+                            </div>
+                        ) : null}
                         {guide?.notes?.length ? (
                             <div className="space-y-1 text-sm text-muted-foreground">
                                 {guide.notes.map((note) => (
@@ -470,6 +576,34 @@ export function LedgerImportButtons() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <Dialog open={!!activeImport}>
+                <DialogContent className="max-w-md" showCloseButton={false}>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                            Đang xử lý file
+                        </DialogTitle>
+                        <DialogDescription>
+                            {activeImport?.label} đang chạy. Vui lòng chờ đến khi hệ thống trả kết quả.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                        <div className="font-medium text-foreground">{activeImport?.fileName}</div>
+                        <div className="mt-1 text-muted-foreground">Đang upload, kiểm tra và cập nhật trong transaction.</div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <AccountRuleAuditDialog
+                open={accountRuleAuditOpen}
+                onOpenChange={setAccountRuleAuditOpen}
+                result={accountRuleAudit}
+                checking={checkAccountRulesMutation.isPending}
+                applying={applyAccountRulesMutation.isPending}
+                onCheck={() => checkAccountRulesMutation.mutate()}
+                onApply={() => applyAccountRulesMutation.mutate()}
+            />
 
             <Dialog open={!!importResultDialog} onOpenChange={(open) => !open && setImportResultDialog(null)}>
                 <DialogContent className="w-[calc(100vw-48px)] !max-w-[64rem]">
@@ -588,6 +722,193 @@ export function LedgerImportButtons() {
                 </DialogContent>
             </Dialog>
         </>
+    )
+}
+
+function AccountRuleAuditDialog({
+    open,
+    onOpenChange,
+    result,
+    checking,
+    applying,
+    onCheck,
+    onApply,
+}: {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    result: InventoryLedgerAccountRuleAuditResult | null
+    checking: boolean
+    applying: boolean
+    onCheck: () => void
+    onApply: () => void
+}) {
+    const busy = checking || applying
+    const canApply = !!result
+        && result.mismatch_rows > 0
+        && result.missing_rule_rows === 0
+        && result.missing_product_account_rows === 0
+        && !busy
+    const missingProductCount = result?.missing_product_accounts?.length ?? 0
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="flex max-h-[calc(100vh-48px)] w-[calc(100vw-48px)] !max-w-[72rem] flex-col overflow-hidden">
+                <DialogHeader>
+                    <DialogTitle>Kiểm tra TK Nợ/TK Có theo rules</DialogTitle>
+                    <DialogDescription>
+                        Đối chiếu `inventory_ledger.tk_no/tk_co` với Cấu hình tài khoản hiện tại. Dòng chuyển kho/vận chuyển dùng vế xuất hoặc vế nhập theo dấu số lượng.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-2">
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                        Tool này chỉ cập nhật TK Nợ/TK Có trên sổ kho đã phát sinh. Không sửa số lượng, giá trị, chứng từ gốc hoặc rules cấu hình.
+                    </div>
+
+                    {result ? (
+                        <>
+                            <div className="grid gap-3 md:grid-cols-4">
+                                <ResultBox
+                                    title="Tổng quan"
+                                    items={[
+                                        ["Dòng sổ kho", fmt(result.ledger_rows)],
+                                        ["Có rules", fmt(result.matched_rule_rows)],
+                                    ]}
+                                />
+                                <ResultBox
+                                    title="Kết quả"
+                                    items={[
+                                        ["Đã đúng", fmt(result.correct_rows)],
+                                        ["Còn lệch", fmt(result.mismatch_rows)],
+                                    ]}
+                                />
+                                <ResultBox
+                                    title="Cấu hình"
+                                    items={[
+                                        ["Thiếu rules", fmt(result.missing_rule_rows)],
+                                        ["Dòng thiếu TK SP", fmt(result.missing_product_account_rows)],
+                                    ]}
+                                />
+                                <ResultBox
+                                    title="Cập nhật"
+                                    items={[
+                                        ["Đã chạy", result.applied ? "Có" : "Chưa"],
+                                        ["Dòng cập nhật", fmt(result.updated_rows)],
+                                    ]}
+                                />
+                            </div>
+
+                            {result.missing_rules?.length ? (
+                                <div className="rounded-md border text-sm">
+                                    <div className="border-b bg-red-50 px-3 py-2 font-medium text-red-700">Thiếu rules, chưa nên cập nhật</div>
+                                    <div className="divide-y">
+                                        {result.missing_rules.map((item, index) => (
+                                            <div key={`${item.doc_type}-${item.movement_side}-${index}`} className="grid grid-cols-[1fr_120px_120px] gap-3 px-3 py-2">
+                                                <span>{item.doc_type || "-"}</span>
+                                                <span>{sideLabelForAudit(item.movement_side)}</span>
+                                                <span className="text-right font-medium">{fmt(item.ledger_rows)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {result.missing_product_accounts?.length ? (
+                                <div className="rounded-md border text-sm">
+                                    <div className="flex items-center justify-between gap-3 border-b bg-red-50 px-3 py-2 font-medium text-red-700">
+                                        <span>Sản phẩm thiếu TK kho, chưa thể cập nhật</span>
+                                        <span>{fmt(missingProductCount)} sản phẩm / {fmt(result.missing_product_account_rows)} dòng</span>
+                                    </div>
+                                    <div className="divide-y">
+                                        {result.missing_product_accounts.map((item, index) => (
+                                            <div key={`${item.product_id}-${item.product_code}-${index}`} className="grid grid-cols-[180px_1fr_120px] gap-3 px-3 py-2">
+                                                <span className="font-mono">{item.product_code || "-"}</span>
+                                                <span>{item.product_name || "-"}</span>
+                                                <span className="text-right font-medium">{fmt(item.ledger_rows)} dòng</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {result.by_doc_type?.length ? (
+                                <div className="rounded-md border text-sm">
+                                    <div className="border-b bg-muted/40 px-3 py-2 font-medium">Loại chứng từ còn lệch</div>
+                                    <div className="divide-y">
+                                        {result.by_doc_type.map((item, index) => (
+                                            <div key={`${item.doc_type}-${item.movement_side}-${index}`} className="grid grid-cols-[1fr_120px_120px_120px] gap-3 px-3 py-2">
+                                                <span>{item.doc_type || "-"}</span>
+                                                <span>{sideLabelForAudit(item.movement_side)}</span>
+                                                <span className="text-right">Lệch {fmt(item.mismatch_rows)}</span>
+                                                <span className="text-right text-muted-foreground">Thiếu {fmt(item.missing_rule_rows)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {result.samples?.length ? (
+                                <div className="max-h-72 overflow-auto rounded-md border text-sm">
+                                    <table className="w-full min-w-[980px]">
+                                        <thead className="sticky top-0 bg-muted/50">
+                                            <tr>
+                                                <th className="border px-2 py-1 text-left">ID</th>
+                                                <th className="border px-2 py-1 text-left">Ngày</th>
+                                                <th className="border px-2 py-1 text-left">Chứng từ</th>
+                                                <th className="border px-2 py-1 text-left">Loại/vế</th>
+                                                <th className="border px-2 py-1 text-left">Mã hàng</th>
+                                                <th className="border px-2 py-1 text-right">SL</th>
+                                                <th className="border px-2 py-1 text-left">TK hiện tại</th>
+                                                <th className="border px-2 py-1 text-left">TK theo rules</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {result.samples.map((item) => (
+                                                <tr key={item.id}>
+                                                    <td className="border px-2 py-1">{item.id}</td>
+                                                    <td className="border px-2 py-1">{item.posting_date || "-"}</td>
+                                                    <td className="border px-2 py-1">{item.doc_no || "-"}</td>
+                                                    <td className="border px-2 py-1">{item.doc_type || "-"} / {sideLabelForAudit(item.movement_side)}</td>
+                                                    <td className="border px-2 py-1">{item.product_code || "-"}</td>
+                                                    <td className="border px-2 py-1 text-right">{fmt(item.quantity)}</td>
+                                                    <td className="border px-2 py-1 font-mono">Nợ {item.current_tk_no || "-"} / Có {item.current_tk_co || "-"}</td>
+                                                    <td className="border px-2 py-1 font-mono">Nợ {item.expected_tk_no || "-"} / Có {item.expected_tk_co || "-"}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : null}
+                        </>
+                    ) : (
+                        <div className="rounded-md border bg-muted/20 p-4 text-sm text-muted-foreground">
+                            Bấm “Kiểm tra” để đối chiếu TK Nợ/TK Có hiện tại với rules.
+                        </div>
+                    )}
+                    {result && !canApply && result.mismatch_rows > 0 ? (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                            {result.missing_rule_rows > 0
+                                ? "Còn thiếu rules cho một số loại chứng từ/vế, cần bổ sung cấu hình trước khi cập nhật."
+                                : result.missing_product_account_rows > 0
+                                    ? "Còn sản phẩm thiếu TK kho, cần cập nhật TK kho trong danh mục sản phẩm trước khi cập nhật theo rules."
+                                    : "Còn dữ liệu lệch nhưng chưa đủ điều kiện cập nhật."}
+                        </div>
+                    ) : null}
+                </div>
+
+                <DialogFooter className="shrink-0 border-t pt-3">
+                    <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>Đóng</Button>
+                    <Button variant="outline" disabled={busy} onClick={onCheck}>
+                        {checking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSearch className="mr-2 h-4 w-4" />}
+                        Kiểm tra
+                    </Button>
+                    <Button disabled={!canApply} onClick={onApply}>
+                        {applying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileCheck2 className="mr-2 h-4 w-4" />}
+                        Cập nhật theo rules
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     )
 }
 
@@ -1024,6 +1345,12 @@ function money(value: unknown) {
     return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 3 }).format(num)
 }
 
+function sideLabelForAudit(side?: string | null) {
+    if (side === "OUTBOUND") return "Vế xuất"
+    if (side === "INBOUND") return "Vế nhập"
+    return "Mặc định"
+}
+
 function ImportFileInput({ inputRef, onChange }: { inputRef: RefObject<HTMLInputElement | null>; onChange: (event: ChangeEvent<HTMLInputElement>) => void }) {
     return (
         <input
@@ -1054,11 +1381,18 @@ function purchaseGuide(inputRef: RefObject<HTMLInputElement | null>): ImportGuid
         title: "Import mua hàng",
         description: "File import mua hàng cần có đủ các cột sau.",
         columns: PURCHASE_STOCK_REQUIRED_COLUMNS,
+        optionalColumns: [
+            "Tổng giá trị",
+            "Đơn giá",
+        ],
         notes: [
             "Hạn sử dụng và Ngày hạch toán bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy, ví dụ 24/10/2028 hoặc 24-10-2028.",
             "Dòng có Mã hàng bắt đầu bằng PHI hoặc dòng không có Mã kho sẽ được bỏ qua. Mã hàng khác nếu chưa có trong danh mục sản phẩm sẽ báo lỗi.",
-            "Đơn giá được hiểu là đơn giá mua gốc, chưa bao gồm phí lô hàng. Phí hàng về kho và đơn giá sau phí sẽ được tính ở chức năng Tính giá tồn kho.",
-            "Import lại cùng file không tạo trùng giao dịch. Nếu dòng mua hàng đã tồn tại nhưng đơn giá khác, dùng nút Sửa đơn giá mua hàng.",
+            "Tổng giá trị và Đơn giá đều là cột tùy chọn. Nếu thiếu cả hai, hệ thống vẫn import dòng mua hàng và bỏ qua phần xử lý giá của dòng đó.",
+            "Nếu file có cột Tổng giá trị, hệ thống ưu tiên lấy Tổng giá trị làm amount chuẩn và tính unit_price = Tổng giá trị / Số lượng thực nhập.",
+            "Nếu không có Tổng giá trị nhưng có Đơn giá, hệ thống tính amount = Số lượng thực nhập * Đơn giá như trước.",
+            "Khi dùng Tổng giá trị, đơn giá lưu vào sổ kho được hiểu là đơn giá đã bao gồm PLH để tổng giá trị khớp file.",
+            "Import lại cùng file không tạo trùng giao dịch. Nếu dòng mua hàng đã tồn tại nhưng cần chỉnh Tổng giá trị/đơn giá, dùng nút Sửa đơn giá mua hàng.",
         ],
         inputRef,
     }
@@ -1067,13 +1401,16 @@ function purchaseGuide(inputRef: RefObject<HTMLInputElement | null>): ImportGuid
 function purchaseBasePriceGuide(inputRef: RefObject<HTMLInputElement | null>): ImportGuide {
     return {
         title: "Sửa đơn giá mua hàng",
-        description: "File này dùng để cập nhật lại đơn giá mua hàng đã bao gồm phí làm hàng cho các dòng mua hàng đã có trong Sổ kho.",
+        description: "File này dùng để giữ Tổng giá trị mua hàng đúng theo hệ thống cũ; hệ thống tự tính lại đơn giá từ Tổng giá trị / Số lượng.",
         columns: PURCHASE_PRICE_REQUIRED_COLUMNS,
         notes: [
             "Cột Tên hàng chỉ để người dùng dễ kiểm tra file; hệ thống map dòng theo Mã hàng.",
-            "Cột Đơn giá bao gồm PLH là đơn giá mua hàng đã bao gồm phí làm hàng. Giá trị này sẽ ghi vào inventory_ledger.unit_price và tính lại inventory_ledger.amount.",
-            "Nếu dòng sổ kho không tìm thấy hoặc số dòng trùng khóa giữa DB và Excel không khớp, hệ thống báo lỗi và rollback toàn bộ.",
-            "Sau khi cập nhật sổ kho, hệ thống tính lại inventory_lots.unit_cost theo bình quân các dòng mua hàng dương của lô đó.",
+            "Cột Tổng giá trị là số chuẩn cần khớp tuyệt đối. Hệ thống lưu amount theo cột này và tính unit_price = Tổng giá trị / Số lượng với phần thập phân cao.",
+            "Nếu cùng ngày/mã hàng/kho/lô khớp nhưng Số chứng từ khác, hệ thống chỉ tự fallback khi tìm được đúng một nhóm DB; nếu có nhiều nhóm khớp sẽ báo lỗi.",
+            "Nếu nhiều dòng file cùng khớp một dòng DB và tổng số lượng bằng DB, hệ thống gom Tổng giá trị file để cập nhật dòng DB đó.",
+            "Các trường hợp lệch số dòng còn lại sẽ báo lỗi và không tự phân bổ Tổng giá trị. Người dùng cần tách/gộp dữ liệu cho khớp từng dòng trước khi import.",
+            "Nếu có lỗi ở bất kỳ dòng nào, toàn bộ file rollback và không cập nhật nửa chừng.",
+            "Sau khi cập nhật, hệ thống tính lại inventory_lots.unit_cost theo tổng amount của các dòng mua hàng dương của lô đó.",
         ],
         inputRef,
     }
@@ -1113,14 +1450,15 @@ function productionCostObjectGuide(inputRef: RefObject<HTMLInputElement | null>)
 function ledgerPriceGuide(inputRef: RefObject<HTMLInputElement | null>): ImportGuide {
     return {
         title: "Import giá nhập/xuất khác",
-        description: "File này chỉ cập nhật đơn giá và thành tiền cho các dòng Sổ kho đã có, không tạo giao dịch mới.",
+        description: "File này chỉ cập nhật Tổng giá trị và đơn giá tính ngược cho các dòng Sổ kho đã có, không tạo giao dịch mới.",
         columns: LEDGER_PRICE_IMPORT_REQUIRED_COLUMNS,
         notes: [
             "Chỉ xử lý các loại chứng từ: Hàng mua trả lại - Giảm trừ công nợ, Nhập kho khác, Nhập kho từ hàng bán trả lại, Xuất chuyển kho nội bộ, Xuất kho khác.",
             "Dòng nhập lấy số lượng ở cột Nhập; dòng xuất lấy số lượng ở cột Xuất. Riêng Xuất chuyển kho nội bộ có thể có cả dòng Nhập và dòng Xuất tương ứng.",
+            "Cột Tổng giá trị trong file nhập là số dương. Với dòng xuất, hệ thống vẫn lưu amount âm trong DB nhưng trị tuyệt đối sẽ khớp đúng Tổng giá trị file.",
             "Ngày chứng từ bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy.",
-            "Hệ thống chỉ cập nhật khi đơn giá hiện tại trong Sổ kho đang bằng 0. Nếu dòng đã có đơn giá khác, import sẽ báo lỗi và rollback toàn bộ.",
-            "Không cập nhật giá trong Tồn theo lô; chỉ cập nhật inventory_ledger và chi tiết phiếu nếu dòng sổ kho có liên kết phiếu.",
+            "Hệ thống tính unit_price = Tổng giá trị / Số lượng với phần thập phân cao và được phép ghi đè giá cũ khi dòng sổ kho match rõ ràng.",
+            "Không cập nhật giá trong Tồn theo lô; chỉ cập nhật inventory_ledger và chi tiết phiếu nếu dòng sổ kho có liên kết phiếu. Nếu có lỗi ở bất kỳ dòng nào, toàn bộ file rollback.",
         ],
         inputRef,
     }

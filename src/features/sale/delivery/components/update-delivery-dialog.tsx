@@ -21,8 +21,8 @@ import { DeliveryItemsEditor } from "./delivery-items-editor"
 import type { Delivery } from "../data/schema"
 import type { DeliveryFormItem, DeliveryFormValues } from "./types"
 import type { Order } from "../../order/data/schema"
-import { normalizeDate } from "@/lib/utils"
 import { DeliveryHeaderFields } from "./delivery-header-fields"
+import { toDeliveryDateInputValue } from "./delivery-date"
 
 type Props = {
     order?: Order
@@ -92,7 +92,7 @@ export function UpdateDeliveryDialog({
         setHeaderFormData({
             order_id: detail.order_id,
 
-            delivery_date: normalizeDate(detail.delivery_date),
+            delivery_date: toDeliveryDateInputValue(detail.delivery_date),
 
             company_id: detail.company_id ?? undefined,
 

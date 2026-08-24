@@ -8,6 +8,7 @@ import { ProductsProvider } from "./components/products-provider"
 import { CreateProductButton } from "./components/create-product-button"
 import { ExportProductsButton } from "./components/export-products-button"
 import { ImportProductButton } from "./components/import-product-button"
+import { InventoryAccountSyncButton } from "./components/inventory-account-sync-button"
 import { Route } from "@/routes/_authenticated/products"
 import { useUrlPagination } from "@/hooks/use-url-pagination"
 import { useUrlListFilters } from "@/hooks/use-url-list-filters"
@@ -99,6 +100,7 @@ export default function ProductPage() {
                                 inventory_account_code: requestFilters.inventory_account_code,
                             }}
                         />
+                        <InventoryAccountSyncButton />
                         <ImportProductButton />
                         <CreateProductButton />
                     </div>

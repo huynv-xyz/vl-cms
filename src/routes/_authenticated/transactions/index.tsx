@@ -14,6 +14,11 @@ export const Route = createFileRoute("/_authenticated/transactions/")({
                 ? search.customer_type
                 : undefined,
 
+        is_gift:
+            typeof search.is_gift === "string"
+                ? search.is_gift
+                : undefined,
+
         customer_code:
             typeof search.customer_code === "string"
                 ? search.customer_code
@@ -37,6 +42,11 @@ export const Route = createFileRoute("/_authenticated/transactions/")({
         product_group_name:
             typeof search.product_group_name === "string"
                 ? search.product_group_name
+                : undefined,
+
+        sale_user_name:
+            typeof search.sale_user_name === "string"
+                ? search.sale_user_name
                 : undefined,
 
         unit:
@@ -64,6 +74,9 @@ export const Route = createFileRoute("/_authenticated/transactions/")({
 
         region:
             typeof search.region === "string" ? search.region : undefined,
+
+        time_sort:
+            search.time_sort === "desc" ? "desc" : "asc",
 
         document_date_from:
             typeof search.document_date_from === "string"

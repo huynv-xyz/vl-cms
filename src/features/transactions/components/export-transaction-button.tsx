@@ -15,11 +15,14 @@ type Props = {
         | "product_code"
         | "product_name"
         | "product_group_name"
+        | "sale_user_name"
         | "unit"
         | "customer_type"
+        | "is_gift"
         | "npp"
         | "hdn_status"
         | "region"
+        | "time_sort"
         | "document_date_from"
         | "document_date_to"
     >
@@ -51,9 +54,9 @@ const COLUMNS: ExportColumn[] = [
     { label: "Đơn vị chính (ĐVC)", value: (row) => row.unit, width: 18 },
     { label: "Tổng SL bán theo ĐVC", value: (row) => row.sale_qty, width: 18, type: "number" },
     { label: "Đơn giá theo ĐVC", value: (row) => row.unit_price, width: 18, type: "number" },
-    { label: "Doanh số bán", value: (row) => saleRevenue(row), width: 18, type: "number" },
-    { label: "Doanh số trả lại", value: (row) => returnRevenue(row), width: 18, type: "number" },
-    { label: "Doanh số bán thực tế", value: (row) => saleRevenue(row) - returnRevenue(row), width: 22, type: "number" },
+    { label: "Doanh thu", value: (row) => saleRevenue(row), width: 18, type: "number" },
+    { label: "Giá trị trả lại", value: (row) => returnRevenue(row), width: 18, type: "number" },
+    { label: "Doanh thu thuần", value: (row) => saleRevenue(row) - returnRevenue(row), width: 22, type: "number" },
     { label: "SL trả lại theo ĐVC", value: (row) => row.return_qty, width: 18, type: "number" },
     { label: "SL bán thực tế theo ĐVC", value: (row) => Number(row.sale_qty || 0) - Number(row.return_qty || 0), width: 22, type: "number" },
     { label: "Mã nhân viên bán hàng", value: (row) => row.sale_user_code, width: 20 },
@@ -74,7 +77,7 @@ const COLUMNS: ExportColumn[] = [
     { label: "SL_L_B2B", value: (row) => row.sl_lb2b, width: 14, type: "number" },
     { label: "SL_HDN", value: (row) => row.sl_hdn, width: 14, type: "number" },
     { label: "DIEM_HDN", value: (row) => row.diem_hdn, width: 14, type: "number" },
-    { label: "THANG_XU_LY", value: (row) => row.process_month, width: 14, type: "number" },
+    { label: "Tháng xử lý", value: (row) => formatProcessMonth(row.process_month), width: 14 },
     { label: "NPP", value: (row) => row.npp, width: 16 },
     { label: "MA_HOP _LE", value: (row) => row.valid_code, width: 16 },
     { label: "TINH_TRANG_HDN", value: (row) => row.hdn_status, width: 18 },
@@ -98,11 +101,14 @@ export function ExportTransactionButton({ keyword, filters }: Props) {
                 product_code: filters.product_code || undefined,
                 product_name: filters.product_name || undefined,
                 product_group_name: filters.product_group_name || undefined,
+                sale_user_name: filters.sale_user_name || undefined,
                 unit: filters.unit || undefined,
                 customer_type: filters.customer_type || undefined,
+                is_gift: filters.is_gift || undefined,
                 npp: filters.npp || undefined,
                 hdn_status: filters.hdn_status || undefined,
                 region: filters.region || undefined,
+                time_sort: filters.time_sort || undefined,
                 document_date_from: filters.document_date_from || undefined,
                 document_date_to: filters.document_date_to || undefined,
             })
@@ -260,6 +266,14 @@ function parseDate(value?: string) {
     }
 
     return value
+}
+
+function formatProcessMonth(value?: number | string) {
+    if (value == null || value === "") return ""
+    const raw = String(value).trim()
+    const match = raw.match(/^(\d{4})(\d{2})$/)
+    if (!match) return raw
+    return `${match[2]} - ${match[1]}`
 }
 
 function formatExportPeriod(from?: string, to?: string) {

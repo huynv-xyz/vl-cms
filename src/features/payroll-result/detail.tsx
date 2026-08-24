@@ -1,13 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { useMemo, useState, type ReactNode } from "react"
 import { getPayrollResultDetail } from "@/api/salary/payroll-result"
-import { updateTransactionNpp } from "@/api/transactions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { toast } from "sonner"
 import {
   ArrowLeft,
   Banknote,
@@ -162,7 +160,6 @@ function Progress({ value }: { value: number }) {
 }
 
 export default function PayrollDetailPage({ employeeId, period }: Props) {
-  const queryClient = useQueryClient()
   const [b2bLineKeyword, setB2bLineKeyword] = useState("")
   const [b2bLinePp, setB2bLinePp] = useState("ALL")
   const [b2bLineSource, setB2bLineSource] = useState("ALL")
@@ -172,22 +169,6 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
     queryFn: () => getPayrollResultDetail(period, employeeId),
     enabled: !!period && employeeId > 0,
   })
-  const clearB2bMutation = useMutation({
-    mutationFn: (transactionId: number) => {
-      if (!Number.isFinite(transactionId) || transactionId <= 0) {
-        throw new Error("Dòng này chưa có transaction_id. Cần restart backend để lấy dữ liệu mới.")
-      }
-      return updateTransactionNpp(transactionId, "")
-    },
-    onSuccess: () => {
-      toast.success("Đã loại dòng khỏi B2B")
-      queryClient.invalidateQueries({ queryKey: ["payroll-result-detail", period, employeeId] })
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Loại dòng khỏi B2B thất bại")
-    },
-  })
-
   const payroll = data?.payroll
   const performance = data?.performance
   const incomeItems = data?.monthly_items.filter((item) => item.item_type === "INCOME") ?? []
@@ -540,7 +521,6 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
                           <th className="px-3 py-2 text-right font-medium">Số lượng</th>
                           <th className="px-3 py-2 text-right font-medium">Đơn giá</th>
                           <th className="px-3 py-2 text-right font-medium">Thành tiền</th>
-                          <th className="px-3 py-2 text-right font-medium">Thao tác</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -577,29 +557,11 @@ export default function PayrollDetailPage({ employeeId, period }: Props) {
                             <td className="px-3 py-2 text-right tabular-nums">{fmt(item.quantity)}</td>
                             <td className="px-3 py-2 text-right tabular-nums">{money(item.unit_rate)}</td>
                             <td className="px-3 py-2 text-right font-semibold text-emerald-700 tabular-nums">{money(item.amount)}</td>
-                          <td className="px-3 py-2 text-right">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                                disabled={clearB2bMutation.isPending || !item.transaction_id}
-                                title={!item.transaction_id ? "Cần restart backend để API trả transaction_id" : "Xóa NPP để loại dòng khỏi B2B"}
-                                onClick={() => {
-                                  if (!item.transaction_id) {
-                                    toast.error("Dòng này chưa có transaction_id. Cần restart backend để lấy dữ liệu mới.")
-                                    return
-                                  }
-                                  clearB2bMutation.mutate(item.transaction_id)
-                                }}
-                            >
-                              Loại khỏi B2B
-                            </Button>
-                            </td>
                           </tr>
                         ))}
                         {filteredB2bLines.length === 0 ? (
                           <tr>
-                            <td className="px-3 py-8 text-center text-muted-foreground" colSpan={11}>
+                            <td className="px-3 py-8 text-center text-muted-foreground" colSpan={10}>
                               Không có dòng phù hợp với bộ lọc hiện tại.
                             </td>
                           </tr>

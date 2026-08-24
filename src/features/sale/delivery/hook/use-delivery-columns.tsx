@@ -29,6 +29,7 @@ import {
     getDeliveryStatusMeta,
     getNextDeliveryStatuses,
 } from "../components/delivery-status"
+import { formatDeliveryDate } from "../components/delivery-date"
 
 export function useDeliveryColumns() {
     const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -124,7 +125,7 @@ export function useDeliveryColumns() {
             cell: ({ row }) => (
                 <div className="inline-flex w-full items-center gap-1.5 text-sm tabular-nums">
                     <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="font-medium">{formatDate(row.original.delivery_date)}</span>
+                    <span className="font-medium">{formatDeliveryDate(row.original.delivery_date)}</span>
                 </div>
             ),
         },
@@ -263,12 +264,3 @@ function DeliveryStatusSelect({
     )
 }
 
-function formatDate(value?: string) {
-    if (!value) return "—"
-    const [date] = value.split("T")
-    const parts = date.split("-")
-    if (parts.length === 3 && parts[0].length === 4) {
-        return `${parts[2]}/${parts[1]}/${parts[0]}`
-    }
-    return date
-}

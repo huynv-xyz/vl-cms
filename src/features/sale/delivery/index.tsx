@@ -8,6 +8,7 @@ import { useUrlListFilters } from '@/hooks/use-url-list-filters'
 import { listDeliveries } from '@/api/sale/delivery'
 import { DeliveriesProvider } from './components/deliverys-provider'
 import { CreateDeliveryButton } from './components/create-delivery-button'
+import { ExportDeliveriesButton } from './components/export-deliveries-button'
 
 export default function DeliveryPage() {
     const search = Route.useSearch()
@@ -72,14 +73,48 @@ export default function DeliveryPage() {
         },
     )
 
+    const requestParams = {
+        keyword,
+        status: requestFilters.status,
+        order_id: requestFilters.order_id
+            ? Number(requestFilters.order_id)
+            : undefined,
+        customer_id: requestFilters.customer_id
+            ? Number(requestFilters.customer_id)
+            : undefined,
+        warehouse_id: requestFilters.warehouse_id
+            ? Number(requestFilters.warehouse_id)
+            : undefined,
+        company_id: requestFilters.company_id
+            ? Number(requestFilters.company_id)
+            : undefined,
+        from_date: requestFilters.from_date,
+        to_date: requestFilters.to_date,
+    }
+
     return (
         <DeliveriesProvider>
             <PageSection
                 isLoading={isLoading}
                 error={error}
                 title="Giao hàng"
-                description="Quản lý phiếu giao, theo dõi trạng thái và lịch giao hàng theo đơn."
-                actions={<CreateDeliveryButton />}
+                actions={
+                    <div className="flex items-center gap-2">
+                        <ExportDeliveriesButton
+                            keyword={keyword}
+                            filters={{
+                                status: requestParams.status,
+                                order_id: requestParams.order_id,
+                                customer_id: requestParams.customer_id,
+                                warehouse_id: requestParams.warehouse_id,
+                                company_id: requestParams.company_id,
+                                from_date: requestParams.from_date,
+                                to_date: requestParams.to_date,
+                            }}
+                        />
+                        <CreateDeliveryButton />
+                    </div>
+                }
                 data={data}
             >
                 {(data) => (
@@ -92,7 +127,10 @@ export default function DeliveryPage() {
                             pageCount={data.total_page}
 
                             keyword={keyword}
-                            onKeywordChange={setKeyword}
+                            onKeywordChange={(value) => {
+                                setPagination((p) => ({ ...p, pageIndex: 0 }))
+                                setKeyword(value)
+                            }}
 
                             filters={{
                                 status: multiFilters.status,
@@ -113,6 +151,7 @@ export default function DeliveryPage() {
                             }}
 
                             onFiltersChange={(next) => {
+                                setPagination((p) => ({ ...p, pageIndex: 0 }))
                                 setMultiFilters({
                                     status: next.status,
                                 })

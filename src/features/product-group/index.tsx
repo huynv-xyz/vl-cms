@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Check, ChevronsUpDown, Plus } from "lucide-react"
 import { toast } from "sonner"
 
+import { listProductGroupPpStatusLookups } from "@/api/app-lookup"
 import {
     createProductGroup,
     deleteProductGroup,
@@ -78,6 +79,11 @@ export default function ProductGroupPage() {
                     ) : null}
                 </div>
             ),
+        },
+        {
+            accessorKey: "pp_status",
+            header: "Tình trạng PP",
+            cell: ({ row }) => row.original.pp_status || "-",
         },
         { accessorKey: "standard_unit", header: "Đơn vị chuẩn" },
         {
@@ -172,8 +178,14 @@ function ProductGroupDialog({
         queryFn: listParentVthhOptions,
         enabled: open,
     })
+    const ppStatusQuery = useQuery({
+        queryKey: ["app-lookups", "PRODUCT_GROUP_PP_STATUS"],
+        queryFn: () => listProductGroupPpStatusLookups({ page: 1, size: 100 }),
+        enabled: open,
+    })
 
     const options = optionsQuery.data ?? []
+    const ppStatusOptions = ppStatusQuery.data?.items ?? []
 
     useEffect(() => {
         if (!open) return
@@ -255,6 +267,7 @@ function ProductGroupDialog({
             name: form.name.trim(),
             parent_vthh_code: parentName ? parentCode : "",
             parent_vthh_name: parentName,
+            pp_status: form.pp_status || "",
             description: form.description.trim(),
             standard_unit: form.standard_unit || "KG",
             default_price_method: (form.default_price_method || "LATEST") as ProductGroup["default_price_method"],
@@ -322,6 +335,16 @@ function ProductGroupDialog({
                                 </Field>
                             </>
                         ) : null}
+                        <Field label="Tình trạng PP">
+                            <NativeSelect
+                                value={form.pp_status}
+                                onChange={(value) => updateField("pp_status", value)}
+                                options={[
+                                    ["", "Chọn tình trạng PP"],
+                                    ...ppStatusOptions.map((option) => [option.code, option.name] as [string, string]),
+                                ]}
+                            />
+                        </Field>
                         <Field label="Đơn vị chuẩn">
                             <NativeSelect
                                 value={form.standard_unit}
@@ -408,6 +431,7 @@ type ProductGroupForm = {
     name: string
     parent_vthh_code: string
     parent_vthh_name: string
+    pp_status: string
     description: string
     standard_unit: string
     default_price_method: string
@@ -423,6 +447,7 @@ function buildForm(entity?: ProductGroup): ProductGroupForm {
         name: entity?.name ?? "",
         parent_vthh_code: entity?.parent_vthh_code ?? "",
         parent_vthh_name: entity?.parent_vthh_name ?? "",
+        pp_status: entity?.pp_status ?? "",
         description: entity?.description ?? "",
         standard_unit: entity?.standard_unit ?? "KG",
         default_price_method: entity?.default_price_method ?? "LATEST",

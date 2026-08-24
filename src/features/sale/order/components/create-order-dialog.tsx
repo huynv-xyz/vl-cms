@@ -21,6 +21,7 @@ const initialOrderItems = () => [
 function buildInitialHeader(initialData?: any) {
     return {
         customer_id: initialData?.customer_id ?? initialData?.customer?.id ?? undefined,
+        customer_type: initialData?.customer?.type ?? undefined,
         employee_id: initialData?.employee_id ?? initialData?.employee?.id ?? undefined,
         order_date: normalizeDate(initialData?.order_date) || new Date().toISOString().slice(0, 10),
         status: "NEW",
@@ -40,6 +41,7 @@ function buildInitialItems(initialData?: any) {
         discount: item.discount ?? 0,
         line_type: item.line_type ?? "NORMAL",
         hdn_status: item.hdn_status ?? undefined,
+        pp_status: item.pp_status ?? undefined,
         description: item.description ?? "",
         note: item.note ?? "",
     }))
@@ -70,6 +72,7 @@ export function CreateOrderDialog({ open, onOpenChange, initialData }: any) {
                 discount: item.discount ?? 0,
                 line_type: item.line_type ?? "NORMAL",
                 hdn_status: item.hdn_status === "KO" ? "KO" : undefined,
+                pp_status: item.pp_status ?? undefined,
                 description: item.description ?? "",
                 note: item.note ?? "",
             })),

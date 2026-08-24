@@ -106,10 +106,19 @@ function resolveConfiguredAccount(value: string | null | undefined, productAccou
 }
 
 function resolveLineAccounts(line: VoucherLine, voucherType?: InventoryVoucherType) {
+    const rule = findAccountRule(voucherType, isTwoSidedVoucherType(voucherType?.code) ? "OUTBOUND" : "DEFAULT")
     return {
-        tk_no: resolveConfiguredAccount(voucherType?.tk_no, line.product_inventory_account),
-        tk_co: resolveConfiguredAccount(voucherType?.tk_co, line.product_inventory_account),
+        tk_no: resolveConfiguredAccount(rule?.tk_no ?? voucherType?.tk_no, line.product_inventory_account),
+        tk_co: resolveConfiguredAccount(rule?.tk_co ?? voucherType?.tk_co, line.product_inventory_account),
     }
+}
+
+function findAccountRule(voucherType: InventoryVoucherType | undefined, side: string) {
+    return voucherType?.account_rules?.find((rule) => rule.movement_side === side)
+}
+
+function isTwoSidedVoucherType(code: string | undefined) {
+    return code === "TRANSFER_EXPORT" || code === "TRANSPORT_EXPORT"
 }
 
 export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
@@ -471,8 +480,8 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                     amount: quantity * unitPrice,
                     lot_code: line.lot_code.trim() ? line.lot_code.trim() : undefined,
                     expiry_date: lineInbound && line.expiry_date ? line.expiry_date : undefined,
-                    tk_no: line.tk_no.trim() ? line.tk_no.trim() : undefined,
-                    tk_co: line.tk_co.trim() ? line.tk_co.trim() : undefined,
+                    tk_no: !isTransfer && line.tk_no.trim() ? line.tk_no.trim() : undefined,
+                    tk_co: !isTransfer && line.tk_co.trim() ? line.tk_co.trim() : undefined,
                     note: line.note.trim() || undefined,
                 }
             }),
@@ -812,14 +821,16 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                                 <Input
                                                     value={line.tk_no}
                                                     onChange={(event) => updateLine(line.id, { tk_no: event.target.value })}
-                                                    placeholder={selectedVoucherType?.tk_no === PRODUCT_ACCOUNT_MARKER ? "Theo sản phẩm" : "TK Nợ"}
+                                                    disabled={isTransfer}
+                                                    placeholder={isTransfer ? "Theo cấu hình vế xuất/nhập" : selectedVoucherType?.tk_no === PRODUCT_ACCOUNT_MARKER ? "Theo sản phẩm" : "TK Nợ"}
                                                 />
                                             </td>
                                             <td className="px-3 py-2">
                                                 <Input
                                                     value={line.tk_co}
                                                     onChange={(event) => updateLine(line.id, { tk_co: event.target.value })}
-                                                    placeholder={selectedVoucherType?.tk_co === PRODUCT_ACCOUNT_MARKER ? "Theo sản phẩm" : "TK Có"}
+                                                    disabled={isTransfer}
+                                                    placeholder={isTransfer ? "Theo cấu hình vế xuất/nhập" : selectedVoucherType?.tk_co === PRODUCT_ACCOUNT_MARKER ? "Theo sản phẩm" : "TK Có"}
                                                 />
                                             </td>
                                             <td className="px-3 py-2">

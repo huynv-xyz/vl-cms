@@ -1,18 +1,12 @@
 import { type ColumnDef } from "@tanstack/react-table"
 import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { listProductUnitLookups } from "@/api/app-lookup"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { DataTableColumnHeader } from "@/components/table/column-header"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import {
     Command,
     CommandEmpty,
@@ -29,8 +23,7 @@ import {
 } from "@/components/ui/popover"
 import { cn, formatCurrency } from "@/lib/utils"
 import { Check, Funnel, MoreHorizontal, Pencil, X } from "lucide-react"
-import { toast } from "sonner"
-import { listTransactionOptions, updateTransactionNpp } from "@/api/transactions"
+import { listTransactionOptions } from "@/api/transactions"
 import type { Transaction } from "../data/schema"
 
 type TextColumnKey = keyof Transaction
@@ -41,8 +34,10 @@ export type TransactionColumnFilters = {
     product_code?: string[]
     product_name?: string[]
     product_group_name?: string[]
+    sale_user_name?: string[]
     unit?: string[]
     customer_type?: string[]
+    is_gift?: string[]
     npp?: string[]
     hdn_status?: string[]
     region?: string
@@ -50,7 +45,16 @@ export type TransactionColumnFilters = {
     document_date_to?: string
 }
 
-type FilterableColumnKey = "customer_code" | "customer_name" | "product_code" | "product_name"
+type FilterableColumnKey =
+    | "customer_code"
+    | "customer_name"
+    | "product_code"
+    | "product_name"
+    | "product_group_name"
+    | "sale_user_name"
+    | "customer_type"
+    | "is_gift"
+    | "npp"
 type ColumnMultiFilterKey = FilterableColumnKey | "unit"
 
 function textColumn(
@@ -87,16 +91,17 @@ function numberColumn(
     width = 120,
     footer?: React.ReactNode,
     minWidth = 100,
+    header?: ColumnDef<Transaction>["header"],
 ): ColumnDef<Transaction> {
     return {
         accessorKey: accessorKey as string,
         enableSorting: false,
         minSize: Math.min(width, minWidth),
-        header: ({ column }) => (
+        header: header ?? (({ column }) => (
             <div className="text-right">
                 <DataTableColumnHeader column={column} title={title} />
             </div>
-        ),
+        )),
         cell: ({ row }) => {
             const value = Number(row.getValue(accessorKey as string) ?? 0)
             return (
@@ -250,55 +255,44 @@ function dateColumn(
     }
 }
 
-function NppCell({ row }: { row: Transaction }) {
-    const [value, setValue] = useState(row.npp || "")
-    const [saving, setSaving] = useState(false)
-
-    useEffect(() => {
-        setValue(row.npp || "")
-    }, [row.id, row.npp])
-
-    const save = async (next: string) => {
-        const previous = value
-        setValue(next)
-        setSaving(true)
-        try {
-            await updateTransactionNpp(row.id, next)
-            toast.success(next ? "Đã cập nhật NPP" : "Đã xóa NPP")
-        } catch (error) {
-            setValue(previous)
-            toast.error(error instanceof Error ? error.message : "Cập nhật NPP thất bại")
-        } finally {
-            setSaving(false)
-        }
+function DocumentNoCell({ row }: { row: Transaction }) {
+    const value = row.document_no || "-"
+    if (!row.order_id) {
+        return <span className="block truncate text-sm" title={value}>{value}</span>
     }
 
     return (
-        <div className="flex items-center gap-1">
-            <Select value={value || undefined} onValueChange={save} disabled={saving}>
-                <SelectTrigger size="sm" className="h-8 w-[92px] bg-white px-2">
-                    <SelectValue placeholder="-" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="PPH">PPH</SelectItem>
-                    <SelectItem value="PPL">PPL</SelectItem>
-                    <SelectItem value="PPN.C">PPN.C</SelectItem>
-                    <SelectItem value="PPN.K">PPN.K</SelectItem>
-                </SelectContent>
-            </Select>
-            <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                disabled={saving || !value}
-                onClick={() => save("")}
-                title="Xóa NPP"
-            >
-                <X className="h-4 w-4" />
-            </Button>
-        </div>
+        <Link
+            to="/sales/orders/$id"
+            params={{ id: String(row.order_id) }}
+            search={{ return_to: undefined }}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary block truncate text-sm font-semibold hover:underline"
+            title={`Mở đơn hàng #${row.order_id}`}
+        >
+            {value}
+        </Link>
     )
+}
+
+function processMonthColumn(): ColumnDef<Transaction> {
+    return {
+        accessorKey: "process_month",
+        enableSorting: false,
+        minSize: 110,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Tháng xử lý" />,
+        cell: ({ row }) => (
+            <span className="block whitespace-nowrap text-sm tabular-nums">
+                {formatProcessMonth(row.getValue("process_month"))}
+            </span>
+        ),
+        size: 130,
+        meta: {
+            thClassName: "w-[130px] whitespace-nowrap",
+            tdClassName: "w-[130px] whitespace-nowrap",
+        },
+    }
 }
 
 export function buildTransactionColumns(
@@ -315,6 +309,7 @@ export function buildTransactionColumns(
     options: {
         canUseCorrections?: boolean
         onEditUnitPrice?: (row: Transaction) => void
+        nppFilterOptions?: Option[]
     } = {},
 ): ColumnDef<Transaction>[] {
     const setColumnFilter = (key: ColumnMultiFilterKey, value?: string[]) => {
@@ -331,6 +326,7 @@ export function buildTransactionColumns(
             value={filters[key]}
             filters={filters}
             onChange={(value) => setColumnFilter(key, value)}
+            staticOptions={key === "npp" ? options.nppFilterOptions : undefined}
         />
     )
 
@@ -366,7 +362,18 @@ export function buildTransactionColumns(
             },
         },
         dateColumn("document_date", "Ngày chứng từ", 125),
-        textColumn("document_no", "Số chứng từ", 150),
+        {
+            accessorKey: "document_no",
+            enableSorting: false,
+            minSize: 110,
+            header: ({ column }) => <DataTableColumnHeader column={column} title="Số chứng từ" />,
+            cell: ({ row }) => <DocumentNoCell row={row.original} />,
+            size: 150,
+            meta: {
+                thClassName: "w-[150px] whitespace-nowrap",
+                tdClassName: "w-[150px] max-w-[150px]",
+            },
+        },
         textColumn("customer_code", "Mã khách hàng", 180, () => filterHeader("customer_code", "Mã khách hàng")),
         textColumn("customer_name", "Tên khách hàng", 260, () => filterHeader("customer_name", "Tên khách hàng")),
         textColumn("customer_address", "Địa chỉ", 300),
@@ -390,7 +397,7 @@ export function buildTransactionColumns(
         moneyColumn("unit_price", "Đơn giá theo ĐVC", 150),
         computedMoneyColumn({
             id: "sale_revenue",
-            title: "Doanh số bán",
+            title: "Doanh thu",
             width: 170,
             value: saleRevenue,
             footer: (
@@ -401,7 +408,7 @@ export function buildTransactionColumns(
         }),
         computedMoneyColumn({
             id: "return_revenue",
-            title: "Doanh số trả lại",
+            title: "Giá trị trả lại",
             width: 180,
             value: returnRevenue,
             footer: (
@@ -412,7 +419,7 @@ export function buildTransactionColumns(
         }),
         computedMoneyColumn({
             id: "actual_revenue",
-            title: "Doanh số bán thực tế",
+            title: "Doanh thu thuần",
             width: 190,
             value: (row) => saleRevenue(row) - returnRevenue(row),
             footer: (
@@ -431,16 +438,31 @@ export function buildTransactionColumns(
         ),
         actualQuantityColumn(totals.actualQty),
         textColumn("sale_user_code", "Mã nhân viên bán hàng", 180),
-        textColumn("sale_user_name", "Tên nhân viên bán hàng", 220),
+        textColumn("sale_user_name", "Tên nhân viên bán hàng", 220, () => filterHeader("sale_user_name", "Tên nhân viên bán hàng")),
         textColumn("warehouse_code", "Mã kho", 120),
         textColumn("warehouse_name", "Tên kho", 180),
         textColumn("description", "Mô tả HH", 260),
         textColumn("contact_name", "Người liên hệ", 180),
         textColumn("vthh_con", "VTHH_CON", 140),
-        textColumn("vthh_group_name", "Tên nhóm VTHH", 180),
-        textColumn("customer_type", "PHÂN_LOẠI_KH", 140),
+        textColumn("vthh_group_name", "Tên nhóm VTHH", 180, () => filterHeader("product_group_name", "Tên nhóm VTHH")),
+        textColumn("customer_type", "PHÂN_LOẠI_KH", 140, () => filterHeader("customer_type", "PHÂN_LOẠI_KH")),
         textColumn("ext_detail_2", "Trường mở rộng chi tiết 2", 280),
-        numberColumn("is_gift", "HÀNG_TẶNG", 120),
+        numberColumn("is_gift", "HÀNG_TẶNG", 220, undefined, 190, () => filterHeader("is_gift", "HÀNG_TẶNG")),
+        {
+            accessorKey: "npp",
+            enableSorting: false,
+            minSize: 140,
+            size: 150,
+            header: () => filterHeader("npp", "NPP"),
+            cell: ({ row }) => {
+                const value = row.original.npp
+                return <span className="block truncate text-sm" title={value || ""}>{value || "-"}</span>
+            },
+            meta: {
+                thClassName: "w-[150px] whitespace-nowrap",
+                tdClassName: "w-[150px] whitespace-nowrap",
+            },
+        },
         textColumn("private_code", "MÃ_RIÊNG", 150),
         numberColumn("sl_rieng_tl", "SL_RIÊNG_TL", 140),
         numberColumn("sl_tl_nhom", "SL_TL_NHÓM", 140),
@@ -448,19 +470,7 @@ export function buildTransactionColumns(
         numberColumn("sl_lb2b", "SL_L_B2B", 120),
         numberColumn("sl_hdn", "SL_HDN", 110),
         numberColumn("diem_hdn", "DIEM_HDN", 120),
-        numberColumn("process_month", "THANG_XU_LY", 130),
-        {
-            accessorKey: "npp",
-            enableSorting: false,
-            minSize: 140,
-            size: 150,
-            header: ({ column }) => <DataTableColumnHeader column={column} title="NPP" />,
-            cell: ({ row }) => <NppCell row={row.original} />,
-            meta: {
-                thClassName: "w-[150px] whitespace-nowrap",
-                tdClassName: "w-[150px] whitespace-nowrap",
-            },
-        },
+        processMonthColumn(),
         textColumn("valid_code", "MA_HOP _LE", 130),
         textColumn("hdn_status", "TINH_TRANG_HDN", 160),
         textColumn("common_group", "NHÓM-CHUNG", 150),
@@ -514,7 +524,24 @@ type Option = {
     label: string
 }
 
-let reopenFilterField: FilterableColumnKey | null = null
+const NO_NPP_VALUE = "__NO_NPP__"
+
+const CUSTOMER_TYPE_FILTER_OPTIONS: Option[] = [
+    { value: "B2B", label: "B2B" },
+    { value: "B2C", label: "B2C" },
+    { value: "MB_B2B", label: "MB B2B" },
+]
+
+const IS_GIFT_FILTER_OPTIONS: Option[] = [
+    { value: "0", label: "0 - Không tặng" },
+    { value: "1", label: "1 - Hàng tặng" },
+]
+
+function staticColumnOptions(field: FilterableColumnKey): Option[] | null {
+    if (field === "customer_type") return CUSTOMER_TYPE_FILTER_OPTIONS
+    if (field === "is_gift") return IS_GIFT_FILTER_OPTIONS
+    return null
+}
 
 function ColumnFilterHeader({
     title,
@@ -522,32 +549,40 @@ function ColumnFilterHeader({
     value,
     filters,
     onChange,
+    staticOptions: staticOptionsProp,
 }: {
     title: string
     field: FilterableColumnKey
     value?: string[]
     filters: TransactionColumnFilters
     onChange: (value?: string[]) => void
+    staticOptions?: Option[]
 }) {
     const selected = value ?? []
     const [open, setOpen] = useState(false)
     const [keyword, setKeyword] = useState("")
     const [loading, setLoading] = useState(false)
     const [options, setOptions] = useState<Option[]>([])
+    const [draftSelected, setDraftSelected] = useState<string[]>(selected)
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-    const keepOpenAfterSelectRef = useRef(false)
+    const staticOptions = useMemo(() => staticOptionsProp ?? staticColumnOptions(field), [field, staticOptionsProp])
 
-    const selectedSet = useMemo(() => new Set(selected.map(String)), [selected])
+    const draftSelectedSet = useMemo(() => new Set(draftSelected.map(String)), [draftSelected])
 
     useEffect(() => {
-        if (reopenFilterField === field) {
-            reopenFilterField = null
-            setOpen(true)
+        if (open) {
+            setDraftSelected(selected)
+            setKeyword("")
         }
-    }, [field])
+    }, [open, selected])
 
     useEffect(() => {
         if (!open) return
+        if (staticOptions) {
+            setOptions(staticOptions)
+            setLoading(false)
+            return
+        }
         if (debounceRef.current) clearTimeout(debounceRef.current)
 
         debounceRef.current = setTimeout(async () => {
@@ -571,36 +606,36 @@ function ColumnFilterHeader({
         return () => {
             if (debounceRef.current) clearTimeout(debounceRef.current)
         }
-    }, [open, keyword, field, filters])
+    }, [open, keyword, field, filters, staticOptions])
 
     const allOptions = useMemo(() => {
         const map = new Map<string, Option>()
         selected.forEach((item) => map.set(item, { value: item, label: item }))
+        draftSelected.forEach((item) => map.set(item, { value: item, label: item }))
         options.forEach((item) => map.set(item.value, item))
         return Array.from(map.values())
-    }, [options, selected])
+    }, [options, selected, draftSelected])
 
-    const selectedOptions = allOptions.filter((item) => selectedSet.has(item.value))
-    const unselectedOptions = allOptions.filter((item) => !selectedSet.has(item.value))
+    const selectedOptions = allOptions.filter((item) => draftSelectedSet.has(item.value))
+    const unselectedOptions = allOptions.filter((item) => !draftSelectedSet.has(item.value))
 
     const toggle = (option: Option) => {
-        keepOpenAfterSelectRef.current = true
-        reopenFilterField = field
-        const next = new Set(selectedSet)
+        const next = new Set(draftSelectedSet)
         if (next.has(option.value)) {
             next.delete(option.value)
         } else {
             next.add(option.value)
         }
-        onChange(Array.from(next))
-        window.setTimeout(() => setOpen(true), 0)
+        setDraftSelected(Array.from(next))
     }
 
     const clear = () => {
-        keepOpenAfterSelectRef.current = true
-        reopenFilterField = field
-        onChange(undefined)
-        window.setTimeout(() => setOpen(true), 0)
+        setDraftSelected([])
+    }
+
+    const apply = () => {
+        onChange(draftSelected.length ? draftSelected : undefined)
+        setOpen(false)
     }
 
     return (
@@ -608,14 +643,7 @@ function ColumnFilterHeader({
             <span className="truncate">{title}</span>
             <Popover
                 open={open}
-                onOpenChange={(next) => {
-                    if (!next && keepOpenAfterSelectRef.current) {
-                        keepOpenAfterSelectRef.current = false
-                        window.setTimeout(() => setOpen(true), 0)
-                        return
-                    }
-                    setOpen(next)
-                }}
+                onOpenChange={setOpen}
             >
                 <PopoverTrigger asChild>
                     <Button
@@ -636,11 +664,13 @@ function ColumnFilterHeader({
                 </PopoverTrigger>
                 <PopoverContent className="w-[360px] p-0" align="start">
                     <Command shouldFilter={false}>
-                        <CommandInput
-                            placeholder={`Tìm ${title.toLowerCase()}...`}
-                            value={keyword}
-                            onValueChange={setKeyword}
-                        />
+                        {staticOptions ? null : (
+                            <CommandInput
+                                placeholder={`Tìm ${title.toLowerCase()}...`}
+                                value={keyword}
+                                onValueChange={setKeyword}
+                            />
+                        )}
                         <CommandList className="max-h-[420px] overflow-y-auto">
                             <CommandEmpty>{loading ? "Đang tải..." : "Không có dữ liệu"}</CommandEmpty>
 
@@ -678,17 +708,16 @@ function ColumnFilterHeader({
                                 ))}
                             </CommandGroup>
 
-                            {selected.length > 0 ? (
-                                <CommandItem
-                                    onMouseDown={(event) => event.preventDefault()}
-                                    onSelect={clear}
-                                    className="justify-center text-center text-muted-foreground"
-                                >
-                                    Xóa bộ lọc
-                                </CommandItem>
-                            ) : null}
                         </CommandList>
                     </Command>
+                    <div className="flex items-center justify-between gap-2 border-t p-2">
+                        <Button type="button" variant="ghost" size="sm" disabled={!draftSelected.length} onClick={clear}>
+                            Xóa
+                        </Button>
+                        <Button type="button" size="sm" onClick={apply}>
+                            Áp dụng
+                        </Button>
+                    </div>
                 </PopoverContent>
             </Popover>
         </div>
@@ -701,9 +730,12 @@ function buildOptionParams(filters: TransactionColumnFilters, currentField: Filt
         customer_name: currentField === "customer_name" ? undefined : encodeMulti(filters.customer_name),
         product_code: currentField === "product_code" ? undefined : encodeMulti(filters.product_code),
         product_name: currentField === "product_name" ? undefined : encodeMulti(filters.product_name),
+        sale_user_name: currentField === "sale_user_name" ? undefined : encodeMulti(filters.sale_user_name),
         unit: encodeMulti(filters.unit),
-        product_group_name: encodeMulti(filters.product_group_name),
-        customer_type: encodeMulti(filters.customer_type),
+        product_group_name: currentField === "product_group_name" ? undefined : encodeMulti(filters.product_group_name),
+        customer_type: currentField === "customer_type" ? undefined : encodeMulti(filters.customer_type),
+        is_gift: currentField === "is_gift" ? undefined : encodeMulti(filters.is_gift),
+        npp: currentField === "npp" ? undefined : encodeMulti(filters.npp),
         hdn_status: encodeMulti(filters.hdn_status),
         region: filters.region,
         document_date_from: filters.document_date_from,
@@ -842,6 +874,14 @@ function formatNumber(value: number) {
     return value.toLocaleString("en-US", {
         maximumFractionDigits: 6,
     })
+}
+
+function formatProcessMonth(value: unknown) {
+    if (value == null || value === "") return "-"
+    const raw = String(value).trim()
+    const match = raw.match(/^(\d{4})(\d{2})$/)
+    if (!match) return raw
+    return `${match[2]} - ${match[1]}`
 }
 
 function formatDate(value: unknown) {

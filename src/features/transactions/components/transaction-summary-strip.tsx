@@ -26,19 +26,19 @@ export function TransactionSummaryStrip({
         <div className="grid gap-2 md:grid-cols-3 2xl:grid-cols-6">
             <MetricCard
                 icon={ArrowUpRight}
-                label="Doanh số bán"
+                label="Doanh thu"
                 value={isLoading ? loadingText : formatCurrency(revenue)}
                 tone="credit"
             />
             <MetricCard
                 icon={ArrowDownLeft}
-                label="Doanh số trả lại"
+                label="Giá trị trả lại"
                 value={isLoading ? loadingText : formatCurrency(returnRevenue)}
                 tone="debit"
             />
             <MetricCard
                 icon={Calculator}
-                label="Doanh số bán thực tế"
+                label="Doanh thu thuần"
                 value={isLoading ? loadingText : formatCurrency(actualRevenue)}
                 tone="closing"
             />

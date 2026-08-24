@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react"
 import type React from "react"
 import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import {
     AlertTriangle,
@@ -81,6 +82,7 @@ type Props = {
     filters: SummaryFilters
     onFiltersChange: (f: SummaryFilters) => void
     showValues?: boolean
+    salesInventoryVisibleOnly?: boolean
 }
 
 type ExportColumn = {
@@ -214,6 +216,7 @@ export function SummaryTable({
     filters,
     onFiltersChange,
     showValues = true,
+    salesInventoryVisibleOnly = false,
 }: Props) {
     const { data: natureLookupPage } = useQuery({
         queryKey: ["inventory-summary-product-nature-lookups"],
@@ -505,6 +508,7 @@ export function SummaryTable({
 
                         <WarehouseTreeFilter
                             value={filters.warehouse_ids || []}
+                            salesInventoryVisibleOnly={salesInventoryVisibleOnly}
                             onChange={(value) =>
                                 onFiltersChange({
                                     ...filters,
@@ -767,15 +771,45 @@ function SummaryRow({
     natureLabelMap: Map<string, string>
 }) {
     const status = getInventoryStatus(item)
+    const ledgerSearch = (prev: any) => ({
+        ...prev,
+        product_ids: String(item.product_id),
+        page: 1,
+        size: 50,
+    })
 
     return (
         <tr className="hover:bg-muted/30 border-b">
             <Td className="text-muted-foreground text-center font-mono">{formatNumber(index)}</Td>
             <Td className="text-muted-foreground text-center font-mono text-xs">
-                {item.product_code || "-"}
+                {item.product_id ? (
+                    <Link
+                        to="/inventory/ledgers"
+                        search={ledgerSearch}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline-offset-2 hover:underline"
+                    >
+                        {item.product_code || "-"}
+                    </Link>
+                ) : (
+                    item.product_code || "-"
+                )}
             </Td>
             <Td className="font-semibold text-foreground">
-                {item.product_name || "-"}
+                {item.product_id ? (
+                    <Link
+                        to="/inventory/ledgers"
+                        search={ledgerSearch}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline-offset-2 hover:underline"
+                    >
+                        {item.product_name || "-"}
+                    </Link>
+                ) : (
+                    item.product_name || "-"
+                )}
             </Td>
             <Td className="text-muted-foreground text-center">{item.unit || "-"}</Td>
             <Td className="text-muted-foreground text-center font-mono text-xs">
@@ -828,9 +862,11 @@ function SummaryRow({
 function WarehouseTreeFilter({
     value,
     onChange,
+    salesInventoryVisibleOnly = false,
 }: {
     value: number[]
     onChange: (value: number[]) => void
+    salesInventoryVisibleOnly?: boolean
 }) {
     const [open, setOpen] = useState(false)
     const [draftValue, setDraftValue] = useState<number[]>(value)
@@ -852,8 +888,13 @@ function WarehouseTreeFilter({
         queryFn: () => listPhysicalWarehouses({ page: 1, size: 500, status: "ACTIVE" }),
     })
     const { data: warehouseData, isLoading: loadingWarehouses } = useQuery({
-        queryKey: ["inventory-summary-warehouses"],
-        queryFn: () => listWarehouses({ page: 1, size: 1000, status: "ACTIVE" }),
+        queryKey: ["inventory-summary-warehouses", salesInventoryVisibleOnly],
+        queryFn: () => listWarehouses({
+            page: 1,
+            size: 1000,
+            status: "ACTIVE",
+            sales_inventory_visible: salesInventoryVisibleOnly ? true : undefined,
+        }),
     })
 
     const physicalWarehouses = physicalData?.items || []

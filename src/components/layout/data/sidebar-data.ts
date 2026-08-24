@@ -240,6 +240,11 @@ export const sidebarData: SidebarData = {
                     icon: ListOrdered,
                 },
                 {
+                    title: 'Bảng báo giá',
+                    url: '/sales/price-quotes',
+                    icon: TableProperties,
+                },
+                {
                     title: 'Giao hàng',
                     url: '/sales/deliveries',
                     icon: Truck,
@@ -325,6 +330,16 @@ export const sidebarData: SidebarData = {
                     url: '/inventory/costs',
                     icon: Calculator,
                 },
+                {
+                    title: 'Tài khoản phát sinh',
+                    url: '/inventory/account-postings',
+                    icon: DollarSign,
+                },
+                {
+                    title: 'Cấu hình tài khoản',
+                    url: '/inventory/account-config',
+                    icon: SlidersHorizontal,
+                },
             ],
         },
         {
@@ -334,6 +349,11 @@ export const sidebarData: SidebarData = {
                     title: 'Lệnh sản xuất',
                     url: '/production/orders',
                     icon: Package,
+                },
+                {
+                    title: 'Lịch sử sản xuất',
+                    url: '/production/history',
+                    icon: History,
                 },
 
                 {

@@ -25,6 +25,7 @@ export type CreateOrderItemRequest = {
     discount?: number
     line_type?: string
     hdn_status?: string
+    pp_status?: string
     description?: string
     note?: string
 }
@@ -58,6 +59,7 @@ export const updateOrderItem = (
         discount?: number
         line_type?: string
         hdn_status?: string
+        pp_status?: string
         description?: string
         note?: string
     }
@@ -92,3 +94,11 @@ export const checkOrderQuantityAdjustment = (id: number, items: AdjustOrderQuant
 
 export const adjustOrderSalesperson = (id: number, employeeId: number) =>
     apiPut(`/sales/orders/${id}/salesperson-adjustment`, { employee_id: employeeId })
+
+export type AdjustOrderPpStatusItem = {
+    order_item_id: number
+    pp_status?: string | null
+}
+
+export const adjustOrderPpStatus = (id: number, items: AdjustOrderPpStatusItem[]) =>
+    apiPut(`/sales/orders/${id}/pp-status-adjustment`, { items })

@@ -19,6 +19,7 @@ import { OrderItemsEditor, type OrderItem } from "./order-items-editor"
 
 export type OrderHeaderForm = {
     customer_id?: number
+    customer_type?: string
     employee_id?: number
     order_date?: string
     status?: string
@@ -181,6 +182,7 @@ export function OrderFormDialog({
                                         enableReorder
                                         lockCommittedLines={lockAfterDoneExport}
                                         itemError={itemError}
+                                        customerType={headerData.customer_type}
                                     />
                                 </OrderFormCard>
                             </div>

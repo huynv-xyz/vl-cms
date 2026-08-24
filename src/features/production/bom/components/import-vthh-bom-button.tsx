@@ -5,6 +5,7 @@ import { toast } from "sonner"
 
 import { importVthhBoms } from "@/api/production/bom"
 import { Button } from "@/components/ui/button"
+import { useProductBomPermissions } from "../hooks/use-product-bom-permissions"
 
 function stat(result: Record<string, any>, snakeKey: string, camelKey: string) {
     return Number(result[snakeKey] ?? result[camelKey] ?? 0)
@@ -14,6 +15,11 @@ export function ImportVthhBomButton() {
     const inputRef = useRef<HTMLInputElement | null>(null)
     const queryClient = useQueryClient()
     const [loading, setLoading] = useState(false)
+    const permissions = useProductBomPermissions()
+
+    if (!permissions.canImport) {
+        return null
+    }
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0]

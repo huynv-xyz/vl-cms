@@ -1,6 +1,6 @@
 import { createCrudApi } from "@/api/crud"
 import type { Product } from "@/features/product/data/schema"
-import { apiPostMultipart } from "./client"
+import { apiGet, apiPost, apiPostMultipart } from "./client"
 
 export type ProductListParams = {
     page: number
@@ -19,6 +19,29 @@ export type ProductListParams = {
 
 export type CreateProductRequest = Partial<Product>
 export type UpdateProductRequest = Product
+
+export type ProductInventoryAccountMismatch = {
+    product_id: number
+    product_code?: string
+    product_name?: string
+    current_account_code?: string
+    warehouse_id?: number
+    warehouse_code?: string
+    warehouse_name?: string
+    expected_account_code?: string
+}
+
+export type ProductInventoryAccountCheckResult = {
+    total_products: number
+    matched: number
+    mismatch: number
+    missing_warehouse: number
+    missing_warehouse_ref: number
+    warehouse_missing_account: number
+    updated: number
+    before_mismatch: number
+    samples: ProductInventoryAccountMismatch[]
+}
 
 const productApi = createCrudApi<
     Product,
@@ -39,6 +62,14 @@ export const getProduct = productApi.detail
 export const createProduct = productApi.create
 export const updateProduct = productApi.update
 export const deleteProduct = productApi.delete
+
+export function checkProductInventoryAccounts() {
+    return apiGet<ProductInventoryAccountCheckResult>("/products/inventory-account-check")
+}
+
+export function syncProductInventoryAccounts() {
+    return apiPost<ProductInventoryAccountCheckResult>("/products/inventory-account-sync", {})
+}
 
 export async function importProducts(file: File) {
     const formData = new FormData()

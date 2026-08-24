@@ -2,45 +2,68 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { AlertTriangle, CheckCircle2, CircleHelp, Clock, Funnel, Loader2, MoreHorizontal, Pencil, Printer, Warehouse as WarehouseIcon, X } from "lucide-react"
+import { AlertTriangle, CheckCircle2, CircleHelp, Clock, Funnel, Loader2, MoreHorizontal, Pencil, Printer, Trash2, Warehouse as WarehouseIcon, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { listProductUnitLookups } from "@/api/app-lookup"
 import { getMyPermissions } from "@/api/auth/permission"
 import {
     applyPurchaseLotChange,
+    applyPurchaseProductChange,
     applyPurchaseQuantityChange,
     applyPurchasePostingDateTimeChange,
     applyDocumentPostingTimeChange,
+    applyInboundWarehouseChange,
+    applyLedgerAmountChange,
+    applyOtherExportLineDelete,
+    applyOtherInboundLineDelete,
     applyReturnWarehouseChange,
     applySalesExportLotChange,
+    applySalesExportWarehouseChange,
+    applySalesReturnProductChange,
     applySalesReturnUnitPriceChange,
     applyTransferExportWarehouseChange,
     updateInventoryLedgerStaticParameters,
     checkPurchaseLotChange,
+    checkPurchaseProductChange,
     checkPurchaseQuantityChange,
     checkPurchasePostingDateTimeChange,
     checkDocumentPostingTimeChange,
+    checkInboundWarehouseChange,
+    checkLedgerAmountChange,
+    checkOtherExportLineDelete,
+    checkOtherInboundLineDelete,
     checkReturnWarehouseChange,
     checkSalesExportLotChange,
+    checkSalesExportWarehouseChange,
+    checkSalesReturnProductChange,
     checkSalesReturnUnitPriceChange,
     checkTransferExportWarehouseChange,
     getTransferExportWarehouseChangeContext,
     listTransferExportWarehouseChangeLots,
     type InventoryLedgerStaticParametersPayload,
+    type InboundWarehouseChangeResult,
+    type LedgerAmountChangeResult,
     type PurchaseLotChangeResult,
+    type PurchaseProductChangeResult,
     type PurchaseQuantityChangeResult,
     type PurchasePostingDateTimeChangeResult,
     type DocumentPostingTimeChangeResult,
+    type OtherExportLineDeleteResult,
+    type OtherInboundLineDeleteResult,
     type ReturnWarehouseChangeResult,
     type SalesExportLotChangeResult,
+    type SalesExportWarehouseChangeResult,
+    type SalesReturnProductChangeResult,
     type SalesReturnUnitPriceChangeResult,
     type TransferExportWarehouseAvailableLot,
     type TransferExportWarehouseChangeResult,
 } from "@/api/inventory/ledger"
 import { getVoucherPrintDetail, listVoucherTypes, VOUCHER_TYPE_LABEL, type InventoryVoucherPrintDetail, type InventoryVoucherType } from "@/api/inventory/voucher"
-import { listWarehouses } from "@/api/warehouse"
+import { getProduct, listProducts } from "@/api/product"
+import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
+import { AsyncSelect } from "@/components/rjsf/async-select"
 import { ProductMultiFilter } from "@/features/inventory/components/product-multi-filter"
 import { StickyReportTable } from "@/features/inventory/components/sticky-report-table"
 import { WarehouseTreeFilter } from "@/features/inventory/components/warehouse-tree-filter"
@@ -174,14 +197,22 @@ export function InventoryLedgerTable({
         ...(totals || {}),
     }
     const [detailVoucherId, setDetailVoucherId] = useState<number | null>(null)
+    const [detailVoucherRefreshKey, setDetailVoucherRefreshKey] = useState(0)
     const [lotChangeRow, setLotChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [salesExportLotChangeRow, setSalesExportLotChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [salesExportWarehouseChangeRow, setSalesExportWarehouseChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [transferWarehouseChangeRow, setTransferWarehouseChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [returnWarehouseChangeRow, setReturnWarehouseChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [inboundWarehouseChangeRow, setInboundWarehouseChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [salesReturnUnitPriceChangeRow, setSalesReturnUnitPriceChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [ledgerAmountChangeRow, setLedgerAmountChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [purchaseQuantityChangeRow, setPurchaseQuantityChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [purchasePostingDateTimeChangeRow, setPurchasePostingDateTimeChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [purchaseProductChangeRow, setPurchaseProductChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [salesReturnProductChangeRow, setSalesReturnProductChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [documentPostingTimeChangeRow, setDocumentPostingTimeChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [otherExportLineDeleteRow, setOtherExportLineDeleteRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [otherInboundLineDeleteRow, setOtherInboundLineDeleteRow] = useState<InventoryLedgerReportRow | null>(null)
     const [staticParametersRow, setStaticParametersRow] = useState<InventoryLedgerReportRow | null>(null)
     const queryClient = useQueryClient()
     const { data: inboundDocTypes = [] } = useQuery({
@@ -215,6 +246,14 @@ export function InventoryLedgerTable({
     const canUseLedgerCorrections = useMemo(
         () => hasPermission(permissions, "inventory.ledgers", "correction.change"),
         [permissions],
+    )
+    const canUseScopedLedgerCorrections = useMemo(
+        () => hasPermission(permissions, "inventory.ledgers", "scoped-correction.change"),
+        [permissions],
+    )
+    const canUseLedgerPriceCorrections = useMemo(
+        () => canUseLedgerCorrections || hasPermission(permissions, "inventory.ledgers", "price-correction.change"),
+        [canUseLedgerCorrections, permissions],
     )
 
     const setFilter = (key: keyof Props["filters"], value: any) => {
@@ -618,14 +657,12 @@ export function InventoryLedgerTable({
                                     index={pagination.pageIndex * pagination.pageSize + index + 1}
                                     item={item}
                                     onOpenVoucher={setDetailVoucherId}
-                                    onChangeLot={canUseLedgerCorrections ? setLotChangeRow : undefined}
+                                    onChangeLot={(canUseLedgerCorrections || canUseScopedLedgerCorrections) ? setLotChangeRow : undefined}
                                     onChangeSalesExportLot={canUseLedgerCorrections ? setSalesExportLotChangeRow : undefined}
-                                    onChangeTransferWarehouse={canUseLedgerCorrections ? setTransferWarehouseChangeRow : undefined}
-                                    onChangeReturnWarehouse={canUseLedgerCorrections ? setReturnWarehouseChangeRow : undefined}
-                                    onChangeSalesReturnUnitPrice={canUseLedgerCorrections ? setSalesReturnUnitPriceChangeRow : undefined}
-                                    onChangePurchaseQuantity={canUseLedgerCorrections ? setPurchaseQuantityChangeRow : undefined}
-                                    onChangePurchasePostingDateTime={canUseLedgerCorrections ? setPurchasePostingDateTimeChangeRow : undefined}
-                                    onChangeDocumentPostingTime={canUseLedgerCorrections ? setDocumentPostingTimeChangeRow : undefined}
+                                    onChangePurchaseQuantity={(canUseLedgerCorrections || canUseScopedLedgerCorrections) ? setPurchaseQuantityChangeRow : undefined}
+                                    onChangePurchaseProduct={(canUseLedgerCorrections || canUseScopedLedgerCorrections) ? setPurchaseProductChangeRow : undefined}
+                                    onDeleteOtherExportLine={canUseLedgerCorrections ? setOtherExportLineDeleteRow : undefined}
+                                    onDeleteOtherInboundLine={canUseLedgerCorrections ? setOtherInboundLineDeleteRow : undefined}
                                     onEditStaticParameters={canUseLedgerCorrections ? setStaticParametersRow : undefined}
                                     showValues={showValues}
                                     direction={direction}
@@ -655,10 +692,29 @@ export function InventoryLedgerTable({
             </div>
             <VoucherDetailDialog
                 voucherId={detailVoucherId}
+                refreshKey={detailVoucherRefreshKey}
                 open={!!detailVoucherId}
                 onOpenChange={(open) => {
                     if (!open) setDetailVoucherId(null)
                 }}
+                canUseScopedCorrections={canUseLedgerCorrections || canUseScopedLedgerCorrections}
+                canUseFullCorrections={canUseLedgerCorrections}
+                canUsePriceCorrections={canUseLedgerPriceCorrections}
+                onChangeLot={setLotChangeRow}
+                onChangeSalesExportLot={setSalesExportLotChangeRow}
+                onChangeSalesExportWarehouse={setSalesExportWarehouseChangeRow}
+                onChangeTransferWarehouse={setTransferWarehouseChangeRow}
+                onChangeReturnWarehouse={setReturnWarehouseChangeRow}
+                onChangeInboundWarehouse={setInboundWarehouseChangeRow}
+                onChangeLedgerAmount={setLedgerAmountChangeRow}
+                onChangePurchaseQuantity={setPurchaseQuantityChangeRow}
+                onChangePurchasePostingDateTime={setPurchasePostingDateTimeChangeRow}
+                onChangePurchaseProduct={setPurchaseProductChangeRow}
+                onChangeSalesReturnProduct={setSalesReturnProductChangeRow}
+                onChangeDocumentPostingTime={setDocumentPostingTimeChangeRow}
+                onChangeSalesReturnUnitPrice={setSalesReturnUnitPriceChangeRow}
+                onDeleteOtherExportLine={setOtherExportLineDeleteRow}
+                onDeleteOtherInboundLine={setOtherInboundLineDeleteRow}
             />
             <PurchaseLotChangeDialog
                 row={lotChangeRow}
@@ -668,6 +724,9 @@ export function InventoryLedgerTable({
                 }}
                 onChanged={() => {
                     queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-voucher-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
                 }}
             />
             <SalesExportLotChangeDialog
@@ -678,6 +737,26 @@ export function InventoryLedgerTable({
                 }}
                 onChanged={() => {
                     queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-voucher-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                    setDetailVoucherRefreshKey((value) => value + 1)
+                }}
+            />
+            <SalesExportWarehouseChangeDialog
+                row={salesExportWarehouseChangeRow}
+                open={!!salesExportWarehouseChangeRow}
+                onOpenChange={(open) => {
+                    if (!open) setSalesExportWarehouseChangeRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-voucher-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
+                    queryClient.invalidateQueries({ queryKey: ["sales-order-detail"] })
+                    setDetailVoucherRefreshKey((value) => value + 1)
                 }}
             />
             <ReturnWarehouseChangeDialog
@@ -688,6 +767,24 @@ export function InventoryLedgerTable({
                 }}
                 onChanged={() => {
                     queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-voucher-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                    setDetailVoucherRefreshKey((value) => value + 1)
+                }}
+            />
+            <InboundWarehouseChangeDialog
+                row={inboundWarehouseChangeRow}
+                open={!!inboundWarehouseChangeRow}
+                onOpenChange={(open) => {
+                    if (!open) setInboundWarehouseChangeRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-voucher-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                    setDetailVoucherRefreshKey((value) => value + 1)
                 }}
             />
             <TransferExportWarehouseChangeDialog
@@ -715,6 +812,7 @@ export function InventoryLedgerTable({
             <PurchaseQuantityChangeDialog
                 row={purchaseQuantityChangeRow}
                 open={!!purchaseQuantityChangeRow}
+                showPriceData={canUseLedgerPriceCorrections}
                 onOpenChange={(open) => {
                     if (!open) setPurchaseQuantityChangeRow(null)
                 }}
@@ -732,6 +830,51 @@ export function InventoryLedgerTable({
                     queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
                     queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
                     queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                }}
+            />
+            <LedgerAmountChangeDialog
+                row={ledgerAmountChangeRow}
+                open={!!ledgerAmountChangeRow}
+                onOpenChange={(open) => {
+                    if (!open) setLedgerAmountChangeRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-voucher-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
+                    setDetailVoucherRefreshKey((value) => value + 1)
+                }}
+            />
+            <PurchaseProductChangeDialog
+                row={purchaseProductChangeRow}
+                open={!!purchaseProductChangeRow}
+                onOpenChange={(open) => {
+                    if (!open) setPurchaseProductChangeRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-voucher-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
+                }}
+            />
+            <SalesReturnProductChangeDialog
+                row={salesReturnProductChangeRow}
+                open={!!salesReturnProductChangeRow}
+                onOpenChange={(open) => {
+                    if (!open) setSalesReturnProductChangeRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-voucher-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
+                    queryClient.invalidateQueries({ queryKey: ["sales-return-detail"] })
+                    setDetailVoucherRefreshKey((value) => value + 1)
                 }}
             />
             <DocumentPostingTimeChangeDialog
@@ -756,6 +899,36 @@ export function InventoryLedgerTable({
                 }}
                 onChanged={() => {
                     queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                }}
+            />
+            <OtherExportLineDeleteDialog
+                row={otherExportLineDeleteRow}
+                open={!!otherExportLineDeleteRow}
+                onOpenChange={(open) => {
+                    if (!open) setOtherExportLineDeleteRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-voucher-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
+                    setDetailVoucherRefreshKey((value) => value + 1)
+                }}
+            />
+            <OtherInboundLineDeleteDialog
+                row={otherInboundLineDeleteRow}
+                open={!!otherInboundLineDeleteRow}
+                onOpenChange={(open) => {
+                    if (!open) setOtherInboundLineDeleteRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-voucher-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
+                    setDetailVoucherRefreshKey((value) => value + 1)
                 }}
             />
         </Card>
@@ -1294,12 +1467,10 @@ function LedgerRow({
     onOpenVoucher,
     onChangeLot,
     onChangeSalesExportLot,
-    onChangeTransferWarehouse,
-    onChangeReturnWarehouse,
-    onChangeSalesReturnUnitPrice,
     onChangePurchaseQuantity,
-    onChangePurchasePostingDateTime,
-    onChangeDocumentPostingTime,
+    onChangePurchaseProduct,
+    onDeleteOtherExportLine,
+    onDeleteOtherInboundLine,
     onEditStaticParameters,
     showValues,
     direction,
@@ -1309,12 +1480,10 @@ function LedgerRow({
     onOpenVoucher: (voucherId: number) => void
     onChangeLot?: (row: InventoryLedgerReportRow) => void
     onChangeSalesExportLot?: (row: InventoryLedgerReportRow) => void
-    onChangeTransferWarehouse?: (row: InventoryLedgerReportRow) => void
-    onChangeReturnWarehouse?: (row: InventoryLedgerReportRow) => void
-    onChangeSalesReturnUnitPrice?: (row: InventoryLedgerReportRow) => void
     onChangePurchaseQuantity?: (row: InventoryLedgerReportRow) => void
-    onChangePurchasePostingDateTime?: (row: InventoryLedgerReportRow) => void
-    onChangeDocumentPostingTime?: (row: InventoryLedgerReportRow) => void
+    onChangePurchaseProduct?: (row: InventoryLedgerReportRow) => void
+    onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
+    onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
     onEditStaticParameters?: (row: InventoryLedgerReportRow) => void
     showValues: boolean
     direction?: "IN" | "OUT"
@@ -1446,14 +1615,13 @@ function LedgerRow({
             <Td className="text-center">
                 <LedgerCorrectionActions
                     item={item}
+                    onOpenVoucher={item.voucher_id ? () => onOpenVoucher(Number(item.voucher_id)) : undefined}
                     onChangeLot={onChangeLot}
                     onChangeSalesExportLot={onChangeSalesExportLot}
-                    onChangeTransferWarehouse={onChangeTransferWarehouse}
-                    onChangeReturnWarehouse={onChangeReturnWarehouse}
-                    onChangeSalesReturnUnitPrice={onChangeSalesReturnUnitPrice}
                     onChangePurchaseQuantity={onChangePurchaseQuantity}
-                    onChangePurchasePostingDateTime={onChangePurchasePostingDateTime}
-                    onChangeDocumentPostingTime={onChangeDocumentPostingTime}
+                    onChangePurchaseProduct={onChangePurchaseProduct}
+                    onDeleteOtherExportLine={onDeleteOtherExportLine}
+                    onDeleteOtherInboundLine={onDeleteOtherInboundLine}
                     onEditStaticParameters={onEditStaticParameters}
                 />
             </Td>
@@ -1461,54 +1629,76 @@ function LedgerRow({
     )
 }
 
+function NewBadge() {
+    return (
+        <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded bg-emerald-100 px-1 text-[10px] font-semibold leading-none text-emerald-700">
+            N
+        </span>
+    )
+}
+
 function LedgerCorrectionActions({
     item,
+    onOpenVoucher,
     onChangeLot,
     onChangeSalesExportLot,
-    onChangeTransferWarehouse,
-    onChangeReturnWarehouse,
-    onChangeSalesReturnUnitPrice,
     onChangePurchaseQuantity,
-    onChangePurchasePostingDateTime,
-    onChangeDocumentPostingTime,
+    onChangePurchaseProduct,
+    onDeleteOtherExportLine,
+    onDeleteOtherInboundLine,
     onEditStaticParameters,
 }: {
     item: InventoryLedgerReportRow
+    onOpenVoucher?: () => void
     onChangeLot?: (row: InventoryLedgerReportRow) => void
     onChangeSalesExportLot?: (row: InventoryLedgerReportRow) => void
-    onChangeTransferWarehouse?: (row: InventoryLedgerReportRow) => void
-    onChangeReturnWarehouse?: (row: InventoryLedgerReportRow) => void
-    onChangeSalesReturnUnitPrice?: (row: InventoryLedgerReportRow) => void
     onChangePurchaseQuantity?: (row: InventoryLedgerReportRow) => void
-    onChangePurchasePostingDateTime?: (row: InventoryLedgerReportRow) => void
-    onChangeDocumentPostingTime?: (row: InventoryLedgerReportRow) => void
+    onChangePurchaseProduct?: (row: InventoryLedgerReportRow) => void
+    onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
+    onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
     onEditStaticParameters?: (row: InventoryLedgerReportRow) => void
 }) {
+    const canOpenVoucher = Boolean(onOpenVoucher)
     const canEditStaticParameters = Boolean(onEditStaticParameters)
     const canChangeLot = Boolean(onChangeLot && isPurchaseInboundLedger(item))
     const canChangeSalesExportLot = Boolean(onChangeSalesExportLot && isSalesExportLedger(item))
-    const canChangeTransferWarehouse = Boolean(onChangeTransferWarehouse && isTransferLedger(item))
-    const canChangeReturnWarehouse = Boolean(onChangeReturnWarehouse && isSalesReturnInboundLedger(item))
-    const canChangeSalesReturnUnitPrice = Boolean(onChangeSalesReturnUnitPrice && isSalesReturnUnitPriceCorrectionLedger(item))
     const canChangePurchaseQuantity = Boolean(onChangePurchaseQuantity && isQuantityCorrectionLedger(item))
-    const canChangePurchasePostingDateTime = Boolean(onChangePurchasePostingDateTime && isPurchasePostingDateTimeCorrectionLedger(item))
-    const canChangeDocumentPostingTime = Boolean(onChangeDocumentPostingTime && isDocumentPostingTimeCorrectionLedger(item))
+    const canChangePurchaseProduct = Boolean(onChangePurchaseProduct && isPurchaseProductCorrectionLedger(item))
+    const canDeleteOtherExportLine = Boolean(onDeleteOtherExportLine && isOtherExportLineDeleteLedger(item))
+    const canDeleteOtherInboundLine = Boolean(onDeleteOtherInboundLine && isOtherInboundLineDeleteLedger(item))
+    const hasQuickActions = canEditStaticParameters || canChangeLot || canChangeSalesExportLot || canChangePurchaseQuantity
+        || canChangePurchaseProduct || canDeleteOtherExportLine
+        || canDeleteOtherInboundLine
 
-    if (!canEditStaticParameters && !canChangeLot && !canChangeSalesExportLot && !canChangeTransferWarehouse && !canChangeReturnWarehouse && !canChangeSalesReturnUnitPrice && !canChangePurchaseQuantity && !canChangePurchasePostingDateTime && !canChangeDocumentPostingTime) {
+    if (!canOpenVoucher && !hasQuickActions) {
         return <span className="text-muted-foreground">-</span>
     }
 
-    // These are narrow correction flows for audited mistakes. Do not turn this menu into generic ledger editing:
-    // each action must own its validation, simulation and rollback path.
     return (
         <Popover>
             <PopoverTrigger asChild>
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Thao tác sửa sai">
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Thao tác">
                     <MoreHorizontal className="h-4 w-4" />
                 </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64 p-1">
-                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Thao tác sửa sai</div>
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Mở phiếu</div>
+                {canOpenVoucher ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                        onClick={onOpenVoucher}
+                    >
+                        <CircleHelp className="mt-0.5 h-4 w-4 text-primary" />
+                        <span>
+                            <span className="block font-medium">Mở chi tiết phiếu</span>
+                            <span className="block text-xs text-muted-foreground">Xem phiếu và sửa theo từng vùng thao tác.</span>
+                        </span>
+                    </button>
+                ) : null}
+                {hasQuickActions ? (
+                    <div className="mt-1 border-t px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Sửa nhanh dòng này</div>
+                ) : null}
                 {canEditStaticParameters ? (
                     <button
                         type="button"
@@ -1561,71 +1751,48 @@ function LedgerCorrectionActions({
                         </span>
                     </button>
                 ) : null}
-                {canChangeTransferWarehouse ? (
+                {canChangePurchaseProduct ? (
                     <button
                         type="button"
                         className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
-                        onClick={() => onChangeTransferWarehouse?.(item)}
-                    >
-                        <WarehouseIcon className="mt-0.5 h-4 w-4 text-primary" />
-                        <span>
-                            <span className="block font-medium">Đổi kho chuyển kho nội bộ</span>
-                            <span className="block text-xs text-muted-foreground">Chọn lại kho xuất, kho nhập và lô xuất đã tồn tại cho dòng chuyển kho.</span>
-                        </span>
-                    </button>
-                ) : null}
-                {canChangePurchasePostingDateTime ? (
-                    <button
-                        type="button"
-                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
-                        onClick={() => onChangePurchasePostingDateTime?.(item)}
-                    >
-                        <Clock className="mt-0.5 h-4 w-4 text-primary" />
-                        <span>
-                            <span className="block font-medium">Đổi ngày/giờ chứng từ</span>
-                            <span className="block text-xs text-muted-foreground">Áp dụng cho toàn bộ phiếu mua hàng nhập khẩu/trong nước.</span>
-                        </span>
-                    </button>
-                ) : null}
-                {canChangeDocumentPostingTime ? (
-                    <button
-                        type="button"
-                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
-                        onClick={() => onChangeDocumentPostingTime?.(item)}
-                    >
-                        <Clock className="mt-0.5 h-4 w-4 text-primary" />
-                        <span>
-                            <span className="block font-medium">
-                                {String(item.doc_type || "").toUpperCase() === "SALES_EXPORT" ? "Đổi ngày/giờ" : "Sửa giờ"}{" "}
-                                {documentPostingTimeLabel(item.doc_type)}
-                            </span>
-                            <span className="block text-xs text-muted-foreground">Cập nhật toàn bộ chứng từ và nguồn phát sinh liên quan.</span>
-                        </span>
-                    </button>
-                ) : null}
-                {canChangeReturnWarehouse ? (
-                    <button
-                        type="button"
-                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
-                        onClick={() => onChangeReturnWarehouse?.(item)}
-                    >
-                        <WarehouseIcon className="mt-0.5 h-4 w-4 text-primary" />
-                        <span>
-                            <span className="block font-medium">Đổi kho nhập trả hàng</span>
-                            <span className="block text-xs text-muted-foreground">Áp dụng cho dòng nhập kho từ hàng bán trả lại.</span>
-                        </span>
-                    </button>
-                ) : null}
-                {canChangeSalesReturnUnitPrice ? (
-                    <button
-                        type="button"
-                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
-                        onClick={() => onChangeSalesReturnUnitPrice?.(item)}
+                        onClick={() => onChangePurchaseProduct?.(item)}
                     >
                         <Pencil className="mt-0.5 h-4 w-4 text-primary" />
                         <span>
-                            <span className="block font-medium">Sửa đơn giá nhập trả hàng</span>
-                            <span className="block text-xs text-muted-foreground">Chỉ sửa giá vốn nhập kho, không sửa giá bán hoặc công nợ.</span>
+                            <span className="block font-medium">
+                                Sửa mã hàng
+                                {String(item.doc_type || "").toUpperCase() === "OTHER_INBOUND" ? <NewBadge /> : null}
+                            </span>
+                            <span className="block text-xs text-muted-foreground">Áp dụng cho từng dòng mua hàng nhập khẩu/trong nước hoặc nhập kho khác.</span>
+                        </span>
+                    </button>
+                ) : null}
+                {canDeleteOtherExportLine ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
+                        onClick={() => onDeleteOtherExportLine?.(item)}
+                    >
+                        <Trash2 className="mt-0.5 h-4 w-4" />
+                        <span>
+                            <span className="block font-medium">Xóa dòng xuất kho khác</span>
+                            <span className="block text-xs text-destructive/80">Nếu là dòng cuối, hệ thống sẽ xóa luôn phiếu.</span>
+                        </span>
+                    </button>
+                ) : null}
+                {canDeleteOtherInboundLine ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
+                        onClick={() => onDeleteOtherInboundLine?.(item)}
+                    >
+                        <Trash2 className="mt-0.5 h-4 w-4" />
+                        <span>
+                            <span className="block font-medium">
+                                Xóa dòng nhập kho khác
+                                <NewBadge />
+                            </span>
+                            <span className="block text-xs text-destructive/80">Nếu là dòng cuối, hệ thống sẽ xóa luôn phiếu.</span>
                         </span>
                     </button>
                 ) : null}
@@ -1793,6 +1960,298 @@ function StaticParametersDialog({
                     >
                         {mutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         Lưu thay đổi
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function OtherExportLineDeleteDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [result, setResult] = useState<OtherExportLineDeleteResult | null>(null)
+    const [errorMessage, setErrorMessage] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [open, row?.id])
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkOtherExportLineDelete(Number(row?.id)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorMessage(error?.message || "Không kiểm tra được dòng xuất kho khác.")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applyOtherExportLineDelete(Number(row?.id)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            toast.success(data?.delete_voucher ? "Đã xóa dòng và phiếu xuất kho khác." : "Đã xóa dòng xuất kho khác.")
+            onChanged()
+            onOpenChange(false)
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không xóa được dòng xuất kho khác.")
+        },
+    })
+
+    const working = checkMutation.isPending || applyMutation.isPending
+    const canApply = Boolean(result?.valid) && !result?.applied && !working
+    const quantity = Number(result?.quantity ?? row?.quantity_out ?? 0)
+    const amount = Number(result?.amount ?? row?.amount ?? 0)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle>Xóa dòng xuất kho khác</DialogTitle>
+                    <DialogDescription>
+                        Chỉ xóa đúng dòng đang chọn. Nếu phiếu chỉ còn một dòng, hệ thống sẽ xóa luôn phiếu đó trong cùng transaction.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                    <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                        <InfoItem label="Chứng từ" value={result?.doc_no || row?.doc_no || "-"} />
+                        <InfoItem label="Ngày chứng từ" value={formatDate(result?.posting_date || row?.posting_date)} />
+                        <InfoItem label="Kho" value={result?.warehouse_name || row?.warehouse_name || row?.warehouse_code || "-"} />
+                        <InfoItem
+                            label="Hàng hóa"
+                            value={`${result?.product_code || row?.product_code || ""} - ${result?.product_name || row?.product_name || ""}`.replace(/^ - /, "")}
+                            className="md:col-span-2"
+                        />
+                        <InfoItem label="Số lô" value={result?.lot_no || row?.lot_code || "-"} />
+                        <InfoItem label="Số lượng xuất" value={formatNumber(quantity)} />
+                        <InfoItem label="Đơn giá" value={formatMoney(result?.unit_price ?? row?.unit_price)} />
+                        <InfoItem label="Thành tiền" value={formatMoney(Math.abs(amount))} />
+                    </div>
+
+                    {errorMessage ? (
+                        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                            {errorMessage}
+                        </div>
+                    ) : null}
+
+                    {result ? (
+                        <div className={cn(
+                            "rounded-md border p-3 text-sm",
+                            result.valid ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-destructive/30 bg-destructive/10 text-destructive",
+                        )}>
+                            <div className="mb-2 flex items-center gap-2 font-semibold">
+                                {result.valid ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                                <span>{result.message}</span>
+                            </div>
+                            <div className="grid gap-2 md:grid-cols-4">
+                                <ResultInfo label="Dòng ledger sẽ xóa" value={formatNumber(resultCount(result, "ledger_rows"))} />
+                                <ResultInfo label="Dòng phiếu sẽ xóa" value={formatNumber(resultCount(result, "voucher_items"))} />
+                                <ResultInfo label="Cost consumption" value={formatNumber(resultCount(result, "cost_consumptions"))} />
+                                <ResultInfo label="FIFO allocation" value={formatNumber(resultCount(result, "fifo_allocations"))} />
+                                <ResultInfo label="Số dòng trong phiếu" value={formatNumber(result.voucher_item_count || 0)} />
+                                <ResultInfo label="Xóa luôn phiếu" value={result.delete_voucher ? "Có" : "Không"} />
+                                <ResultInfo label="Kỳ costing ảnh hưởng" value={formatNumber(result.affected_period_ids?.length || 0)} />
+                                <ResultInfo label="Trạng thái" value={result.valid ? "Đủ điều kiện" : "Không đủ điều kiện"} />
+                            </div>
+
+                            {result.warnings?.length ? (
+                                <div className="mt-3 space-y-1 text-sm text-amber-800">
+                                    {result.warnings.map((warning) => (
+                                        <div key={warning}>- {warning}</div>
+                                    ))}
+                                </div>
+                            ) : null}
+                            {result.errors?.length ? (
+                                <div className="mt-3 space-y-1 text-sm text-destructive">
+                                    {result.errors.map((error) => (
+                                        <div key={error}>- {error}</div>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : (
+                        <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
+                            Bấm kiểm tra để hệ thống đọc các dòng liên quan và xác nhận có thể xóa an toàn.
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex justify-end gap-2 border-t pt-4">
+                    <Button type="button" variant="outline" disabled={working} onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button type="button" variant="outline" disabled={!row || working} onClick={() => checkMutation.mutate()}>
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button type="button" variant="destructive" disabled={!canApply} onClick={() => applyMutation.mutate()}>
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                        Xóa dòng
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function resultCount(result: OtherExportLineDeleteResult, key: string) {
+    return Number(result.counts?.[key] || 0)
+}
+
+function OtherInboundLineDeleteDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [result, setResult] = useState<OtherInboundLineDeleteResult | null>(null)
+    const [errorMessage, setErrorMessage] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [open, row?.id])
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkOtherInboundLineDelete(Number(row?.id)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorMessage(error?.message || "Không kiểm tra được dòng nhập kho khác.")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applyOtherInboundLineDelete(Number(row?.id)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            toast.success(data?.delete_voucher ? "Đã xóa dòng và phiếu nhập kho khác." : "Đã xóa dòng nhập kho khác.")
+            onChanged()
+            onOpenChange(false)
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không xóa được dòng nhập kho khác.")
+        },
+    })
+
+    const working = checkMutation.isPending || applyMutation.isPending
+    const canApply = Boolean(result?.valid) && !result?.applied && !working
+    const quantity = Number(result?.quantity ?? row?.quantity_in ?? 0)
+    const amount = Number(result?.amount ?? row?.amount ?? 0)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle>Xóa dòng nhập kho khác</DialogTitle>
+                    <DialogDescription>
+                        Chỉ xóa đúng dòng đang chọn. Nếu phiếu chỉ còn một dòng, hệ thống sẽ xóa luôn phiếu đó trong cùng transaction.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                    <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                        <InfoItem label="Chứng từ" value={result?.doc_no || row?.doc_no || "-"} />
+                        <InfoItem label="Ngày chứng từ" value={formatDate(result?.posting_date || row?.posting_date)} />
+                        <InfoItem label="Kho" value={result?.warehouse_name || row?.warehouse_name || row?.warehouse_code || "-"} />
+                        <InfoItem
+                            label="Hàng hóa"
+                            value={`${result?.product_code || row?.product_code || ""} - ${result?.product_name || row?.product_name || ""}`.replace(/^ - /, "")}
+                            className="md:col-span-2"
+                        />
+                        <InfoItem label="Số lô" value={result?.lot_no || row?.lot_code || "-"} />
+                        <InfoItem label="Số lượng nhập" value={formatNumber(quantity)} />
+                        <InfoItem label="Đơn giá" value={formatMoney(result?.unit_price ?? row?.unit_price)} />
+                        <InfoItem label="Thành tiền" value={formatMoney(Math.abs(amount))} />
+                    </div>
+
+                    {errorMessage ? (
+                        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                            {errorMessage}
+                        </div>
+                    ) : null}
+
+                    {result ? (
+                        <div className={cn(
+                            "rounded-md border p-3 text-sm",
+                            result.valid ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-destructive/30 bg-destructive/10 text-destructive",
+                        )}>
+                            <div className="mb-2 flex items-center gap-2 font-semibold">
+                                {result.valid ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                                <span>{result.message}</span>
+                            </div>
+                            <div className="grid gap-2 md:grid-cols-4">
+                                <ResultInfo label="Dòng ledger sẽ xóa" value={formatNumber(resultCount(result, "ledger_rows"))} />
+                                <ResultInfo label="Dòng phiếu sẽ xóa" value={formatNumber(resultCount(result, "voucher_items"))} />
+                                <ResultInfo label="Cost layer" value={formatNumber(resultCount(result, "cost_layers"))} />
+                                <ResultInfo label="FIFO allocation" value={formatNumber(resultCount(result, "fifo_allocations"))} />
+                                <ResultInfo label="Số dòng trong phiếu" value={formatNumber(result.voucher_item_count || 0)} />
+                                <ResultInfo label="Xóa luôn phiếu" value={result.delete_voucher ? "Có" : "Không"} />
+                                <ResultInfo label="Kỳ costing ảnh hưởng" value={formatNumber(result.affected_period_ids?.length || 0)} />
+                                <ResultInfo label="Trạng thái" value={result.valid ? "Đủ điều kiện" : "Không đủ điều kiện"} />
+                            </div>
+
+                            {result.warnings?.length ? (
+                                <div className="mt-3 space-y-1 text-sm text-amber-800">
+                                    {result.warnings.map((warning) => (
+                                        <div key={warning}>- {warning}</div>
+                                    ))}
+                                </div>
+                            ) : null}
+                            {result.errors?.length ? (
+                                <div className="mt-3 space-y-1 text-sm text-destructive">
+                                    {result.errors.map((error) => (
+                                        <div key={error}>- {error}</div>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : (
+                        <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
+                            Bấm kiểm tra để hệ thống đọc các dòng liên quan và xác nhận có thể xóa an toàn.
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex justify-end gap-2 border-t pt-4">
+                    <Button type="button" variant="outline" disabled={working} onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button type="button" variant="outline" disabled={!row || working} onClick={() => checkMutation.mutate()}>
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button type="button" variant="destructive" disabled={!canApply} onClick={() => applyMutation.mutate()}>
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                        Xóa dòng
                     </Button>
                 </div>
             </DialogContent>
@@ -2580,34 +3039,16 @@ function ReturnWarehouseChangeDialog({
     onChanged: () => void
 }) {
     const [newWarehouseId, setNewWarehouseId] = useState("")
-    const [warehouseSearch, setWarehouseSearch] = useState("")
-    const [warehouseSelectOpen, setWarehouseSelectOpen] = useState(false)
     const [result, setResult] = useState<ReturnWarehouseChangeResult | null>(null)
     const [errorMessage, setErrorMessage] = useState("")
-    const warehouseSearchInputRef = useRef<HTMLInputElement | null>(null)
-
-    const { data: warehousePage } = useQuery({
-        queryKey: ["warehouses", "return-warehouse-change"],
-        queryFn: () => listWarehouses({ page: 1, size: 1000, status: "ACTIVE" }),
-        enabled: open,
-    })
-    const warehouses = (warehousePage?.items || []) as Warehouse[]
 
     useEffect(() => {
         if (open && row) {
             setNewWarehouseId("")
-            setWarehouseSearch("")
-            setWarehouseSelectOpen(false)
             setResult(null)
             setErrorMessage("")
         }
     }, [open, row])
-
-    useEffect(() => {
-        if (!warehouseSelectOpen) return
-        const timer = window.setTimeout(() => warehouseSearchInputRef.current?.focus(), 0)
-        return () => window.clearTimeout(timer)
-    }, [warehouseSelectOpen])
 
     const checkMutation = useMutation({
         mutationFn: () => checkReturnWarehouseChange(Number(row?.id), Number(newWarehouseId)),
@@ -2633,19 +3074,6 @@ function ReturnWarehouseChangeDialog({
         },
     })
 
-    const selectedWarehouse = warehouses.find((warehouse) => String(warehouse.id) === newWarehouseId)
-    const filteredWarehouses = useMemo(() => {
-        const keyword = normalizeSearchText(warehouseSearch)
-        if (!keyword) return warehouses
-        return warehouses.filter((warehouse) =>
-            normalizeSearchText([
-                warehouse.code,
-                warehouse.name,
-                warehouse.physical_warehouse?.code,
-                warehouse.physical_warehouse?.name,
-            ].filter(Boolean).join(" ")).includes(keyword),
-        )
-    }, [warehouseSearch, warehouses])
     const unchanged = Boolean(row?.warehouse_id && Number(newWarehouseId) === Number(row.warehouse_id))
     const busy = checkMutation.isPending || applyMutation.isPending
     const canApply = Boolean(result?.valid && !result.applied && !unchanged && !busy)
@@ -2676,49 +3104,25 @@ function ReturnWarehouseChangeDialog({
 
                         <div className="grid gap-2">
                             <label className="text-sm font-medium">Kho nhập mới</label>
-                            <Select
-                                value={newWarehouseId}
-                                open={warehouseSelectOpen}
-                                onOpenChange={setWarehouseSelectOpen}
-                                onValueChange={(value) => {
-                                    setNewWarehouseId(value)
+                            <AsyncSelect
+                                value={newWarehouseId ? Number(newWarehouseId) : undefined}
+                                onChange={(value: number | string | undefined) => {
+                                    setNewWarehouseId(value ? String(value) : "")
                                     setResult(null)
                                     setErrorMessage("")
                                 }}
-                            >
-                                <SelectTrigger className="h-10">
-                                    <SelectValue placeholder="Chọn kho nhập mới" />
-                                </SelectTrigger>
-                                <SelectContent className="max-h-[360px]">
-                                    <div className="sticky top-0 z-10 bg-popover p-2">
-                                        <Input
-                                            ref={warehouseSearchInputRef}
-                                            value={warehouseSearch}
-                                            onChange={(event) => setWarehouseSearch(event.target.value)}
-                                            onKeyDown={(event) => event.stopPropagation()}
-                                            placeholder="Tìm kho nhập mới"
-                                            className="h-9"
-                                        />
-                                    </div>
-                                    {filteredWarehouses.length ? filteredWarehouses.map((warehouse) => (
-                                        <SelectItem key={warehouse.id} value={String(warehouse.id)}>
-                                            <span className="flex flex-col">
-                                                <span>{warehouse.name || warehouse.code}</span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {warehouse.physical_warehouse?.name || warehouse.code}
-                                                </span>
-                                            </span>
-                                        </SelectItem>
-                                    )) : (
-                                        <div className="px-3 py-4 text-sm text-muted-foreground">Không tìm thấy kho phù hợp.</div>
-                                    )}
-                                </SelectContent>
-                            </Select>
-                            {selectedWarehouse ? (
-                                <div className="text-xs text-muted-foreground">
-                                    Kho mới: {selectedWarehouse.name || selectedWarehouse.code}
-                                </div>
-                            ) : null}
+                                dataSource={{ getList: listWarehouses, getById: getWarehouse, params: { page: 1, size: 20, status: "ACTIVE" } }}
+                                mapOption={(warehouse: Warehouse) => ({
+                                    value: warehouse.id,
+                                    label: [warehouse.code, warehouse.name].filter(Boolean).join(" - ") || `Kho #${warehouse.id}`,
+                                    raw: warehouse,
+                                })}
+                                placeholder="Chọn kho nhập mới"
+                                searchPlaceholder="Tìm mã hoặc tên kho..."
+                                emptyText="Không tìm thấy kho phù hợp."
+                                optionWrapLabel
+                                wrapLabel
+                            />
                             {unchanged ? (
                                 <div className="text-sm text-destructive">Kho mới phải khác kho hiện tại.</div>
                             ) : null}
@@ -2787,7 +3191,8 @@ function ReturnWarehouseChangeResultPanel({ result }: { result: ReturnWarehouseC
                 <ResultInfo label="Kho hiện tại" value={result.old_warehouse_name} />
                 <ResultInfo label="Kho mới" value={result.new_warehouse_name} />
                 <ResultInfo label="Số lô" value={result.lot_no || "-"} />
-                <ResultInfo label="Số dòng trong phiếu nhập" value={formatNumber(Number(result.voucher_item_count || 0))} />
+                <ResultInfo label="Dòng sẽ đổi" value="1 dòng đang chọn" />
+                <ResultInfo label="Tổng dòng trong phiếu" value={formatNumber(Number(result.voucher_item_count || 0))} />
                 <ResultInfo label="Quy định địa điểm kho" value={result.same_physical_required ? "Phiếu nhiều dòng: phải cùng địa điểm kho" : "Phiếu một dòng: được đổi địa điểm kho"} />
                 {applied ? <ResultInfo label="Lô mới được tạo" value={formatNumber(Number(changes.created_lots || 0))} /> : null}
                 {applied ? <ResultInfo label="Lô cũ được dọn" value={formatNumber(Number(changes.deleted_old_lots || 0))} /> : null}
@@ -2809,6 +3214,144 @@ function ReturnWarehouseChangeResultPanel({ result }: { result: ReturnWarehouseC
                 </div>
             ) : null}
         </div>
+    )
+}
+
+function InboundWarehouseChangeDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [newWarehouseId, setNewWarehouseId] = useState("")
+    const [result, setResult] = useState<InboundWarehouseChangeResult | null>(null)
+    const [errorMessage, setErrorMessage] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setNewWarehouseId("")
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [open, row])
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkInboundWarehouseChange(Number(row?.id), Number(newWarehouseId)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorMessage(error?.message || "Không kiểm tra được kho nhập mới.")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applyInboundWarehouseChange(Number(row?.id), Number(newWarehouseId)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            onChanged()
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không đổi được kho nhập.")
+        },
+    })
+
+    const unchanged = Boolean(row?.warehouse_id && Number(newWarehouseId) === Number(row.warehouse_id))
+    const busy = checkMutation.isPending || applyMutation.isPending
+    const canApply = Boolean(result?.valid && !result.applied && !unchanged && !busy)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="flex max-h-[92vh] flex-col overflow-hidden"
+                style={{ width: "min(1100px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
+            >
+                <DialogHeader>
+                    <DialogTitle>Đổi kho nhập</DialogTitle>
+                    <DialogDescription>
+                        Chỉ đổi kho cho dòng nhập đang chọn. Hệ thống kiểm tra địa điểm kho, lịch sử tồn và rollback toàn bộ nếu cập nhật lỗi.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {row ? (
+                    <div className="space-y-4 overflow-y-auto pr-1">
+                        <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                            <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                            <InfoItem label="Ngày chứng từ" value={formatDate(row.posting_date)} />
+                            <InfoItem label="Kho hiện tại" value={row.warehouse_name} />
+                            <InfoItem label="Hàng hóa" value={`${row.product_code} - ${row.product_name}`} />
+                            <InfoItem label="Số lô" value={row.lot_code || "-"} />
+                            <InfoItem label="Số lượng nhập" value={formatNumber(Number(row.quantity_in || 0))} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Kho nhập mới</label>
+                            <AsyncSelect
+                                value={newWarehouseId ? Number(newWarehouseId) : undefined}
+                                onChange={(value: number | string | undefined) => {
+                                    setNewWarehouseId(value ? String(value) : "")
+                                    setResult(null)
+                                    setErrorMessage("")
+                                }}
+                                dataSource={{ getList: listWarehouses, getById: getWarehouse, params: { page: 1, size: 20, status: "ACTIVE" } }}
+                                mapOption={(warehouse: Warehouse) => ({
+                                    value: warehouse.id,
+                                    label: [warehouse.code, warehouse.name].filter(Boolean).join(" - ") || `Kho #${warehouse.id}`,
+                                    raw: warehouse,
+                                })}
+                                placeholder="Chọn kho nhập mới"
+                                searchPlaceholder="Tìm mã hoặc tên kho..."
+                                emptyText="Không tìm thấy kho phù hợp."
+                                optionWrapLabel
+                                wrapLabel
+                            />
+                            {unchanged ? (
+                                <div className="text-sm text-destructive">Kho mới phải khác kho hiện tại.</div>
+                            ) : null}
+                        </div>
+
+                        {errorMessage ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <div className="flex items-start gap-2 font-semibold">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4" />
+                                    Không thể đổi kho
+                                </div>
+                                <div className="mt-1 pl-6">{errorMessage}</div>
+                            </div>
+                        ) : null}
+
+                        {result ? <ReturnWarehouseChangeResultPanel result={result} /> : null}
+                    </div>
+                ) : null}
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={busy || unchanged || !newWarehouseId}
+                        onClick={() => checkMutation.mutate()}
+                    >
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button type="button" disabled={!canApply} onClick={() => applyMutation.mutate()}>
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Đổi kho
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
     )
 }
 
@@ -2999,7 +3542,7 @@ function SalesReturnUnitPriceChangeResultPanel({ result }: { result: SalesReturn
     )
 }
 
-function PurchaseQuantityChangeDialog({
+function LedgerAmountChangeDialog({
     row,
     open,
     onOpenChange,
@@ -3007,6 +3550,195 @@ function PurchaseQuantityChangeDialog({
 }: {
     row: InventoryLedgerReportRow | null
     open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [amountText, setAmountText] = useState("")
+    const [result, setResult] = useState<LedgerAmountChangeResult | null>(null)
+    const [errorMessage, setErrorMessage] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setAmountText(String(Math.abs(Number(row.amount || 0))))
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [open, row])
+
+    const newTotalAmount = parseDecimalInput(amountText)
+    const quantity = Math.abs(Number(row?.quantity_in || 0) || Number(row?.quantity_out || 0))
+    const currentAmount = Number(row?.amount || 0)
+    const previewUnitPrice = Number.isFinite(newTotalAmount) && quantity > 0 ? newTotalAmount / quantity : 0
+    const unchanged = Number.isFinite(newTotalAmount) && Math.abs(newTotalAmount - Math.abs(currentAmount)) < 0.000001
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkLedgerAmountChange(Number(row?.id), newTotalAmount),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorMessage(error?.message || "Không kiểm tra được tổng giá trị.")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applyLedgerAmountChange(Number(row?.id), newTotalAmount),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            if (data?.valid) onChanged()
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không sửa được tổng giá trị.")
+        },
+    })
+
+    const busy = checkMutation.isPending || applyMutation.isPending
+    const canCheck = Boolean(row && Number.isFinite(newTotalAmount) && newTotalAmount >= 0 && !unchanged && !busy)
+    const canApply = Boolean(result?.valid && !result.applied && !unchanged && !busy)
+    const directionLabel = String(row?.doc_type || "").toUpperCase() === "OTHER_EXPORT" ? "xuất" : "nhập"
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="flex max-h-[92vh] flex-col overflow-hidden"
+                style={{ width: "min(980px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
+            >
+                <DialogHeader>
+                    <DialogTitle>Sửa tổng giá trị</DialogTitle>
+                    <DialogDescription>
+                        Nhập tổng giá trị dương theo chứng từ cũ. Hệ thống giữ dấu sổ kho hiện tại và tính ngược đơn giá với 3 chữ số thập phân.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {row ? (
+                    <div className="space-y-4 overflow-y-auto pr-1">
+                        <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                            <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                            <InfoItem label="Ngày chứng từ" value={`${formatDate(row.posting_date)} ${formatTime(row.posting_time)}`} />
+                            <InfoItem label="Kho" value={row.warehouse_name} />
+                            <InfoItem label="Hàng hóa" value={`${row.product_code} - ${row.product_name}`} />
+                            <InfoItem label="Số lô" value={row.lot_code || "-"} />
+                            <InfoItem label={`Số lượng ${directionLabel}`} value={formatNumber(quantity)} />
+                        </div>
+
+                        <div className="grid gap-3 rounded-md border p-3 text-sm md:grid-cols-2">
+                            <InfoItem label="Đơn giá hiện tại" value={formatNumber(Number(row.unit_price || 0))} />
+                            <InfoItem label="Giá trị hiện tại" value={formatNumber(Math.abs(currentAmount))} />
+                            <InfoItem label="Đơn giá mới dự kiến" value={Number.isFinite(previewUnitPrice) ? formatNumber(previewUnitPrice) : "-"} />
+                            <InfoItem label="Tổng giá trị mới" value={Number.isFinite(newTotalAmount) ? formatNumber(newTotalAmount) : "-"} />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Tổng giá trị mới</label>
+                            <Input
+                                value={amountText}
+                                onChange={(event) => {
+                                    setAmountText(event.target.value)
+                                    setResult(null)
+                                    setErrorMessage("")
+                                }}
+                                placeholder="Nhập tổng giá trị"
+                                className="h-10 font-mono"
+                            />
+                            {!Number.isFinite(newTotalAmount) ? (
+                                <div className="text-sm text-destructive">Tổng giá trị mới không hợp lệ.</div>
+                            ) : null}
+                            {unchanged ? (
+                                <div className="text-sm text-muted-foreground">Tổng giá trị mới đang trùng giá trị hiện tại.</div>
+                            ) : null}
+                        </div>
+
+                        {errorMessage ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <div className="flex items-start gap-2 font-semibold">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4" />
+                                    Không thể sửa tổng giá trị
+                                </div>
+                                <div className="mt-1 pl-6">{errorMessage}</div>
+                            </div>
+                        ) : null}
+
+                        {result ? <LedgerAmountChangeResultPanel result={result} /> : null}
+                    </div>
+                ) : null}
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button type="button" variant="outline" disabled={!canCheck} onClick={() => checkMutation.mutate()}>
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button type="button" disabled={!canApply} onClick={() => applyMutation.mutate()}>
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Áp dụng
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function LedgerAmountChangeResultPanel({ result }: { result: LedgerAmountChangeResult }) {
+    const valid = Boolean(result.valid)
+    const applied = Boolean(result.applied)
+    const changes = result.changes || {}
+
+    return (
+        <div className={cn(
+            "rounded-md border p-3 text-sm",
+            valid
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-800",
+        )}>
+            <div className="flex items-start gap-2 font-semibold">
+                {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
+                <span>{applied ? "Đã sửa tổng giá trị" : valid ? "Có thể sửa tổng giá trị" : "Không thể sửa tổng giá trị"}</span>
+            </div>
+            <div className="mt-1 pl-6">{result.message}</div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+                <ResultInfo label="Giá trị cũ" value={formatNumber(Math.abs(Number(result.old_amount || 0)))} />
+                <ResultInfo label="Giá trị mới" value={formatNumber(Number(result.new_total_amount || 0))} />
+                <ResultInfo label="Đơn giá mới" value={formatNumber(Number(result.new_unit_price || 0))} />
+                <ResultInfo label="Dòng sổ kho" value={applied ? formatNumber(Number(changes.updated_ledgers || 0)) : "Sẽ cập nhật 1 dòng"} />
+                <ResultInfo label="Dòng phiếu kho" value={applied ? formatNumber(Number(changes.updated_voucher_items || 0)) : result.voucher_item_id ? "Sẽ đồng bộ" : "Không có"} />
+                <ResultInfo label="Cost layer" value={applied ? formatNumber(Number(changes.updated_cost_layers || 0)) : result.direction === "IN" ? "Sẽ đồng bộ" : "Không áp dụng"} />
+            </div>
+
+            {result.errors?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2 text-red-700">
+                    {result.errors.map((error, index) => (
+                        <div key={index}>- {error}</div>
+                    ))}
+                </div>
+            ) : null}
+
+            {result.warnings?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2">
+                    {result.warnings.map((warning, index) => (
+                        <div key={index}>- {warning}</div>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+function PurchaseQuantityChangeDialog({
+    row,
+    open,
+    showPriceData,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    showPriceData?: boolean
     onOpenChange: (open: boolean) => void
     onChanged: () => void
 }) {
@@ -3079,8 +3811,8 @@ function PurchaseQuantityChangeDialog({
                             <InfoItem label="Hàng hóa" value={`${row.product_code} - ${row.product_name}`} />
                             <InfoItem label="Số lô" value={row.lot_code || "-"} />
                             <InfoItem label={`Số lượng ${directionLabel} hiện tại`} value={formatNumber(oldQuantity)} />
-                            <InfoItem label="Đơn giá hiện tại" value={formatNumber(Number(row.unit_price || 0))} />
-                            <InfoItem label="Thành tiền hiện tại" value={formatNumber(Number(row.amount || 0))} />
+                            {showPriceData ? <InfoItem label="Đơn giá hiện tại" value={formatNumber(Number(row.unit_price || 0))} /> : null}
+                            {showPriceData ? <InfoItem label="Thành tiền hiện tại" value={formatNumber(Number(row.amount || 0))} /> : null}
                         </div>
 
                         <div className="grid gap-2 md:max-w-sm">
@@ -3115,7 +3847,7 @@ function PurchaseQuantityChangeDialog({
                             </div>
                         ) : null}
 
-                        {result ? <PurchaseQuantityChangeResultPanel result={result} /> : null}
+                        {result ? <PurchaseQuantityChangeResultPanel result={result} showPriceData={showPriceData} /> : null}
                     </div>
                 ) : null}
 
@@ -3146,10 +3878,25 @@ function PurchaseQuantityChangeDialog({
     )
 }
 
-function PurchaseQuantityChangeResultPanel({ result }: { result: PurchaseQuantityChangeResult }) {
+function PurchaseQuantityChangeResultPanel({
+    result,
+    showPriceData,
+}: {
+    result: PurchaseQuantityChangeResult
+    showPriceData?: boolean
+}) {
     const valid = Boolean(result.valid)
     const applied = Boolean(result.applied)
     const changes = result.changes || {}
+    const visibleMessage = showPriceData
+        ? result.message
+        : applied
+            ? "Đã cập nhật số lượng và tồn lô."
+            : valid
+                ? "Có thể sửa số lượng. Hệ thống sẽ cập nhật tồn lô theo số lượng mới."
+                : "Không thể sửa số lượng."
+    const visibleErrors = showPriceData ? result.errors : filterPriceSensitiveMessages(result.errors)
+    const visibleWarnings = showPriceData ? result.warnings : filterPriceSensitiveMessages(result.warnings)
 
     return (
         <div className={cn(
@@ -3162,18 +3909,448 @@ function PurchaseQuantityChangeResultPanel({ result }: { result: PurchaseQuantit
                 {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
                 <span>{applied ? "Đã sửa số lượng" : valid ? "Có thể sửa số lượng" : "Không thể sửa số lượng"}</span>
             </div>
-            <div className="mt-1 pl-6">{result.message}</div>
+            <div className="mt-1 pl-6">{visibleMessage}</div>
 
             <div className="mt-3 grid gap-2 md:grid-cols-3">
                 <ResultInfo label="Số lượng hiện tại" value={formatNumber(Number(result.old_quantity || 0))} />
                 <ResultInfo label="Số lượng mới" value={formatNumber(Number(result.new_quantity || 0))} />
                 <ResultInfo label="Chênh lệch SL" value={formatNumber(Number(result.delta_quantity || 0))} />
-                <ResultInfo label="Đơn giá" value={formatNumber(Number(result.unit_price || 0))} />
-                <ResultInfo label="Thành tiền hiện tại" value={formatNumber(Number(result.old_amount || 0))} />
-                <ResultInfo label="Thành tiền mới" value={formatNumber(Number(result.new_amount || 0))} />
-                <ResultInfo label="Chênh lệch tiền" value={formatNumber(Number(result.delta_amount || 0))} />
+                {showPriceData ? <ResultInfo label="Đơn giá" value={formatNumber(Number(result.unit_price || 0))} /> : null}
+                {showPriceData ? <ResultInfo label="Thành tiền hiện tại" value={formatNumber(Number(result.old_amount || 0))} /> : null}
+                {showPriceData ? <ResultInfo label="Thành tiền mới" value={formatNumber(Number(result.new_amount || 0))} /> : null}
+                {showPriceData ? <ResultInfo label="Chênh lệch tiền" value={formatNumber(Number(result.delta_amount || 0))} /> : null}
                 {applied ? <ResultInfo label="Dòng sổ kho đã cập nhật" value={formatNumber(Number(changes.updated_ledger_rows || 0))} /> : null}
                 {applied ? <ResultInfo label="Dòng phiếu kho đã cập nhật" value={formatNumber(Number(changes.updated_voucher_items || 0))} /> : null}
+            </div>
+
+            {visibleErrors?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2 text-red-700">
+                    {visibleErrors.map((error, index) => (
+                        <div key={index}>- {error}</div>
+                    ))}
+                </div>
+            ) : null}
+
+            {visibleWarnings?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2">
+                    {visibleWarnings.map((warning, index) => (
+                        <div key={index}>- {warning}</div>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+function SalesExportWarehouseChangeDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [newWarehouseId, setNewWarehouseId] = useState<number | undefined>()
+    const [result, setResult] = useState<SalesExportWarehouseChangeResult | null>(null)
+    const [errorMessage, setErrorMessage] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setNewWarehouseId(undefined)
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [open, row])
+
+    const unchanged = Boolean(newWarehouseId && row?.warehouse_id && Number(newWarehouseId) === Number(row.warehouse_id))
+    const missingWarehouse = !newWarehouseId
+    const busy = false
+    const checkMutation = useMutation({
+        mutationFn: () => checkSalesExportWarehouseChange(Number(row?.id), Number(newWarehouseId)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorMessage(error?.message || "Không kiểm tra được kho xuất mới.")
+        },
+    })
+    const applyMutation = useMutation({
+        mutationFn: () => applySalesExportWarehouseChange(Number(row?.id), Number(newWarehouseId)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            if (data?.valid) onChanged()
+            toast.success("Đã đổi kho xuất bán")
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không đổi được kho xuất bán.")
+        },
+    })
+    const pending = busy || checkMutation.isPending || applyMutation.isPending
+    const canApply = Boolean(result?.valid && !result.applied && !missingWarehouse && !unchanged && !pending)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="flex max-h-[92vh] flex-col overflow-hidden"
+                style={{ width: "min(1080px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
+            >
+                <DialogHeader>
+                    <DialogTitle>Đổi kho xuất bán <NewBadge /></DialogTitle>
+                    <DialogDescription>
+                        Chỉ đổi kho cho dòng xuất bán đã chọn. Hệ thống sẽ bỏ FIFO cũ, chạy lại FIFO theo kho mới và rollback toàn bộ nếu cập nhật lỗi.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {row ? (
+                    <div className="space-y-4 overflow-y-auto pr-1">
+                        <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                            <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                            <InfoItem label="Ngày chứng từ" value={`${formatDate(row.posting_date)} ${formatTime(row.posting_time)}`} />
+                            <InfoItem label="Kho hiện tại" value={row.warehouse_name} />
+                            <InfoItem label="Hàng hóa" value={`${row.product_code} - ${row.product_name}`} />
+                            <InfoItem label="Số lượng xuất" value={formatNumber(Number(row.quantity_out || 0))} />
+                            <InfoItem label="Lô hiện tại" value={row.lot_code || "-"} />
+                        </div>
+
+                        <div className="grid gap-2 md:max-w-2xl">
+                            <label className="text-sm font-medium">Kho xuất mới</label>
+                            <AsyncSelect
+                                value={newWarehouseId}
+                                onChange={(value: number | string | undefined) => {
+                                    setNewWarehouseId(value ? Number(value) : undefined)
+                                    setResult(null)
+                                    setErrorMessage("")
+                                }}
+                                dataSource={{ getList: listWarehouses, getById: getWarehouse, params: { page: 1, size: 20 } }}
+                                mapOption={(warehouse: any) => ({
+                                    value: warehouse.id,
+                                    label: `${warehouse.code || ""} - ${warehouse.name || ""}`,
+                                    raw: warehouse,
+                                })}
+                                placeholder="Chọn kho xuất mới"
+                                searchPlaceholder="Tìm mã hoặc tên kho..."
+                                emptyText="Không tìm thấy kho"
+                                optionWrapLabel
+                                wrapLabel
+                            />
+                            {unchanged ? (
+                                <div className="text-sm text-destructive">Kho xuất mới phải khác kho hiện tại.</div>
+                            ) : null}
+                        </div>
+
+                        {errorMessage ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <div className="flex items-start gap-2 font-semibold">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4" />
+                                    Không thể đổi kho xuất bán
+                                </div>
+                                <div className="mt-1 pl-6">{errorMessage}</div>
+                            </div>
+                        ) : null}
+
+                        {result ? <SalesExportWarehouseChangeResultPanel result={result} /> : null}
+                    </div>
+                ) : null}
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={pending || missingWarehouse || unchanged}
+                        onClick={() => checkMutation.mutate()}
+                    >
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button
+                        type="button"
+                        disabled={!canApply}
+                        onClick={() => applyMutation.mutate()}
+                    >
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Đổi kho
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function SalesExportWarehouseChangeResultPanel({ result }: { result: SalesExportWarehouseChangeResult }) {
+    const valid = Boolean(result.valid)
+    const applied = Boolean(result.applied)
+    const counts = result.counts || {}
+    const changes = result.changes || {}
+    const affectedPeriods = result.affected_period_ids || []
+    const plan = result.fifo_plan || []
+
+    return (
+        <div className={cn(
+            "rounded-md border p-3 text-sm",
+            valid ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800",
+        )}>
+            <div className="flex items-start gap-2 font-semibold">
+                {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
+                <span>{applied ? "Đã đổi kho xuất bán" : valid ? "Có thể đổi kho xuất bán" : "Không thể đổi kho xuất bán"}</span>
+            </div>
+            <div className="mt-1 pl-6">{result.message}</div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+                <ResultInfo label="Kho hiện tại" value={result.old_warehouse_name} />
+                <ResultInfo label="Kho mới" value={result.new_warehouse_name} />
+                <ResultInfo label="Số lượng xuất" value={formatNumber(Number(result.quantity || 0))} />
+                <ResultInfo label="Dòng sổ kho cũ" value={formatNumber(Number(counts.old_ledger_rows || 0))} />
+                <ResultInfo label="Số lô FIFO mới" value={formatNumber(Number(counts.new_fifo_lots || plan.length || 0))} />
+                <ResultInfo label="Giao dịch bán hàng" value={formatNumber(Number(counts.sales_transactions || changes.updated_sales_transactions || 0))} />
+                <ResultInfo label="Kỳ costing cần tính lại" value={formatNumber(applied ? Number(changes.stale_cost_periods || 0) : affectedPeriods.length)} />
+                {applied ? <ResultInfo label="Ledger cập nhật/tạo/xóa" value={`${formatNumber(Number(changes.reused_ledger_rows || 0))}/${formatNumber(Number(changes.inserted_ledger_rows || 0))}/${formatNumber(Number(changes.deleted_ledger_rows || 0))}`} /> : null}
+                {applied ? <ResultInfo label="FIFO tạo lại" value={formatNumber(Number(changes.inserted_fifo_rows || 0))} /> : null}
+                {applied ? <ResultInfo label="Giá vốn tạo lại" value={formatNumber(Number(changes.rebuilt_cost_consumptions || 0))} /> : null}
+            </div>
+
+            {plan.length ? (
+                <div className="mt-3 rounded-md border bg-white/80">
+                    <div className="border-b px-3 py-2 font-semibold">FIFO theo kho mới</div>
+                    <div className="max-h-56 overflow-auto">
+                        <table className="w-full text-sm">
+                            <thead className="bg-muted/40 text-xs text-muted-foreground">
+                                <tr>
+                                    <Th className="w-14 text-center">#</Th>
+                                    <Th>Số lô</Th>
+                                    <Th className="w-36 text-right">Tồn tại thời điểm</Th>
+                                    <Th className="w-36 text-right">SL an toàn</Th>
+                                    <Th className="w-36 text-right">Số lượng lấy</Th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {plan.map((item, index) => (
+                                    <tr key={`${item.lot_id}-${index}`} className="border-t">
+                                        <Td className="text-center">{index + 1}</Td>
+                                        <Td className="font-mono">{item.lot_no}</Td>
+                                        <Td className="text-right tabular-nums">{formatNumber(Number(item.available_quantity || 0))}</Td>
+                                        <Td className="text-right tabular-nums">{formatNumber(Number(item.history_safe_quantity || item.quantity || 0))}</Td>
+                                        <Td className="text-right tabular-nums">{formatNumber(Number(item.quantity || 0))}</Td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ) : null}
+
+            {result.errors?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2 text-red-700">
+                    {result.errors.map((error, index) => (
+                        <div key={index}>- {error}</div>
+                    ))}
+                </div>
+            ) : null}
+
+            {result.warnings?.length ? (
+                <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2">
+                    {result.warnings.map((warning, index) => (
+                        <div key={index}>- {warning}</div>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+function filterPriceSensitiveMessages(messages?: string[] | null) {
+    if (!messages?.length) return []
+    const pricePatterns = ["đơn giá", "don gia", "thành tiền", "thanh tien", "giá trị", "gia tri", "tiền", "tien"]
+    return messages.filter((message) => {
+        const normalized = message.toLowerCase()
+        return !pricePatterns.some((pattern) => normalized.includes(pattern))
+    })
+}
+
+function PurchaseProductChangeDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [newProductId, setNewProductId] = useState<number | undefined>()
+    const [result, setResult] = useState<PurchaseProductChangeResult | null>(null)
+    const [errorMessage, setErrorMessage] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setNewProductId(undefined)
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [open, row])
+
+    const unchanged = Boolean(newProductId && row?.product_id && Number(newProductId) === Number(row.product_id))
+    const missingProduct = !newProductId
+    const checkMutation = useMutation({
+        mutationFn: () => checkPurchaseProductChange(Number(row?.id), Number(newProductId)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorMessage(error?.message || "Không kiểm tra được mã hàng.")
+        },
+    })
+    const applyMutation = useMutation({
+        mutationFn: () => applyPurchaseProductChange(Number(row?.id), Number(newProductId)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            onChanged()
+            toast.success("Đã sửa mã hàng mua hàng")
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không sửa được mã hàng.")
+        },
+    })
+    const pending = checkMutation.isPending || applyMutation.isPending
+    const canApply = Boolean(result?.valid && !result.applied && !missingProduct && !unchanged && !pending)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="flex max-h-[92vh] flex-col overflow-hidden"
+                style={{ width: "min(1040px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
+            >
+                <DialogHeader>
+                    <DialogTitle>Sửa mã hàng nhập kho</DialogTitle>
+                    <DialogDescription>
+                        Chỉ sửa từng dòng mua hàng nhập khẩu/trong nước hoặc nhập kho khác. Hệ thống kiểm tra trước và rollback toàn bộ nếu cập nhật lỗi.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {row ? (
+                    <div className="space-y-4 overflow-y-auto pr-1">
+                        <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                            <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                            <InfoItem label="Ngày chứng từ" value={formatDate(row.posting_date)} />
+                            <InfoItem label="Kho" value={row.warehouse_name} />
+                            <InfoItem label="Mã hiện tại" value={row.product_code} />
+                            <InfoItem label="Tên hiện tại" value={row.product_name} />
+                            <InfoItem label="Số lô" value={row.lot_code || "-"} />
+                            <InfoItem label="Số lượng nhập" value={formatNumber(Number(row.quantity_in || 0))} />
+                            <InfoItem label="Đơn vị hiện tại" value={row.unit || "-"} />
+                        </div>
+
+                        <div className="grid gap-2 md:max-w-xl">
+                            <label className="text-sm font-medium">Mã hàng mới</label>
+                            <AsyncSelect
+                                value={newProductId}
+                                onChange={(value: number | string | undefined) => {
+                                    setNewProductId(value ? Number(value) : undefined)
+                                    setResult(null)
+                                    setErrorMessage("")
+                                }}
+                                dataSource={{ getList: listProducts, getById: getProduct, params: { page: 1, size: 20 } }}
+                                mapOption={(product: any) => ({
+                                    value: product.id,
+                                    label: `${product.code || ""} - ${product.name || ""}`,
+                                    raw: product,
+                                })}
+                                placeholder="Chọn mã hàng mới"
+                                searchPlaceholder="Tìm mã hoặc tên hàng..."
+                                emptyText="Không tìm thấy mã hàng"
+                                optionWrapLabel
+                                wrapLabel
+                            />
+                            {unchanged ? (
+                                <div className="text-sm text-destructive">Mã hàng mới phải khác mã hiện tại.</div>
+                            ) : null}
+                        </div>
+
+                        {errorMessage ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <div className="flex items-start gap-2 font-semibold">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4" />
+                                    Không thể sửa mã hàng
+                                </div>
+                                <div className="mt-1 pl-6">{errorMessage}</div>
+                            </div>
+                        ) : null}
+
+                        {result ? <PurchaseProductChangeResultPanel result={result} /> : null}
+                    </div>
+                ) : null}
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={pending || missingProduct || unchanged}
+                        onClick={() => checkMutation.mutate()}
+                    >
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button
+                        type="button"
+                        disabled={!canApply}
+                        onClick={() => applyMutation.mutate()}
+                    >
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Cập nhật
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function PurchaseProductChangeResultPanel({ result }: { result: PurchaseProductChangeResult }) {
+    const valid = Boolean(result.valid)
+    const applied = Boolean(result.applied)
+    const counts = result.counts || {}
+    const changes = result.changes || {}
+    const affectedPeriods = result.affected_period_ids || []
+
+    return (
+        <div className={cn(
+            "rounded-md border p-3 text-sm",
+            valid
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-800",
+        )}>
+            <div className="flex items-start gap-2 font-semibold">
+                {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
+                <span>{applied ? "Đã sửa mã hàng" : valid ? "Có thể sửa mã hàng" : "Không thể sửa mã hàng"}</span>
+            </div>
+            <div className="mt-1 pl-6">{result.message}</div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+                <ResultInfo label="Mã hiện tại" value={`${result.old_product_code} - ${result.old_product_name}`} />
+                <ResultInfo label="Mã mới" value={`${result.new_product_code} - ${result.new_product_name}`} />
+                <ResultInfo label="Số lô" value={result.lot_no || "-"} />
+                <ResultInfo label="Dòng sổ kho ảnh hưởng" value={formatNumber(Number(counts.ledger_rows || changes.updated_ledgers || 0))} />
+                <ResultInfo label="Dòng phiếu kho ảnh hưởng" value={formatNumber(Number(counts.voucher_items || changes.updated_voucher_items || 0))} />
+                <ResultInfo label="FIFO ảnh hưởng" value={formatNumber(Number(counts.fifo_allocations || changes.updated_fifo_allocations || 0))} />
+                <ResultInfo label="Lớp giá vốn ảnh hưởng" value={formatNumber(Number(counts.cost_layers || changes.updated_cost_layers || 0))} />
+                <ResultInfo label="SX nguyên liệu ảnh hưởng" value={formatNumber(Number(counts.production_materials || changes.updated_production_materials || 0))} />
+                <ResultInfo label="Giao dịch bán hàng" value={formatNumber(Number(counts.sales_transactions || changes.updated_sales_transactions || 0))} />
+                <ResultInfo label="Công nợ dòng trả" value={formatNumber(Number(counts.ar_ledger || changes.updated_ar_ledger || 0))} />
+                <ResultInfo label="Kỳ costing cần tính lại" value={formatNumber(applied ? Number(changes.stale_cost_periods || 0) : affectedPeriods.length)} />
             </div>
 
             {result.errors?.length ? (
@@ -3192,6 +4369,150 @@ function PurchaseQuantityChangeResultPanel({ result }: { result: PurchaseQuantit
                 </div>
             ) : null}
         </div>
+    )
+}
+
+function SalesReturnProductChangeDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [newProductId, setNewProductId] = useState<number | undefined>()
+    const [result, setResult] = useState<SalesReturnProductChangeResult | null>(null)
+    const [errorMessage, setErrorMessage] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setNewProductId(undefined)
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [open, row])
+
+    const unchanged = Boolean(newProductId && row?.product_id && Number(newProductId) === Number(row.product_id))
+    const missingProduct = !newProductId
+    const checkMutation = useMutation({
+        mutationFn: () => checkSalesReturnProductChange(Number(row?.id), Number(newProductId)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorMessage(error?.message || "Không kiểm tra được mã hàng nhập trả.")
+        },
+    })
+    const applyMutation = useMutation({
+        mutationFn: () => applySalesReturnProductChange(Number(row?.id), Number(newProductId)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            if (data?.valid) onChanged()
+            toast.success("Đã sửa mã hàng nhập trả")
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không sửa được mã hàng nhập trả.")
+        },
+    })
+    const pending = checkMutation.isPending || applyMutation.isPending
+    const canApply = Boolean(result?.valid && !result.applied && !missingProduct && !unchanged && !pending)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent
+                className="flex max-h-[92vh] flex-col overflow-hidden"
+                style={{ width: "min(1040px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
+            >
+                <DialogHeader>
+                    <DialogTitle>Sửa mã hàng nhập trả <NewBadge /></DialogTitle>
+                    <DialogDescription>
+                        Chỉ sửa từng dòng nhập kho từ hàng bán trả lại. Hệ thống đồng bộ dòng trả hàng, phiếu kho, sổ kho và rollback toàn bộ nếu cập nhật lỗi.
+                    </DialogDescription>
+                </DialogHeader>
+
+                {row ? (
+                    <div className="space-y-4 overflow-y-auto pr-1">
+                        <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                            <InfoItem label="Chứng từ" value={row.doc_no || `#${row.id}`} />
+                            <InfoItem label="Ngày chứng từ" value={formatDate(row.posting_date)} />
+                            <InfoItem label="Kho" value={row.warehouse_name} />
+                            <InfoItem label="Mã hiện tại" value={row.product_code} />
+                            <InfoItem label="Tên hiện tại" value={row.product_name} />
+                            <InfoItem label="Số lô" value={row.lot_code || "-"} />
+                            <InfoItem label="Số lượng nhập trả" value={formatNumber(Number(row.quantity_in || 0))} />
+                            <InfoItem label="Đơn vị hiện tại" value={row.unit || "-"} />
+                        </div>
+
+                        <div className="grid gap-2 md:max-w-xl">
+                            <label className="text-sm font-medium">Mã hàng mới</label>
+                            <AsyncSelect
+                                value={newProductId}
+                                onChange={(value: number | string | undefined) => {
+                                    setNewProductId(value ? Number(value) : undefined)
+                                    setResult(null)
+                                    setErrorMessage("")
+                                }}
+                                dataSource={{ getList: listProducts, getById: getProduct, params: { page: 1, size: 20 } }}
+                                mapOption={(product: any) => ({
+                                    value: product.id,
+                                    label: `${product.code || ""} - ${product.name || ""}`,
+                                    raw: product,
+                                })}
+                                placeholder="Chọn mã hàng mới"
+                                searchPlaceholder="Tìm mã hoặc tên hàng..."
+                                emptyText="Không tìm thấy mã hàng"
+                                optionWrapLabel
+                                wrapLabel
+                            />
+                            {unchanged ? (
+                                <div className="text-sm text-destructive">Mã hàng mới phải khác mã hiện tại.</div>
+                            ) : null}
+                        </div>
+
+                        {errorMessage ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                <div className="flex items-start gap-2 font-semibold">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4" />
+                                    Không thể sửa mã hàng nhập trả
+                                </div>
+                                <div className="mt-1 pl-6">{errorMessage}</div>
+                            </div>
+                        ) : null}
+
+                        {result ? <PurchaseProductChangeResultPanel result={result} /> : null}
+                    </div>
+                ) : null}
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={pending || missingProduct || unchanged}
+                        onClick={() => checkMutation.mutate()}
+                    >
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button
+                        type="button"
+                        disabled={!canApply}
+                        onClick={() => applyMutation.mutate()}
+                    >
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Cập nhật
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
     )
 }
 
@@ -3349,15 +4670,15 @@ function PurchasePostingDateTimeChangeDialog({
 }
 
 const LEDGER_CORRECTION_HELP: Array<{ docType: string; actions: string }> = [
-    { docType: "Tất cả loại chứng từ", actions: "Sửa các thông số tĩnh: Diễn giải, TK Nợ, TK Có, Tên nhà cung cấp" },
-    { docType: "Mua hàng nhập khẩu nhập kho chưa thanh toán", actions: "Đổi số lô, sửa số lượng, đổi ngày/giờ chứng từ" },
-    { docType: "Mua hàng trong nước nhập kho chưa thanh toán", actions: "Đổi số lô, sửa số lượng, đổi ngày/giờ chứng từ" },
-    { docType: "Nhập kho khác", actions: "Đổi số lô, sửa số lượng, sửa giờ chứng từ" },
-    { docType: "Xuất kho khác", actions: "Đổi số lô xuất kho, sửa số lượng, sửa giờ chứng từ" },
-    { docType: "Nhập kho từ hàng bán trả lại", actions: "Đổi kho nhập trả hàng, sửa đơn giá nhập trả hàng" },
-    { docType: "Xuất kho bán hàng", actions: "Đổi số lô xuất kho, đổi ngày/giờ chứng từ" },
-    { docType: "Xuất/Nhập chuyển kho nội bộ", actions: "Đổi kho chuyển kho nội bộ" },
-    { docType: "Nhập kho thành phẩm sản xuất", actions: "Sửa giờ chứng từ" },
+    { docType: "Bảng ledger", actions: "Mở chi tiết phiếu; sửa nhanh đúng dòng: thông số tĩnh, lô, số lượng, mã hàng, xóa dòng đủ điều kiện" },
+    { docType: "Mua hàng nhập khẩu nhập kho chưa thanh toán", actions: "Đầu phiếu: đổi ngày/giờ. Dòng: đổi lô, sửa số lượng, sửa mã hàng, đổi kho nhập (N), sửa tổng giá trị (N)" },
+    { docType: "Mua hàng trong nước nhập kho chưa thanh toán", actions: "Đầu phiếu: đổi ngày/giờ. Dòng: đổi lô, sửa số lượng, sửa mã hàng, đổi kho nhập (N), sửa tổng giá trị (N)" },
+    { docType: "Nhập kho khác", actions: "Đầu phiếu: sửa giờ. Dòng: đổi lô, sửa số lượng, sửa mã hàng (N), đổi kho nhập (N), sửa tổng giá trị (N), xóa dòng (N)" },
+    { docType: "Xuất kho khác", actions: "Đầu phiếu: sửa giờ. Dòng: đổi lô xuất, sửa số lượng, sửa tổng giá trị (N), xóa dòng" },
+    { docType: "Nhập kho từ hàng bán trả lại", actions: "Đầu phiếu: đổi ngày/giờ. Dòng: đổi kho nhập trả hàng, sửa đơn giá nhập trả hàng" },
+    { docType: "Xuất kho bán hàng", actions: "Đầu phiếu: đổi ngày/giờ. Dòng: đổi lô xuất kho" },
+    { docType: "Xuất/Nhập chuyển kho nội bộ", actions: "Dòng: đổi kho chuyển kho nội bộ" },
+    { docType: "Nhập kho thành phẩm sản xuất", actions: "Đầu phiếu: sửa giờ chứng từ" },
 ]
 
 function LedgerCorrectionHelp() {
@@ -3417,7 +4738,7 @@ function DocumentPostingTimeChangeDialog({
     onOpenChange: (open: boolean) => void
     onChanged: () => void
 }) {
-    const canChangeDate = String(row?.doc_type || "").toUpperCase() === "SALES_EXPORT"
+    const canChangeDate = canChangeDocumentPostingDate(row?.doc_type)
     const [newDate, setNewDate] = useState("")
     const [newTime, setNewTime] = useState("")
     const [result, setResult] = useState<DocumentPostingTimeChangeResult | null>(null)
@@ -3669,15 +4990,53 @@ function ResultInfo({ label, value }: { label: string; value?: React.ReactNode }
 
 function VoucherDetailDialog({
     voucherId,
+    refreshKey,
     open,
     onOpenChange,
+    canUseScopedCorrections,
+    canUseFullCorrections,
+    canUsePriceCorrections,
+    onChangeLot,
+    onChangeSalesExportLot,
+    onChangeSalesExportWarehouse,
+    onChangeTransferWarehouse,
+    onChangeReturnWarehouse,
+    onChangeInboundWarehouse,
+    onChangeLedgerAmount,
+    onChangePurchaseQuantity,
+    onChangePurchasePostingDateTime,
+    onChangePurchaseProduct,
+    onChangeSalesReturnProduct,
+    onChangeDocumentPostingTime,
+    onChangeSalesReturnUnitPrice,
+    onDeleteOtherExportLine,
+    onDeleteOtherInboundLine,
 }: {
     voucherId: number | null
+    refreshKey?: number
     open: boolean
     onOpenChange: (open: boolean) => void
+    canUseScopedCorrections?: boolean
+    canUseFullCorrections?: boolean
+    canUsePriceCorrections?: boolean
+    onChangeLot?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesExportLot?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesExportWarehouse?: (row: InventoryLedgerReportRow) => void
+    onChangeTransferWarehouse?: (row: InventoryLedgerReportRow) => void
+    onChangeReturnWarehouse?: (row: InventoryLedgerReportRow) => void
+    onChangeInboundWarehouse?: (row: InventoryLedgerReportRow) => void
+    onChangeLedgerAmount?: (row: InventoryLedgerReportRow) => void
+    onChangePurchaseQuantity?: (row: InventoryLedgerReportRow) => void
+    onChangePurchasePostingDateTime?: (row: InventoryLedgerReportRow) => void
+    onChangePurchaseProduct?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesReturnProduct?: (row: InventoryLedgerReportRow) => void
+    onChangeDocumentPostingTime?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesReturnUnitPrice?: (row: InventoryLedgerReportRow) => void
+    onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
+    onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
 }) {
     const { data: voucher, isLoading } = useQuery({
-        queryKey: ["inventory-voucher-detail", voucherId],
+        queryKey: ["inventory-voucher-detail", voucherId, refreshKey],
         queryFn: () => getVoucherPrintDetail(Number(voucherId)),
         enabled: open && !!voucherId,
     })
@@ -3690,6 +5049,15 @@ function VoucherDetailDialog({
     const sourceWarehouse = voucher?.from_physical_warehouse || voucher?.from_warehouse || voucher?.physical_warehouse || voucher?.warehouse
     const targetWarehouse = voucher?.to_physical_warehouse || voucher?.to_warehouse
     const headerWarehouseText = formatHeaderWarehouse(voucher?.physical_warehouse || voucher?.warehouse, items)
+    const showScopedCorrectionColumn = Boolean((canUseScopedCorrections || canUseFullCorrections || canUsePriceCorrections) && items.some((item: any) => item.ledger_id))
+    const voucherLedgerRow = useMemo(() => {
+        if (!voucher) return null
+        for (const item of items) {
+            const ledgerRow = voucherItemToLedgerRow(voucher, item, voucherTypeCode, isInbound, sourceWarehouse)
+            if (ledgerRow) return ledgerRow
+        }
+        return null
+    }, [isInbound, items, sourceWarehouse, voucher, voucherTypeCode])
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -3701,11 +5069,21 @@ function VoucherDetailDialog({
                 }}
             >
                 <DialogHeader>
-                    <DialogTitle>Chi tiết phiếu {detailType}</DialogTitle>
-                    <DialogDescription>
-                        {voucher?.voucher_no || (voucherId ? `#${voucherId}` : "")}
-                        {voucher?.type?.name ? ` - ${voucher.type.name}` : ""}
-                    </DialogDescription>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <DialogTitle>Chi tiết phiếu {detailType}</DialogTitle>
+                            <DialogDescription>
+                                {voucher?.voucher_no || (voucherId ? `#${voucherId}` : "")}
+                                {voucher?.type?.name ? ` - ${voucher.type.name}` : ""}
+                            </DialogDescription>
+                        </div>
+                        <VoucherHeaderCorrectionActions
+                            row={voucherLedgerRow}
+                            enabled={canUseScopedCorrections}
+                            onChangePurchasePostingDateTime={onChangePurchasePostingDateTime}
+                            onChangeDocumentPostingTime={onChangeDocumentPostingTime}
+                        />
+                    </div>
                 </DialogHeader>
 
                 <div className="max-h-[calc(92vh-96px)] overflow-y-auto">
@@ -3728,7 +5106,7 @@ function VoucherDetailDialog({
                             </div>
 
                             <div className="overflow-x-auto rounded-md border">
-                                <table className={cn("w-full text-sm", isTransfer ? "min-w-[1480px]" : "min-w-[1320px]")}>
+                                <table className={cn("w-full text-sm", isTransfer ? "min-w-[1480px]" : showScopedCorrectionColumn ? "min-w-[1500px]" : "min-w-[1320px]")}>
                                     <thead className="bg-muted/50 text-muted-foreground border-b text-xs">
                                         <tr>
                                             <Th className="w-12 text-center">STT</Th>
@@ -3742,29 +5120,59 @@ function VoucherDetailDialog({
                                             <Th className="w-56">{isTransfer ? "Kho xuất" : "Kho"}</Th>
                                             {isTransfer ? <Th className="w-56">Kho nhận</Th> : null}
                                             <Th className="min-w-[220px]">Ghi chú</Th>
+                                            {showScopedCorrectionColumn ? <Th className="w-24 text-center">Thao tác</Th> : null}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {items.map((item, index) => (
-                                            <tr key={item.id || index} className="border-b last:border-b-0">
-                                                <Td className="text-muted-foreground text-center font-mono">{index + 1}</Td>
-                                                <Td>
-                                                    <div className="font-semibold">{item.product?.name || `[SP #${item.product_id || ""}]`}</div>
-                                                    <div className="text-muted-foreground font-mono text-xs">{item.product?.code || "-"}</div>
-                                                </Td>
-                                                <Td className="text-muted-foreground">{item.unit || item.product?.unit || "-"}</Td>
-                                                <Td className="font-mono text-xs">{item.lot_code || "-"}</Td>
-                                                <Td>{formatDate(item.expiry_date)}</Td>
-                                                <Td className="text-right tabular-nums">{formatNumber(Number(item.quantity || 0))}</Td>
-                                                {!isTransfer ? <Td className="text-right tabular-nums">{formatMoney(item.unit_price)}</Td> : null}
-                                                {!isTransfer ? <Td className="text-right tabular-nums">{formatMoney(item.amount)}</Td> : null}
-                                                <Td>{formatWarehouse(isTransfer ? item.warehouse || sourceWarehouse : item.warehouse)}</Td>
-                                                {isTransfer ? <Td>{formatWarehouse(item.to_warehouse || targetWarehouse)}</Td> : null}
-                                                <Td>
-                                                    <LedgerText value={item.note} />
-                                                </Td>
-                                            </tr>
-                                        ))}
+                                        {items.map((item: any, index) => {
+                                            const ledgerRow = voucher
+                                                ? voucherItemToLedgerRow(voucher, item, voucherTypeCode, isInbound, sourceWarehouse)
+                                                : null
+                                            return (
+                                                <tr key={item.id || index} className="border-b last:border-b-0">
+                                                    <Td className="text-muted-foreground text-center font-mono">{index + 1}</Td>
+                                                    <Td>
+                                                        <div className="font-semibold">{item.product?.name || `[SP #${item.product_id || ""}]`}</div>
+                                                        <div className="text-muted-foreground font-mono text-xs">{item.product?.code || "-"}</div>
+                                                    </Td>
+                                                    <Td className="text-muted-foreground">{item.unit || item.product?.unit || "-"}</Td>
+                                                    <Td className="font-mono text-xs">{item.lot_code || "-"}</Td>
+                                                    <Td>{formatDate(item.expiry_date)}</Td>
+                                                    <Td className="text-right tabular-nums">{formatNumber(Number(item.quantity || 0))}</Td>
+                                                    {!isTransfer ? <Td className="text-right tabular-nums">{formatMoney(item.unit_price)}</Td> : null}
+                                                    {!isTransfer ? <Td className="text-right tabular-nums">{formatMoney(item.amount)}</Td> : null}
+                                                    <Td>{formatWarehouse(isTransfer ? item.warehouse || sourceWarehouse : item.warehouse)}</Td>
+                                                    {isTransfer ? <Td>{formatWarehouse(item.to_warehouse || targetWarehouse)}</Td> : null}
+                                                    <Td>
+                                                        <LedgerText value={item.note} />
+                                                    </Td>
+                                                    {showScopedCorrectionColumn ? (
+                                                        <Td>
+                                                            {ledgerRow ? (
+                                                                <ScopedVoucherCorrectionActions
+                                                                    row={ledgerRow}
+                                                                    onChangeLot={canUseScopedCorrections ? onChangeLot : undefined}
+                                                                    onChangeSalesExportLot={canUseScopedCorrections ? onChangeSalesExportLot : undefined}
+                                                                    onChangeSalesExportWarehouse={canUseScopedCorrections ? onChangeSalesExportWarehouse : undefined}
+                                                                    onChangeTransferWarehouse={canUseScopedCorrections ? onChangeTransferWarehouse : undefined}
+                                                                    onChangeReturnWarehouse={canUseScopedCorrections ? onChangeReturnWarehouse : undefined}
+                                                                    onChangeInboundWarehouse={canUseScopedCorrections ? onChangeInboundWarehouse : undefined}
+                                                                    onChangeLedgerAmount={canUsePriceCorrections ? onChangeLedgerAmount : undefined}
+                                                                    onChangePurchaseQuantity={canUseScopedCorrections ? onChangePurchaseQuantity : undefined}
+                                                                    onChangePurchaseProduct={canUseScopedCorrections ? onChangePurchaseProduct : undefined}
+                                                                    onChangeSalesReturnProduct={canUseFullCorrections ? onChangeSalesReturnProduct : undefined}
+                                                                    onChangeSalesReturnUnitPrice={canUsePriceCorrections ? onChangeSalesReturnUnitPrice : undefined}
+                                                                    onDeleteOtherExportLine={canUseScopedCorrections ? onDeleteOtherExportLine : undefined}
+                                                                    onDeleteOtherInboundLine={canUseScopedCorrections ? onDeleteOtherInboundLine : undefined}
+                                                                />
+                                                            ) : (
+                                                                <span className="text-muted-foreground">-</span>
+                                                            )}
+                                                        </Td>
+                                                    ) : null}
+                                                </tr>
+                                            )
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -3798,6 +5206,206 @@ function InfoItem({
             <div className="break-words font-medium">{value || "-"}</div>
         </div>
     )
+}
+
+function VoucherHeaderCorrectionActions({
+    row,
+    enabled,
+    onChangePurchasePostingDateTime,
+    onChangeDocumentPostingTime,
+}: {
+    row: InventoryLedgerReportRow | null
+    enabled?: boolean
+    onChangePurchasePostingDateTime?: (row: InventoryLedgerReportRow) => void
+    onChangeDocumentPostingTime?: (row: InventoryLedgerReportRow) => void
+}) {
+    const actions: Array<{ label: string; icon: React.ReactNode; onClick: () => void }> = []
+    if (row && enabled && isPurchasePostingDateTimeCorrectionLedger(row) && onChangePurchasePostingDateTime) {
+        actions.push({
+            label: "Đổi ngày/giờ chứng từ",
+            icon: <Clock className="h-3.5 w-3.5" />,
+            onClick: () => onChangePurchasePostingDateTime(row),
+        })
+    }
+    if (row && enabled && isDocumentPostingTimeCorrectionLedger(row) && onChangeDocumentPostingTime) {
+        actions.push({
+            label: `${canChangeDocumentPostingDate(row.doc_type) ? "Đổi ngày/giờ" : "Sửa giờ"} ${documentPostingTimeLabel(row.doc_type)}`,
+            icon: <Clock className="h-3.5 w-3.5" />,
+            onClick: () => onChangeDocumentPostingTime(row),
+        })
+    }
+
+    if (!actions.length) return null
+
+    return (
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button type="button" variant="outline" size="sm" className="shrink-0">
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Sửa phiếu
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-1">
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Thao tác cấp phiếu</div>
+                {actions.map((action) => (
+                    <button
+                        key={action.label}
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                        onClick={action.onClick}
+                    >
+                        {action.icon}
+                        <span className="font-medium">{action.label}</span>
+                    </button>
+                ))}
+            </PopoverContent>
+        </Popover>
+    )
+}
+
+function ScopedVoucherCorrectionActions({
+    row,
+    onChangeLot,
+    onChangeSalesExportLot,
+    onChangeSalesExportWarehouse,
+    onChangeTransferWarehouse,
+    onChangeReturnWarehouse,
+    onChangeInboundWarehouse,
+    onChangeLedgerAmount,
+    onChangePurchaseQuantity,
+    onChangePurchaseProduct,
+    onChangeSalesReturnProduct,
+    onChangeSalesReturnUnitPrice,
+    onDeleteOtherExportLine,
+    onDeleteOtherInboundLine,
+}: {
+    row: InventoryLedgerReportRow
+    onChangeLot?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesExportLot?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesExportWarehouse?: (row: InventoryLedgerReportRow) => void
+    onChangeTransferWarehouse?: (row: InventoryLedgerReportRow) => void
+    onChangeReturnWarehouse?: (row: InventoryLedgerReportRow) => void
+    onChangeInboundWarehouse?: (row: InventoryLedgerReportRow) => void
+    onChangeLedgerAmount?: (row: InventoryLedgerReportRow) => void
+    onChangePurchaseQuantity?: (row: InventoryLedgerReportRow) => void
+    onChangePurchaseProduct?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesReturnProduct?: (row: InventoryLedgerReportRow) => void
+    onChangeSalesReturnUnitPrice?: (row: InventoryLedgerReportRow) => void
+    onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
+    onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
+}) {
+    const actions: Array<{ label: string; icon: React.ReactNode; onClick: () => void; isNew?: boolean; destructive?: boolean }> = []
+    const docType = String(row.doc_type || "").toUpperCase()
+    if (isPurchaseInboundLedger(row) && onChangeLot) {
+        actions.push({ label: "Đổi số lô", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangeLot(row) })
+    }
+    if (isSalesExportLedger(row) && onChangeSalesExportLot) {
+        actions.push({ label: "Đổi số lô xuất", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangeSalesExportLot(row) })
+    }
+    if (isSalesExportWarehouseCorrectionLedger(row) && onChangeSalesExportWarehouse) {
+        actions.push({ label: "Đổi kho xuất bán", icon: <WarehouseIcon className="h-3.5 w-3.5" />, onClick: () => onChangeSalesExportWarehouse(row), isNew: true })
+    }
+    if (isQuantityCorrectionLedger(row) && onChangePurchaseQuantity) {
+        actions.push({ label: "Sửa số lượng", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangePurchaseQuantity(row) })
+    }
+    if (isPurchaseProductCorrectionLedger(row) && onChangePurchaseProduct) {
+        actions.push({ label: "Sửa mã hàng", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangePurchaseProduct(row), isNew: docType === "OTHER_INBOUND" })
+    }
+    if (isSalesReturnProductCorrectionLedger(row) && onChangeSalesReturnProduct) {
+        actions.push({ label: "Sửa mã hàng nhập trả", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangeSalesReturnProduct(row), isNew: true })
+    }
+    if (isTransferLedger(row) && onChangeTransferWarehouse) {
+        actions.push({ label: "Đổi kho chuyển kho", icon: <WarehouseIcon className="h-3.5 w-3.5" />, onClick: () => onChangeTransferWarehouse(row) })
+    }
+    if (isSalesReturnInboundLedger(row) && onChangeReturnWarehouse) {
+        actions.push({ label: "Đổi kho nhập trả", icon: <WarehouseIcon className="h-3.5 w-3.5" />, onClick: () => onChangeReturnWarehouse(row) })
+    }
+    if (isInboundWarehouseCorrectionLedger(row) && onChangeInboundWarehouse) {
+        actions.push({ label: "Đổi kho nhập", icon: <WarehouseIcon className="h-3.5 w-3.5" />, onClick: () => onChangeInboundWarehouse(row), isNew: true })
+    }
+    if (isLedgerAmountCorrectionLedger(row) && onChangeLedgerAmount) {
+        actions.push({ label: "Sửa tổng giá trị", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangeLedgerAmount(row), isNew: true })
+    }
+    if (isSalesReturnUnitPriceCorrectionLedger(row) && onChangeSalesReturnUnitPrice) {
+        actions.push({ label: "Sửa đơn giá nhập trả", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangeSalesReturnUnitPrice(row) })
+    }
+    if (isOtherExportLineDeleteLedger(row) && onDeleteOtherExportLine) {
+        actions.push({ label: "Xóa dòng xuất kho khác", icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => onDeleteOtherExportLine(row), destructive: true })
+    }
+    if (isOtherInboundLineDeleteLedger(row) && onDeleteOtherInboundLine) {
+        actions.push({ label: "Xóa dòng nhập kho khác", icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => onDeleteOtherInboundLine(row), isNew: true, destructive: true })
+    }
+
+    if (!actions.length) {
+        return <span className="text-muted-foreground">-</span>
+    }
+
+    return (
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title="Thao tác">
+                    <MoreHorizontal className="h-4 w-4" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-1">
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Thao tác</div>
+                {actions.map((action) => (
+                    <button
+                        key={action.label}
+                        type="button"
+                        className={cn(
+                            "flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted",
+                            action.destructive && "text-destructive hover:bg-destructive/10",
+                        )}
+                        onClick={action.onClick}
+                    >
+                        {action.icon}
+                        <span className="font-medium">
+                            {action.label}
+                            {action.isNew ? <NewBadge /> : null}
+                        </span>
+                    </button>
+                ))}
+            </PopoverContent>
+        </Popover>
+    )
+}
+
+function voucherItemToLedgerRow(
+    voucher: InventoryVoucherPrintDetail,
+    item: any,
+    voucherTypeCode: string,
+    isInbound: boolean,
+    fallbackWarehouse: any,
+): InventoryLedgerReportRow | null {
+    const ledgerId = Number(item.ledger_id || 0)
+    if (!ledgerId) return null
+    const quantity = Number(item.quantity || 0)
+    const warehouse = item.warehouse || fallbackWarehouse || {}
+    return {
+        id: ledgerId,
+        voucher_id: Number(voucher.id || 0) || null,
+        voucher_item_id: item.id ? Number(item.id) : null,
+        posting_date: String(voucher.posting_date || voucher.document_date || ""),
+        posting_time: item.posting_time || voucher.posting_time || null,
+        product_id: Number(item.product_id || item.product?.id || 0),
+        warehouse_id: Number(item.warehouse_id || warehouse.id || 0),
+        doc_type: voucherTypeCode,
+        doc_no: String(voucher.voucher_no || ""),
+        description: voucher.description || item.note || null,
+        unit: item.unit || item.product?.unit || null,
+        unit_price: item.unit_price == null ? null : Number(item.unit_price),
+        amount: item.amount == null ? null : Number(item.amount),
+        lot_id: item.lot_id == null ? null : Number(item.lot_id),
+        lot_code: item.lot_code || null,
+        quantity_in: isInbound ? quantity : 0,
+        quantity_out: isInbound ? 0 : quantity,
+        balance_quantity: 0,
+        product_code: item.product?.code || "",
+        product_name: item.product?.name || "",
+        warehouse_code: warehouse.code || null,
+        warehouse_name: warehouse.name || "",
+    }
 }
 
 function VoucherPrintButton({ voucherId }: { voucherId: number }) {
@@ -4074,6 +5682,14 @@ function isSalesExportLedger(item: InventoryLedgerReportRow) {
         && Boolean(item.lot_code)
 }
 
+function isSalesExportWarehouseCorrectionLedger(item: InventoryLedgerReportRow) {
+    const docType = String(item.doc_type || "").toUpperCase()
+    return ["SALES_EXPORT", "EXPORT"].includes(docType)
+        && Number(item.quantity_out || 0) > 0
+        && Boolean(item.voucher_id)
+        && Boolean(item.voucher_item_id)
+}
+
 function isTransferLedger(item: InventoryLedgerReportRow) {
     const docType = String(item.doc_type || "").toUpperCase()
     const hasTransferQuantity = Number(item.quantity_out || 0) > 0 || Number(item.quantity_in || 0) > 0
@@ -4095,6 +5711,42 @@ function isQuantityCorrectionLedger(item: InventoryLedgerReportRow) {
     return false
 }
 
+function isOtherExportLineDeleteLedger(item: InventoryLedgerReportRow) {
+    return String(item.doc_type || "").toUpperCase() === "OTHER_EXPORT"
+        && Number(item.quantity_out || 0) > 0
+        && Boolean(item.voucher_id)
+        && Boolean(item.voucher_item_id)
+        && Boolean(item.lot_code)
+}
+
+function isOtherInboundLineDeleteLedger(item: InventoryLedgerReportRow) {
+    return String(item.doc_type || "").toUpperCase() === "OTHER_INBOUND"
+        && Number(item.quantity_in || 0) > 0
+        && Boolean(item.voucher_id)
+        && Boolean(item.voucher_item_id)
+        && Boolean(item.lot_code)
+}
+
+function isInboundWarehouseCorrectionLedger(item: InventoryLedgerReportRow) {
+    const docType = String(item.doc_type || "").toUpperCase()
+    return ["IMPORT_PURCHASE", "DOMESTIC_PURCHASE", "OTHER_INBOUND"].includes(docType)
+        && Number(item.quantity_in || 0) > 0
+        && Boolean(item.voucher_id)
+        && Boolean(item.voucher_item_id)
+        && Boolean(item.lot_code)
+}
+
+function isLedgerAmountCorrectionLedger(item: InventoryLedgerReportRow) {
+    const docType = String(item.doc_type || "").toUpperCase()
+    if (["IMPORT_PURCHASE", "DOMESTIC_PURCHASE", "OTHER_INBOUND"].includes(docType)) {
+        return Number(item.quantity_in || 0) > 0 && Boolean(item.lot_code)
+    }
+    if (docType === "OTHER_EXPORT") {
+        return Number(item.quantity_out || 0) > 0 && Boolean(item.lot_code)
+    }
+    return false
+}
+
 function isPurchasePostingDateTimeCorrectionLedger(item: InventoryLedgerReportRow) {
     const docType = String(item.doc_type || "").toUpperCase()
     return ["IMPORT_PURCHASE", "DOMESTIC_PURCHASE"].includes(docType)
@@ -4102,13 +5754,34 @@ function isPurchasePostingDateTimeCorrectionLedger(item: InventoryLedgerReportRo
         && Boolean(item.lot_code)
 }
 
+function isPurchaseProductCorrectionLedger(item: InventoryLedgerReportRow) {
+    const docType = String(item.doc_type || "").toUpperCase()
+    return ["IMPORT_PURCHASE", "DOMESTIC_PURCHASE", "OTHER_INBOUND"].includes(docType)
+        && Number(item.quantity_in || 0) > 0
+        && Boolean(item.lot_code)
+        && Boolean(item.voucher_item_id)
+}
+
+function isSalesReturnProductCorrectionLedger(item: InventoryLedgerReportRow) {
+    return String(item.doc_type || "").toUpperCase() === "SALES_RETURN"
+        && Number(item.quantity_in || 0) > 0
+        && Boolean(item.lot_code)
+        && Boolean(item.voucher_id)
+        && Boolean(item.voucher_item_id)
+}
+
 function isDocumentPostingTimeCorrectionLedger(item: InventoryLedgerReportRow) {
     const docType = String(item.doc_type || "").toUpperCase()
     if (docType === "OTHER_INBOUND") return Number(item.quantity_in || 0) > 0
     if (docType === "OTHER_EXPORT") return Number(item.quantity_out || 0) > 0
     if (docType === "SALES_EXPORT") return Number(item.quantity_out || 0) > 0
+    if (docType === "SALES_RETURN") return Number(item.quantity_in || 0) > 0
     if (docType === "PRODUCTION") return Number(item.quantity_in || 0) > 0
     return false
+}
+
+function canChangeDocumentPostingDate(docType?: string | null) {
+    return ["SALES_EXPORT", "SALES_RETURN"].includes(String(docType || "").toUpperCase())
 }
 
 function documentPostingTimeLabel(docType?: string | null) {
@@ -4119,6 +5792,8 @@ function documentPostingTimeLabel(docType?: string | null) {
             return "phiếu xuất kho khác"
         case "SALES_EXPORT":
             return "phiếu xuất bán hàng"
+        case "SALES_RETURN":
+            return "phiếu nhập hàng bán trả lại"
         case "PRODUCTION":
             return "phiếu nhập thành phẩm sản xuất"
         default:
