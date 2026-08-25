@@ -29,17 +29,34 @@ export function listSalesActuals(params: SalesActualListParams) {
     return apiGet<PagedResult<SalesActualItem>>("/salary/sales-actuals", params)
 }
 
+export type SalesActualPeriodSyncResult = {
+    period: string
+    source_rows: number
+    missing_employees: number
+    deleted: number
+    inserted: number
+}
+
+export type SalesActualYearSyncResult = {
+    year: number
+    synced_months: number
+    source_rows: number
+    missing_employees: number
+    deleted: number
+    inserted: number
+}
+
+export type SalesActualSyncResult = SalesActualPeriodSyncResult | SalesActualYearSyncResult
+
 export function syncSalesActualsFromTransactions(period: string) {
-    return apiPost<{
-        period: string
-        source_rows: number
-        missing_employees: number
-        deleted: number
-        inserted: number
-    }>(
+    return apiPost<SalesActualPeriodSyncResult>(
         `/salary/sales-actuals/sync/${period}`,
         undefined,
     )
+}
+
+export function syncSalesActualsYearFromTransactions(year: number) {
+    return apiPost<SalesActualYearSyncResult>(`/salary/sales-actuals/sync-year/${year}`, undefined)
 }
 
 export const getSalesActual = salesActualCrudApi.detail

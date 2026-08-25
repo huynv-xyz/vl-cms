@@ -1,5 +1,5 @@
 import { usePaginatedList } from '@/hooks/use-paginated-list'
-import { listSalesActuals, syncSalesActualsFromTransactions } from '@/api/sales-actual'
+import { listSalesActuals, syncSalesActualsFromTransactions, syncSalesActualsYearFromTransactions, type SalesActualSyncResult } from '@/api/sales-actual'
 import { SalesActualTable } from './components/sales-actual-table'
 import { SalesActualsProvider } from './components/sales-actuals-provider'
 import { Route } from '@/routes/_authenticated/salary/sales-actuals'
@@ -115,15 +115,24 @@ export default function SalesActualPage() {
     const missingTargetCount = items.filter((item) => !item.target).length
     const completionRate = totalTarget > 0 ? `${((totalActual / totalTarget) * 100).toFixed(1)}%` : '-'
 
-    const syncMutation = useMutation({
+    const syncMutation = useMutation<SalesActualSyncResult, Error, void>({
         mutationFn: () => {
             const nextPeriod = periodDraft.trim() || currentMonth()
-            if (!isValidPeriod(nextPeriod) || !nextPeriod || /^\d{4}$/.test(nextPeriod)) {
+            if (isAnnualView && /^\d{4}$/.test(nextPeriod)) {
+                return syncSalesActualsYearFromTransactions(Number(nextPeriod))
+            }
+            if (!isValidPeriod(nextPeriod) || !nextPeriod) {
                 throw new Error('Kỳ không hợp lệ. Định dạng YYYY-MM')
             }
             return syncSalesActualsFromTransactions(compactPeriod(nextPeriod))
         },
         onSuccess: (res) => {
+            if ('year' in res) {
+                qc.invalidateQueries({ queryKey: ['sales-actual'] })
+                const missingText = res.missing_employees > 0 ? `, ${res.missing_employees} giao dịch chưa map được nhân viên` : ''
+                toast.success(`Đã đồng bộ ${res.synced_months} tháng năm ${res.year}: ${res.inserted} dòng từ ${res.source_rows} giao dịch${missingText}`)
+                return
+            }
             const normalized = res.period
             setPeriodDraft(displayPeriod(normalized))
             setSingleFilters({ year: undefined, period: normalized })
@@ -216,10 +225,13 @@ export default function SalesActualPage() {
                                 size="sm"
                                 onClick={() => syncMutation.mutate()}
                                 disabled={syncMutation.isPending}
-                                className={isAnnualView ? 'hidden' : undefined}
                             >
                                 <PlayCircle className="mr-2 h-4 w-4" />
-                                {syncMutation.isPending ? 'Đang đồng bộ...' : 'Đồng bộ từ giao dịch'}
+                                {syncMutation.isPending
+                                    ? 'Đang đồng bộ...'
+                                    : isAnnualView
+                                        ? 'Đồng bộ cả năm'
+                                        : 'Đồng bộ từ giao dịch'}
                             </Button>
                         </div>
                         <Badge variant="secondary">{isAnnualView ? `Cả năm ${selectedPeriod}` : `Kỳ ${displayPeriod(selectedPeriod) || 'tất cả'}`}</Badge>
