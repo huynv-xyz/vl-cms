@@ -371,6 +371,15 @@ export function CustomerVipPlanSheet({
 
                                 <div className="flex flex-col gap-1">
                                     <label className="text-xs font-medium text-muted-foreground">
+                                        Dữ liệu đạt đến
+                                    </label>
+                                    <div className="flex h-10 min-w-[150px] items-center rounded-md border bg-background px-3 text-sm font-medium tabular-nums">
+                                        {formatDisplayDate(data.to_date || data.as_of_date)}
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-xs font-medium text-muted-foreground">
                                         &nbsp;
                                     </label>
                                     <Button
@@ -393,12 +402,7 @@ export function CustomerVipPlanSheet({
                                                 <CleanHead className="min-w-[160px]">Mã chung</CleanHead>
                                                 <CleanHead className="min-w-[260px]">Nhóm hàng hóa</CleanHead>
                                                 <CleanHead className="w-20 text-center">ĐVT</CleanHead>
-                                                <CleanHead className="w-[130px] text-right">
-                                                    SL đạt
-                                                    <div className="text-[10px] font-normal text-muted-foreground">
-                                                        đến {formatDisplayDate(data.to_date || data.as_of_date)}
-                                                    </div>
-                                                </CleanHead>
+                                                <CleanHead className="w-[130px] text-right">SL đạt</CleanHead>
                                                 <CleanHead className="w-20 text-right">Hệ số</CleanHead>
                                                 <CleanHead className="w-[130px] text-right">Điểm đạt</CleanHead>
                                                 <CleanHead className="w-[150px] text-right text-primary">

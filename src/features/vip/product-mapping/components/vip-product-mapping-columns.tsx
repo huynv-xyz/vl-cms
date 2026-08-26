@@ -18,6 +18,13 @@ export const vipProductMappingColumns: ColumnDef<VipProductMapping>[] = [
     }),
 
     buildTextColumn<VipProductMapping>({
+        accessorKey: "group_code",
+        title: "Mã chung",
+        width: 140,
+        maxWidth: 160,
+    }),
+
+    buildTextColumn<VipProductMapping>({
         accessorKey: "ap_dung",
         title: "Vùng áp dụng",
         width: 110,
