@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { ArrowRight, Boxes, DatabaseBackup, DatabaseZap, PackageCheck } from "lucide-react"
+import { ArrowRight, Boxes, DatabaseBackup, DatabaseZap, PackageCheck, ReceiptText } from "lucide-react"
 
 import { Main } from "@/components/layout/main"
 import { Badge } from "@/components/ui/badge"
@@ -38,6 +38,14 @@ const tools: ToolItem[] = [
         url: "/tools/sales-export-inventory-rollback",
         status: "Tạm thời",
         icon: DatabaseZap,
+    },
+    {
+        title: "Bù công nợ phiếu xuất",
+        description:
+            "Quét phiếu xuất DONE bị thiếu công nợ do lúc hoàn thành đơn giá còn 0, rồi bù theo giá hiện tại.",
+        url: "/tools/sales-export-ar-missing-repair",
+        status: "Tạm thời",
+        icon: ReceiptText,
     },
     {
         title: "Sửa TK kho sync quá tay",
