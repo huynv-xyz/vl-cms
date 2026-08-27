@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
 import type React from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { AlertCircle, Calculator, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Download, Loader2, Play, Plus, Search, Trash2 } from "lucide-react"
+import { AlertCircle, Calculator, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Download, Loader2, Lock, Play, Plus, Search, Trash2, Unlock } from "lucide-react"
 import { toast } from "sonner"
 
 import { listInventoryLedgerReport } from "@/api/inventory/ledger"
@@ -13,6 +13,7 @@ import {
     listCostPeriods,
     listFinishedProductCostExport,
     listPeriodCosts,
+    lockCostPeriod,
     type CostBasis,
     type CostPeriod,
     type CostingCalculationError,
@@ -21,6 +22,7 @@ import {
     type ProductPeriodCost,
     type ProductionCostBasis,
     type TransferInboundCostBasis,
+    unlockCostPeriod,
 } from "@/api/inventory/costing"
 import { Main } from "@/components/layout/main"
 import { CardPagination } from "@/components/table/card-pagination"
@@ -114,6 +116,26 @@ export default function InventoryCostingPage() {
         onError: (error) => toast.error(error instanceof Error ? error.message : "Không xóa được kỳ tính giá"),
     })
 
+    const lockPeriodMutation = useMutation({
+        mutationFn: (period: CostPeriod) => lockCostPeriod(period.id),
+        onSuccess: (_, period) => {
+            toast.success(`Đã khóa kỳ ${period.name}`)
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-periods"] })
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-period-costs", period.id] })
+        },
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Không khóa được kỳ tính giá"),
+    })
+
+    const unlockPeriodMutation = useMutation({
+        mutationFn: (period: CostPeriod) => unlockCostPeriod(period.id),
+        onSuccess: (_, period) => {
+            toast.success(`Đã mở khóa kỳ ${period.name}`)
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-periods"] })
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-period-costs", period.id] })
+        },
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Không mở khóa được kỳ tính giá"),
+    })
+
     return (
         <Main className="flex w-full min-w-0 flex-col gap-2">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-1.5">
@@ -177,11 +199,19 @@ export default function InventoryCostingPage() {
                                                                     {formatDate(period.from_date)} - {formatDate(period.to_date)}
                                                                 </div>
                                                             </div>
-                                                            <DeletePeriodButton
-                                                                period={period}
-                                                                isDeleting={deletePeriodMutation.isPending}
-                                                                onDelete={() => deletePeriodMutation.mutate(period)}
-                                                            />
+                                                            <div className="flex shrink-0 items-center gap-0.5">
+                                                                <DeletePeriodButton
+                                                                    period={period}
+                                                                    isDeleting={deletePeriodMutation.isPending}
+                                                                    onDelete={() => deletePeriodMutation.mutate(period)}
+                                                                />
+                                                                <PeriodLockButton
+                                                                    period={period}
+                                                                    isPending={lockPeriodMutation.isPending || unlockPeriodMutation.isPending}
+                                                                    onLock={() => lockPeriodMutation.mutate(period)}
+                                                                    onUnlock={() => unlockPeriodMutation.mutate(period)}
+                                                                />
+                                                            </div>
                                                         </div>
                                                         <StatusBadge status={period.status} />
                                                     </div>
@@ -231,14 +261,14 @@ function DeletePeriodButton({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 shrink-0 text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                    className="h-6 w-6 shrink-0 text-muted-foreground hover:bg-red-50 hover:text-red-600"
                     disabled={locked || isDeleting}
                     title={locked ? "Kỳ đã khóa, không thể xóa" : "Xóa kỳ"}
                     onClick={(event) => {
                         event.stopPropagation()
                     }}
                 >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                 </Button>
             </AlertDialogTrigger>
             <AlertDialogContent onClick={(event) => event.stopPropagation()}>
@@ -262,6 +292,53 @@ function DeletePeriodButton({
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+    )
+}
+
+function PeriodLockButton({
+    period,
+    isPending,
+    onLock,
+    onUnlock,
+}: {
+    period: CostPeriod
+    isPending: boolean
+    onLock: () => void
+    onUnlock: () => void
+}) {
+    const locked = period.status === "LOCKED"
+    const canLock = period.status === "CALCULATED"
+    const disabled = isPending || (!locked && !canLock)
+    return (
+        <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn(
+                "h-6 w-6 shrink-0 text-muted-foreground",
+                locked
+                    ? "hover:bg-emerald-50 hover:text-emerald-600"
+                    : "hover:bg-amber-50 hover:text-amber-600",
+            )}
+            disabled={disabled}
+            title={locked ? "Mở khóa kỳ" : canLock ? "Khóa kỳ" : "Chỉ khóa được kỳ đã tính"}
+            onClick={(event) => {
+                event.stopPropagation()
+                if (locked) {
+                    onUnlock()
+                } else if (canLock) {
+                    onLock()
+                }
+            }}
+        >
+            {isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : locked ? (
+                <Unlock className="h-3.5 w-3.5" />
+            ) : (
+                <Lock className="h-3.5 w-3.5" />
+            )}
+        </Button>
     )
 }
 
@@ -316,6 +393,26 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
         },
     })
 
+    const lockMutation = useMutation({
+        mutationFn: () => lockCostPeriod(period.id),
+        onSuccess: () => {
+            toast.success(`Đã khóa kỳ ${period.name}`)
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-periods"] })
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-period-costs", period.id] })
+        },
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Không khóa được kỳ tính giá"),
+    })
+
+    const unlockMutation = useMutation({
+        mutationFn: () => unlockCostPeriod(period.id),
+        onSuccess: () => {
+            toast.success(`Đã mở khóa kỳ ${period.name}`)
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-periods"] })
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-period-costs", period.id] })
+        },
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Không mở khóa được kỳ tính giá"),
+    })
+
     const exportMutation = useMutation({
         mutationFn: async () => {
             const rows = await fetchAllPeriodCosts(period.id, keyword, productionOnly)
@@ -349,6 +446,33 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        {period.status === "LOCKED" ? (
+                            <Button
+                                variant="outline"
+                                disabled={unlockMutation.isPending}
+                                onClick={() => unlockMutation.mutate()}
+                            >
+                                {unlockMutation.isPending ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Unlock className="mr-2 h-4 w-4" />
+                                )}
+                                Mở khóa
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="outline"
+                                disabled={period.status !== "CALCULATED" || lockMutation.isPending}
+                                onClick={() => lockMutation.mutate()}
+                            >
+                                {lockMutation.isPending ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Lock className="mr-2 h-4 w-4" />
+                                )}
+                                Khóa kỳ
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             disabled={period.status === "LOCKED" || calculateMutation.isPending}

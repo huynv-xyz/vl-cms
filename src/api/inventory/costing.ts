@@ -218,6 +218,10 @@ export function lockCostPeriod(id: number) {
     return apiPost<CostPeriod>(`/inventory/costing/periods/${id}/lock`)
 }
 
+export function unlockCostPeriod(id: number) {
+    return apiPost<CostPeriod>(`/inventory/costing/periods/${id}/unlock`)
+}
+
 export function deleteCostPeriod(id: number) {
     return apiDelete<{ deleted: boolean; stale_periods: number }>(`/inventory/costing/periods/${id}`)
 }
