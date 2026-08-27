@@ -32,6 +32,13 @@ type Props = {
 type RowState = {
     order_item_id: number
     quantity: string
+    lot_allocations?: LotAllocationState[]
+}
+
+type LotAllocationState = {
+    lot_id?: number
+    lot_code?: string
+    quantity: string
 }
 
 export function OrderQuantityAdjustmentDialog({ open, order, onOpenChange }: Props) {
@@ -52,6 +59,11 @@ export function OrderQuantityAdjustmentDialog({ open, order, onOpenChange }: Pro
                 .map((item: any) => ({
                     order_item_id: Number(item.id),
                     quantity: String(item.quantity ?? 0),
+                    lot_allocations: findCustomLotAllocations(order, Number(item.id)).map((allocation: any) => ({
+                        lot_id: allocation?.lot_id,
+                        lot_code: allocation?.lot_code,
+                        quantity: String(allocation?.quantity ?? 0),
+                    })),
                 }))
         )
         setReport(null)
@@ -77,6 +89,11 @@ export function OrderQuantityAdjustmentDialog({ open, order, onOpenChange }: Pro
                 .map((row) => ({
                     order_item_id: row.order_item_id,
                     quantity: parseQuantity(row.quantity),
+                    lot_allocations: (row.lot_allocations ?? []).map((allocation) => ({
+                        lot_id: allocation.lot_id,
+                        lot_code: allocation.lot_code,
+                        quantity: parseQuantity(allocation.quantity),
+                    })),
                 }))
                 .filter((row) => {
                 const item = items.find((x: any) => Number(x.id) === row.order_item_id)
@@ -174,6 +191,24 @@ export function OrderQuantityAdjustmentDialog({ open, order, onOpenChange }: Pro
         setErrorData(null)
     }
 
+    const updateLotAllocation = (orderItemId: number, lotIndex: number, quantity: string) => {
+        setRows((prev) =>
+            prev.map((row) => {
+                if (row.order_item_id !== orderItemId) return row
+                return {
+                    ...row,
+                    lot_allocations: (row.lot_allocations ?? []).map((allocation, index) =>
+                        index === lotIndex ? { ...allocation, quantity } : allocation
+                    ),
+                }
+            })
+        )
+        setReport(null)
+        setCheckReport(null)
+        setErrorMessage("")
+        setErrorData(null)
+    }
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="w-[96vw] max-w-[1500px] overflow-hidden p-0 sm:max-w-[96vw]">
@@ -231,7 +266,7 @@ export function OrderQuantityAdjustmentDialog({ open, order, onOpenChange }: Pro
                     )}
 
                     <div className="overflow-x-auto rounded-lg border">
-                        <Table className="min-w-[1280px]">
+                        <Table className="min-w-[1640px]">
                             <TableHeader>
                                 <TableRow className="bg-muted/70">
                                     <TableHead className="w-[56px] text-center">#</TableHead>
@@ -239,6 +274,7 @@ export function OrderQuantityAdjustmentDialog({ open, order, onOpenChange }: Pro
                                     <TableHead className="min-w-[300px]">Tên sản phẩm</TableHead>
                                     <TableHead className="w-[110px] text-right">SL cũ</TableHead>
                                     <TableHead className="w-[150px] text-right">SL mới</TableHead>
+                                    <TableHead className="min-w-[360px]">Phân bổ lô</TableHead>
                                     <TableHead className="w-[130px] text-right">SL đã xuất</TableHead>
                                     <TableHead className="w-[130px] text-right">SL đã trả</TableHead>
                                     <TableHead className="w-[140px] text-right">Đơn giá</TableHead>
@@ -256,6 +292,9 @@ export function OrderQuantityAdjustmentDialog({ open, order, onOpenChange }: Pro
                                     const amount = isPromotion ? 0 : Math.max(quantity * price - discount, 0)
                                     const productId = item.product?.id ?? item.product_id
                                     const productCode = item.product?.code ?? item.product_code
+                                    const lotAllocations = row?.lot_allocations ?? []
+                                    const lotTotal = lotAllocations.reduce((sum, allocation) => sum + parseQuantity(allocation.quantity), 0)
+                                    const lotDiff = quantity - lotTotal
                                     const hasError =
                                         (errorData?.order_item_id != null && Number(errorData.order_item_id) === Number(item.id)) ||
                                         (errorData?.product_id != null && Number(errorData.product_id) === Number(productId)) ||
@@ -282,6 +321,38 @@ export function OrderQuantityAdjustmentDialog({ open, order, onOpenChange }: Pro
                                                         }
                                                     }}
                                                 />
+                                            </TableCell>
+                                            <TableCell>
+                                                {lotAllocations.length ? (
+                                                    <div className="space-y-2">
+                                                        <div className="grid gap-2">
+                                                            {lotAllocations.map((allocation, lotIndex) => (
+                                                                <div key={`${allocation.lot_id ?? allocation.lot_code ?? lotIndex}`} className="grid grid-cols-[minmax(0,1fr)_120px] items-center gap-2">
+                                                                    <div className="truncate font-mono text-xs text-muted-foreground" title={allocation.lot_code || "-"}>
+                                                                        {allocation.lot_code || "-"}
+                                                                    </div>
+                                                                    <Input
+                                                                        type="text"
+                                                                        inputMode="decimal"
+                                                                        className="h-8 text-right tabular-nums"
+                                                                        value={allocation.quantity}
+                                                                        onChange={(event) => {
+                                                                            const value = event.target.value
+                                                                            if (/^\d*(\.\d*)?$/.test(value)) {
+                                                                                updateLotAllocation(Number(item.id), lotIndex, value)
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        <div className={Math.abs(lotDiff) < 0.000001 ? "text-xs text-emerald-600" : "text-xs font-medium text-red-600"}>
+                                                            Tổng lô {formatNumber(lotTotal)}, chênh {formatNumber(lotDiff)}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-sm text-muted-foreground">-</span>
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-right tabular-nums">{formatNumber(item.exported_quantity || 0)}</TableCell>
                                             <TableCell className="text-right tabular-nums">{formatNumber(item.returned_quantity || 0)}</TableCell>
@@ -331,4 +402,17 @@ function Summary({ label, value }: { label: string; value: string }) {
             <div className="mt-1 text-right text-lg font-bold tabular-nums">{value}</div>
         </div>
     )
+}
+
+function findCustomLotAllocations(order: any, orderItemId: number) {
+    for (const exportDoc of order?.exports ?? []) {
+        if (exportDoc?.status !== "DONE") continue
+        for (const item of exportDoc?.items ?? []) {
+            if (Number(item?.order_item_id) !== Number(orderItemId)) continue
+            if (Array.isArray(item?.lot_allocations) && item.lot_allocations.length) {
+                return item.lot_allocations
+            }
+        }
+    }
+    return []
 }

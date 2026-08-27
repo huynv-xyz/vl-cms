@@ -40,6 +40,7 @@ import {
     checkSalesReturnUnitPriceChange,
     checkTransferExportWarehouseChange,
     getTransferExportWarehouseChangeContext,
+    listSalesExportWarehouseChangeLots,
     listTransferExportWarehouseChangeLots,
     type InventoryLedgerStaticParametersPayload,
     type InboundWarehouseChangeResult,
@@ -53,7 +54,9 @@ import {
     type OtherInboundLineDeleteResult,
     type ReturnWarehouseChangeResult,
     type SalesExportLotChangeResult,
+    type SalesExportWarehouseAvailableLot,
     type SalesExportWarehouseChangeResult,
+    type SalesExportWarehouseLotAllocation,
     type SalesReturnProductChangeResult,
     type SalesReturnUnitPriceChangeResult,
     type TransferExportWarehouseAvailableLot,
@@ -3954,12 +3957,18 @@ function SalesExportWarehouseChangeDialog({
     onChanged: () => void
 }) {
     const [newWarehouseId, setNewWarehouseId] = useState<number | undefined>()
+    const [lotSelectionMode, setLotSelectionMode] = useState<"AUTO" | "SINGLE" | "CUSTOM">("AUTO")
+    const [selectedLotNo, setSelectedLotNo] = useState<string | undefined>()
+    const [lotQuantities, setLotQuantities] = useState<Record<string, string>>({})
     const [result, setResult] = useState<SalesExportWarehouseChangeResult | null>(null)
     const [errorMessage, setErrorMessage] = useState("")
 
     useEffect(() => {
         if (open && row) {
             setNewWarehouseId(undefined)
+            setLotSelectionMode("AUTO")
+            setSelectedLotNo(undefined)
+            setLotQuantities({})
             setResult(null)
             setErrorMessage("")
         }
@@ -3968,8 +3977,64 @@ function SalesExportWarehouseChangeDialog({
     const unchanged = Boolean(newWarehouseId && row?.warehouse_id && Number(newWarehouseId) === Number(row.warehouse_id))
     const missingWarehouse = !newWarehouseId
     const busy = false
+    const lotsQuery = useQuery({
+        queryKey: ["sales-export-warehouse-change-lots", row?.id, newWarehouseId],
+        enabled: Boolean(open && row?.id && newWarehouseId && !unchanged),
+        queryFn: () => listSalesExportWarehouseChangeLots(Number(row?.id), Number(newWarehouseId)),
+        staleTime: 10_000,
+    })
+    const contextQuery = useQuery({
+        queryKey: ["sales-export-warehouse-change-context", row?.id, newWarehouseId],
+        enabled: Boolean(open && row?.id && newWarehouseId && !unchanged),
+        queryFn: () => checkSalesExportWarehouseChange(Number(row?.id), Number(newWarehouseId), "AUTO"),
+        staleTime: 10_000,
+    })
+    const availableLots = Array.isArray(lotsQuery.data) ? lotsQuery.data : []
+    const lotSelectValue = lotSelectionMode === "SINGLE" ? (selectedLotNo || "AUTO") : lotSelectionMode
+    const selectedAllocations = buildSalesExportWarehouseLotAllocations(availableLots, lotQuantities)
+    const requiredQuantity = Number(result?.quantity ?? contextQuery.data?.quantity ?? row?.quantity_out ?? 0)
+    const ledgerLineQuantity = Number(row?.quantity_out || 0)
+    const allocatedQuantity = selectedAllocations.reduce((sum, allocation) => sum + Number(allocation.quantity || 0), 0)
+    const allocationDiff = requiredQuantity - allocatedQuantity
+    useEffect(() => {
+        if (lotSelectionMode !== "SINGLE" || !selectedLotNo || requiredQuantity <= 0) return
+        const selectedLot = availableLots.find((lot) => (lot.lot_no || lot.lot_code) === selectedLotNo)
+        const safeQuantity = Number(selectedLot?.history_safe_quantity ?? selectedLot?.available_quantity ?? 0)
+        if (!selectedLot || safeQuantity < requiredQuantity) {
+            setLotSelectionMode("AUTO")
+            setSelectedLotNo(undefined)
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [availableLots, lotSelectionMode, requiredQuantity, selectedLotNo])
+    const allocationHasInvalidLot = availableLots.some((lot) => {
+        const quantity = Number(lotQuantities[salesExportWarehouseLotKey(lot)] || 0)
+        const safeQuantity = Number(lot.history_safe_quantity ?? lot.available_quantity ?? 0)
+        return quantity > safeQuantity
+    })
+    const allocationValid = lotSelectionMode === "AUTO"
+        || (lotSelectionMode === "SINGLE" && Boolean(selectedLotNo))
+        || (selectedAllocations.length > 0 && sameDecimal(allocatedQuantity, requiredQuantity) && !allocationHasInvalidLot)
+    const updateLotQuantity = (lot: SalesExportWarehouseAvailableLot, value: string) => {
+        const key = salesExportWarehouseLotKey(lot)
+        if (!key) return
+        setLotQuantities((current) => ({ ...current, [key]: value }))
+        setResult(null)
+        setErrorMessage("")
+    }
+    const autoAllocateLots = () => {
+        setLotQuantities(autoAllocateSalesExportWarehouseLots(availableLots, requiredQuantity))
+        setResult(null)
+        setErrorMessage("")
+    }
     const checkMutation = useMutation({
-        mutationFn: () => checkSalesExportWarehouseChange(Number(row?.id), Number(newWarehouseId)),
+        mutationFn: () => checkSalesExportWarehouseChange(
+            Number(row?.id),
+            Number(newWarehouseId),
+            lotSelectionMode,
+            lotSelectionMode === "SINGLE" ? selectedLotNo : undefined,
+            lotSelectionMode === "CUSTOM" ? selectedAllocations : undefined
+        ),
         onSuccess: (data) => {
             setResult(data)
             setErrorMessage("")
@@ -3980,7 +4045,13 @@ function SalesExportWarehouseChangeDialog({
         },
     })
     const applyMutation = useMutation({
-        mutationFn: () => applySalesExportWarehouseChange(Number(row?.id), Number(newWarehouseId)),
+        mutationFn: () => applySalesExportWarehouseChange(
+            Number(row?.id),
+            Number(newWarehouseId),
+            lotSelectionMode,
+            lotSelectionMode === "SINGLE" ? selectedLotNo : undefined,
+            lotSelectionMode === "CUSTOM" ? selectedAllocations : undefined
+        ),
         onSuccess: (data) => {
             setResult(data)
             setErrorMessage("")
@@ -3988,11 +4059,13 @@ function SalesExportWarehouseChangeDialog({
             toast.success("Đã đổi kho xuất bán")
         },
         onError: (error: any) => {
+            setResult(null)
             setErrorMessage(error?.message || "Không đổi được kho xuất bán.")
         },
     })
-    const pending = busy || checkMutation.isPending || applyMutation.isPending
-    const canApply = Boolean(result?.valid && !result.applied && !missingWarehouse && !unchanged && !pending)
+    const pending = busy || checkMutation.isPending || applyMutation.isPending || lotsQuery.isLoading || contextQuery.isLoading
+    const canCheck = Boolean(!pending && !missingWarehouse && !unchanged && allocationValid)
+    const canApply = Boolean(result?.valid && !result.applied && !missingWarehouse && !unchanged && allocationValid && !pending)
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -4014,7 +4087,10 @@ function SalesExportWarehouseChangeDialog({
                             <InfoItem label="Ngày chứng từ" value={`${formatDate(row.posting_date)} ${formatTime(row.posting_time)}`} />
                             <InfoItem label="Kho hiện tại" value={row.warehouse_name} />
                             <InfoItem label="Hàng hóa" value={`${row.product_code} - ${row.product_name}`} />
-                            <InfoItem label="Số lượng xuất" value={formatNumber(Number(row.quantity_out || 0))} />
+                            {!sameDecimal(requiredQuantity, ledgerLineQuantity) ? (
+                                <InfoItem label="SL dòng sổ kho" value={formatNumber(ledgerLineQuantity)} />
+                            ) : null}
+                            <InfoItem label="Số lượng xuất" value={formatNumber(requiredQuantity)} />
                             <InfoItem label="Lô hiện tại" value={row.lot_code || "-"} />
                         </div>
 
@@ -4024,6 +4100,9 @@ function SalesExportWarehouseChangeDialog({
                                 value={newWarehouseId}
                                 onChange={(value: number | string | undefined) => {
                                     setNewWarehouseId(value ? Number(value) : undefined)
+                                    setLotSelectionMode("AUTO")
+                                    setSelectedLotNo(undefined)
+                                    setLotQuantities({})
                                     setResult(null)
                                     setErrorMessage("")
                                 }}
@@ -4042,6 +4121,151 @@ function SalesExportWarehouseChangeDialog({
                             {unchanged ? (
                                 <div className="text-sm text-destructive">Kho xuất mới phải khác kho hiện tại.</div>
                             ) : null}
+                        </div>
+
+                        <div className="space-y-3 rounded-md border p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <div className="text-sm font-medium">Lô xuất ở kho mới</div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Tùy chọn sẽ được kiểm tra tồn tại thời điểm xuất và âm tồn lịch sử trước khi áp dụng.
+                                    </div>
+                                </div>
+                                <Select
+                                    value={lotSelectValue}
+                                    disabled={!newWarehouseId || unchanged || pending}
+                                    onValueChange={(value) => {
+                                        if (value === "CUSTOM") {
+                                            setLotSelectionMode("CUSTOM")
+                                            setSelectedLotNo(undefined)
+                                        } else if (value === "AUTO") {
+                                            setLotSelectionMode("AUTO")
+                                            setSelectedLotNo(undefined)
+                                        } else {
+                                            setLotSelectionMode("SINGLE")
+                                            setSelectedLotNo(value)
+                                            setLotQuantities({})
+                                        }
+                                        setResult(null)
+                                        setErrorMessage("")
+                                    }}
+                                >
+                                    <SelectTrigger className="h-9 w-[180px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="AUTO">
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <WarehouseIcon className="h-3.5 w-3.5" />
+                                                Auto FIFO
+                                            </span>
+                                        </SelectItem>
+                                        <SelectItem value="CUSTOM">
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <Pencil className="h-3.5 w-3.5" />
+                                                Tùy chọn
+                                            </span>
+                                        </SelectItem>
+                                        {(lotsQuery.isLoading || lotsQuery.isFetching) && <SelectItem value="LOADING" disabled>Đang tải lô...</SelectItem>}
+                                        {availableLots.map((lot, index) => {
+                                            const lotNo = lot.lot_no || lot.lot_code || ""
+                                            if (!lotNo) return null
+                                            const safeQuantity = Number(lot.history_safe_quantity ?? lot.available_quantity ?? 0)
+                                            const enoughForSingleLot = safeQuantity >= requiredQuantity
+                                            return (
+                                                <SelectItem
+                                                    key={`${lot.id ?? lot.lot_id ?? index}-${lotNo}`}
+                                                    value={lotNo}
+                                                    textValue={lotNo}
+                                                    disabled={!enoughForSingleLot}
+                                                >
+                                                    {lotNo} - {enoughForSingleLot
+                                                        ? `an toàn ${formatNumber(safeQuantity)}`
+                                                        : `không đủ, an toàn ${formatNumber(safeQuantity)}/${formatNumber(requiredQuantity)}`}
+                                                </SelectItem>
+                                            )
+                                        })}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {lotSelectionMode === "CUSTOM" ? (
+                                <div className="space-y-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/30 px-3 py-2 text-sm">
+                                        <span>Cần xuất <b className="tabular-nums">{formatNumber(requiredQuantity)}</b></span>
+                                        <span>Đã phân bổ <b className={sameDecimal(allocatedQuantity, requiredQuantity) ? "text-emerald-700 tabular-nums" : "text-red-700 tabular-nums"}>{formatNumber(allocatedQuantity)}</b></span>
+                                        <span className={sameDecimal(allocationDiff, 0) ? "text-muted-foreground" : "font-medium text-red-700"}>
+                                            Chênh {formatNumber(allocationDiff)}
+                                        </span>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={lotsQuery.isLoading || !availableLots.length}
+                                            onClick={autoAllocateLots}
+                                        >
+                                            Tự phân bổ
+                                        </Button>
+                                    </div>
+
+                                    <div className="max-h-72 overflow-auto rounded-md border">
+                                        <table className="w-full text-sm">
+                                            <thead className="sticky top-0 bg-muted/60 text-xs text-muted-foreground">
+                                                <tr>
+                                                    <Th>Số lô</Th>
+                                                    <Th className="w-36 text-right">Tồn thời điểm</Th>
+                                                    <Th className="w-36 text-right">SL an toàn</Th>
+                                                    <Th className="w-40 text-right">Số lượng xuất</Th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {lotsQuery.isLoading ? (
+                                                    <tr>
+                                                        <Td colSpan={4} className="py-6 text-center text-muted-foreground">Đang tải lô...</Td>
+                                                    </tr>
+                                                ) : availableLots.length ? (
+                                                    availableLots.map((lot, index) => {
+                                                        const key = salesExportWarehouseLotKey(lot)
+                                                        const safeQuantity = Number(lot.history_safe_quantity ?? lot.available_quantity ?? 0)
+                                                        const quantity = Number(lotQuantities[key] || 0)
+                                                        const invalid = quantity > safeQuantity
+                                                        return (
+                                                            <tr key={key || index} className="border-t">
+                                                                <Td className="font-mono">{lot.lot_no || lot.lot_code || "-"}</Td>
+                                                                <Td className="text-right tabular-nums">{formatNumber(Number(lot.available_quantity || 0))}</Td>
+                                                                <Td className="text-right tabular-nums">{formatNumber(safeQuantity)}</Td>
+                                                                <Td>
+                                                                    <Input
+                                                                        type="text"
+                                                                        inputMode="decimal"
+                                                                        className={cn("ml-auto h-8 w-32 text-right tabular-nums", invalid && "border-red-400")}
+                                                                        value={lotQuantities[key] ?? ""}
+                                                                        onChange={(event) => {
+                                                                            const value = event.target.value
+                                                                            if (/^\d*(\.\d*)?$/.test(value)) updateLotQuantity(lot, value)
+                                                                        }}
+                                                                    />
+                                                                    {invalid ? <div className="mt-1 text-right text-xs text-red-600">Vượt SL an toàn</div> : null}
+                                                                </Td>
+                                                            </tr>
+                                                        )
+                                                    })
+                                                ) : (
+                                                    <tr>
+                                                        <Td colSpan={4} className="py-6 text-center text-muted-foreground">Không có lô khả dụng ở kho mới.</Td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="rounded-md bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                                    {lotSelectionMode === "SINGLE" && selectedLotNo
+                                        ? `Hệ thống sẽ xuất toàn bộ theo lô ${selectedLotNo} và kiểm tra tồn/âm tồn lịch sử trước khi áp dụng.`
+                                        : "Hệ thống sẽ tự phân bổ FIFO tại kho mới và bỏ qua lô có nguy cơ làm âm tồn lịch sử."}
+                                </div>
+                            )}
                         </div>
 
                         {errorMessage ? (
@@ -4065,7 +4289,7 @@ function SalesExportWarehouseChangeDialog({
                     <Button
                         type="button"
                         variant="outline"
-                        disabled={pending || missingWarehouse || unchanged}
+                        disabled={!canCheck}
                         onClick={() => checkMutation.mutate()}
                     >
                         {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -4092,6 +4316,8 @@ function SalesExportWarehouseChangeResultPanel({ result }: { result: SalesExport
     const changes = result.changes || {}
     const affectedPeriods = result.affected_period_ids || []
     const plan = result.fifo_plan || []
+    const customMode = result.lot_selection_mode === "CUSTOM"
+    const singleMode = result.lot_selection_mode === "SINGLE"
 
     return (
         <div className={cn(
@@ -4109,7 +4335,7 @@ function SalesExportWarehouseChangeResultPanel({ result }: { result: SalesExport
                 <ResultInfo label="Kho mới" value={result.new_warehouse_name} />
                 <ResultInfo label="Số lượng xuất" value={formatNumber(Number(result.quantity || 0))} />
                 <ResultInfo label="Dòng sổ kho cũ" value={formatNumber(Number(counts.old_ledger_rows || 0))} />
-                <ResultInfo label="Số lô FIFO mới" value={formatNumber(Number(counts.new_fifo_lots || plan.length || 0))} />
+                <ResultInfo label={customMode ? "Số lô tùy chọn" : singleMode ? "Số lô đã chọn" : "Số lô FIFO mới"} value={formatNumber(Number(counts.new_fifo_lots || plan.length || 0))} />
                 <ResultInfo label="Giao dịch bán hàng" value={formatNumber(Number(counts.sales_transactions || changes.updated_sales_transactions || 0))} />
                 <ResultInfo label="Kỳ costing cần tính lại" value={formatNumber(applied ? Number(changes.stale_cost_periods || 0) : affectedPeriods.length)} />
                 {applied ? <ResultInfo label="Ledger cập nhật/tạo/xóa" value={`${formatNumber(Number(changes.reused_ledger_rows || 0))}/${formatNumber(Number(changes.inserted_ledger_rows || 0))}/${formatNumber(Number(changes.deleted_ledger_rows || 0))}`} /> : null}
@@ -4119,7 +4345,7 @@ function SalesExportWarehouseChangeResultPanel({ result }: { result: SalesExport
 
             {plan.length ? (
                 <div className="mt-3 rounded-md border bg-white/80">
-                    <div className="border-b px-3 py-2 font-semibold">FIFO theo kho mới</div>
+                    <div className="border-b px-3 py-2 font-semibold">{customMode ? "Phân bổ lô tùy chọn" : singleMode ? "Lô đã chọn" : "FIFO theo kho mới"}</div>
                     <div className="max-h-56 overflow-auto">
                         <table className="w-full text-sm">
                             <thead className="bg-muted/40 text-xs text-muted-foreground">
@@ -5653,6 +5879,83 @@ function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement
 
 function hasPermission(permissions: any[], module: string, action: string) {
     return permissions.some((permission) => permission.module === module && permission.action === action)
+}
+
+function salesExportWarehouseLotKey(lot: SalesExportWarehouseAvailableLot) {
+    const id = lot?.lot_id ?? lot?.id
+    const lotNo = lot?.lot_no ?? lot?.lot_code
+    return id != null ? `id:${id}` : `code:${lotNo || ""}`
+}
+
+function buildSalesExportWarehouseLotAllocations(
+    lots: SalesExportWarehouseAvailableLot[],
+    quantities: Record<string, string>
+): SalesExportWarehouseLotAllocation[] {
+    return lots
+        .map((lot) => ({
+            lot_id: lot.lot_id ?? lot.id,
+            lot_code: lot.lot_no ?? lot.lot_code,
+            quantity: Number(quantities[salesExportWarehouseLotKey(lot)] || 0),
+        }))
+        .filter((allocation) => allocation.quantity > 0)
+}
+
+function autoAllocateSalesExportWarehouseLots(
+    lots: SalesExportWarehouseAvailableLot[],
+    requiredQuantity: number
+) {
+    let remainingUnits = toThousandUnits(requiredQuantity)
+    const next: Record<string, string> = {}
+    const candidates = lots
+        .map((lot) => ({
+            key: salesExportWarehouseLotKey(lot),
+            availableUnits: Math.max(toThousandUnits(Number(lot.history_safe_quantity ?? lot.available_quantity ?? 0)), 0),
+            quantityUnits: 0,
+        }))
+        .filter((row) => row.key && row.availableUnits > 0)
+
+    let active = candidates
+    while (remainingUnits > 0 && active.length > 0) {
+        const shareUnits = Math.floor(remainingUnits / active.length)
+        let extraUnits = remainingUnits % active.length
+        const nextActive: typeof candidates = []
+        let usedUnits = 0
+        for (const row of active) {
+            const roomUnits = row.availableUnits - row.quantityUnits
+            const desiredUnits = shareUnits + (extraUnits > 0 ? 1 : 0)
+            if (extraUnits > 0) extraUnits -= 1
+            const takeUnits = Math.min(roomUnits, desiredUnits)
+            if (takeUnits > 0) {
+                row.quantityUnits += takeUnits
+                usedUnits += takeUnits
+            }
+            if (row.availableUnits - row.quantityUnits > 0) nextActive.push(row)
+        }
+        if (usedUnits <= 0) break
+        remainingUnits -= usedUnits
+        active = nextActive
+    }
+
+    for (const row of candidates) {
+        if (row.quantityUnits > 0) next[row.key] = formatThousandUnits(row.quantityUnits)
+    }
+    return next
+}
+
+function sameDecimal(a: number, b: number) {
+    return Math.abs(Number(a || 0) - Number(b || 0)) < 0.000001
+}
+
+function roundDecimal(value: number) {
+    return Math.round(Number(value || 0) * 1000) / 1000
+}
+
+function toThousandUnits(value: number) {
+    return Math.round(Number(value || 0) * 1000)
+}
+
+function formatThousandUnits(units: number) {
+    return (units / 1000).toFixed(3).replace(/\.?0+$/, "")
 }
 
 function isPurchaseInboundLedger(item: InventoryLedgerReportRow) {

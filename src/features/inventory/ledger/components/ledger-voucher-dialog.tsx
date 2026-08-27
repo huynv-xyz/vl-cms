@@ -365,9 +365,21 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     }
 
     const removeLine = (id: string) => {
-        setLines((current) => current.some((line) => line.id === id && line.direction === "I")
-            ? current
-            : current.filter((line) => line.id !== id))
+        setLines((current) => {
+            const line = current.find((item) => item.id === id)
+            if (!line) return current
+            if (!canRemoveLine(line, current)) return current
+            return current.filter((item) => item.id !== id)
+        })
+    }
+
+    const canRemoveLine = (line: VoucherLine, currentLines = lines) => {
+        if (isPaired) {
+            if (line.direction === "I") return false
+            return currentLines.filter((item) => item.direction === "O").length > 1
+        }
+        if (isTransfer && line.direction === "I") return false
+        return currentLines.length > 1
     }
 
     const resetForm = () => {
@@ -901,7 +913,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                                     type="button"
                                                     variant="ghost"
                                                     size="icon"
-                                                    disabled={line.direction === "I" || lines.filter((row) => row.direction === "O").length <= 1}
+                                                    disabled={!canRemoveLine(line)}
                                                     onClick={() => removeLine(line.id)}
                                                 >
                                                     <Trash2 className="h-4 w-4" />

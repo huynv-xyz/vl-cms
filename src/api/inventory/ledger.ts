@@ -381,6 +381,7 @@ export type SalesExportWarehouseChangeResult = {
     new_warehouse_code?: string | null
     new_warehouse_name: string
     quantity: number
+    lot_selection_mode?: "AUTO" | "SINGLE" | "CUSTOM" | string
     fifo_plan: Array<{
         lot_id: number
         lot_no: string
@@ -397,14 +398,54 @@ export type SalesExportWarehouseChangeResult = {
     changes: Record<string, number>
 }
 
-export function checkSalesExportWarehouseChange(ledgerId: number, newWarehouseId: number) {
+export type SalesExportWarehouseLotAllocation = {
+    lot_id?: number
+    lot_code?: string
+    quantity: number
+}
+
+export type SalesExportWarehouseAvailableLot = {
+    id?: number
+    lot_id?: number
+    lot_no?: string
+    lot_code?: string
+    available_quantity?: number | string | null
+    history_safe_quantity?: number | string | null
+    unit_cost?: number | string | null
+}
+
+export function checkSalesExportWarehouseChange(
+    ledgerId: number,
+    newWarehouseId: number,
+    lotSelectionMode?: "AUTO" | "SINGLE" | "CUSTOM",
+    newLotNo?: string,
+    lotAllocations?: SalesExportWarehouseLotAllocation[]
+) {
     return apiPost<SalesExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-warehouse-change/check`, {
         newWarehouseId,
+        newLotNo,
+        lot_selection_mode: lotSelectionMode,
+        lot_allocations: lotAllocations,
     })
 }
 
-export function applySalesExportWarehouseChange(ledgerId: number, newWarehouseId: number) {
+export function applySalesExportWarehouseChange(
+    ledgerId: number,
+    newWarehouseId: number,
+    lotSelectionMode?: "AUTO" | "SINGLE" | "CUSTOM",
+    newLotNo?: string,
+    lotAllocations?: SalesExportWarehouseLotAllocation[]
+) {
     return apiPost<SalesExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-warehouse-change/apply`, {
+        newWarehouseId,
+        newLotNo,
+        lot_selection_mode: lotSelectionMode,
+        lot_allocations: lotAllocations,
+    })
+}
+
+export function listSalesExportWarehouseChangeLots(ledgerId: number, newWarehouseId: number) {
+    return apiPost<SalesExportWarehouseAvailableLot[]>(`/inventory/ledger/${ledgerId}/sales-export-warehouse-change/available-lots`, {
         newWarehouseId,
     })
 }

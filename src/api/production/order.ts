@@ -251,6 +251,12 @@ export const deleteProductionMaterial = (id: number, materialId: number) =>
 export type SetPreferredLotRequest = {
     lot_id?: number
     lot_no?: string
+    lot_selection_mode?: "AUTO" | "CUSTOM"
+    lot_allocations?: {
+        lot_id?: number
+        lot_no?: string
+        quantity: number
+    }[]
 }
 
 export const setProductionPreferredLot = (

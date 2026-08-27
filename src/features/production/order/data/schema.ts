@@ -75,6 +75,7 @@ export type ProductionMaterial = {
     quantity_required?: number
     lot_id?: number
     preferred_lot_no?: string
+    lot_selection_mode?: "AUTO" | "CUSTOM" | string
     check_status?: string
     fifo_status?: string
     fifo_unit_cost?: number
@@ -88,6 +89,16 @@ export type ProductionMaterial = {
     original_product?: any
     warehouse?: any
     fifo_allocations?: ProductionFifoAllocation[]
+    lot_allocations?: ProductionMaterialLotAllocation[]
+}
+
+export type ProductionMaterialLotAllocation = {
+    id?: number
+    production_material_id?: number
+    inventory_lot_id?: number
+    lot_no?: string
+    quantity?: number
+    lot?: any
 }
 
 export type ProductionFifoAllocation = {
