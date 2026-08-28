@@ -286,14 +286,14 @@ function AliasEditorDialog({
                 customer_id: customer.id,
                 alias_code: form.alias_code.trim(),
                 alias_name: form.alias_name.trim(),
-                tax_code: form.tax_code.trim() || undefined,
-                bank_account: form.bank_account.trim() || undefined,
-                bank_account_name: form.bank_account_name.trim() || undefined,
-                bank_name: form.bank_name.trim() || undefined,
+                tax_code: form.tax_code.trim() || null,
+                bank_account: form.bank_account.trim() || null,
+                bank_account_name: form.bank_account_name.trim() || null,
+                bank_name: form.bank_name.trim() || null,
                 type: form.type === "OTHER" ? undefined : form.type,
                 is_default: Number(form.is_default),
                 status: 1,
-                note: form.note.trim() || undefined,
+                note: form.note.trim() || null,
             }
 
             return form.id

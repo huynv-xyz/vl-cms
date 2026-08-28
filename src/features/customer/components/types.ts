@@ -2,6 +2,7 @@ export type CustomerFormValues = {
     code: string
     name: string
     address?: string
+    phone?: string
     type: string
     region: string
     employee_id?: number

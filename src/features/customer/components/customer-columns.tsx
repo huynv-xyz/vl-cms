@@ -87,12 +87,25 @@ export const customerColumns: ColumnDef<Customer>[] = [
     buildTextColumn<Customer>({
         accessorKey: 'address',
         title: 'Địa chỉ',
-        width: 320,
-        className: `w-[320px] ${gridCell}`,
+        width: 280,
+        className: `w-[280px] ${gridCell}`,
         render: (row) => (
             <TruncatedCustomerText
                 value={row.address}
                 className="text-sm"
+            />
+        ),
+    }),
+
+    buildTextColumn<Customer>({
+        accessorKey: 'phone',
+        title: 'Điện thoại',
+        width: 150,
+        className: `w-[150px] ${centerCell}`,
+        render: (row) => (
+            <TruncatedCustomerText
+                value={row.phone}
+                className="text-center text-sm"
             />
         ),
     }),

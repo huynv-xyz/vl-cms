@@ -37,6 +37,7 @@ export function UpdateCustomerDialog({
                     code: customer.code,
                     name: customer.name,
                     address: customer.address ?? "",
+                    phone: customer.phone ?? "",
                     type: customer.type,
                     region: customer.region,
                     employee_id: customer.employee_id,
@@ -64,12 +65,14 @@ export function UpdateCustomerDialog({
                 }
                 submitText="Lưu"
                 loadingText="Đang lưu..."
+                confirmHistoricalSync
                 mutationFn={updateCustomer}
-                mapFormToRequest={(values) => ({
+                mapFormToRequest={(values, syncHistoricalData) => ({
                     id: customer.id,
                     code: values.code,
                     name: values.name,
                     address: values.address?.trim() ? values.address.trim() : "",
+                    phone: values.phone?.trim() || null,
                     type: values.type,
                     region: values.region,
                     employee_id: values.employee_id,
@@ -77,11 +80,12 @@ export function UpdateCustomerDialog({
                     status: values.status === false ? 0 : 1,
                     invoice_alias_code: values.invoice_alias_code?.trim() || values.code.trim(),
                     invoice_alias_name: values.invoice_alias_name?.trim() || values.name.trim(),
-                    invoice_tax_code: values.invoice_tax_code?.trim() || undefined,
-                    invoice_address: values.invoice_address?.trim() || undefined,
-                    bank_account: values.bank_account?.trim() || undefined,
-                    bank_account_name: values.bank_account_name?.trim() || undefined,
-                    bank_name: values.bank_name?.trim() || undefined,
+                    invoice_tax_code: values.invoice_tax_code?.trim() || null,
+                    invoice_address: values.invoice_address?.trim() || null,
+                    bank_account: values.bank_account?.trim() || null,
+                    bank_account_name: values.bank_account_name?.trim() || null,
+                    bank_name: values.bank_name?.trim() || null,
+                    sync_historical_data: syncHistoricalData,
                 })}
             />
             <CustomerAliasDialog

@@ -4,6 +4,16 @@ import { toast } from "sonner"
 
 import { getEmployee, listEmployees } from "@/api/employee"
 import { AsyncSelect } from "@/components/rjsf/async-select"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -31,7 +41,8 @@ type Props<TRequest, TResponse> = {
     submitText: string
     loadingText: string
     mutationFn: (body: TRequest) => Promise<TResponse>
-    mapFormToRequest: (values: CustomerFormValues) => TRequest
+    mapFormToRequest: (values: CustomerFormValues, syncHistoricalData?: boolean) => TRequest
+    confirmHistoricalSync?: boolean
     invoiceSectionOverride?: React.ReactNode
 }
 
@@ -49,23 +60,28 @@ export function CustomerEditorDialog<TRequest, TResponse>({
     loadingText,
     mutationFn,
     mapFormToRequest,
+    confirmHistoricalSync,
     invoiceSectionOverride,
 }: Props<TRequest, TResponse>) {
     const queryClient = useQueryClient()
     const initialData = useMemo(() => defaultValues, [defaultValues])
     const [form, setForm] = useState<CustomerFormValues>(initialData)
+    const [syncChoiceOpen, setSyncChoiceOpen] = useState(false)
 
     useEffect(() => {
         if (open) {
             setForm(initialData)
+            setSyncChoiceOpen(false)
         }
     }, [open, initialData])
 
     const mutation = useMutation({
-        mutationFn: () => mutationFn(mapFormToRequest(form)),
+        mutationFn: (syncHistoricalData?: boolean) =>
+            mutationFn(mapFormToRequest(form, syncHistoricalData)),
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["customer"] })
             toast.success("Đã lưu khách hàng")
+            setSyncChoiceOpen(false)
             onOpenChange(false)
         },
         onError: (error: unknown) => {
@@ -78,102 +94,113 @@ export function CustomerEditorDialog<TRequest, TResponse>({
         setForm((prev) => ({ ...prev, ...patch }))
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex max-h-[88vh] flex-col overflow-hidden sm:max-w-6xl">
-                <DialogHeader className="shrink-0">
-                    <DialogTitle>{title}</DialogTitle>
-                </DialogHeader>
+        <>
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="flex max-h-[88vh] flex-col overflow-hidden sm:max-w-6xl">
+                    <DialogHeader className="shrink-0">
+                        <DialogTitle>{title}</DialogTitle>
+                    </DialogHeader>
 
-                <form
-                    className="min-h-0 flex-1 overflow-y-auto pr-1"
-                    onSubmit={(event) => {
-                        event.preventDefault()
-                        mutation.mutate()
-                    }}
-                >
-                    <div className="space-y-6">
-                        <Section title="Thông tin khách hàng">
-                            <Field label="Mã KH" required>
-                                <Input
-                                    value={form.code}
-                                    onChange={(event) => update({ code: event.target.value })}
-                                    required
-                                />
-                            </Field>
-                            <Field label="Tên khách hàng" required>
-                                <Input
-                                    value={form.name}
-                                    onChange={(event) => update({ name: event.target.value })}
-                                    required
-                                />
-                            </Field>
-                            <Field label="Nhân viên phụ trách">
-                                <AsyncSelect
-                                    value={form.employee_id}
-                                    onChange={(value: number | undefined) => update({ employee_id: value })}
-                                    dataSource={employeeDataSource}
-                                    mapOption={(x: any) => ({
-                                        value: x.id,
-                                        label: x.code ? `${x.code} - ${x.name}` : x.name,
-                                        raw: x,
-                                    })}
-                                    placeholder="Chọn nhân viên"
-                                    popoverContentClassName="w-[420px]"
-                                    optionWrapLabel
-                                    wrapLabel
-                                />
-                            </Field>
-                            <Field label="Loại" required>
-                                <Select value={form.type} onValueChange={(value) => update({ type: value })}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="B2B">B2B</SelectItem>
-                                        <SelectItem value="B2C">B2C</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </Field>
-                            <Field label="Khu vực" required>
-                                <Select value={form.region} onValueChange={(value) => update({ region: value })}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="MB">MB</SelectItem>
-                                        <SelectItem value="MN">MN</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </Field>
-                            <Field label="Trạng thái">
-                                <Select
-                                    value={form.status === false ? "0" : "1"}
-                                    onValueChange={(value) => update({ status: value !== "0" })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="1">Hoạt động</SelectItem>
-                                        <SelectItem value="0">Tắt</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </Field>
-                            <Field label="Địa chỉ giao dịch" className="md:col-span-2">
-                                <Textarea
-                                    rows={2}
-                                    value={form.address ?? ""}
-                                    onChange={(event) => update({ address: event.target.value })}
-                                />
-                            </Field>
-                            <Field label="Ghi chú">
-                                <Textarea
-                                    rows={2}
-                                    value={form.note ?? ""}
-                                    onChange={(event) => update({ note: event.target.value })}
-                                />
-                            </Field>
-                        </Section>
+                    <form
+                        className="min-h-0 flex-1 overflow-y-auto pr-1"
+                        onSubmit={(event) => {
+                            event.preventDefault()
+                            if (confirmHistoricalSync) {
+                                setSyncChoiceOpen(true)
+                                return
+                            }
+                            mutation.mutate(false)
+                        }}
+                    >
+                        <div className="space-y-6">
+                            <Section title="Thông tin khách hàng">
+                                <Field label="Mã KH" required>
+                                    <Input
+                                        value={form.code}
+                                        onChange={(event) => update({ code: event.target.value })}
+                                        required
+                                    />
+                                </Field>
+                                <Field label="Tên khách hàng" required>
+                                    <Input
+                                        value={form.name}
+                                        onChange={(event) => update({ name: event.target.value })}
+                                        required
+                                    />
+                                </Field>
+                                <Field label="Điện thoại">
+                                    <Input
+                                        value={form.phone ?? ""}
+                                        onChange={(event) => update({ phone: event.target.value })}
+                                    />
+                                </Field>
+                                <Field label="Nhân viên phụ trách">
+                                    <AsyncSelect
+                                        value={form.employee_id}
+                                        onChange={(value: number | undefined) => update({ employee_id: value })}
+                                        dataSource={employeeDataSource}
+                                        mapOption={(x: any) => ({
+                                            value: x.id,
+                                            label: x.code ? `${x.code} - ${x.name}` : x.name,
+                                            raw: x,
+                                        })}
+                                        placeholder="Chọn nhân viên"
+                                        popoverContentClassName="w-[420px]"
+                                        optionWrapLabel
+                                        wrapLabel
+                                    />
+                                </Field>
+                                <Field label="Loại" required>
+                                    <Select value={form.type} onValueChange={(value) => update({ type: value })}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="B2B">B2B</SelectItem>
+                                            <SelectItem value="B2C">B2C</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </Field>
+                                <Field label="Khu vực" required>
+                                    <Select value={form.region} onValueChange={(value) => update({ region: value })}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="MB">MB</SelectItem>
+                                            <SelectItem value="MN">MN</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </Field>
+                                <Field label="Trạng thái">
+                                    <Select
+                                        value={form.status === false ? "0" : "1"}
+                                        onValueChange={(value) => update({ status: value !== "0" })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="1">Hoạt động</SelectItem>
+                                            <SelectItem value="0">Tắt</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </Field>
+                                <Field label="Địa chỉ giao dịch" className="md:col-span-2">
+                                    <Textarea
+                                        rows={2}
+                                        value={form.address ?? ""}
+                                        onChange={(event) => update({ address: event.target.value })}
+                                    />
+                                </Field>
+                                <Field label="Ghi chú">
+                                    <Textarea
+                                        rows={2}
+                                        value={form.note ?? ""}
+                                        onChange={(event) => update({ note: event.target.value })}
+                                    />
+                                </Field>
+                            </Section>
 
                         {invoiceSectionOverride ? (
                             <Section title="Thông tin xuất HĐ">
@@ -250,14 +277,41 @@ export function CustomerEditorDialog<TRequest, TResponse>({
                         )}
                     </div>
 
-                    <div className="sticky bottom-0 mt-6 bg-background pt-4">
-                        <Button type="submit" className="w-full" disabled={mutation.isPending}>
-                            {mutation.isPending ? loadingText : submitText}
-                        </Button>
-                    </div>
-                </form>
-            </DialogContent>
-        </Dialog>
+                        <div className="sticky bottom-0 mt-6 bg-background pt-4">
+                            <Button type="submit" className="w-full" disabled={mutation.isPending}>
+                                {mutation.isPending ? loadingText : submitText}
+                            </Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <AlertDialog open={syncChoiceOpen} onOpenChange={setSyncChoiceOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Áp dụng thay đổi khách hàng?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Chọn cách áp dụng thông tin vừa sửa cho khách hàng này.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={mutation.isPending}>Quay lại</AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={mutation.isPending}
+                            onClick={() => mutation.mutate(false)}
+                        >
+                            Thay đổi từ bây giờ
+                        </AlertDialogAction>
+                        <AlertDialogAction
+                            disabled={mutation.isPending}
+                            onClick={() => mutation.mutate(true)}
+                        >
+                            Đồng bộ dữ liệu cũ
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     )
 }
 
