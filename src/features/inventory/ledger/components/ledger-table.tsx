@@ -15,6 +15,7 @@ import {
     applyDocumentPostingTimeChange,
     applyInboundWarehouseChange,
     applyLedgerAmountChange,
+    applyLegacyPostingTimeNormalization,
     applyOtherExportLineDelete,
     applyOtherInboundLineDelete,
     applyReturnWarehouseChange,
@@ -31,6 +32,7 @@ import {
     checkDocumentPostingTimeChange,
     checkInboundWarehouseChange,
     checkLedgerAmountChange,
+    checkLegacyPostingTimeNormalization,
     checkOtherExportLineDelete,
     checkOtherInboundLineDelete,
     checkReturnWarehouseChange,
@@ -45,6 +47,7 @@ import {
     type InventoryLedgerStaticParametersPayload,
     type InboundWarehouseChangeResult,
     type LedgerAmountChangeResult,
+    type LegacyPostingTimeNormalizationResult,
     type PurchaseLotChangeResult,
     type PurchaseProductChangeResult,
     type PurchaseQuantityChangeResult,
@@ -214,6 +217,7 @@ export function InventoryLedgerTable({
     const [purchaseProductChangeRow, setPurchaseProductChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [salesReturnProductChangeRow, setSalesReturnProductChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [documentPostingTimeChangeRow, setDocumentPostingTimeChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [legacyPostingTimeNormalizationRow, setLegacyPostingTimeNormalizationRow] = useState<InventoryLedgerReportRow | null>(null)
     const [otherExportLineDeleteRow, setOtherExportLineDeleteRow] = useState<InventoryLedgerReportRow | null>(null)
     const [otherInboundLineDeleteRow, setOtherInboundLineDeleteRow] = useState<InventoryLedgerReportRow | null>(null)
     const [staticParametersRow, setStaticParametersRow] = useState<InventoryLedgerReportRow | null>(null)
@@ -667,6 +671,7 @@ export function InventoryLedgerTable({
                                     onDeleteOtherExportLine={canUseLedgerCorrections ? setOtherExportLineDeleteRow : undefined}
                                     onDeleteOtherInboundLine={canUseLedgerCorrections ? setOtherInboundLineDeleteRow : undefined}
                                     onEditStaticParameters={canUseLedgerCorrections ? setStaticParametersRow : undefined}
+                                    onNormalizeLegacyPostingTime={canUseLedgerCorrections ? setLegacyPostingTimeNormalizationRow : undefined}
                                     showValues={showValues}
                                     direction={direction}
                                 />
@@ -718,6 +723,7 @@ export function InventoryLedgerTable({
                 onChangeSalesReturnUnitPrice={setSalesReturnUnitPriceChangeRow}
                 onDeleteOtherExportLine={setOtherExportLineDeleteRow}
                 onDeleteOtherInboundLine={setOtherInboundLineDeleteRow}
+                onNormalizeLegacyPostingTime={canUseLedgerCorrections ? setLegacyPostingTimeNormalizationRow : undefined}
             />
             <PurchaseLotChangeDialog
                 row={lotChangeRow}
@@ -892,6 +898,20 @@ export function InventoryLedgerTable({
                     queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
                     queryClient.invalidateQueries({ queryKey: ["sales-order-detail"] })
                     queryClient.invalidateQueries({ queryKey: ["production-order-detail"] })
+                }}
+            />
+            <LegacyPostingTimeNormalizationDialog
+                row={legacyPostingTimeNormalizationRow}
+                open={!!legacyPostingTimeNormalizationRow}
+                onOpenChange={(open) => {
+                    if (!open) setLegacyPostingTimeNormalizationRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-voucher-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                    setDetailVoucherRefreshKey((value) => value + 1)
                 }}
             />
             <StaticParametersDialog
@@ -1475,6 +1495,7 @@ function LedgerRow({
     onDeleteOtherExportLine,
     onDeleteOtherInboundLine,
     onEditStaticParameters,
+    onNormalizeLegacyPostingTime,
     showValues,
     direction,
 }: {
@@ -1488,6 +1509,7 @@ function LedgerRow({
     onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
     onEditStaticParameters?: (row: InventoryLedgerReportRow) => void
+    onNormalizeLegacyPostingTime?: (row: InventoryLedgerReportRow) => void
     showValues: boolean
     direction?: "IN" | "OUT"
 }) {
@@ -1626,6 +1648,7 @@ function LedgerRow({
                     onDeleteOtherExportLine={onDeleteOtherExportLine}
                     onDeleteOtherInboundLine={onDeleteOtherInboundLine}
                     onEditStaticParameters={onEditStaticParameters}
+                    onNormalizeLegacyPostingTime={onNormalizeLegacyPostingTime}
                 />
             </Td>
         </tr>
@@ -1650,6 +1673,7 @@ function LedgerCorrectionActions({
     onDeleteOtherExportLine,
     onDeleteOtherInboundLine,
     onEditStaticParameters,
+    onNormalizeLegacyPostingTime,
 }: {
     item: InventoryLedgerReportRow
     onOpenVoucher?: () => void
@@ -1660,6 +1684,7 @@ function LedgerCorrectionActions({
     onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
     onEditStaticParameters?: (row: InventoryLedgerReportRow) => void
+    onNormalizeLegacyPostingTime?: (row: InventoryLedgerReportRow) => void
 }) {
     const canOpenVoucher = Boolean(onOpenVoucher)
     const canEditStaticParameters = Boolean(onEditStaticParameters)
@@ -1669,9 +1694,10 @@ function LedgerCorrectionActions({
     const canChangePurchaseProduct = Boolean(onChangePurchaseProduct && isPurchaseProductCorrectionLedger(item))
     const canDeleteOtherExportLine = Boolean(onDeleteOtherExportLine && isOtherExportLineDeleteLedger(item))
     const canDeleteOtherInboundLine = Boolean(onDeleteOtherInboundLine && isOtherInboundLineDeleteLedger(item))
+    const canNormalizeLegacyPostingTime = Boolean(onNormalizeLegacyPostingTime && item.lot_id && item.posting_date)
     const hasQuickActions = canEditStaticParameters || canChangeLot || canChangeSalesExportLot || canChangePurchaseQuantity
         || canChangePurchaseProduct || canDeleteOtherExportLine
-        || canDeleteOtherInboundLine
+        || canDeleteOtherInboundLine || canNormalizeLegacyPostingTime
 
     if (!canOpenVoucher && !hasQuickActions) {
         return <span className="text-muted-foreground">-</span>
@@ -1796,6 +1822,19 @@ function LedgerCorrectionActions({
                                 <NewBadge />
                             </span>
                             <span className="block text-xs text-destructive/80">Nếu là dòng cuối, hệ thống sẽ xóa luôn phiếu.</span>
+                        </span>
+                    </button>
+                ) : null}
+                {canNormalizeLegacyPostingTime ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                        onClick={() => onNormalizeLegacyPostingTime?.(item)}
+                    >
+                        <Clock className="mt-0.5 h-4 w-4 text-primary" />
+                        <span>
+                            <span className="block font-medium">Chuẩn hóa giờ dữ liệu cũ</span>
+                            <span className="block text-xs text-muted-foreground">Chỉ xử lý các dòng cùng ngày/cùng lô đang thiếu giờ hoặc 00:00:00.</span>
                         </span>
                     </button>
                 ) : null}
@@ -5116,6 +5155,234 @@ function DocumentPostingTimeChangeDialog({
     )
 }
 
+function LegacyPostingTimeNormalizationDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [result, setResult] = useState<LegacyPostingTimeNormalizationResult | null>(null)
+    const [postingTimes, setPostingTimes] = useState<Record<number, string>>({})
+    const [dirtyAfterCheck, setDirtyAfterCheck] = useState(false)
+    const [errorText, setErrorText] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (open) {
+            setResult(null)
+            setPostingTimes({})
+            setDirtyAfterCheck(false)
+            setErrorText(null)
+        }
+    }, [open, row?.id])
+
+    const buildPayload = () => {
+        const rows = result?.rows || []
+        if (!rows.length) return undefined
+        return {
+            rows: rows.map((item) => ({
+                ledgerId: Number(item.ledger_id),
+                postingTime: normalizeTimeForApi(postingTimes[Number(item.ledger_id)] || item.new_posting_time || ""),
+            })),
+        }
+    }
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkLegacyPostingTimeNormalization(Number(row?.id), buildPayload()),
+        onSuccess: (data) => {
+            setResult(data)
+            setPostingTimes(Object.fromEntries((data.rows || []).map((item) => [
+                Number(item.ledger_id),
+                toTimeInputValue(item.new_posting_time),
+            ])))
+            setDirtyAfterCheck(false)
+            setErrorText(null)
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorText(error?.message || "Không kiểm tra được dữ liệu cần chuẩn hóa giờ")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applyLegacyPostingTimeNormalization(Number(row?.id), buildPayload()),
+        onSuccess: (data) => {
+            setResult(data)
+            setPostingTimes(Object.fromEntries((data.rows || []).map((item) => [
+                Number(item.ledger_id),
+                toTimeInputValue(item.new_posting_time),
+            ])))
+            setDirtyAfterCheck(false)
+            setErrorText(null)
+            if (data?.valid) {
+                onChanged()
+                toast.success("Đã chuẩn hóa giờ dữ liệu cũ")
+            }
+        },
+        onError: (error: any) => {
+            setErrorText(error?.message || "Không chuẩn hóa được giờ dữ liệu cũ")
+        },
+    })
+
+    if (!row) return null
+
+    const working = checkMutation.isPending || applyMutation.isPending
+    const applied = Boolean(result?.applied)
+    const valid = Boolean(result?.valid)
+    const canApply = valid && !dirtyAfterCheck
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-h-[calc(100vh-32px)] !w-[min(1180px,calc(100vw-32px))] !max-w-[calc(100vw-32px)] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Chuẩn hóa giờ dữ liệu cũ</DialogTitle>
+                    <DialogDescription>
+                        Chỉ lấy các dòng sổ kho cùng ngày/cùng lô với dòng đang chọn, có giờ trống hoặc 00:00:00. Hệ thống gán nhập trước, xuất sau và kiểm tra âm tồn trước khi cập nhật.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                    <div className="grid gap-3 rounded-md border bg-muted/20 p-3 md:grid-cols-4">
+                        <InfoItem label="Chứng từ chọn" value={row.doc_no || `#${row.id}`} />
+                        <InfoItem label="Ngày" value={formatDate(row.posting_date)} />
+                        <InfoItem label="Giờ hiện tại" value={row.posting_time ? formatTime(row.posting_time) : "Chưa có giờ"} />
+                        <InfoItem label="Số lô" value={row.lot_code || "-"} />
+                        <InfoItem label="Mã hàng" value={row.product_code || "-"} />
+                        <InfoItem label="Tên hàng" value={row.product_name || "-"} />
+                        <InfoItem label="Kho" value={row.warehouse_name || row.warehouse_code || "-"} />
+                        <InfoItem label="Quy tắc" value="Cùng ngày, cùng lot_id" />
+                    </div>
+
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                        Tool này chỉ sửa `posting_time` trên sổ kho. Nếu cập nhật lỗi hoặc sau cập nhật còn âm tồn lịch sử, toàn bộ thay đổi sẽ rollback trong cùng giao dịch.
+                    </div>
+
+                    {errorText ? (
+                        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            {errorText}
+                        </div>
+                    ) : null}
+
+                    {result ? (
+                        <div className={cn(
+                            "rounded-md border p-3 text-sm",
+                            valid ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800",
+                        )}>
+                            <div className="flex items-start gap-2 font-semibold">
+                                {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
+                                <span>{applied ? "Đã chuẩn hóa giờ dữ liệu cũ" : valid ? "Có thể chuẩn hóa giờ dữ liệu cũ" : "Không thể chuẩn hóa giờ dữ liệu cũ"}</span>
+                            </div>
+                            <div className="mt-1 pl-6">{result.message}</div>
+                            <div className="mt-3 grid gap-2 md:grid-cols-4">
+                                <ResultInfo label="Ngày xử lý" value={formatDate(result.posting_date)} />
+                                <ResultInfo label="Số lô" value={result.lot_code || "-"} />
+                                <ResultInfo label="Dòng cần chuẩn hóa" value={formatNumber(Number(result.candidate_count || 0))} />
+                                <ResultInfo label="Dòng đã cập nhật" value={formatNumber(Number(result.changed_count || 0))} />
+                                <ResultInfo label="Kỳ costing ảnh hưởng" value={formatNumber(Number(result.affected_cost_period_count || 0))} />
+                                {applied ? <ResultInfo label="Kỳ đã đánh dấu tính lại" value={formatNumber(Number(result.changes?.stale_cost_periods || 0))} /> : null}
+                            </div>
+                            <WarningList errors={result.errors} warnings={result.warnings} />
+                            {result.negative_items?.length ? (
+                                <div className="mt-3 rounded-md bg-white/70 p-2">
+                                    <div className="font-semibold">Âm tồn còn lại</div>
+                                    {result.negative_items.slice(0, 5).map((item, index) => (
+                                        <div key={index} className="mt-1 text-xs">
+                                            {formatDate(item.posting_date)} {formatTime(item.posting_time)} - {item.doc_no || "-"} - tồn sau {formatNumber(Number(item.balance || 0))}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : (
+                        <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                            Bấm Kiểm tra để xem các dòng cùng ngày/cùng lô sẽ được gán giờ mới. Sau đó có thể chỉnh lại giờ từng dòng theo thứ tự thực tế rồi kiểm tra lại.
+                        </div>
+                    )}
+
+                    {result?.rows?.length ? (
+                        <div className="overflow-hidden rounded-md border">
+                            <div className="border-b bg-muted/40 px-3 py-2 text-sm font-semibold">Dòng sẽ chuẩn hóa</div>
+                            <div className="max-h-80 overflow-auto">
+                                <table className="w-full min-w-[900px] text-sm">
+                                    <thead className="bg-muted/30 text-muted-foreground">
+                                        <tr>
+                                            <th className="px-3 py-2 text-left">ID</th>
+                                            <th className="px-3 py-2 text-left">Chứng từ</th>
+                                            <th className="px-3 py-2 text-left">Loại</th>
+                                            <th className="px-3 py-2 text-left">Mã hàng</th>
+                                            <th className="px-3 py-2 text-left">Kho</th>
+                                            <th className="px-3 py-2 text-left">SL</th>
+                                            <th className="px-3 py-2 text-left">Giờ cũ</th>
+                                            <th className="px-3 py-2 text-left">Giờ mới</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y">
+                                        {result.rows.map((item) => (
+                                            <tr key={item.ledger_id}>
+                                                <td className="px-3 py-2 tabular-nums">{item.ledger_id}</td>
+                                                <td className="px-3 py-2">{item.doc_no || "-"}</td>
+                                                <td className="px-3 py-2">{item.doc_type || "-"}</td>
+                                                <td className="px-3 py-2 font-mono">{item.product_code || "-"}</td>
+                                                <td className="px-3 py-2">{item.warehouse_code || "-"}</td>
+                                                <td className="px-3 py-2 text-right tabular-nums">{formatNumber(Number(item.quantity || 0))}</td>
+                                                <td className="px-3 py-2">{item.old_posting_time ? formatTime(item.old_posting_time) : "-"}</td>
+                                                <td className="px-3 py-2">
+                                                    <Input
+                                                        type="time"
+                                                        step="1"
+                                                        className="h-8 min-w-[130px] font-semibold tabular-nums"
+                                                        value={postingTimes[Number(item.ledger_id)] || toTimeInputValue(item.new_posting_time)}
+                                                        disabled={working || applied}
+                                                        onChange={(event) => {
+                                                            setPostingTimes((current) => ({
+                                                                ...current,
+                                                                [Number(item.ledger_id)]: event.target.value,
+                                                            }))
+                                                            setDirtyAfterCheck(true)
+                                                        }}
+                                                    />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {dirtyAfterCheck ? (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                            Giờ mới đã được chỉnh. Bấm Kiểm tra lại để hệ thống giả lập âm tồn theo giờ vừa nhập trước khi cập nhật.
+                        </div>
+                    ) : null}
+
+                    <div className="flex justify-end gap-2 border-t pt-3">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={working}>
+                            Đóng
+                        </Button>
+                        <Button type="button" variant="outline" disabled={working || applied} onClick={() => checkMutation.mutate()}>
+                            {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Kiểm tra
+                        </Button>
+                        <Button
+                            type="button"
+                            disabled={working || applied || !canApply}
+                            onClick={() => applyMutation.mutate()}
+                        >
+                            {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Cập nhật giờ
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 function PurchasePostingDateTimeChangeResultPanel({
     result,
     timeOnly = false,
@@ -5214,6 +5481,20 @@ function ResultInfo({ label, value }: { label: string; value?: React.ReactNode }
     )
 }
 
+function WarningList({ errors, warnings }: { errors?: string[]; warnings?: string[] }) {
+    if (!errors?.length && !warnings?.length) return null
+    return (
+        <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2">
+            {errors?.map((error, index) => (
+                <div key={`error-${index}`}>- {error}</div>
+            ))}
+            {warnings?.map((warning, index) => (
+                <div key={`warning-${index}`}>- {warning}</div>
+            ))}
+        </div>
+    )
+}
+
 function VoucherDetailDialog({
     voucherId,
     refreshKey,
@@ -5237,6 +5518,7 @@ function VoucherDetailDialog({
     onChangeSalesReturnUnitPrice,
     onDeleteOtherExportLine,
     onDeleteOtherInboundLine,
+    onNormalizeLegacyPostingTime,
 }: {
     voucherId: number | null
     refreshKey?: number
@@ -5260,6 +5542,7 @@ function VoucherDetailDialog({
     onChangeSalesReturnUnitPrice?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
+    onNormalizeLegacyPostingTime?: (row: InventoryLedgerReportRow) => void
 }) {
     const { data: voucher, isLoading } = useQuery({
         queryKey: ["inventory-voucher-detail", voucherId, refreshKey],
@@ -5388,9 +5671,10 @@ function VoucherDetailDialog({
                                                                     onChangePurchaseProduct={canUseScopedCorrections ? onChangePurchaseProduct : undefined}
                                                                     onChangeSalesReturnProduct={canUseFullCorrections ? onChangeSalesReturnProduct : undefined}
                                                                     onChangeSalesReturnUnitPrice={canUsePriceCorrections ? onChangeSalesReturnUnitPrice : undefined}
-                                                                    onDeleteOtherExportLine={canUseScopedCorrections ? onDeleteOtherExportLine : undefined}
-                                                                    onDeleteOtherInboundLine={canUseScopedCorrections ? onDeleteOtherInboundLine : undefined}
-                                                                />
+                                                                     onDeleteOtherExportLine={canUseScopedCorrections ? onDeleteOtherExportLine : undefined}
+                                                                     onDeleteOtherInboundLine={canUseScopedCorrections ? onDeleteOtherInboundLine : undefined}
+                                                                     onNormalizeLegacyPostingTime={canUseFullCorrections ? onNormalizeLegacyPostingTime : undefined}
+                                                                 />
                                                             ) : (
                                                                 <span className="text-muted-foreground">-</span>
                                                             )}
@@ -5504,6 +5788,7 @@ function ScopedVoucherCorrectionActions({
     onChangeSalesReturnUnitPrice,
     onDeleteOtherExportLine,
     onDeleteOtherInboundLine,
+    onNormalizeLegacyPostingTime,
 }: {
     row: InventoryLedgerReportRow
     onChangeLot?: (row: InventoryLedgerReportRow) => void
@@ -5519,6 +5804,7 @@ function ScopedVoucherCorrectionActions({
     onChangeSalesReturnUnitPrice?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
+    onNormalizeLegacyPostingTime?: (row: InventoryLedgerReportRow) => void
 }) {
     const actions: Array<{ label: string; icon: React.ReactNode; onClick: () => void; isNew?: boolean; destructive?: boolean }> = []
     const docType = String(row.doc_type || "").toUpperCase()
@@ -5560,6 +5846,9 @@ function ScopedVoucherCorrectionActions({
     }
     if (isOtherInboundLineDeleteLedger(row) && onDeleteOtherInboundLine) {
         actions.push({ label: "Xóa dòng nhập kho khác", icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => onDeleteOtherInboundLine(row), isNew: true, destructive: true })
+    }
+    if (row.lot_id && row.posting_date && onNormalizeLegacyPostingTime) {
+        actions.push({ label: "Chuẩn hóa giờ dữ liệu cũ", icon: <Clock className="h-3.5 w-3.5" />, onClick: () => onNormalizeLegacyPostingTime(row), isNew: true })
     }
 
     if (!actions.length) {

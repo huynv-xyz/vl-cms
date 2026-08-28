@@ -96,10 +96,38 @@ export type NegativeStockAuditResult = {
     items: NegativeStockAuditItem[]
 }
 
+export type SystemJobRun = {
+    id?: number | string | null
+    job_code?: string | null
+    job_group?: string | null
+    job_type?: string | null
+    status?: "SUCCESS" | "WARNING" | "FAILED" | "RUNNING" | string | null
+    severity?: "INFO" | "WARNING" | "ERROR" | string | null
+    summary?: string | null
+    total_count?: number | string | null
+    success_count?: number | string | null
+    warning_count?: number | string | null
+    error_count?: number | string | null
+    payload?: string | null
+    error_message?: string | null
+    triggered_by?: string | null
+    started_at?: string | null
+    finished_at?: string | null
+    created_at?: string | null
+}
+
 export function checkNegativeStock(productCodes: string) {
     return apiPost<NegativeStockAuditResult>("/inventory/ledger/negative-stock/check", {
         productCodes,
     })
+}
+
+export function getLatestNegativeStockScheduledCheck() {
+    return apiGet<SystemJobRun>("/inventory/ledger/negative-stock/scheduled/latest")
+}
+
+export function runNegativeStockScheduledCheckNow() {
+    return apiPost<SystemJobRun>("/inventory/ledger/negative-stock/scheduled/run", {})
 }
 
 export type CostingLedgerReconciliationItem = {
@@ -821,6 +849,55 @@ export function applyDocumentPostingTimeChange(ledgerId: number, newPostingTime:
         newPostingDate,
         newPostingTime,
     })
+}
+
+export type LegacyPostingTimeNormalizationResult = {
+    valid: boolean
+    applied: boolean
+    message: string
+    ledger_id: number
+    posting_date?: string | null
+    lot_id?: number | null
+    lot_code?: string | null
+    product_code?: string | null
+    product_name?: string | null
+    warehouse_code?: string | null
+    warehouse_name?: string | null
+    candidate_count: number
+    changed_count?: number
+    affected_cost_period_count?: number
+    rows: Array<{
+        ledger_id: number
+        doc_no?: string | null
+        doc_type?: string | null
+        quantity?: number | string | null
+        old_posting_time?: string | null
+        new_posting_time?: string | null
+        product_code?: string | null
+        product_name?: string | null
+        warehouse_code?: string | null
+        warehouse_name?: string | null
+        lot_code?: string | null
+    }>
+    negative_items?: NegativeStockAuditItem[]
+    errors: string[]
+    warnings: string[]
+    changes: Record<string, number>
+}
+
+export type LegacyPostingTimeNormalizationPayload = {
+    rows?: Array<{
+        ledgerId: number
+        postingTime: string
+    }>
+}
+
+export function checkLegacyPostingTimeNormalization(ledgerId: number, body?: LegacyPostingTimeNormalizationPayload) {
+    return apiPost<LegacyPostingTimeNormalizationResult>(`/inventory/ledger/${ledgerId}/legacy-posting-time-normalization/check`, body || {})
+}
+
+export function applyLegacyPostingTimeNormalization(ledgerId: number, body?: LegacyPostingTimeNormalizationPayload) {
+    return apiPost<LegacyPostingTimeNormalizationResult>(`/inventory/ledger/${ledgerId}/legacy-posting-time-normalization/apply`, body || {})
 }
 
 export type LedgerAmountChangeResult = {

@@ -1,10 +1,10 @@
 ﻿import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { AlertTriangle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarClock, CheckCircle2, ChevronDown, Loader2, Package, PackageOpen, RefreshCw, Scale, Search, TrendingDown, TrendingUp, Warehouse, type LucideIcon } from "lucide-react"
 
 import { getMyPermissions } from "@/api/auth/permission"
-import { checkCostingLedgerReconciliation, checkNegativeStock, listInventoryLedgerReport, type CostingLedgerReconciliationResult, type NegativeStockAuditResult } from "@/api/inventory/ledger"
+import { checkCostingLedgerReconciliation, checkNegativeStock, getLatestNegativeStockScheduledCheck, listInventoryLedgerReport, runNegativeStockScheduledCheckNow, type CostingLedgerReconciliationResult, type NegativeStockAuditResult, type SystemJobRun } from "@/api/inventory/ledger"
 import { PageSection } from "@/components/page-section"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -91,6 +91,22 @@ export function InventoryLedgerReportPage({
         queryFn: getMyPermissions,
     })
     const canCreateInventoryVoucher = hasPermission(permissions, "inventory.vouchers", "create")
+    const [negativeStockInitialResult, setNegativeStockInitialResult] = useState<NegativeStockAuditResult | null>(null)
+    const { data: negativeStockJobRun, refetch: refetchNegativeStockJobRun } = useQuery({
+        queryKey: ["inventory-negative-stock-scheduled-latest"],
+        queryFn: getLatestNegativeStockScheduledCheck,
+        enabled: mode === "all",
+        refetchInterval: 5 * 60 * 1000,
+    })
+    const runNegativeStockJobMutation = useMutation({
+        mutationFn: runNegativeStockScheduledCheckNow,
+        onSuccess: (run) => {
+            refetchNegativeStockJobRun()
+            const payload = parseNegativeStockPayload(run)
+            setNegativeStockInitialResult(payload)
+            setVoucherDialog("negative-stock")
+        },
+    })
 
     const { data, isLoading, error } = usePaginatedList(
         [
@@ -235,7 +251,10 @@ export function InventoryLedgerReportPage({
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuItem onSelect={() => setVoucherDialog("negative-stock")}><Search className="text-rose-600" />Kiểm tra âm tồn</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => {
+                                    setNegativeStockInitialResult(null)
+                                    setVoucherDialog("negative-stock")
+                                }}><Search className="text-rose-600" />Kiểm tra âm tồn</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => setVoucherDialog("costing-reconciliation")}><Scale className="text-emerald-600" />Đối soát sổ kho và tính giá</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => setVoucherDialog("production-date-sync")}><CalendarClock className="text-blue-600" />Sửa đồng bộ ngày lệnh SX</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={() => setVoucherDialog("repack")}><Package className="text-amber-600" />Sang bao</DropdownMenuItem>
@@ -251,6 +270,18 @@ export function InventoryLedgerReportPage({
 
                 return (
                 <div className="space-y-4">
+                    {mode === "all" ? (
+                        <NegativeStockScheduledBanner
+                            run={negativeStockJobRun}
+                            isRunning={runNegativeStockJobMutation.isPending}
+                            onOpen={() => {
+                                setNegativeStockInitialResult(parseNegativeStockPayload(negativeStockJobRun))
+                                setVoucherDialog("negative-stock")
+                            }}
+                            onRun={() => runNegativeStockJobMutation.mutate()}
+                        />
+                    ) : null}
+
                     <InventoryLedgerSummary totals={ledgerData.totals} showValues={showValues} direction={direction} />
 
                     <InventoryLedgerTable
@@ -354,6 +385,7 @@ export function InventoryLedgerReportPage({
                     <NegativeStockAuditDialog
                         open={voucherDialog === "negative-stock"}
                         onOpenChange={(open) => setVoucherDialog(open ? "negative-stock" : null)}
+                        initialResult={negativeStockInitialResult}
                     />
                     <CostingReconciliationDialog
                         open={voucherDialog === "costing-reconciliation"}
@@ -406,15 +438,92 @@ function hasPermission(permissions: any[], module: string, action: string) {
     return permissions.some((permission) => permission.module === module && permission.action === action)
 }
 
+function NegativeStockScheduledBanner({
+    run,
+    isRunning,
+    onOpen,
+    onRun,
+}: {
+    run?: SystemJobRun | null
+    isRunning: boolean
+    onOpen: () => void
+    onRun: () => void
+}) {
+    if (!shouldShowNegativeStockJobBanner(run)) {
+        return null
+    }
+
+    const failed = run?.status === "FAILED" || run?.severity === "ERROR"
+    const issueCount = Number(run?.warning_count || 0)
+
+    return (
+        <div className={cn(
+            "flex flex-col gap-3 rounded-md border p-3 text-sm md:flex-row md:items-center md:justify-between",
+            failed ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900",
+        )}>
+            <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                    <div className="font-semibold">
+                        {failed ? "Job kiểm tra âm tồn đang lỗi" : "Cảnh báo âm tồn sổ kho"}
+                    </div>
+                    <div className="mt-1">
+                        {failed
+                            ? (run?.error_message || run?.summary || "Lần kiểm tra tự động gần nhất không chạy thành công.")
+                            : `Lần kiểm tra gần nhất phát hiện ${formatNumber(issueCount)} dòng âm tồn. Cần mở kiểm tra để xử lý.`}
+                    </div>
+                    <div className="mt-1 text-xs opacity-80">
+                        Lần chạy: {formatDateTime(run?.finished_at || run?.created_at)} · Phạm vi: tất cả lô trong sổ kho
+                    </div>
+                </div>
+            </div>
+            <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                <Button type="button" size="sm" variant="outline" onClick={onOpen}>
+                    <Search className="mr-2 h-4 w-4" />
+                    Xem chi tiết
+                </Button>
+                <Button type="button" size="sm" disabled={isRunning} onClick={onRun}>
+                    {isRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    Kiểm tra lại
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+function shouldShowNegativeStockJobBanner(run?: SystemJobRun | null) {
+    if (!run?.id && !run?.status) return false
+    if (run.status === "FAILED" || run.severity === "ERROR") return true
+    return Number(run.warning_count || 0) > 0 || run.status === "WARNING"
+}
+
+function parseNegativeStockPayload(run?: SystemJobRun | null): NegativeStockAuditResult | null {
+    if (!run?.payload) return null
+    try {
+        const parsed = JSON.parse(run.payload) as NegativeStockAuditResult
+        return parsed && Array.isArray(parsed.items) ? parsed : null
+    } catch {
+        return null
+    }
+}
+
 function NegativeStockAuditDialog({
     open,
     onOpenChange,
+    initialResult,
 }: {
     open: boolean
     onOpenChange: (open: boolean) => void
+    initialResult?: NegativeStockAuditResult | null
 }) {
     const [productCodes, setProductCodes] = useState("")
     const [result, setResult] = useState<NegativeStockAuditResult | null>(null)
+    useEffect(() => {
+        if (open) {
+            setResult(initialResult || null)
+        }
+    }, [initialResult, open])
+
     const mutation = useMutation({
         mutationFn: () => checkNegativeStock(productCodes),
         onSuccess: setResult,
@@ -737,4 +846,18 @@ const SUMMARY_TONES = {
 
 function formatNumber(value: number) {
     return new Intl.NumberFormat("vi-VN").format(value || 0)
+}
+
+function formatDateTime(value?: string | null) {
+    if (!value) return "-"
+    const normalized = value.includes("T") ? value : value.replace(" ", "T")
+    const date = new Date(normalized)
+    if (Number.isNaN(date.getTime())) return value
+    return new Intl.DateTimeFormat("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    }).format(date)
 }
