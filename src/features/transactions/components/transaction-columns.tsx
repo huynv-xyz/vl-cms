@@ -22,7 +22,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn, formatCurrency } from "@/lib/utils"
-import { Check, Funnel, MoreHorizontal, Pencil, X } from "lucide-react"
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Check, Funnel, MoreHorizontal, Pencil, X } from "lucide-react"
 import { listTransactionOptions } from "@/api/transactions"
 import type { Transaction } from "../data/schema"
 
@@ -41,6 +41,7 @@ export type TransactionColumnFilters = {
     npp?: string[]
     hdn_status?: string[]
     region?: string
+    time_sort?: "asc" | "desc" | string
     document_date_from?: string
     document_date_to?: string
 }
@@ -236,12 +237,13 @@ function dateColumn(
     accessorKey: TextColumnKey,
     title: string,
     width = 125,
+    header?: ColumnDef<Transaction>["header"],
 ): ColumnDef<Transaction> {
     return {
         accessorKey: accessorKey as string,
         enableSorting: false,
         minSize: 110,
-        header: ({ column }) => <DataTableColumnHeader column={column} title={title} />,
+        header: header ?? (({ column }) => <DataTableColumnHeader column={column} title={title} />),
         cell: ({ row }) => (
             <span className="block whitespace-nowrap text-sm tabular-nums">
                 {formatDate(row.getValue(accessorKey as string))}
@@ -295,6 +297,70 @@ function processMonthColumn(): ColumnDef<Transaction> {
     }
 }
 
+function DateSortHeader({
+    title,
+    value,
+    onChange,
+}: {
+    title: string
+    value: "asc" | "desc"
+    onChange: (value: "asc" | "desc") => void
+}) {
+    const [open, setOpen] = useState(false)
+    const options: Array<{ value: "asc" | "desc"; label: string; icon: typeof ArrowUpNarrowWide }> = [
+        { value: "desc", label: "Giảm dần", icon: ArrowDownWideNarrow },
+        { value: "asc", label: "Tăng dần", icon: ArrowUpNarrowWide },
+    ]
+
+    return (
+        <div className="flex min-w-0 items-center justify-center gap-1.5">
+            <span className="truncate">{title}</span>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className={cn(
+                            "inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent",
+                            value === "asc"
+                                ? "bg-primary/10 text-primary"
+                                : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                        )}
+                        aria-label={`Sắp xếp ${title}`}
+                    >
+                        <Funnel className="h-4 w-4" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-56 p-2">
+                    <div className="px-2 pb-2 font-semibold text-foreground">Sắp xếp {title}</div>
+                    <div className="space-y-1">
+                        {options.map((option) => {
+                            const Icon = option.icon
+                            return (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    className={cn(
+                                        "hover:bg-muted flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm",
+                                        value === option.value && "bg-primary/10 text-primary",
+                                    )}
+                                    onClick={() => {
+                                        onChange(option.value)
+                                        setOpen(false)
+                                    }}
+                                >
+                                    <Icon className="h-4 w-4" />
+                                    <span>{option.label}</span>
+                                    {value === option.value ? <Check className="ml-auto h-4 w-4" /> : null}
+                                </button>
+                            )
+                        })}
+                    </div>
+                </PopoverContent>
+            </Popover>
+        </div>
+    )
+}
+
 export function buildTransactionColumns(
     filters: TransactionColumnFilters,
     onFiltersChange: (filters: TransactionColumnFilters) => void,
@@ -329,6 +395,12 @@ export function buildTransactionColumns(
             staticOptions={key === "npp" ? options.nppFilterOptions : undefined}
         />
     )
+    const setTimeSort = (value: "asc" | "desc") => {
+        onFiltersChange({
+            ...filters,
+            time_sort: value,
+        })
+    }
 
     return [
         ...(options.canUseCorrections ? [
@@ -361,7 +433,13 @@ export function buildTransactionColumns(
                 tdClassName: "w-14 ps-3 whitespace-nowrap",
             },
         },
-        dateColumn("document_date", "Ngày chứng từ", 125),
+        dateColumn("document_date", "Ngày chứng từ", 135, () => (
+            <DateSortHeader
+                title="Ngày chứng từ"
+                value={filters.time_sort === "asc" ? "asc" : "desc"}
+                onChange={setTimeSort}
+            />
+        )),
         {
             accessorKey: "document_no",
             enableSorting: false,

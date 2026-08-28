@@ -1,6 +1,6 @@
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { CalendarClock, ClipboardList, Layers, Loader2, MapPin, Users, X } from "lucide-react"
+import { ClipboardList, Layers, Loader2, MapPin, Users, X } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { listProductGroupPpStatusLookups } from "@/api/app-lookup"
 import { getMyPermissions } from "@/api/auth/permission"
@@ -27,13 +27,6 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import { toast } from "sonner"
 import type { Transaction } from "../data/schema"
 import { buildTransactionColumns } from "./transaction-columns"
@@ -134,7 +127,7 @@ export function TransactionTable({
         value: String(item.value),
         label: String(item.label || item.value),
     }))
-    const timeSort = filters.time_sort === "desc" ? "desc" : "asc"
+    const timeSort = filters.time_sort === "asc" ? "asc" : "desc"
     const setFilter = <K extends keyof TransactionFilters>(
         key: K,
         value: TransactionFilters[K],
@@ -215,8 +208,8 @@ export function TransactionTable({
         filters.region
             ? { key: "region", label: `Khu vực: ${filters.region}`, onClear: () => setFilter("region", undefined) }
             : null,
-        timeSort === "desc"
-            ? { key: "time_sort", label: "Thời gian: Giảm dần", onClear: () => setFilter("time_sort", "asc") }
+        timeSort === "asc"
+            ? { key: "time_sort", label: "Ngày chứng từ: Tăng dần", onClear: () => setFilter("time_sort", "desc") }
             : null,
         filters.document_date_from
             ? { key: "document_date_from", label: `Từ ngày CT: ${filters.document_date_from}`, onClear: () => setFilter("document_date_from", undefined) }
@@ -241,7 +234,7 @@ export function TransactionTable({
             npp: undefined,
             hdn_status: undefined,
             region: undefined,
-            time_sort: "asc",
+            time_sort: "desc",
             document_date_from: undefined,
             document_date_to: undefined,
         })
@@ -305,20 +298,6 @@ export function TransactionTable({
                         onChange={(v) => setFilter("region", v)}
                         className="min-w-[180px] flex-1"
                     />
-
-                    <Select
-                        value={timeSort}
-                        onValueChange={(value) => setFilter("time_sort", value === "desc" ? "desc" : "asc")}
-                    >
-                        <SelectTrigger className={filterButtonClass("min-w-[180px] flex-1")}>
-                            <CalendarClock className="h-4 w-4 text-muted-foreground" />
-                            <SelectValue placeholder="Sắp xếp thời gian" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="asc">Thời gian tăng dần</SelectItem>
-                            <SelectItem value="desc">Thời gian giảm dần</SelectItem>
-                        </SelectContent>
-                    </Select>
 
                     <DatePicker
                         className="min-w-[150px] flex-1 [&_button]:h-10"
