@@ -1,14 +1,15 @@
 import { useMemo } from "react"
 import { type ColumnDef } from "@tanstack/react-table"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { Key } from "lucide-react"
+import { CopyCheck, Key } from "lucide-react"
+import { toast } from "sonner"
 
-import { getUserRoles } from "@/api/auth/user-role"
+import { getUserRoles, updateUserRoles } from "@/api/auth/user-role"
 import type { AccessRole } from "@/api/auth/role"
+import { listUsers } from "@/api/user"
 import type { User } from "@/features/user/data/schema"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
-import { buildActionsColumn } from "@/components/crud/build-actions-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
 import { buildBadgeColumn } from "@/components/crud/build-badge-column"
 import { Badge } from "@/components/ui/badge"
@@ -18,6 +19,13 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
+
+const TEST_EMAIL = "test@vlife.com"
 
 export function buildUserRoleColumns(
     onAssign: (user: User) => void,
@@ -54,7 +62,7 @@ export function buildUserRoleColumns(
         buildBadgeColumn<User>({
             accessorKey: "status",
             title: "Trạng thái",
-            width: 120,
+            width: 140,
             mapValueToLabel: (value) =>
                 Number(value) === 1 ? "Hoạt động" : "Tắt",
             mapValueToVariant: (value) =>
@@ -62,18 +70,36 @@ export function buildUserRoleColumns(
             mapValueToClassName: () => "text-xs",
         }),
 
-        buildActionsColumn<User>({
-            renderActions: (_, row) => (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onAssign(row.original)}
-                >
-                    <Key className="mr-2 h-4 w-4" />
-                    Phân quyền
-                </Button>
-            ),
-        }),
+        {
+            id: "actions",
+            header: "Thao tác",
+            size: 220,
+            minSize: 220,
+            cell: ({ row }) => {
+                const user = row.original
+
+                return (
+                    <div className="flex items-center justify-end gap-2 pl-4">
+                        <CopyRolesToTestButton user={user} />
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onAssign(user)}
+                        >
+                            <Key className="mr-2 h-4 w-4" />
+                            Phân quyền
+                        </Button>
+                    </div>
+                )
+            },
+            enableSorting: false,
+            enableHiding: false,
+            meta: {
+                className: "text-right",
+                thClassName: "pl-4 text-right",
+                tdClassName: "pl-4 text-right whitespace-nowrap",
+            },
+        },
     ]
 }
 
@@ -205,5 +231,75 @@ function RoleLink({ role }: { role: AccessRole }) {
         >
             {role.name}
         </Link>
+    )
+}
+
+function CopyRolesToTestButton({ user }: { user: User }) {
+    const queryClient = useQueryClient()
+    const isTestUser = user.email.toLowerCase() === TEST_EMAIL
+
+    const mutation = useMutation({
+        mutationFn: async () => {
+            const sourceRoles = await getUserRoles(user.id)
+            const testUsers = await listUsers({
+                page: 1,
+                size: 10,
+                email: TEST_EMAIL,
+            })
+            const testUser = testUsers.items.find(
+                (item) => item.email.toLowerCase() === TEST_EMAIL
+            )
+
+            if (!testUser) {
+                throw new Error(`Không tìm thấy tài khoản ${TEST_EMAIL}`)
+            }
+
+            await updateUserRoles(testUser.id, sourceRoles.role_ids)
+
+            return {
+                testUserId: testUser.id,
+                roleCount: sourceRoles.role_ids.length,
+            }
+        },
+        onSuccess: ({ testUserId, roleCount }) => {
+            queryClient.invalidateQueries({
+                queryKey: ["admin", "users", testUserId, "roles"],
+            })
+            queryClient.invalidateQueries({
+                queryKey: ["admin", "users"],
+            })
+            toast.success(
+                `Đã gán ${roleCount} vai trò của ${user.email} cho ${TEST_EMAIL}`
+            )
+        },
+        onError: (err: any) => {
+            toast.error(err?.message ?? "Gán quyền cho tài khoản test thất bại")
+        },
+    })
+
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2"
+                    disabled={isTestUser || mutation.isPending}
+                    onClick={(event) => {
+                        event.stopPropagation()
+                        mutation.mutate()
+                    }}
+                >
+                    <CopyCheck className="h-4 w-4" />
+                    <span className="sr-only">Gán quyền tương tự cho test</span>
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+                {isTestUser
+                    ? "Đây là tài khoản test"
+                    : `Gán quyền tương tự cho ${TEST_EMAIL}`}
+            </TooltipContent>
+        </Tooltip>
     )
 }
