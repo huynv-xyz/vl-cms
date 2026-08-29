@@ -32,6 +32,8 @@ import { cn } from '@/lib/utils'
 import {
     AlertCircle,
     CheckCircle2,
+    Eye,
+    EyeOff,
     Loader2,
     Save,
     Target,
@@ -94,6 +96,7 @@ export function CustomerVipPlanSheet({
     const [targetTierCode, setTargetTierCode] = React.useState('')
     const [items, setItems] = React.useState<CustomerVipPlanItem[]>([])
     const [strategy, setStrategy] = React.useState<AllocationStrategy>('PRO_RATA')
+    const [showPlannedQtyColumn, setShowPlannedQtyColumn] = React.useState(true)
 
     React.useEffect(() => {
         if (!data) return
@@ -384,6 +387,25 @@ export function CustomerVipPlanSheet({
                                     </label>
                                     <Button
                                         type="button"
+                                        variant="outline"
+                                        onClick={() => setShowPlannedQtyColumn((value) => !value)}
+                                        className="h-10"
+                                    >
+                                        {showPlannedQtyColumn ? (
+                                            <EyeOff className="mr-2 h-4 w-4" />
+                                        ) : (
+                                            <Eye className="mr-2 h-4 w-4" />
+                                        )}
+                                        {showPlannedQtyColumn ? 'Ẩn SL dự kiến' : 'Hiện SL dự kiến'}
+                                    </Button>
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        &nbsp;
+                                    </label>
+                                    <Button
+                                        type="button"
                                         onClick={autoAllocate}
                                         className="h-10"
                                     >
@@ -405,8 +427,13 @@ export function CustomerVipPlanSheet({
                                                 <CleanHead className="w-[130px] text-right">SL đạt</CleanHead>
                                                 <CleanHead className="w-20 text-right">Hệ số</CleanHead>
                                                 <CleanHead className="w-[130px] text-right">Điểm đạt</CleanHead>
-                                                <CleanHead className="w-[150px] text-right text-primary">
-                                                    SL dự kiến thêm
+                                                {showPlannedQtyColumn ? (
+                                                    <CleanHead className="w-[150px] text-right text-primary">
+                                                        SL dự kiến thêm
+                                                    </CleanHead>
+                                                ) : null}
+                                                <CleanHead className="w-[150px] text-right">
+                                                    Còn thiếu dự kiến
                                                 </CleanHead>
                                                 <CleanHead className="w-[140px] text-right text-primary">
                                                     Điểm dự kiến {data.calc_year}
@@ -440,14 +467,19 @@ export function CustomerVipPlanSheet({
                                                     <CleanCell className="text-right tabular-nums">
                                                         {formatNumberOrDash(item.achieved_point)}
                                                     </CleanCell>
-                                                    <CleanCell className="p-1">
-                                                        <Input
-                                                            type="number"
-                                                            min={0}
-                                                            value={item.planned_qty ?? 0}
-                                                            onChange={(event) => updatePlannedQty(index, event.target.value)}
-                                                            className="h-8 border-slate-200 text-right font-medium tabular-nums focus-visible:ring-1"
-                                                        />
+                                                    {showPlannedQtyColumn ? (
+                                                        <CleanCell className="p-1">
+                                                            <Input
+                                                                type="number"
+                                                                min={0}
+                                                                value={item.planned_qty ?? 0}
+                                                                onChange={(event) => updatePlannedQty(index, event.target.value)}
+                                                                className="h-8 border-slate-200 text-right font-medium tabular-nums focus-visible:ring-1"
+                                                            />
+                                                        </CleanCell>
+                                                    ) : null}
+                                                    <CleanCell className="text-right tabular-nums">
+                                                        {item.has_plan ? formatNumberOrDash(item.remaining_planned_qty) : '-'}
                                                     </CleanCell>
                                                     <CleanCell
                                                         className={cn(
@@ -474,8 +506,13 @@ export function CustomerVipPlanSheet({
                                                 <CleanCell className="text-right font-semibold tabular-nums">
                                                     {formatNumber(sum(items.map((item) => item.achieved_point)))}
                                                 </CleanCell>
+                                                {showPlannedQtyColumn ? (
+                                                    <CleanCell className="text-right font-semibold tabular-nums">
+                                                        {formatNumberOrDash(sum(items.map((item) => item.planned_qty)))}
+                                                    </CleanCell>
+                                                ) : null}
                                                 <CleanCell className="text-right font-semibold tabular-nums">
-                                                    {formatNumberOrDash(sum(items.map((item) => item.planned_qty)))}
+                                                    {formatNumberOrDash(sum(items.map((item) => item.remaining_planned_qty)))}
                                                 </CleanCell>
                                                 <CleanCell className="text-right font-bold tabular-nums text-primary">
                                                     {formatNumberOrDash(plannedPoint)}
