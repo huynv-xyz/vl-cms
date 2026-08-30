@@ -825,6 +825,15 @@ export type InventoryLedgerStaticParametersResult = InventoryLedgerStaticParamet
     updated: boolean
 }
 
+export type InventoryLedgerStaticAccountField = "tk_no" | "tk_co"
+
+export type InventoryLedgerStaticAccountResult = {
+    ids: number[]
+    field: InventoryLedgerStaticAccountField
+    value: string
+    updated: number
+}
+
 export function updateInventoryLedgerStaticParameters(
     ledgerId: number,
     body: InventoryLedgerStaticParametersPayload,
@@ -834,6 +843,18 @@ export function updateInventoryLedgerStaticParameters(
         tkNo: body.tk_no,
         tkCo: body.tk_co,
         supplierName: body.supplier_name,
+    })
+}
+
+export function updateInventoryLedgerStaticAccount(
+    ids: number[],
+    field: InventoryLedgerStaticAccountField,
+    value: string,
+) {
+    return apiPost<InventoryLedgerStaticAccountResult>("/inventory/ledger/static-account", {
+        ids,
+        field,
+        value,
     })
 }
 

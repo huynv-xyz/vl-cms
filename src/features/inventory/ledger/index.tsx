@@ -16,11 +16,10 @@ import { useUrlListFilters } from "@/hooks/use-url-list-filters"
 import { useUrlPagination } from "@/hooks/use-url-pagination"
 import { cn } from "@/lib/utils"
 import { Route } from "@/routes/_authenticated/inventory/ledgers"
-import { InventoryLedgerTable } from "./components/ledger-table"
+import { InventoryLedgerTable, LedgerColumnPreferencesControl } from "./components/ledger-table"
 import { ExportInventoryLedgerButton } from "./components/export-inventory-ledger-button"
 import { LedgerImportButtons } from "./components/ledger-import-buttons"
 import { LedgerVoucherDialog } from "./components/ledger-voucher-dialog"
-import { LegacyConversionLotMergeTool } from "./components/legacy-conversion-lot-merge-tool"
 import { ProductionDateSyncTool } from "./components/production-date-sync-tool"
 import type { InventoryLedgerTotals } from "./data/schema"
 
@@ -188,7 +187,6 @@ export function InventoryLedgerReportPage({
             actions={
                 <div className="flex flex-wrap items-center justify-end gap-2">
                     {mode === "all" ? <LedgerImportButtons /> : null}
-                    {mode === "all" ? <LegacyConversionLotMergeTool /> : null}
                     <ExportInventoryLedgerButton
                         keyword={keyword}
                         showValues={showValues}
@@ -262,6 +260,7 @@ export function InventoryLedgerReportPage({
                             </DropdownMenuContent>
                         </DropdownMenu>
                     ) : null}
+                    <LedgerColumnPreferencesControl showValues={showValues} />
                 </div>
             }
         >
@@ -423,13 +422,14 @@ function InventoryLedgerSummary({
         ...(totals || {}),
     }
     const displayValue = (value: number) => direction === "OUT" ? Math.abs(Number(value || 0)) : Number(value || 0)
+    const displayClosingValue = (value: number) => Math.abs(Number(value || 0))
 
     return (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <Metric icon={Package} label="Tồn đầu kỳ" quantity={displayValue(normalized.opening_quantity)} value={displayValue(normalized.opening_value)} showValue={showValues} />
             <Metric icon={TrendingUp} label="Nhập kho" quantity={displayValue(normalized.inbound_quantity)} value={displayValue(normalized.inbound_value)} showValue={showValues} tone="ok" />
             <Metric icon={TrendingDown} label="Xuất kho" quantity={displayValue(normalized.outbound_quantity)} value={displayValue(normalized.outbound_value)} showValue={showValues} tone="bad" />
-            <Metric icon={Warehouse} label="Tồn cuối kỳ" quantity={displayValue(normalized.closing_quantity)} value={displayValue(normalized.closing_value)} showValue={showValues} tone="info" />
+            <Metric icon={Warehouse} label="Tồn cuối kỳ" quantity={displayClosingValue(normalized.closing_quantity)} value={displayClosingValue(normalized.closing_value)} showValue={showValues} tone="info" />
         </div>
     )
 }

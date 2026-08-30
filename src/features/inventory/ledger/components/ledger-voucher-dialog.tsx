@@ -149,7 +149,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
     const [lines, setLines] = useState<VoucherLine[]>(isPaired ? createPairedLines() : [createEmptyLine()])
     const [bulkPasteOpen, setBulkPasteOpen] = useState(false)
     const [bulkProductCodes, setBulkProductCodes] = useState("")
-    const [bulkDefaultQuantity, setBulkDefaultQuantity] = useState("1")
+    const [bulkQuantities, setBulkQuantities] = useState("")
     const [bulkMissingCodes, setBulkMissingCodes] = useState<string[]>([])
     const [bulkLoading, setBulkLoading] = useState(false)
 
@@ -191,7 +191,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         setLines(isPaired ? createPairedLines() : [createEmptyLine()])
         setBulkPasteOpen(false)
         setBulkProductCodes("")
-        setBulkDefaultQuantity("1")
+        setBulkQuantities("")
         setBulkMissingCodes([])
     }, [isPaired, isTransfer, mode, open])
 
@@ -302,9 +302,18 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
             return
         }
 
-        const defaultQuantity = parseBulkQuantity(bulkDefaultQuantity)
-        if (defaultQuantity <= 0) {
-            toast.error("Số lượng mặc định phải lớn hơn 0")
+        const quantityRows = parseBulkQuantityRows(bulkQuantities)
+        if (!quantityRows.length) {
+            toast.error("Dán danh sách số lượng trước khi load")
+            return
+        }
+        if (quantityRows.length !== codes.length) {
+            toast.error(`Số dòng số lượng (${quantityRows.length}) phải khớp số dòng mã hàng (${codes.length})`)
+            return
+        }
+        const invalidQuantity = quantityRows.find((row) => row.quantity <= 0)
+        if (invalidQuantity) {
+            toast.error(`Số lượng dòng ${invalidQuantity.line} không hợp lệ`)
             return
         }
 
@@ -313,7 +322,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
             const foundLines: VoucherLine[] = []
             const missingCodes: string[] = []
 
-            for (const code of codes) {
+            for (const [index, code] of codes.entries()) {
                 const product = await findProductByCode(code)
                 if (!product?.id) {
                     missingCodes.push(code)
@@ -330,7 +339,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                     warehouse_id: matchedWarehouseId,
                     unit: product.unit || undefined,
                     product_inventory_account: product.inventory_account_code || undefined,
-                    quantity: formatBulkQuantity(defaultQuantity),
+                    quantity: formatBulkQuantity(quantityRows[index].quantity),
                 }
 
                 foundLines.push({
@@ -393,7 +402,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
         setLines(isPaired ? createPairedLines() : [createEmptyLine()])
         setBulkPasteOpen(false)
         setBulkProductCodes("")
-        setBulkDefaultQuantity("1")
+        setBulkQuantities("")
         setBulkMissingCodes([])
     }
 
@@ -670,7 +679,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                         ) : null}
                         {!isPaired && !isTransfer && bulkPasteOpen ? (
                             <div className="space-y-3 border-b bg-slate-50/70 p-3">
-                                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_auto] lg:items-end">
+                                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(220px,0.45fr)_auto] lg:items-end">
                                     <div className="space-y-1.5">
                                         <Label>Danh sách mã hàng</Label>
                                         <Textarea
@@ -684,13 +693,12 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                         />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <Label>Số lượng mặc định</Label>
-                                        <Input
-                                            value={bulkDefaultQuantity}
-                                            onChange={(event) => setBulkDefaultQuantity(event.target.value)}
-                                            inputMode="decimal"
-                                            placeholder="1"
-                                            className="bg-white text-right"
+                                        <Label>Danh sách số lượng</Label>
+                                        <Textarea
+                                            value={bulkQuantities}
+                                            onChange={(event) => setBulkQuantities(event.target.value)}
+                                            placeholder="Dán số lượng từ Excel, mỗi dòng tương ứng một mã"
+                                            className="min-h-24 bg-white"
                                         />
                                     </div>
                                     <Button type="button" onClick={() => void handleBulkLoadProducts()} disabled={bulkLoading}>
@@ -961,6 +969,20 @@ function parseBulkProductCodes(text: string) {
         .split(/\r?\n|\t|;|,/)
         .map((value) => value.trim())
         .filter(Boolean)
+}
+
+function parseBulkQuantityRows(text: string) {
+    return text
+        .split(/\r?\n|\t|;/)
+        .map((value, index) => {
+            const raw = value.trim()
+            return {
+                line: index + 1,
+                raw,
+                quantity: parseBulkQuantity(raw),
+            }
+        })
+        .filter((row) => row.raw !== "")
 }
 
 function parseBulkQuantity(value: string) {
