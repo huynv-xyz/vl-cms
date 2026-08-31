@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { ArrowRight, Boxes, DatabaseBackup, DatabaseZap, PackageCheck, ReceiptText } from "lucide-react"
+import { ArrowRight, Boxes, DatabaseBackup, DatabaseZap, GitCompareArrows, PackageCheck, ReceiptText } from "lucide-react"
 
 import { Main } from "@/components/layout/main"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +15,13 @@ type ToolItem = {
 }
 
 const tools: ToolItem[] = [
+    {
+        title: "Đối chiếu dữ liệu tính giá",
+        description: "So sánh số liệu giá đã lưu của từng kỳ giữa DB hiện tại và snapshot vlife_ss, chỉ đọc dữ liệu.",
+        url: "/tools/inventory-costing-db-compare",
+        status: "Tạm thời",
+        icon: GitCompareArrows,
+    },
     {
         title: "Backfill liên kết chi tiết lô hàng",
         description:

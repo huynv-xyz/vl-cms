@@ -22,8 +22,8 @@ type FilterKey = Exclude<keyof AuditLogFilters, "page" | "size">
 type FilterValueLabelers = Partial<Record<FilterKey, (value: string) => string>>
 
 export default function AuditLogPage() {
-    const [draft, setDraft] = useState<AuditLogFilters>(initialFilters)
-    const [filters, setFilters] = useState<AuditLogFilters>(initialFilters)
+    const [draft, setDraft] = useState<AuditLogFilters>(() => filtersFromUrl())
+    const [filters, setFilters] = useState<AuditLogFilters>(() => filtersFromUrl())
     const [selected, setSelected] = useState<AuditLog | null>(null)
 
     const logs = useQuery({
@@ -374,6 +374,18 @@ export default function AuditLogPage() {
             <AuditDetailSheet log={selected} labelers={labelers} onOpenChange={(open) => !open && setSelected(null)} />
         </div>
     )
+}
+
+function filtersFromUrl(): AuditLogFilters {
+    if (typeof window === "undefined") return initialFilters
+    const query = new URLSearchParams(window.location.search)
+    const filters: AuditLogFilters = { ...initialFilters }
+    ;(["module", "entity_type", "entity_id", "action", "source_type", "result_status", "changed_by", "from_date", "to_date", "keyword"] as const)
+        .forEach((key) => {
+            const value = query.get(key)
+            if (value) filters[key] = value
+        })
+    return filters
 }
 
 function QuickButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
@@ -848,6 +860,7 @@ function actionLabel(action: string) {
         ADJUST_PRICE: "Sửa giá",
         ADJUST_QUANTITY: "Sửa số lượng",
         ADJUST_PP_STATUS: "Sửa PP",
+        MARK_COST_PERIOD_STALE: "Đánh dấu cần tính lại",
         LOGIN_SUCCESS: "Login thành công",
         LOGIN_FAILED: "Login thất bại",
     }
