@@ -9,6 +9,7 @@ import { CreateCustomerButton } from './components/create-customer-button'
 import { ImportCustomersButton } from './components/import-customers-button'
 import { ImportInvoiceAliasesButton } from './components/import-invoice-aliases-button'
 import { ExportCustomersButton } from './components/export-customers-button'
+import { CustomerHistoricalSyncButton } from './components/customer-historical-sync-button'
 import { Route } from '@/routes/_authenticated/customers'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
@@ -79,6 +80,7 @@ export default function CustomerPage() {
                                 status: requestFilters.status,
                             }}
                         />
+                        <CustomerHistoricalSyncButton />
                         <ImportCustomersButton />
                         <ImportInvoiceAliasesButton />
                         <CreateCustomerButton />

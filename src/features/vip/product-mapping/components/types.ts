@@ -1,5 +1,6 @@
 export type VipProductMappingFormValues = {
     product_group?: string
+    group_code?: string
     ap_dung?: string
     he_so_hdn?: number
     unit?: string

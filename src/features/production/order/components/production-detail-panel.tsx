@@ -1892,6 +1892,10 @@ function PreferredLotSelect({
     disabled?: boolean
 }) {
     const queryClient = useQueryClient()
+    const [customOpen, setCustomOpen] = useState(false)
+    const [lotQuantities, setLotQuantities] = useState<Record<string, string>>(() =>
+        buildProductionLotQuantityMap(material.lot_allocations ?? [])
+    )
     const { data, isLoading } = useQuery({
         queryKey: [
             "production-material-lots",
@@ -1911,19 +1915,37 @@ function PreferredLotSelect({
         staleTime: 30_000,
     })
     const lots = getPagedItems(data)
-    const selected = material.preferred_lot_no || "AUTO"
+    const customMode = String(material.lot_selection_mode || "").toUpperCase() === "CUSTOM"
+    const selected = customMode ? "CUSTOM" : material.preferred_lot_no || "AUTO"
+    const customAllocationSummary = formatProductionLotAllocationSummary(material.lot_allocations ?? [])
     const selectedLotIsUnavailable = Boolean(
         material.preferred_lot_no
+        && !customMode
         && !lots.some((lot: any) => String(lot.lot_no || "") === material.preferred_lot_no)
     )
+    const requiredQuantity = Number(material.quantity_required || 0)
+    const selectedAllocations = buildProductionLotAllocations(lots, lotQuantities)
+    const allocatedQuantity = selectedAllocations.reduce((sum, allocation) => sum + Number(allocation.quantity || 0), 0)
+    const allocationDiff = requiredQuantity - allocatedQuantity
+    const allocationHasInvalidLot = lots.some((lot: any) => {
+        const quantity = Number(lotQuantities[productionLotKey(lot)] || 0)
+        const available = Number(resolveLotRemaining(lot) || 0)
+        return quantity > available
+    })
+    const allocationValid = selectedAllocations.length > 0
+        && sameProductionDecimal(allocatedQuantity, requiredQuantity)
+        && !allocationHasInvalidLot
 
     const mutation = useMutation({
-        mutationFn: (lotNo?: string) =>
+        mutationFn: (payload: { lotNo?: string; mode?: "AUTO" | "CUSTOM"; allocations?: { lot_id?: number; lot_no?: string; quantity: number }[] }) =>
             setProductionPreferredLot(production.id, material.id, {
-                lot_no: lotNo || undefined,
+                lot_no: payload.lotNo || undefined,
+                lot_selection_mode: payload.mode,
+                lot_allocations: payload.allocations,
             }),
         onSuccess: () => {
             toast.success("Đã cập nhật lô ưu tiên")
+            setCustomOpen(false)
             void queryClient.invalidateQueries({ queryKey: ["production-order-detail", production.id] })
             void queryClient.invalidateQueries({ queryKey: ["production-orders"] })
             void queryClient.invalidateQueries({ queryKey: ["productions"] })
@@ -1932,39 +1954,248 @@ function PreferredLotSelect({
     })
 
     return (
-        <Select
-            value={selected}
-            disabled={disabled || mutation.isPending}
-            onValueChange={(value) => mutation.mutate(value === "AUTO" ? undefined : value)}
-        >
-            <SelectTrigger className="h-8 min-w-[150px] justify-between">
-                <SelectValue placeholder="Auto" />
-            </SelectTrigger>
-            <SelectContent className="max-w-[460px]">
-                <SelectItem value="AUTO">
-                    <span className="inline-flex items-center gap-1.5">
-                        <SlidersHorizontal className="h-3.5 w-3.5" />
-                        Auto
-                    </span>
-                </SelectItem>
-                {isLoading ? <SelectItem value="LOADING" disabled>Đang tải...</SelectItem> : null}
-                {!isLoading && selectedLotIsUnavailable ? (
-                    <SelectItem value={String(material.preferred_lot_no)} disabled>
-                        {material.preferred_lot_no} - không có tồn tại thời điểm lệnh
+        <>
+            <Select
+                value={selected}
+                disabled={disabled || mutation.isPending}
+                onValueChange={(value) => {
+                    if (value === "CUSTOM") {
+                        setLotQuantities(buildProductionLotQuantityMap(material.lot_allocations ?? []))
+                        setCustomOpen(true)
+                        return
+                    }
+                    mutation.mutate({
+                        lotNo: value === "AUTO" ? undefined : value,
+                        mode: "AUTO",
+                    })
+                }}
+            >
+                <SelectTrigger className="h-8 min-w-[150px] justify-between">
+                    <SelectValue placeholder="Auto" />
+                </SelectTrigger>
+                <SelectContent className="max-w-[460px]">
+                    <SelectItem value="AUTO">
+                        <span className="inline-flex items-center gap-1.5">
+                            <SlidersHorizontal className="h-3.5 w-3.5" />
+                            Auto
+                        </span>
                     </SelectItem>
-                ) : null}
-                {lots.map((lot: any) => {
-                    const lotNo = String(lot.lot_no || "")
-                    if (!lotNo) return null
-                    return (
-                        <SelectItem key={`${lot.id}-${lotNo}`} value={lotNo}>
-                            {lotNo} - còn {formatNumber(resolveLotRemaining(lot))}
+                    <SelectItem value="CUSTOM">
+                        <span className="inline-flex items-center gap-1.5">
+                            <Pencil className="h-3.5 w-3.5" />
+                            Tùy chọn
+                        </span>
+                    </SelectItem>
+                    {isLoading ? <SelectItem value="LOADING" disabled>Đang tải...</SelectItem> : null}
+                    {!isLoading && selectedLotIsUnavailable ? (
+                        <SelectItem value={String(material.preferred_lot_no)} disabled>
+                            {material.preferred_lot_no} - không có tồn tại thời điểm lệnh
                         </SelectItem>
-                    )
-                })}
-            </SelectContent>
-        </Select>
+                    ) : null}
+                    {lots.map((lot: any) => {
+                        const lotNo = String(lot.lot_no || "")
+                        if (!lotNo) return null
+                        return (
+                            <SelectItem key={`${lot.id}-${lotNo}`} value={lotNo}>
+                                {lotNo} - còn {formatNumber(resolveLotRemaining(lot))}
+                            </SelectItem>
+                        )
+                    })}
+                </SelectContent>
+            </Select>
+            {customMode ? (
+                <button
+                    type="button"
+                    className="mt-1 block max-w-[220px] truncate text-left text-xs text-teal-700 hover:underline"
+                    title={customAllocationSummary}
+                    disabled={disabled || mutation.isPending}
+                    onClick={() => {
+                        setLotQuantities(buildProductionLotQuantityMap(material.lot_allocations ?? []))
+                        setCustomOpen(true)
+                    }}
+                >
+                    {customAllocationSummary}
+                </button>
+            ) : null}
+            <Dialog open={customOpen} onOpenChange={(next) => !mutation.isPending && setCustomOpen(next)}>
+                <DialogContent className="max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>Phân bổ lô tùy chọn</DialogTitle>
+                        <DialogDescription>
+                            {material.product?.code} - {material.product?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2 text-sm">
+                            <span>Cần xuất <b className="tabular-nums">{formatNumber(requiredQuantity)}</b></span>
+                            <span>Đã phân bổ <b className={sameProductionDecimal(allocatedQuantity, requiredQuantity) ? "text-emerald-700 tabular-nums" : "text-red-700 tabular-nums"}>{formatNumber(allocatedQuantity)}</b></span>
+                            <span className={sameProductionDecimal(allocationDiff, 0) ? "text-muted-foreground" : "font-medium text-red-700"}>
+                                Chênh {formatNumber(allocationDiff)}
+                            </span>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={isLoading || !lots.length}
+                                onClick={() => setLotQuantities(autoAllocateProductionLots(lots, requiredQuantity))}
+                            >
+                                Tự phân bổ
+                            </Button>
+                        </div>
+
+                        <div className="max-h-[360px] overflow-auto rounded-md border">
+                            <table className="w-full text-sm">
+                                <thead className="sticky top-0 bg-muted/70 text-xs text-muted-foreground">
+                                    <tr>
+                                        <th className="px-3 py-2 text-left">Số lô</th>
+                                        <th className="w-40 px-3 py-2 text-right">Tồn thời điểm</th>
+                                        <th className="w-44 px-3 py-2 text-right">Số lượng xuất</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {isLoading ? (
+                                        <tr>
+                                            <td colSpan={3} className="px-3 py-6 text-center text-muted-foreground">Đang tải lô...</td>
+                                        </tr>
+                                    ) : lots.length ? (
+                                        lots.map((lot: any, index: number) => {
+                                            const key = productionLotKey(lot)
+                                            const quantity = Number(lotQuantities[key] || 0)
+                                            const available = Number(resolveLotRemaining(lot) || 0)
+                                            const invalid = quantity > available
+                                            return (
+                                                <tr key={key || index} className="border-t">
+                                                    <td className="px-3 py-2 font-mono">{lot.lot_no || "-"}</td>
+                                                    <td className="px-3 py-2 text-right tabular-nums">{formatNumber(available)}</td>
+                                                    <td className="px-3 py-2">
+                                                        <Input
+                                                            type="text"
+                                                            inputMode="decimal"
+                                                            className={cn("ml-auto h-8 w-36 text-right tabular-nums", invalid && "border-red-400")}
+                                                            value={lotQuantities[key] ?? ""}
+                                                            onChange={(event) => {
+                                                                const value = event.target.value
+                                                                if (/^\d*(\.\d*)?$/.test(value)) {
+                                                                    setLotQuantities((current) => ({ ...current, [key]: value }))
+                                                                }
+                                                            }}
+                                                        />
+                                                        {invalid ? <div className="mt-1 text-right text-xs text-red-600">Vượt tồn</div> : null}
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={3} className="px-3 py-6 text-center text-muted-foreground">Không có lô khả dụng.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setCustomOpen(false)}>Hủy</Button>
+                        <Button
+                            type="button"
+                            disabled={mutation.isPending || !allocationValid}
+                            onClick={() => mutation.mutate({
+                                mode: "CUSTOM",
+                                allocations: selectedAllocations,
+                            })}
+                        >
+                            {mutation.isPending ? "Đang lưu..." : "Áp dụng"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     )
+}
+
+function productionLotKey(lot: any) {
+    if (!lot) return ""
+    return lot.id != null ? `id:${lot.id}` : `lot:${lot.lot_no || ""}`
+}
+
+function buildProductionLotQuantityMap(allocations: NonNullable<ProductionMaterial["lot_allocations"]>) {
+    const next: Record<string, string> = {}
+    for (const allocation of allocations || []) {
+        const lotId = allocation.inventory_lot_id ?? allocation.lot?.id
+        const key = lotId != null ? `id:${lotId}` : `lot:${allocation.lot_no || ""}`
+        const quantity = Number(allocation.quantity || 0)
+        if (key && quantity > 0) next[key] = String(quantity)
+    }
+    return next
+}
+
+function formatProductionLotAllocationSummary(allocations: NonNullable<ProductionMaterial["lot_allocations"]>) {
+    if (!allocations?.length) return "Chưa có phân bổ lô"
+    return allocations
+        .filter((allocation) => Number(allocation.quantity || 0) > 0)
+        .map((allocation) => `${allocation.lot_no || allocation.lot?.lot_no || "-"}: ${formatNumber(Number(allocation.quantity || 0))}`)
+        .join(", ") || "Chưa có phân bổ lô"
+}
+
+function buildProductionLotAllocations(lots: any[], quantities: Record<string, string>) {
+    return (lots || [])
+        .map((lot) => ({
+            lot_id: lot.id != null ? Number(lot.id) : undefined,
+            lot_no: lot.lot_no ? String(lot.lot_no) : undefined,
+            quantity: Number(quantities[productionLotKey(lot)] || 0),
+        }))
+        .filter((row) => row.quantity > 0)
+}
+
+function autoAllocateProductionLots(lots: any[], requiredQuantity: number) {
+    let remainingUnits = toProductionThousandUnits(requiredQuantity)
+    const next: Record<string, string> = {}
+    const candidates = (lots || [])
+        .map((lot) => ({
+            key: productionLotKey(lot),
+            availableUnits: Math.max(toProductionThousandUnits(Number(resolveLotRemaining(lot) || 0)), 0),
+            quantityUnits: 0,
+        }))
+        .filter((row) => row.key && row.availableUnits > 0)
+
+    let active = candidates
+    while (remainingUnits > 0 && active.length > 0) {
+        const shareUnits = Math.floor(remainingUnits / active.length)
+        let extraUnits = remainingUnits % active.length
+        const nextActive: typeof candidates = []
+        let usedUnits = 0
+        for (const row of active) {
+            const roomUnits = row.availableUnits - row.quantityUnits
+            const desiredUnits = shareUnits + (extraUnits > 0 ? 1 : 0)
+            if (extraUnits > 0) extraUnits -= 1
+            const takeUnits = Math.min(roomUnits, desiredUnits)
+            if (takeUnits > 0) {
+                row.quantityUnits += takeUnits
+                usedUnits += takeUnits
+            }
+            if (row.availableUnits - row.quantityUnits > 0) nextActive.push(row)
+        }
+        if (usedUnits <= 0) break
+        remainingUnits -= usedUnits
+        active = nextActive
+    }
+
+    for (const row of candidates) {
+        if (row.quantityUnits > 0) next[row.key] = formatProductionThousandUnits(row.quantityUnits)
+    }
+    return next
+}
+
+function sameProductionDecimal(a: number, b: number) {
+    return Math.abs(Number(a || 0) - Number(b || 0)) < 0.000001
+}
+
+function toProductionThousandUnits(value: number) {
+    return Math.round(Number(value || 0) * 1000)
+}
+
+function formatProductionThousandUnits(units: number) {
+    return (units / 1000).toFixed(3).replace(/\.?0+$/, "")
 }
 
 function PreferredLotForm({

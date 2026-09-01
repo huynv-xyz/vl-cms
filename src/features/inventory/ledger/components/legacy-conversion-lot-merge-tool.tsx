@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { AlertTriangle, CheckCircle2, Loader2, Search, Wrench } from "lucide-react"
 
@@ -15,8 +15,20 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
-export function LegacyConversionLotMergeTool() {
-    const [open, setOpen] = useState(false)
+type LegacyConversionLotMergeToolProps = {
+    trigger?: (open: () => void) => ReactNode
+    open?: boolean
+    onOpenChange?: (open: boolean) => void
+    hideTrigger?: boolean
+}
+
+export function LegacyConversionLotMergeTool({
+    trigger,
+    open,
+    onOpenChange,
+    hideTrigger = false,
+}: LegacyConversionLotMergeToolProps = {}) {
+    const [internalOpen, setInternalOpen] = useState(false)
     const { data: permissions = [] } = useQuery({
         queryKey: ["my-permissions"],
         queryFn: getMyPermissions,
@@ -27,13 +39,23 @@ export function LegacyConversionLotMergeTool() {
 
     if (!allowed) return null
 
+    const dialogOpen = open ?? internalOpen
+    const setDialogOpen = onOpenChange ?? setInternalOpen
+    const openTool = () => setDialogOpen(true)
+
     return (
         <>
-            <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-                <Wrench className="mr-2 h-4 w-4 text-amber-600" />
-                Sửa lô chuyển mã cũ
-            </Button>
-            <LegacyConversionLotMergeDialog open={open} onOpenChange={setOpen} />
+            {!hideTrigger ? (
+                trigger ? (
+                    trigger(openTool)
+                ) : (
+                    <Button size="sm" variant="outline" onClick={openTool}>
+                        <Wrench className="mr-2 h-4 w-4 text-amber-600" />
+                        Sửa lô chuyển mã cũ
+                    </Button>
+                )
+            ) : null}
+            <LegacyConversionLotMergeDialog open={dialogOpen} onOpenChange={setDialogOpen} />
         </>
     )
 }

@@ -132,6 +132,7 @@ export function OrderExports({ exports, order }: any) {
                 item.warehouse_id,
                 item.lot_code,
                 item.quantity,
+                summarizeLotSelection(item),
             ])
             return {
                 queryKey: ["export-inventory-check", exportDoc.id, exportTime, itemSignature],
@@ -764,15 +765,24 @@ function ItemsTable({
         onError: () => toast.error("Cập nhật kho xuất thất bại"),
     })
     const { mutate: changeLot, isPending: isChangingLot } = useMutation({
-        mutationFn: ({ itemId, lotCode }: { itemId: number; lotCode?: string }) =>
-            updateExportItemLot(exportDoc.id, itemId, lotCode),
-        onSuccess: () => {
+        mutationFn: ({
+            itemId,
+            lotCode,
+            allocations,
+        }: {
+            itemId: number
+            lotCode?: string
+            allocations?: LotAllocationPayload[]
+        }) => updateExportItemLot(exportDoc.id, itemId, lotCode, allocations),
+        onSuccess: (_res, variables) => {
             toast.success("Đã cập nhật lô xuất")
-            queryClient.invalidateQueries({ queryKey: ["order-detail", orderId] })
+            updateExportItemLotInCache(queryClient, orderId, exportDoc.id, variables.itemId, variables.lotCode, variables.allocations)
+            queryClient.invalidateQueries({ queryKey: ["order-detail", orderId], refetchType: "inactive" })
             queryClient.invalidateQueries({ queryKey: ["exports"] })
             queryClient.invalidateQueries({ queryKey: ["export-inventory-check"] })
+            queryClient.invalidateQueries({ queryKey: ["inventory-ledgers"] })
         },
-        onError: () => toast.error("Cập nhật lô xuất thất bại"),
+        onError: (error: any) => toast.error(error?.message || "Cập nhật lô xuất thất bại"),
     })
 
     const isNew = exportDoc?.status === "NEW"
@@ -785,6 +795,7 @@ function ItemsTable({
         queries: items.map((item) => {
             const productId = resolveItemProductId(item)
             const warehouseId = resolveItemWarehouseId(item)
+            const hasCustomAllocations = hasLotAllocations(item)
             return ({
             queryKey: [
                 "export-item-availability",
@@ -794,8 +805,9 @@ function ItemsTable({
                 warehouseId,
                 postingDate,
                 postingTime,
+                hasCustomAllocations,
             ],
-            enabled: Boolean(isNew && productId && warehouseId && postingTime),
+            enabled: Boolean((isNew || hasCustomAllocations) && productId && warehouseId && postingTime),
             queryFn: () =>
                 getAvailableLotsAt({
                     product_id: Number(productId),
@@ -874,15 +886,17 @@ function ItemsTable({
                         const productId = resolveItemProductId(item)
                         const warehouseId = resolveItemWarehouseId(item)
                         const lotCode = resolveItemLotCode(item)
+                        const canEditDoneCustom = false
                         const missingWarehouse = isNew && !warehouseId
                         const quantity = Number(item.quantity || 0)
                         const availableQuantity = getLiveAvailableQuantity(item, idx)
                         const availabilityData = availabilityQueries[idx]?.data
-                        const availableLots = canUsePayloadAvailability && Array.isArray(item?.available_lots)
+                        const rawAvailableLots = canUsePayloadAvailability && Array.isArray(item?.available_lots)
                             ? item.available_lots
                             : availabilityData
                                 ? getPagedItems(availabilityData)
                                 : undefined
+                        const availableLots = mergeLotAllocationOptions(item, rawAvailableLots)
                         const lotsLoading = Boolean(availabilityQueries[idx]?.isLoading && !availabilityData)
                         const stockShortage = isNew && warehouseId && availableQuantity < quantity
                         const historyIssue = Boolean(
@@ -1002,8 +1016,9 @@ function ItemsTable({
                                         availableLots={availableLots}
                                         lotsLoading={lotsLoading}
                                         isNew={canEditExport}
-                                        disabled={isChangingLot || !canEditExport || !warehouseId || !productId}
-                                        onChange={(lotCode) => changeLot({ itemId: item.id, lotCode })}
+                                        canEditDoneCustom={canEditDoneCustom}
+                                        disabled={isChangingLot || !(canEditExport || canEditDoneCustom) || !warehouseId || !productId}
+                                        onChange={(lotCode, allocations) => changeLot({ itemId: item.id, lotCode, allocations })}
                                     />
                                 </TableCell>
                                 <TableCell>
@@ -1038,6 +1053,7 @@ function ExportLotSelector({
     availableLots,
     lotsLoading,
     isNew,
+    canEditDoneCustom,
     disabled,
     onChange,
 }: {
@@ -1050,9 +1066,11 @@ function ExportLotSelector({
     availableLots?: any[]
     lotsLoading?: boolean
     isNew: boolean
+    canEditDoneCustom?: boolean
     disabled?: boolean
-    onChange: (lotCode?: string) => void
+    onChange: (lotCode?: string, allocations?: LotAllocationPayload[]) => void
 }) {
+    const [customOpen, setCustomOpen] = useState(false)
     const hasParentLots = availableLots !== undefined
     const { data, isLoading } = useQuery({
         queryKey: ["export-item-lots", productId, warehouseId, normalizeDateParam(exportDate), normalizeTimeForInput(exportTime), lotCode],
@@ -1067,40 +1085,348 @@ function ExportLotSelector({
         staleTime: 30_000,
     })
     const lots = hasParentLots ? availableLots ?? [] : getPagedItems(data)
-    const selected = lotCode && lots.some((lot: any) => lot?.lot_no === lotCode) ? lotCode : "AUTO"
+    const allocations = getLotAllocations(item)
+    const hasCustomAllocations = allocations.length > 0
+    const selected = hasCustomAllocations
+        ? "CUSTOM"
+        : lotCode && lots.some((lot: any) => lot?.lot_no === lotCode)
+            ? lotCode
+            : "AUTO"
 
     if (!isNew) {
-        return <span className="text-sm text-muted-foreground">{lotCode || item.lot_no || item.lot_nos || "Auto"}</span>
+        if (canEditDoneCustom && hasCustomAllocations) {
+            return (
+                <>
+                    <button
+                        type="button"
+                        className="block max-w-[240px] truncate text-left text-sm text-teal-700 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                        onClick={() => setCustomOpen(true)}
+                        disabled={disabled}
+                        title={summarizeLotSelection(item)}
+                    >
+                        {summarizeLotSelection(item) || "Tùy chọn"}
+                    </button>
+                    <CustomLotAllocationDialog
+                        open={customOpen}
+                        onOpenChange={setCustomOpen}
+                        item={item}
+                        lots={lots}
+                        lotsLoading={Boolean(lotsLoading || isLoading)}
+                        onSave={(nextAllocations) => {
+                            onChange(undefined, nextAllocations)
+                            setCustomOpen(false)
+                        }}
+                    />
+                </>
+            )
+        }
+        return <span className="text-sm text-muted-foreground">{summarizeLotSelection(item) || "Auto"}</span>
     }
 
     return (
-        <Select
-            value={selected}
-            disabled={disabled}
-            onValueChange={(value) => onChange(value === "AUTO" ? undefined : value)}
-        >
-            <SelectTrigger className="h-8 min-w-[220px]">
-                <SelectValue placeholder="Auto" />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="AUTO" textValue="Auto">
-                    <span className="inline-flex items-center gap-1.5">
-                        <SlidersHorizontal className="h-3.5 w-3.5" />
-                        Auto
-                    </span>
-                </SelectItem>
-                {(lotsLoading || isLoading) && <SelectItem value="LOADING" disabled>Đang tải...</SelectItem>}
-                {lots.map((lot: any) => {
-                    const lotNo = lot?.lot_no ? String(lot.lot_no) : ""
-                    if (!lotNo) return null
-                    return (
-                        <SelectItem key={`${lot.id}-${lotNo}`} value={lotNo} textValue={lotNo}>
-                            {lotNo} - còn {formatNumber(resolveLotRemaining(lot))}
-                        </SelectItem>
-                    )
-                })}
-            </SelectContent>
-        </Select>
+        <>
+            <Select
+                value={selected}
+                disabled={disabled}
+                onValueChange={(value) => {
+                    if (value === "CUSTOM") {
+                        setCustomOpen(true)
+                        return
+                    }
+                    onChange(value === "AUTO" ? undefined : value, undefined)
+                }}
+            >
+                <SelectTrigger className="h-8 min-w-[220px]" title={hasCustomAllocations ? summarizeLotSelection(item) : undefined}>
+                    {hasCustomAllocations ? (
+                        <span className="truncate text-left text-teal-700">Tùy chọn</span>
+                    ) : (
+                        <SelectValue placeholder="Auto" />
+                    )}
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="AUTO" textValue="Auto">
+                        <span className="inline-flex items-center gap-1.5">
+                            <SlidersHorizontal className="h-3.5 w-3.5" />
+                            Auto
+                        </span>
+                    </SelectItem>
+                    <SelectItem value="CUSTOM" textValue="Tùy chọn">
+                        <span className="inline-flex items-center gap-1.5">
+                            <Pencil className="h-3.5 w-3.5" />
+                            Tùy chọn
+                        </span>
+                    </SelectItem>
+                    {(lotsLoading || isLoading) && <SelectItem value="LOADING" disabled>Đang tải...</SelectItem>}
+                    {lots.map((lot: any) => {
+                        const lotNo = lot?.lot_no ? String(lot.lot_no) : ""
+                        if (!lotNo) return null
+                        return (
+                            <SelectItem key={`${lot.id}-${lotNo}`} value={lotNo} textValue={lotNo}>
+                                {lotNo} - còn {formatNumber(resolveLotRemaining(lot))}
+                            </SelectItem>
+                        )
+                    })}
+                </SelectContent>
+            </Select>
+            {hasCustomAllocations ? (
+                <button
+                    type="button"
+                    className="mt-1 block max-w-[220px] truncate text-left text-xs text-teal-700 hover:underline"
+                    onClick={() => setCustomOpen(true)}
+                    disabled={disabled}
+                    title={summarizeLotSelection(item)}
+                >
+                    {summarizeLotSelection(item)}
+                </button>
+            ) : null}
+            <CustomLotAllocationDialog
+                open={customOpen}
+                onOpenChange={setCustomOpen}
+                item={item}
+                lots={lots}
+                lotsLoading={Boolean(lotsLoading || isLoading)}
+                onSave={(nextAllocations) => {
+                    onChange(undefined, nextAllocations)
+                    setCustomOpen(false)
+                }}
+            />
+        </>
+    )
+}
+
+type LotAllocationPayload = {
+    lot_id?: number
+    lot_code?: string
+    quantity: number
+}
+
+function CustomLotAllocationDialog({
+    open,
+    onOpenChange,
+    item,
+    lots,
+    lotsLoading,
+    onSave,
+}: {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    item: any
+    lots: any[]
+    lotsLoading?: boolean
+    onSave: (allocations: LotAllocationPayload[]) => void
+}) {
+    const requiredQuantity = Number(item?.quantity || 0)
+    const [quantities, setQuantities] = useState<Record<string, string>>({})
+
+    useEffect(() => {
+        if (!open) return
+        const next: Record<string, string> = {}
+        for (const allocation of getLotAllocations(item)) {
+            const key = allocationKey({
+                id: allocation?.lot_id,
+                lot_no: allocation?.lot_code,
+            })
+            if (key) next[key] = String(allocation?.quantity ?? "")
+        }
+        setQuantities(next)
+    }, [open, item?.id, item?.lot_allocations])
+
+    const total = Object.values(quantities).reduce((sum, value) => sum + Number(value || 0), 0)
+    const diff = requiredQuantity - total
+    const validTotal = sameNumber(total, requiredQuantity)
+    const selectedRows = lots
+        .map((lot) => ({ lot, quantity: Number(quantities[allocationKey(lot)] || 0) }))
+        .filter((row) => row.quantity > 0)
+    const hasInvalidRow = selectedRows.some(({ lot, quantity }) => quantity > Number(resolveLotRemaining(lot)))
+    const canSave = validTotal && !hasInvalidRow && selectedRows.length > 0
+
+    const updateQuantity = (lot: any, value: string) => {
+        const key = allocationKey(lot)
+        if (!key) return
+        setQuantities((current) => ({
+            ...current,
+            [key]: value,
+        }))
+    }
+
+    const clearAll = () => setQuantities({})
+
+    const autoAllocate = () => {
+        let remaining = roundQuantity(requiredQuantity)
+        const next: Record<string, string> = {}
+
+        const candidates = lots
+            .map((lot) => ({
+                lot,
+                key: allocationKey(lot),
+                available: Math.max(Number(resolveLotRemaining(lot) || 0), 0),
+                quantity: 0,
+            }))
+            .filter((row) => row.key && row.available > 0)
+
+        let active = candidates
+        while (remaining > 0.000001 && active.length > 0) {
+            const share = remaining / active.length
+            const nextActive: typeof candidates = []
+            let used = 0
+
+            for (const row of active) {
+                const room = row.available - row.quantity
+                const take = Math.min(room, share)
+                if (take > 0) {
+                    row.quantity = roundQuantity(row.quantity + take)
+                    used += take
+                }
+                if (row.available - row.quantity > 0.000001) {
+                    nextActive.push(row)
+                }
+            }
+
+            if (used <= 0) break
+            remaining = roundQuantity(remaining - used)
+            active = nextActive
+        }
+
+        if (remaining > 0.000001 && candidates.length > 0) {
+            const last = candidates[candidates.length - 1]
+            const room = last.available - last.quantity
+            const take = Math.min(room, remaining)
+            if (take > 0) {
+                last.quantity = roundQuantity(last.quantity + take)
+            }
+        }
+
+        let allocated = roundQuantity(candidates.reduce((sum, row) => sum + row.quantity, 0))
+        let diff = roundQuantity(requiredQuantity - allocated)
+        if (Math.abs(diff) > 0.000001) {
+            const target = diff > 0
+                ? [...candidates].reverse().find((row) => row.available - row.quantity >= diff - 0.000001)
+                : [...candidates].reverse().find((row) => row.quantity + diff >= -0.000001)
+            if (target) {
+                target.quantity = roundQuantity(target.quantity + diff)
+                allocated = roundQuantity(candidates.reduce((sum, row) => sum + row.quantity, 0))
+                diff = roundQuantity(requiredQuantity - allocated)
+            }
+        }
+
+        for (const row of candidates) {
+            if (row.quantity > 0) next[row.key] = String(row.quantity)
+        }
+
+        setQuantities(next)
+    }
+
+    const handleSave = () => {
+        if (!canSave) return
+        onSave(selectedRows.map(({ lot, quantity }) => ({
+            lot_id: lot?.lot_id ?? lot?.id,
+            lot_code: lot?.lot_no,
+            quantity,
+        })))
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                    <DialogTitle>Phân bổ lô xuất</DialogTitle>
+                    <DialogDescription>
+                        Nhập số lượng muốn xuất theo từng lô. Tổng phân bổ phải bằng số lượng dòng xuất.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2 text-sm">
+                    <div>
+                        Cần xuất <span className="font-semibold tabular-nums">{formatNumber(requiredQuantity)}</span>
+                    </div>
+                    <div>
+                        Đã phân bổ <span className={validTotal ? "font-semibold text-emerald-600 tabular-nums" : "font-semibold text-rose-600 tabular-nums"}>
+                            {formatNumber(total)}
+                        </span>
+                    </div>
+                    <div className={sameNumber(diff, 0) ? "text-muted-foreground" : "font-medium text-rose-600"}>
+                        Chênh {formatNumber(diff)}
+                    </div>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={autoAllocate} disabled={lotsLoading || !lots.length}>
+                        Tự phân bổ
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={clearAll}>
+                        Xóa hết
+                    </Button>
+                </div>
+
+                <div className="max-h-[420px] overflow-auto rounded-md border">
+                    <Table>
+                        <TableHeader className="sticky top-0 bg-muted/50">
+                            <TableRow>
+                                <TableHead>Lô hàng</TableHead>
+                                <TableHead className="text-right">Tồn khả dụng</TableHead>
+                                <TableHead className="text-right">Số lượng xuất</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {lotsLoading ? (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="py-6 text-center text-sm text-muted-foreground">
+                                        Đang tải lô hàng...
+                                    </TableCell>
+                                </TableRow>
+                            ) : lots.length ? (
+                                lots.map((lot) => {
+                                    const key = allocationKey(lot)
+                                    const quantity = Number(quantities[key] || 0)
+                                    const available = Number(resolveLotRemaining(lot) || 0)
+                                    const invalid = quantity > available
+                                    return (
+                                        <TableRow key={key}>
+                                            <TableCell>
+                                                <div className="font-mono text-sm">{lot?.lot_no || "-"}</div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {lot?.expiry_date ? `HSD ${formatDateOnly(lot.expiry_date)}` : "Không có HSD"}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right tabular-nums">{formatNumber(available)}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    max={available}
+                                                    step="0.001"
+                                                    value={quantities[key] ?? ""}
+                                                    onChange={(event) => updateQuantity(lot, event.target.value)}
+                                                    className={invalid ? "ml-auto h-8 w-36 border-rose-400 text-right tabular-nums" : "ml-auto h-8 w-36 text-right tabular-nums"}
+                                                />
+                                                {invalid ? (
+                                                    <div className="mt-1 text-xs text-rose-600">Vượt tồn lô</div>
+                                                ) : null}
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="py-6 text-center text-sm text-muted-foreground">
+                                        Không có lô còn tồn tại kho xuất.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Hủy
+                    </Button>
+                    <Button type="button" onClick={handleSave} disabled={!canSave}>
+                        Áp dụng
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
     )
 }
 
@@ -1233,6 +1559,138 @@ function warehouseNameOption(warehouse: any) {
 
 function resolveLotRemaining(lot: any) {
     return lot?.closing_quantity ?? lot?.quantity_remaining ?? lot?.total_quantity ?? 0
+}
+
+function getLotAllocations(item: any) {
+    if (Array.isArray(item?.lot_allocations)) return item.lot_allocations
+    return []
+}
+
+function hasLotAllocations(item: any) {
+    return getLotAllocations(item).length > 0
+}
+
+function mergeLotAllocationOptions(item: any, lots?: any[]) {
+    const allocations = getLotAllocations(item)
+    const result = new Map<string, any>()
+
+    for (const lot of lots ?? []) {
+        const key = allocationKey(lot)
+        if (!key) continue
+        result.set(key, { ...lot })
+    }
+
+    for (const allocation of allocations) {
+        const key = allocationKey({
+            id: allocation?.lot_id,
+            lot_no: allocation?.lot_code,
+        })
+        if (!key) continue
+
+        const current = result.get(key)
+        const allocatedQuantity = Number(allocation?.quantity || 0)
+        const allocationLotId = allocation?.lot_id
+        const allocationLotCode = allocation?.lot_code
+        if (current) {
+            const availableAfterUnpost = Number(resolveLotRemaining(current) || 0) + allocatedQuantity
+            result.set(key, {
+                ...current,
+                closing_quantity: availableAfterUnpost,
+                available_quantity: availableAfterUnpost,
+            })
+        } else {
+            result.set(key, {
+                id: allocationLotId,
+                lot_id: allocationLotId,
+                lot_no: allocationLotCode,
+                lot_code: allocationLotCode,
+                product_id: item?.product_id ?? item?.product?.id,
+                warehouse_id: item?.warehouse_id ?? item?.warehouse?.id,
+                closing_quantity: allocatedQuantity,
+                available_quantity: allocatedQuantity,
+            })
+        }
+    }
+
+    return Array.from(result.values())
+}
+
+function allocationKey(lot: any) {
+    const id = lot?.lot_id ?? lot?.id
+    const lotNo = lot?.lot_no ?? lot?.lot_code
+    return id != null ? `id:${id}` : `code:${lotNo || ""}`
+}
+
+function sameNumber(a: number, b: number) {
+    return Math.abs(Number(a || 0) - Number(b || 0)) < 0.000001
+}
+
+function roundQuantity(value: number) {
+    return Math.round(Number(value || 0) * 1000) / 1000
+}
+
+function formatDateOnly(value?: string | null) {
+    if (!value) return "-"
+    const [date] = String(value).split(/[T ]/)
+    const [year, month, day] = date.split("-")
+    if (!year || !month || !day) return String(value)
+    return `${day}/${month}/${year}`
+}
+
+function summarizeLotSelection(item: any) {
+    const allocations = getLotAllocations(item)
+    if (allocations.length) {
+        return allocations
+            .map((allocation: any) => `${allocation?.lot_code || "-"}: ${formatNumber(Number(allocation?.quantity || 0))}`)
+            .join(", ")
+    }
+    return item?.lot_code || item?.lot_no || item?.lot_nos || ""
+}
+
+function updateExportItemLotInCache(
+    queryClient: any,
+    orderId: number,
+    exportId: number,
+    itemId: number,
+    lotCode?: string,
+    allocations?: LotAllocationPayload[]
+) {
+    const updateOrderDetail = (current: any) => {
+        const wrapped = current?.data ? current : null
+        const order = wrapped ? current.data : current
+        if (!order?.exports) return current
+
+        const nextOrder = {
+            ...order,
+            exports: order.exports.map((exportDoc: any) => {
+                if (Number(exportDoc?.id) !== Number(exportId)) return exportDoc
+                return {
+                    ...exportDoc,
+                    items: (exportDoc.items ?? []).map((item: any) => {
+                        if (Number(item?.id) !== Number(itemId)) return item
+                        const nextAllocations = Array.isArray(allocations)
+                            ? allocations.map((allocation) => ({
+                                    lot_id: allocation.lot_id,
+                                    lot_code: allocation.lot_code,
+                                    quantity: allocation.quantity,
+                                }))
+                            : []
+                        return {
+                            ...item,
+                            lot_code: nextAllocations.length ? null : lotCode ?? null,
+                            lot_allocations: nextAllocations,
+                            lot_selection_mode: nextAllocations.length ? "CUSTOM" : lotCode ? "SINGLE" : "AUTO",
+                        }
+                    }),
+                }
+            }),
+        }
+
+        return wrapped ? { ...current, data: nextOrder } : nextOrder
+    }
+
+    queryClient.setQueryData(["order-detail", orderId], updateOrderDetail)
+    queryClient.setQueriesData({ queryKey: ["order-detail"] }, updateOrderDetail)
 }
 
 function resolveItemProductId(item: any) {

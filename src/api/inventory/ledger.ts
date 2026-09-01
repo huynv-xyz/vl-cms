@@ -96,10 +96,38 @@ export type NegativeStockAuditResult = {
     items: NegativeStockAuditItem[]
 }
 
+export type SystemJobRun = {
+    id?: number | string | null
+    job_code?: string | null
+    job_group?: string | null
+    job_type?: string | null
+    status?: "SUCCESS" | "WARNING" | "FAILED" | "RUNNING" | string | null
+    severity?: "INFO" | "WARNING" | "ERROR" | string | null
+    summary?: string | null
+    total_count?: number | string | null
+    success_count?: number | string | null
+    warning_count?: number | string | null
+    error_count?: number | string | null
+    payload?: string | null
+    error_message?: string | null
+    triggered_by?: string | null
+    started_at?: string | null
+    finished_at?: string | null
+    created_at?: string | null
+}
+
 export function checkNegativeStock(productCodes: string) {
     return apiPost<NegativeStockAuditResult>("/inventory/ledger/negative-stock/check", {
         productCodes,
     })
+}
+
+export function getLatestNegativeStockScheduledCheck() {
+    return apiGet<SystemJobRun>("/inventory/ledger/negative-stock/scheduled/latest")
+}
+
+export function runNegativeStockScheduledCheckNow() {
+    return apiPost<SystemJobRun>("/inventory/ledger/negative-stock/scheduled/run", {})
 }
 
 export type CostingLedgerReconciliationItem = {
@@ -381,6 +409,7 @@ export type SalesExportWarehouseChangeResult = {
     new_warehouse_code?: string | null
     new_warehouse_name: string
     quantity: number
+    lot_selection_mode?: "AUTO" | "SINGLE" | "CUSTOM" | string
     fifo_plan: Array<{
         lot_id: number
         lot_no: string
@@ -397,14 +426,54 @@ export type SalesExportWarehouseChangeResult = {
     changes: Record<string, number>
 }
 
-export function checkSalesExportWarehouseChange(ledgerId: number, newWarehouseId: number) {
+export type SalesExportWarehouseLotAllocation = {
+    lot_id?: number
+    lot_code?: string
+    quantity: number
+}
+
+export type SalesExportWarehouseAvailableLot = {
+    id?: number
+    lot_id?: number
+    lot_no?: string
+    lot_code?: string
+    available_quantity?: number | string | null
+    history_safe_quantity?: number | string | null
+    unit_cost?: number | string | null
+}
+
+export function checkSalesExportWarehouseChange(
+    ledgerId: number,
+    newWarehouseId: number,
+    lotSelectionMode?: "AUTO" | "SINGLE" | "CUSTOM",
+    newLotNo?: string,
+    lotAllocations?: SalesExportWarehouseLotAllocation[]
+) {
     return apiPost<SalesExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-warehouse-change/check`, {
         newWarehouseId,
+        newLotNo,
+        lot_selection_mode: lotSelectionMode,
+        lot_allocations: lotAllocations,
     })
 }
 
-export function applySalesExportWarehouseChange(ledgerId: number, newWarehouseId: number) {
+export function applySalesExportWarehouseChange(
+    ledgerId: number,
+    newWarehouseId: number,
+    lotSelectionMode?: "AUTO" | "SINGLE" | "CUSTOM",
+    newLotNo?: string,
+    lotAllocations?: SalesExportWarehouseLotAllocation[]
+) {
     return apiPost<SalesExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-warehouse-change/apply`, {
+        newWarehouseId,
+        newLotNo,
+        lot_selection_mode: lotSelectionMode,
+        lot_allocations: lotAllocations,
+    })
+}
+
+export function listSalesExportWarehouseChangeLots(ledgerId: number, newWarehouseId: number) {
+    return apiPost<SalesExportWarehouseAvailableLot[]>(`/inventory/ledger/${ledgerId}/sales-export-warehouse-change/available-lots`, {
         newWarehouseId,
     })
 }
@@ -756,6 +825,15 @@ export type InventoryLedgerStaticParametersResult = InventoryLedgerStaticParamet
     updated: boolean
 }
 
+export type InventoryLedgerStaticAccountField = "tk_no" | "tk_co"
+
+export type InventoryLedgerStaticAccountResult = {
+    ids: number[]
+    field: InventoryLedgerStaticAccountField
+    value: string
+    updated: number
+}
+
 export function updateInventoryLedgerStaticParameters(
     ledgerId: number,
     body: InventoryLedgerStaticParametersPayload,
@@ -765,6 +843,18 @@ export function updateInventoryLedgerStaticParameters(
         tkNo: body.tk_no,
         tkCo: body.tk_co,
         supplierName: body.supplier_name,
+    })
+}
+
+export function updateInventoryLedgerStaticAccount(
+    ids: number[],
+    field: InventoryLedgerStaticAccountField,
+    value: string,
+) {
+    return apiPost<InventoryLedgerStaticAccountResult>("/inventory/ledger/static-account", {
+        ids,
+        field,
+        value,
     })
 }
 
@@ -780,6 +870,55 @@ export function applyDocumentPostingTimeChange(ledgerId: number, newPostingTime:
         newPostingDate,
         newPostingTime,
     })
+}
+
+export type LegacyPostingTimeNormalizationResult = {
+    valid: boolean
+    applied: boolean
+    message: string
+    ledger_id: number
+    posting_date?: string | null
+    lot_id?: number | null
+    lot_code?: string | null
+    product_code?: string | null
+    product_name?: string | null
+    warehouse_code?: string | null
+    warehouse_name?: string | null
+    candidate_count: number
+    changed_count?: number
+    affected_cost_period_count?: number
+    rows: Array<{
+        ledger_id: number
+        doc_no?: string | null
+        doc_type?: string | null
+        quantity?: number | string | null
+        old_posting_time?: string | null
+        new_posting_time?: string | null
+        product_code?: string | null
+        product_name?: string | null
+        warehouse_code?: string | null
+        warehouse_name?: string | null
+        lot_code?: string | null
+    }>
+    negative_items?: NegativeStockAuditItem[]
+    errors: string[]
+    warnings: string[]
+    changes: Record<string, number>
+}
+
+export type LegacyPostingTimeNormalizationPayload = {
+    rows?: Array<{
+        ledgerId: number
+        postingTime: string
+    }>
+}
+
+export function checkLegacyPostingTimeNormalization(ledgerId: number, body?: LegacyPostingTimeNormalizationPayload) {
+    return apiPost<LegacyPostingTimeNormalizationResult>(`/inventory/ledger/${ledgerId}/legacy-posting-time-normalization/check`, body || {})
+}
+
+export function applyLegacyPostingTimeNormalization(ledgerId: number, body?: LegacyPostingTimeNormalizationPayload) {
+    return apiPost<LegacyPostingTimeNormalizationResult>(`/inventory/ledger/${ledgerId}/legacy-posting-time-normalization/apply`, body || {})
 }
 
 export type LedgerAmountChangeResult = {

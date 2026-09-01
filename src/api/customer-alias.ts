@@ -8,14 +8,14 @@ export type CustomerAlias = {
     customer?: Customer
     alias_code: string
     alias_name: string
-    tax_code?: string
-    bank_account?: string
-    bank_account_name?: string
-    bank_name?: string
+    tax_code?: string | null
+    bank_account?: string | null
+    bank_account_name?: string | null
+    bank_name?: string | null
     type?: "TAX" | "BANK" | "OTHER" | string
     is_default?: number
     status?: number
-    note?: string
+    note?: string | null
     created_at?: string
     updated_at?: string
 }

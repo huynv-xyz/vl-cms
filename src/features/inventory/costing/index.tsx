@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
 import type React from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { AlertCircle, Calculator, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Download, Loader2, Play, Plus, Search, Trash2 } from "lucide-react"
+import { AlertCircle, Calculator, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Download, History, Loader2, Lock, Pencil, Play, Plus, Search, Trash2, Unlock } from "lucide-react"
 import { toast } from "sonner"
 
 import { listInventoryLedgerReport } from "@/api/inventory/ledger"
+import { getMyPermissions } from "@/api/auth/permission"
 import {
     calculateCostPeriod,
     createCostPeriod,
@@ -13,6 +14,7 @@ import {
     listCostPeriods,
     listFinishedProductCostExport,
     listPeriodCosts,
+    lockCostPeriod,
     type CostBasis,
     type CostPeriod,
     type CostingCalculationError,
@@ -21,6 +23,8 @@ import {
     type ProductPeriodCost,
     type ProductionCostBasis,
     type TransferInboundCostBasis,
+    unlockCostPeriod,
+    updateCostPeriod,
 } from "@/api/inventory/costing"
 import { Main } from "@/components/layout/main"
 import { CardPagination } from "@/components/table/card-pagination"
@@ -44,14 +48,41 @@ import { StickyReportTable } from "@/features/inventory/components/sticky-report
 import type { InventoryLedgerReportRow } from "@/features/inventory/ledger/data/schema"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 
-function todayYmd() {
-    const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
-}
-
 function firstDayOfMonth() {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+}
+
+function endOfMonthYmd(date: Date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()).padStart(2, "0")}`
+}
+
+function nextDayYmd(ymd: string) {
+    const date = new Date(`${ymd}T00:00:00`)
+    date.setDate(date.getDate() + 1)
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+}
+
+function createPeriodDefaults(periods: CostPeriod[]) {
+    const latestPeriod = [...periods].sort((left, right) => right.to_date.localeCompare(left.to_date))[0]
+    const fromDate = latestPeriod ? nextDayYmd(latestPeriod.to_date) : firstDayOfMonth()
+    return {
+        name: "",
+        from_date: fromDate,
+        to_date: endOfMonthYmd(new Date(`${fromDate}T00:00:00`)),
+        note: "",
+    }
+}
+
+function periodContinuityWarning(periods: CostPeriod[], fromDate: string, excludingPeriodId?: number) {
+    const previousPeriod = periods
+        .filter((period) => period.id !== excludingPeriodId && period.to_date < fromDate)
+        .sort((left, right) => right.to_date.localeCompare(left.to_date))[0]
+    if (!previousPeriod) return null
+
+    const expectedFromDate = nextDayYmd(previousPeriod.to_date)
+    if (fromDate === expectedFromDate) return null
+    return `Từ ngày phải là ${formatDate(expectedFromDate)} để nối tiếp kỳ ${previousPeriod.name}.`
 }
 
 const COSTING_PAGE_SIZE = 50
@@ -81,6 +112,14 @@ export default function InventoryCostingPage() {
     const [selectedPeriodId, setSelectedPeriodId] = useState<number>()
     const [costKeyword, setCostKeyword] = useState("")
     const [periodYear, setPeriodYear] = useState(new Date().getFullYear())
+
+    const permissionsQuery = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canViewStaleAudit = (permissionsQuery.data || []).some(
+        (permission) => permission.module === "inventory.costing" && permission.action === "stale-audit-history",
+    )
 
     const periodsQuery = useQuery({
         queryKey: ["inventory-cost-periods"],
@@ -114,13 +153,45 @@ export default function InventoryCostingPage() {
         onError: (error) => toast.error(error instanceof Error ? error.message : "Không xóa được kỳ tính giá"),
     })
 
+    const lockPeriodMutation = useMutation({
+        mutationFn: (period: CostPeriod) => lockCostPeriod(period.id),
+        onSuccess: (_, period) => {
+            toast.success(`Đã khóa kỳ ${period.name}`)
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-periods"] })
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-period-costs", period.id] })
+        },
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Không khóa được kỳ tính giá"),
+    })
+
+    const unlockPeriodMutation = useMutation({
+        mutationFn: (period: CostPeriod) => unlockCostPeriod(period.id),
+        onSuccess: (_, period) => {
+            toast.success(`Đã mở khóa kỳ ${period.name}`)
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-periods"] })
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-period-costs", period.id] })
+        },
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Không mở khóa được kỳ tính giá"),
+    })
+
+    const updatePeriodMutation = useMutation({
+        mutationFn: ({ period, form }: { period: CostPeriod; form: { name: string; from_date: string; to_date: string; note: string } }) => updateCostPeriod(period.id, form),
+        onSuccess: (updatedPeriod, { period }) => {
+            const dateChanged = period.from_date !== updatedPeriod.from_date || period.to_date !== updatedPeriod.to_date
+            toast.success(dateChanged ? `Đã sửa kỳ ${updatedPeriod.name}; kỳ cần tính lại` : `Đã cập nhật kỳ ${updatedPeriod.name}`)
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-periods"] })
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-period-costs", period.id] })
+            queryClient.invalidateQueries({ queryKey: ["inventory-production-cost-results"] })
+        },
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Không cập nhật được kỳ tính giá"),
+    })
+
     return (
         <Main className="flex w-full min-w-0 flex-col gap-2">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-1.5">
                 <div className="flex flex-wrap items-center gap-3">
                     <h2 className="text-2xl font-bold tracking-tight">Tính giá tồn kho</h2>
                 </div>
-                <CreatePeriodDialog />
+                <CreatePeriodDialog periods={periods} />
             </div>
 
             <div className="mt-0 space-y-2">
@@ -177,11 +248,26 @@ export default function InventoryCostingPage() {
                                                                     {formatDate(period.from_date)} - {formatDate(period.to_date)}
                                                                 </div>
                                                             </div>
-                                                            <DeletePeriodButton
-                                                                period={period}
-                                                                isDeleting={deletePeriodMutation.isPending}
-                                                                onDelete={() => deletePeriodMutation.mutate(period)}
-                                                            />
+                                                            <div className="flex shrink-0 items-center gap-0.5">
+                                                                <EditPeriodButton
+                                                                    period={period}
+                                                                    periods={periods}
+                                                                    isSaving={updatePeriodMutation.isPending}
+                                                                    onSave={(form) => updatePeriodMutation.mutateAsync({ period, form })}
+                                                                />
+                                                                <DeletePeriodButton
+                                                                    period={period}
+                                                                    isDeleting={deletePeriodMutation.isPending}
+                                                                    onDelete={() => deletePeriodMutation.mutate(period)}
+                                                                />
+                                                                {canViewStaleAudit ? <PeriodAuditButton period={period} /> : null}
+                                                                <PeriodLockButton
+                                                                    period={period}
+                                                                    isPending={lockPeriodMutation.isPending || unlockPeriodMutation.isPending}
+                                                                    onLock={() => lockPeriodMutation.mutate(period)}
+                                                                    onUnlock={() => unlockPeriodMutation.mutate(period)}
+                                                                />
+                                                            </div>
                                                         </div>
                                                         <StatusBadge status={period.status} />
                                                     </div>
@@ -214,6 +300,111 @@ export default function InventoryCostingPage() {
     )
 }
 
+function EditPeriodButton({
+    period,
+    periods,
+    isSaving,
+    onSave,
+}: {
+    period: CostPeriod
+    periods: CostPeriod[]
+    isSaving: boolean
+    onSave: (form: { name: string; from_date: string; to_date: string; note: string }) => Promise<unknown>
+}) {
+    const [open, setOpen] = useState(false)
+    const [form, setForm] = useState({
+        name: period.name || "",
+        from_date: period.from_date,
+        to_date: period.to_date,
+        note: period.note || "",
+    })
+    const locked = period.status === "LOCKED"
+    const dateChanged = form.from_date !== period.from_date || form.to_date !== period.to_date
+    const continuityWarning = periodContinuityWarning(periods, form.from_date, period.id)
+
+    useEffect(() => {
+        if (open) {
+            setForm({
+                name: period.name || "",
+                from_date: period.from_date,
+                to_date: period.to_date,
+                note: period.note || "",
+            })
+        }
+    }, [open, period])
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 shrink-0 text-muted-foreground hover:bg-teal-50 hover:text-teal-700"
+                    disabled={locked}
+                    title={locked ? "Kỳ đã khóa, không thể sửa" : "Sửa kỳ"}
+                    onClick={(event) => event.stopPropagation()}
+                >
+                    <Pencil className="h-3.5 w-3.5" />
+                </Button>
+            </DialogTrigger>
+            <DialogContent
+                className="max-w-xl"
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+            >
+                <DialogHeader>
+                    <DialogTitle>Sửa kỳ tính giá</DialogTitle>
+                    <DialogDescription>
+                        Có thể sửa tên và ghi chú bất kỳ lúc nào khi kỳ chưa khóa. Đổi khoảng ngày sẽ làm kỳ cần tính lại.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Tên kỳ">
+                        <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+                    </Field>
+                    <Field label="Ghi chú">
+                        <Input value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} />
+                    </Field>
+                    <Field label="Từ ngày">
+                        <Input type="date" value={form.from_date} onChange={(event) => setForm({ ...form, from_date: event.target.value })} />
+                    </Field>
+                    <Field label="Đến ngày">
+                        <Input type="date" value={form.to_date} onChange={(event) => setForm({ ...form, to_date: event.target.value })} />
+                    </Field>
+                </div>
+                {dateChanged ? (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                        Khoảng ngày đã thay đổi. Kết quả giá hiện có của kỳ sẽ được xóa và kỳ được đánh dấu cần tính lại.
+                    </div>
+                ) : null}
+                {continuityWarning ? (
+                    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {continuityWarning}
+                    </div>
+                ) : null}
+                <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setOpen(false)}>Hủy</Button>
+                    <Button
+                        disabled={isSaving || Boolean(continuityWarning)}
+                        onClick={async () => {
+                            try {
+                                await onSave(form)
+                                setOpen(false)
+                            } catch {
+                                // The mutation already shows a user-facing error.
+                            }
+                        }}
+                    >
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Pencil className="mr-2 h-4 w-4" />}
+                        Lưu thay đổi
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 function DeletePeriodButton({
     period,
     isDeleting,
@@ -231,14 +422,14 @@ function DeletePeriodButton({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 shrink-0 text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                    className="h-6 w-6 shrink-0 text-muted-foreground hover:bg-red-50 hover:text-red-600"
                     disabled={locked || isDeleting}
                     title={locked ? "Kỳ đã khóa, không thể xóa" : "Xóa kỳ"}
                     onClick={(event) => {
                         event.stopPropagation()
                     }}
                 >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                 </Button>
             </AlertDialogTrigger>
             <AlertDialogContent onClick={(event) => event.stopPropagation()}>
@@ -262,6 +453,80 @@ function DeletePeriodButton({
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+    )
+}
+
+function PeriodAuditButton({ period }: { period: CostPeriod }) {
+    const openAudit = (event: React.MouseEvent) => {
+        event.preventDefault()
+        event.stopPropagation()
+        const search = new URLSearchParams({
+            module: "inventory",
+            entity_type: "inventory_cost_period",
+            entity_id: String(period.id),
+            action: "MARK_COST_PERIOD_STALE",
+        })
+        window.open(`/access/audit-logs?${search.toString()}`, "_blank", "noopener,noreferrer")
+    }
+
+    return (
+        <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-slate-500 hover:text-slate-900"
+            title="Lịch sử đánh dấu cần tính lại"
+            onClick={openAudit}
+        >
+            <History className="h-3.5 w-3.5" />
+        </Button>
+    )
+}
+
+function PeriodLockButton({
+    period,
+    isPending,
+    onLock,
+    onUnlock,
+}: {
+    period: CostPeriod
+    isPending: boolean
+    onLock: () => void
+    onUnlock: () => void
+}) {
+    const locked = period.status === "LOCKED"
+    const canLock = period.status === "CALCULATED"
+    const disabled = isPending || (!locked && !canLock)
+    return (
+        <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn(
+                "h-6 w-6 shrink-0 text-muted-foreground",
+                locked
+                    ? "hover:bg-emerald-50 hover:text-emerald-600"
+                    : "hover:bg-amber-50 hover:text-amber-600",
+            )}
+            disabled={disabled}
+            title={locked ? "Mở khóa kỳ" : canLock ? "Khóa kỳ" : "Chỉ khóa được kỳ đã tính"}
+            onClick={(event) => {
+                event.stopPropagation()
+                if (locked) {
+                    onUnlock()
+                } else if (canLock) {
+                    onLock()
+                }
+            }}
+        >
+            {isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : locked ? (
+                <Unlock className="h-3.5 w-3.5" />
+            ) : (
+                <Lock className="h-3.5 w-3.5" />
+            )}
+        </Button>
     )
 }
 
@@ -316,6 +581,26 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
         },
     })
 
+    const lockMutation = useMutation({
+        mutationFn: () => lockCostPeriod(period.id),
+        onSuccess: () => {
+            toast.success(`Đã khóa kỳ ${period.name}`)
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-periods"] })
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-period-costs", period.id] })
+        },
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Không khóa được kỳ tính giá"),
+    })
+
+    const unlockMutation = useMutation({
+        mutationFn: () => unlockCostPeriod(period.id),
+        onSuccess: () => {
+            toast.success(`Đã mở khóa kỳ ${period.name}`)
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-periods"] })
+            queryClient.invalidateQueries({ queryKey: ["inventory-cost-period-costs", period.id] })
+        },
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Không mở khóa được kỳ tính giá"),
+    })
+
     const exportMutation = useMutation({
         mutationFn: async () => {
             const rows = await fetchAllPeriodCosts(period.id, keyword, productionOnly)
@@ -349,6 +634,33 @@ function PeriodDetail({ period, keyword, onKeywordChange }: {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        {period.status === "LOCKED" ? (
+                            <Button
+                                variant="outline"
+                                disabled={unlockMutation.isPending}
+                                onClick={() => unlockMutation.mutate()}
+                            >
+                                {unlockMutation.isPending ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Unlock className="mr-2 h-4 w-4" />
+                                )}
+                                Mở khóa
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="outline"
+                                disabled={period.status !== "CALCULATED" || lockMutation.isPending}
+                                onClick={() => lockMutation.mutate()}
+                            >
+                                {lockMutation.isPending ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Lock className="mr-2 h-4 w-4" />
+                                )}
+                                Khóa kỳ
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             disabled={period.status === "LOCKED" || calculateMutation.isPending}
@@ -1104,15 +1416,11 @@ function TransferInboundBasisPanel({ rows }: { rows: TransferInboundCostBasis[] 
     )
 }
 
-function CreatePeriodDialog() {
+function CreatePeriodDialog({ periods }: { periods: CostPeriod[] }) {
     const queryClient = useQueryClient()
     const [open, setOpen] = useState(false)
-    const [form, setForm] = useState({
-        name: "",
-        from_date: firstDayOfMonth(),
-        to_date: todayYmd(),
-        note: "",
-    })
+    const [form, setForm] = useState(() => createPeriodDefaults(periods))
+    const continuityWarning = periodContinuityWarning(periods, form.from_date)
     const mutation = useMutation({
         mutationFn: () => createCostPeriod(form),
         onSuccess: () => {
@@ -1124,7 +1432,10 @@ function CreatePeriodDialog() {
     })
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(nextOpen) => {
+            setOpen(nextOpen)
+            if (nextOpen) setForm(createPeriodDefaults(periods))
+        }}>
             <DialogTrigger asChild>
                 <Button>
                     <Plus className="mr-2 h-4 w-4" />
@@ -1134,6 +1445,7 @@ function CreatePeriodDialog() {
             <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Tạo kỳ tính giá</DialogTitle>
+                    <DialogDescription>Khoảng ngày được gợi ý nối tiếp kỳ gần nhất và kết thúc vào cuối tháng.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 md:grid-cols-2">
                     <Field label="Tên kỳ">
@@ -1149,9 +1461,14 @@ function CreatePeriodDialog() {
                         <Input type="date" value={form.to_date} onChange={(e) => setForm({ ...form, to_date: e.target.value })} />
                     </Field>
                 </div>
+                {continuityWarning ? (
+                    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {continuityWarning}
+                    </div>
+                ) : null}
                 <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setOpen(false)}>Hủy</Button>
-                    <Button disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+                    <Button disabled={mutation.isPending || Boolean(continuityWarning)} onClick={() => mutation.mutate()}>
                         <Calculator className="mr-2 h-4 w-4" />
                         Lưu kỳ
                     </Button>

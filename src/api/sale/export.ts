@@ -105,9 +105,11 @@ export function updateExportItemWarehouse(
 export function updateExportItemLot(
     exportId: number,
     itemId: number,
-    lotCode?: string
+    lotCode?: string,
+    allocations?: Array<{ lot_id?: number; lot_code?: string; quantity: number }>
 ) {
     return apiPut(`/sales/exports/${exportId}/items/${itemId}/lot`, {
         lot_code: lotCode,
+        allocations,
     })
 }

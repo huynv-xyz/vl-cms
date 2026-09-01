@@ -59,7 +59,7 @@ export function CustomerTable({
                 <SearchOnBlurInput
                     value={keyword}
                     onChange={onKeywordChange}
-                    placeholder="Tìm mã, tên, địa chỉ..."
+                    placeholder="Tìm mã, tên, điện thoại..."
                     wrapperClassName="relative h-10 min-w-[280px] flex-[1.8_1_0]"
                     className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
                 />

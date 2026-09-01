@@ -3,6 +3,7 @@ import { createCrudApi } from "@/api/crud"
 
 export type CreateVipProductMappingRequest = {
     product_group?: string
+    group_code?: string
     ap_dung?: string
     he_so_hdn?: number
     unit?: string
@@ -13,6 +14,7 @@ export type CreateVipProductMappingRequest = {
 export type UpdateVipProductMappingRequest = {
     id: number
     product_group?: string
+    group_code?: string
     ap_dung?: string
     he_so_hdn?: number
     unit?: string

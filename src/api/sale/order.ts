@@ -84,6 +84,7 @@ export const adjustOrderPrice = (id: number, items: AdjustOrderPriceItem[]) =>
 export type AdjustOrderQuantityItem = {
     order_item_id: number
     quantity: number
+    lot_allocations?: Array<{ lot_id?: number; lot_code?: string; quantity: number }>
 }
 
 export const adjustOrderQuantity = (id: number, items: AdjustOrderQuantityItem[]) =>

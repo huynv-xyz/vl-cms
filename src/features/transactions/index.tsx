@@ -31,7 +31,7 @@ export default function TransactionPage() {
         ['customer_type', 'is_gift', 'npp', 'hdn_status', 'customer_code', 'customer_name', 'product_code', 'product_name', 'product_group_name', 'sale_user_name', 'unit'],
         ['region', 'time_sort', 'document_date_from', 'document_date_to'],
     )
-    const timeSort = singleFilters.time_sort === "desc" ? "desc" : "asc"
+    const timeSort = singleFilters.time_sort === "asc" ? "asc" : "desc"
 
     const { data, isLoading, error } = usePaginatedList(
         [
@@ -224,7 +224,7 @@ export default function TransactionPage() {
 
                             setSingleFilters({
                                 region: next.region,
-                                time_sort: next.time_sort === "desc" ? "desc" : "asc",
+                                time_sort: next.time_sort === "asc" ? "asc" : "desc",
                                 document_date_from: next.document_date_from,
                                 document_date_to: next.document_date_to,
                             })

@@ -182,6 +182,8 @@ export type CreateCostPeriodRequest = {
     note?: string
 }
 
+export type UpdateCostPeriodRequest = CreateCostPeriodRequest
+
 export type CreateLandedCostRequest = {
     doc_no?: string
     doc_date: string
@@ -200,6 +202,10 @@ export function createCostPeriod(body: CreateCostPeriodRequest) {
     return apiPost<CostPeriod>("/inventory/costing/periods", body)
 }
 
+export function updateCostPeriod(id: number, body: UpdateCostPeriodRequest) {
+    return apiPut<CostPeriod>(`/inventory/costing/periods/${id}`, body)
+}
+
 export function calculateCostPeriod(id: number) {
     return apiPost<{
         period: CostPeriod
@@ -216,6 +222,10 @@ export function calculateCostPeriod(id: number) {
 
 export function lockCostPeriod(id: number) {
     return apiPost<CostPeriod>(`/inventory/costing/periods/${id}/lock`)
+}
+
+export function unlockCostPeriod(id: number) {
+    return apiPost<CostPeriod>(`/inventory/costing/periods/${id}/unlock`)
 }
 
 export function deleteCostPeriod(id: number) {

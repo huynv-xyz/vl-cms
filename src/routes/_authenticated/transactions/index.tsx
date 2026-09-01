@@ -76,7 +76,7 @@ export const Route = createFileRoute("/_authenticated/transactions/")({
             typeof search.region === "string" ? search.region : undefined,
 
         time_sort:
-            search.time_sort === "desc" ? "desc" : "asc",
+            search.time_sort === "asc" ? "asc" : "desc",
 
         document_date_from:
             typeof search.document_date_from === "string"

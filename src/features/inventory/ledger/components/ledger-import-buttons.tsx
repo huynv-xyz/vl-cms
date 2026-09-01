@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent, type RefObject } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronDown, Copy, Database, FileCheck2, FileSearch, FileUp, Loader2, PlayCircle, RotateCcw, ShieldCheck, Upload } from "lucide-react"
+import { ChevronDown, Copy, Database, FileCheck2, FileSearch, FileUp, Loader2, PlayCircle, RotateCcw, ShieldCheck, Upload, Wrench } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -39,6 +39,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import { LegacyConversionLotMergeTool } from "./legacy-conversion-lot-merge-tool"
 
 const OPENING_STOCK_REQUIRED_COLUMNS = [
     "Mã kho",
@@ -212,6 +213,7 @@ export function LedgerImportButtons() {
     const [activeImport, setActiveImport] = useState<{ label: string; fileName: string } | null>(null)
     const [normalizationOpen, setNormalizationOpen] = useState(false)
     const [accountRuleAuditOpen, setAccountRuleAuditOpen] = useState(false)
+    const [legacyConversionOpen, setLegacyConversionOpen] = useState(false)
     const [accountRuleAudit, setAccountRuleAudit] = useState<InventoryLedgerAccountRuleAuditResult | null>(null)
 
     const importOpeningMutation = useMutation({
@@ -491,9 +493,20 @@ export function LedgerImportButtons() {
                             <FileSearch className="h-4 w-4" />
                             Kiểm tra TK theo rules
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => setLegacyConversionOpen(true)}>
+                            <Wrench className="h-4 w-4 text-amber-600" />
+                            Sửa lô chuyển mã cũ
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             ) : null}
+
+            <LegacyConversionLotMergeTool
+                hideTrigger
+                open={legacyConversionOpen}
+                onOpenChange={setLegacyConversionOpen}
+            />
 
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>

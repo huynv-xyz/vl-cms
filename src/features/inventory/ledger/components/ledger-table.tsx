@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { AlertTriangle, CheckCircle2, CircleHelp, Clock, Funnel, Loader2, MoreHorizontal, Pencil, Printer, Trash2, Warehouse as WarehouseIcon, X } from "lucide-react"
+import { AlertTriangle, Check, CheckCircle2, CircleHelp, Clock, Columns3, Copy, Funnel, GripVertical, Loader2, MoreHorizontal, Pencil, Pin, Printer, RotateCcw, Trash2, Warehouse as WarehouseIcon, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { listProductUnitLookups } from "@/api/app-lookup"
@@ -15,6 +15,7 @@ import {
     applyDocumentPostingTimeChange,
     applyInboundWarehouseChange,
     applyLedgerAmountChange,
+    applyLegacyPostingTimeNormalization,
     applyOtherExportLineDelete,
     applyOtherInboundLineDelete,
     applyReturnWarehouseChange,
@@ -31,6 +32,7 @@ import {
     checkDocumentPostingTimeChange,
     checkInboundWarehouseChange,
     checkLedgerAmountChange,
+    checkLegacyPostingTimeNormalization,
     checkOtherExportLineDelete,
     checkOtherInboundLineDelete,
     checkReturnWarehouseChange,
@@ -40,10 +42,14 @@ import {
     checkSalesReturnUnitPriceChange,
     checkTransferExportWarehouseChange,
     getTransferExportWarehouseChangeContext,
+    listSalesExportWarehouseChangeLots,
     listTransferExportWarehouseChangeLots,
+    updateInventoryLedgerStaticAccount,
+    type InventoryLedgerStaticAccountField,
     type InventoryLedgerStaticParametersPayload,
     type InboundWarehouseChangeResult,
     type LedgerAmountChangeResult,
+    type LegacyPostingTimeNormalizationResult,
     type PurchaseLotChangeResult,
     type PurchaseProductChangeResult,
     type PurchaseQuantityChangeResult,
@@ -53,7 +59,9 @@ import {
     type OtherInboundLineDeleteResult,
     type ReturnWarehouseChangeResult,
     type SalesExportLotChangeResult,
+    type SalesExportWarehouseAvailableLot,
     type SalesExportWarehouseChangeResult,
+    type SalesExportWarehouseLotAllocation,
     type SalesReturnProductChangeResult,
     type SalesReturnUnitPriceChangeResult,
     type TransferExportWarehouseAvailableLot,
@@ -61,6 +69,7 @@ import {
 } from "@/api/inventory/ledger"
 import { getVoucherPrintDetail, listVoucherTypes, VOUCHER_TYPE_LABEL, type InventoryVoucherPrintDetail, type InventoryVoucherType } from "@/api/inventory/voucher"
 import { getProduct, listProducts } from "@/api/product"
+import { getTablePreference, saveTablePreference } from "@/api/ui-preference"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { DatePicker } from "@/components/date-picker"
 import { AsyncSelect } from "@/components/rjsf/async-select"
@@ -81,8 +90,10 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn, formatNumber } from "@/lib/utils"
@@ -141,6 +152,123 @@ const TEXT_FILTER_OPERATORS: Array<{ value: TextFilterOp; label: string }> = [
     { value: "not_equals", label: "Khác" },
     { value: "not_contains", label: "Không chứa" },
 ]
+
+const LEDGER_TABLE_PREFERENCE_KEY = "inventory.ledgers.report"
+
+type LedgerColumnKey =
+    | "posting_date"
+    | "posting_time"
+    | "doc_no"
+    | "description"
+    | "tk_no"
+    | "tk_co"
+    | "product_code"
+    | "product_name"
+    | "unit"
+    | "lot_code"
+    | "warehouse_code"
+    | "warehouse_name"
+    | "unit_price"
+    | "opening_quantity"
+    | "opening_value"
+    | "inbound_quantity"
+    | "inbound_value"
+    | "outbound_quantity"
+    | "outbound_value"
+    | "closing_quantity"
+    | "closing_value"
+    | "doc_type"
+    | "cost_object_code"
+    | "cost_object_name"
+    | "supplier_name"
+
+type LedgerColumnDefinition = {
+    key: LedgerColumnKey
+    label: string
+    width: number
+    valueColumn?: boolean
+}
+
+type LedgerTableColumnPreference = {
+    key: LedgerColumnKey
+    visible: boolean
+}
+
+type LedgerTablePreference = {
+    columns?: LedgerTableColumnPreference[]
+    pinnedColumnKey?: LedgerColumnKey | null
+}
+
+const LEDGER_COLUMN_DEFINITIONS: LedgerColumnDefinition[] = [
+    { key: "posting_date", label: "Ngày", width: 110 },
+    { key: "posting_time", label: "Giờ", width: 90 },
+    { key: "doc_no", label: "Chứng từ", width: 180 },
+    { key: "description", label: "Diễn giải", width: 260 },
+    { key: "tk_no", label: "TK Nợ", width: 180 },
+    { key: "tk_co", label: "TK Có", width: 180 },
+    { key: "product_code", label: "Mã hàng", width: 150 },
+    { key: "product_name", label: "Tên hàng", width: 320 },
+    { key: "unit", label: "ĐVT", width: 80 },
+    { key: "lot_code", label: "Số lô", width: 150 },
+    { key: "warehouse_code", label: "Mã kho", width: 160 },
+    { key: "warehouse_name", label: "Tên kho", width: 220 },
+    { key: "unit_price", label: "Đơn giá", width: 120, valueColumn: true },
+    { key: "opening_quantity", label: "Tồn đầu SL", width: 120 },
+    { key: "opening_value", label: "Tồn đầu giá trị", width: 140, valueColumn: true },
+    { key: "inbound_quantity", label: "Nhập SL", width: 120 },
+    { key: "inbound_value", label: "Nhập giá trị", width: 140, valueColumn: true },
+    { key: "outbound_quantity", label: "Xuất SL", width: 120 },
+    { key: "outbound_value", label: "Xuất giá trị", width: 140, valueColumn: true },
+    { key: "closing_quantity", label: "Tồn sau SL", width: 120 },
+    { key: "closing_value", label: "Tồn sau giá trị", width: 140, valueColumn: true },
+    { key: "doc_type", label: "Loại chứng từ", width: 260 },
+    { key: "cost_object_code", label: "Mã đối tượng THCP", width: 180 },
+    { key: "cost_object_name", label: "Tên đối tượng THCP", width: 300 },
+    { key: "supplier_name", label: "Tên nhà cung cấp", width: 260 },
+]
+
+const LEDGER_COLUMN_MAP = new Map(LEDGER_COLUMN_DEFINITIONS.map((column) => [column.key, column]))
+const LEDGER_QUANTITY_GROUPS: Partial<Record<LedgerColumnKey, { group: "opening" | "inbound" | "outbound" | "closing"; groupLabel: string; subLabel: string }>> = {
+    opening_quantity: { group: "opening", groupLabel: "Tồn đầu", subLabel: "Số lượng" },
+    opening_value: { group: "opening", groupLabel: "Tồn đầu", subLabel: "Giá trị" },
+    inbound_quantity: { group: "inbound", groupLabel: "Nhập", subLabel: "Số lượng" },
+    inbound_value: { group: "inbound", groupLabel: "Nhập", subLabel: "Giá trị" },
+    outbound_quantity: { group: "outbound", groupLabel: "Xuất", subLabel: "Số lượng" },
+    outbound_value: { group: "outbound", groupLabel: "Xuất", subLabel: "Giá trị" },
+    closing_quantity: { group: "closing", groupLabel: "Tồn sau", subLabel: "Số lượng" },
+    closing_value: { group: "closing", groupLabel: "Tồn sau", subLabel: "Giá trị" },
+}
+
+function resolveLedgerColumnPreference(preference?: LedgerTablePreference | null): LedgerTableColumnPreference[] {
+    const seen = new Set<LedgerColumnKey>()
+    const saved = (preference?.columns || [])
+        .filter((column): column is LedgerTableColumnPreference => Boolean(column?.key && LEDGER_COLUMN_MAP.has(column.key)))
+        .map((column) => {
+            seen.add(column.key)
+            return { key: column.key, visible: column.visible !== false }
+        })
+    const missing = LEDGER_COLUMN_DEFINITIONS
+        .filter((column) => !seen.has(column.key))
+        .map((column) => ({ key: column.key, visible: true }))
+    return [...saved, ...missing]
+}
+
+function activeLedgerColumns(preference?: LedgerTablePreference | null, showValues = true) {
+    return resolveLedgerColumnPreference(preference)
+        .filter((column) => column.visible)
+        .map((column) => LEDGER_COLUMN_MAP.get(column.key))
+        .filter((column): column is LedgerColumnDefinition => Boolean(column))
+        .filter((column) => showValues || !column.valueColumn)
+}
+
+function resolveLedgerPinnedColumnKey(preference?: LedgerTablePreference | null) {
+    const key = preference?.pinnedColumnKey
+    return key && LEDGER_COLUMN_MAP.has(key) ? key : "warehouse_name"
+}
+
+function ledgerQuantityGroup(column: LedgerColumnDefinition) {
+    return LEDGER_QUANTITY_GROUPS[column.key]
+}
 
 function splitFilterValues(value?: string) {
     return (value || "")
@@ -211,10 +339,20 @@ export function InventoryLedgerTable({
     const [purchaseProductChangeRow, setPurchaseProductChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [salesReturnProductChangeRow, setSalesReturnProductChangeRow] = useState<InventoryLedgerReportRow | null>(null)
     const [documentPostingTimeChangeRow, setDocumentPostingTimeChangeRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [legacyPostingTimeNormalizationRow, setLegacyPostingTimeNormalizationRow] = useState<InventoryLedgerReportRow | null>(null)
     const [otherExportLineDeleteRow, setOtherExportLineDeleteRow] = useState<InventoryLedgerReportRow | null>(null)
     const [otherInboundLineDeleteRow, setOtherInboundLineDeleteRow] = useState<InventoryLedgerReportRow | null>(null)
     const [staticParametersRow, setStaticParametersRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [editingStaticAccount, setEditingStaticAccount] = useState<{ rowId: number; field: InventoryLedgerStaticAccountField } | null>(null)
     const queryClient = useQueryClient()
+    const { data: tablePreference } = useQuery({
+        queryKey: ["table-preference", LEDGER_TABLE_PREFERENCE_KEY],
+        queryFn: () => getTablePreference<LedgerTablePreference>(LEDGER_TABLE_PREFERENCE_KEY),
+    })
+    const visibleColumns = useMemo(
+        () => activeLedgerColumns(tablePreference, showValues),
+        [showValues, tablePreference],
+    )
     const { data: inboundDocTypes = [] } = useQuery({
         queryKey: ["inventory-voucher-types", "I"],
         queryFn: () => listVoucherTypes("I"),
@@ -255,6 +393,48 @@ export function InventoryLedgerTable({
         () => canUseLedgerCorrections || hasPermission(permissions, "inventory.ledgers", "price-correction.change"),
         [canUseLedgerCorrections, permissions],
     )
+    const staticAccountMutation = useMutation({
+        mutationFn: ({ ids, field, value }: { ids: number[]; field: InventoryLedgerStaticAccountField; value: string }) =>
+            updateInventoryLedgerStaticAccount(ids, field, value),
+        onSuccess: (result) => {
+            toast.success(
+                result.updated > 1
+                    ? `Đã cập nhật ${formatNumber(result.updated)} dòng sổ kho.`
+                    : "Đã cập nhật tài khoản sổ kho.",
+            )
+            queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || "Không cập nhật được tài khoản sổ kho.")
+        },
+    })
+    const updateInlineStaticAccount = async (
+        row: InventoryLedgerReportRow,
+        field: InventoryLedgerStaticAccountField,
+        value: string,
+    ) => {
+        await staticAccountMutation.mutateAsync({
+            ids: [Number(row.id)],
+            field,
+            value,
+        })
+        setEditingStaticAccount(null)
+    }
+    const copyInlineStaticAccountDown = async (
+        rowIndex: number,
+        field: InventoryLedgerStaticAccountField,
+        value: string,
+    ) => {
+        const ids = (data || [])
+            .slice(rowIndex + 1)
+            .map((row) => Number(row.id))
+            .filter((id) => Number.isFinite(id) && id > 0)
+        if (!ids.length) {
+            toast.info("Không có dòng bên dưới trong page hiện tại để sao chép.")
+            return
+        }
+        await staticAccountMutation.mutateAsync({ ids, field, value })
+    }
 
     const setFilter = (key: keyof Props["filters"], value: any) => {
         onFiltersChange({
@@ -417,6 +597,169 @@ export function InventoryLedgerTable({
         })
     }
 
+    const renderLedgerColumnHeader = (column: LedgerColumnDefinition) => {
+        switch (column.key) {
+            case "doc_no":
+                return (
+                    <ColumnTextFilter
+                        label={column.label}
+                        value={filters.doc_text}
+                        op={filters.doc_text_op}
+                        onApply={(value, op) => setTextFilter("doc_text", "doc_text_op", value, op)}
+                        onClear={() => clearTextFilter("doc_text", "doc_text_op")}
+                    />
+                )
+            case "description":
+                return (
+                    <ColumnTextFilter
+                        label={column.label}
+                        value={filters.description_text}
+                        op={filters.description_text_op}
+                        onApply={(value, op) => setTextFilter("description_text", "description_text_op", value, op)}
+                        onClear={() => clearTextFilter("description_text", "description_text_op")}
+                    />
+                )
+            case "product_code":
+                return (
+                    <ColumnTextFilter
+                        label={column.label}
+                        value={filters.product_code_text}
+                        op={filters.product_code_text_op}
+                        onApply={(value, op) => setTextFilter("product_code_text", "product_code_text_op", value, op)}
+                        onClear={() => clearTextFilter("product_code_text", "product_code_text_op")}
+                    />
+                )
+            case "product_name":
+                return (
+                    <ColumnTextFilter
+                        label={column.label}
+                        value={filters.product_name_text}
+                        op={filters.product_name_text_op}
+                        onApply={(value, op) => setTextFilter("product_name_text", "product_name_text_op", value, op)}
+                        onClear={() => clearTextFilter("product_name_text", "product_name_text_op")}
+                    />
+                )
+            case "unit":
+                return (
+                    <ColumnMultiSelectFilter
+                        label={column.label}
+                        value={filters.unit}
+                        options={unitOptions}
+                        onApply={(value) => setFilter("unit", value)}
+                    />
+                )
+            case "lot_code":
+                return (
+                    <ColumnTextFilter
+                        label={column.label}
+                        value={filters.lot_text}
+                        op={filters.lot_text_op}
+                        onApply={(value, op) => setTextFilter("lot_text", "lot_text_op", value, op)}
+                        onClear={() => clearTextFilter("lot_text", "lot_text_op")}
+                    />
+                )
+            case "warehouse_code":
+                return (
+                    <ColumnTextFilter
+                        label={column.label}
+                        value={filters.warehouse_code_text}
+                        op={filters.warehouse_code_text_op}
+                        onApply={(value, op) => setTextFilter("warehouse_code_text", "warehouse_code_text_op", value, op)}
+                        onClear={() => clearTextFilter("warehouse_code_text", "warehouse_code_text_op")}
+                    />
+                )
+            case "warehouse_name":
+                return (
+                    <ColumnTextFilter
+                        label={column.label}
+                        value={filters.warehouse_name_text}
+                        op={filters.warehouse_name_text_op}
+                        onApply={(value, op) => setTextFilter("warehouse_name_text", "warehouse_name_text_op", value, op)}
+                        onClear={() => clearTextFilter("warehouse_name_text", "warehouse_name_text_op")}
+                    />
+                )
+            case "doc_type":
+                return (
+                    <LedgerDocTypeFilter
+                        value={filters.doc_type}
+                        inboundTypes={direction === "OUT" ? [] : inboundDocTypes}
+                        outboundTypes={direction === "IN" ? [] : outboundDocTypes}
+                        onApply={(value) => setFilter("doc_type", value)}
+                        variant="column"
+                    />
+                )
+            case "supplier_name":
+                return (
+                    <ColumnTextFilter
+                        label={column.label}
+                        value={filters.supplier_text}
+                        op={filters.supplier_text_op}
+                        onApply={(value, op) => setTextFilter("supplier_text", "supplier_text_op", value, op)}
+                        onClear={() => clearTextFilter("supplier_text", "supplier_text_op")}
+                    />
+                )
+            default:
+                return column.label
+        }
+    }
+
+    const pinnedUntil = Math.max(0, visibleColumns.findIndex((column) => column.key === resolveLedgerPinnedColumnKey(tablePreference)) + 1)
+    const hasGroupedHeader = visibleColumns.some((column) => ledgerQuantityGroup(column))
+    const renderLedgerHeaderRows = () => {
+        const firstRow: React.ReactNode[] = [
+            <Th key="stt" rowSpan={hasGroupedHeader ? 2 : 1} className="min-w-[56px] text-center">STT</Th>,
+        ]
+        const secondRow: React.ReactNode[] = []
+
+        for (let index = 0; index < visibleColumns.length; index++) {
+            const column = visibleColumns[index]
+            const group = ledgerQuantityGroup(column)
+            if (!group) {
+                firstRow.push(
+                    <Th key={column.key} rowSpan={hasGroupedHeader ? 2 : 1} className="text-center">
+                        {renderLedgerColumnHeader(column)}
+                    </Th>,
+                )
+                continue
+            }
+
+            let colSpan = 1
+            while (
+                index + colSpan < visibleColumns.length
+                && ledgerQuantityGroup(visibleColumns[index + colSpan])?.group === group.group
+            ) {
+                colSpan++
+            }
+            firstRow.push(
+                <Th key={`group-${group.group}-${index}`} colSpan={colSpan} className="text-center">
+                    {group.groupLabel}
+                </Th>,
+            )
+            for (let offset = 0; offset < colSpan; offset++) {
+                const groupedColumn = visibleColumns[index + offset]
+                secondRow.push(
+                    <Th key={groupedColumn.key} className="text-center">
+                        {ledgerQuantityGroup(groupedColumn)?.subLabel || groupedColumn.label}
+                    </Th>,
+                )
+            }
+            index += colSpan - 1
+        }
+
+        firstRow.push(
+            <Th key="actions" rowSpan={hasGroupedHeader ? 2 : 1} className="min-w-[100px] text-center">
+                <LedgerCorrectionHelp />
+            </Th>,
+        )
+
+        return (
+            <>
+                <tr>{firstRow}</tr>
+                {hasGroupedHeader ? <tr>{secondRow}</tr> : null}
+            </>
+        )
+    }
+
     return (
         <Card className="border-border/60 gap-0 overflow-hidden py-0 shadow-sm">
             <CardHeader className="bg-muted/40 border-b px-4 py-3">
@@ -523,138 +866,16 @@ export function InventoryLedgerTable({
                     </div>
                 ) : null}
                 <StickyReportTable
-                    columnWidths={showValues
-                        ? [64, 110, 90, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 120, 140, 120, 140, 120, 140, 120, 140, 260, 180, 300, 260, 100]
-                        : [64, 110, 90, 180, 260, 80, 80, 150, 320, 80, 150, 160, 220, 120, 110, 110, 120, 260, 180, 300, 260, 100]}
-                    defaultPinnedUntil={8}
-                    renderHeader={() => (
-                        <>
-                            <tr>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[56px] text-center">STT</Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[110px]">Ngày</Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[90px] text-center">Giờ</Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[170px]">
-                                    <ColumnTextFilter
-                                        label="Chứng từ"
-                                        value={filters.doc_text}
-                                        op={filters.doc_text_op}
-                                        onApply={(value, op) => setTextFilter("doc_text", "doc_text_op", value, op)}
-                                        onClear={() => clearTextFilter("doc_text", "doc_text_op")}
-                                    />
-                                </Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[260px]">
-                                    <ColumnTextFilter
-                                        label="Diễn giải"
-                                        value={filters.description_text}
-                                        op={filters.description_text_op}
-                                        onApply={(value, op) => setTextFilter("description_text", "description_text_op", value, op)}
-                                        onClear={() => clearTextFilter("description_text", "description_text_op")}
-                                    />
-                                </Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[70px]">TK Nợ</Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[70px]">TK Có</Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[150px]">
-                                    <ColumnTextFilter
-                                        label="Mã hàng"
-                                        value={filters.product_code_text}
-                                        op={filters.product_code_text_op}
-                                        onApply={(value, op) => setTextFilter("product_code_text", "product_code_text_op", value, op)}
-                                        onClear={() => clearTextFilter("product_code_text", "product_code_text_op")}
-                                    />
-                                </Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[300px]">
-                                    <ColumnTextFilter
-                                        label="Tên hàng"
-                                        value={filters.product_name_text}
-                                        op={filters.product_name_text_op}
-                                        onApply={(value, op) => setTextFilter("product_name_text", "product_name_text_op", value, op)}
-                                        onClear={() => clearTextFilter("product_name_text", "product_name_text_op")}
-                                    />
-                                </Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[80px]">
-                                    <ColumnMultiSelectFilter
-                                        label="ĐVT"
-                                        value={filters.unit}
-                                        options={unitOptions}
-                                        onApply={(value) => setFilter("unit", value)}
-                                    />
-                                </Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[140px]">
-                                    <ColumnTextFilter
-                                        label="Số lô"
-                                        value={filters.lot_text}
-                                        op={filters.lot_text_op}
-                                        onApply={(value, op) => setTextFilter("lot_text", "lot_text_op", value, op)}
-                                        onClear={() => clearTextFilter("lot_text", "lot_text_op")}
-                                    />
-                                </Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[160px]">
-                                    <ColumnTextFilter
-                                        label="Mã kho"
-                                        value={filters.warehouse_code_text}
-                                        op={filters.warehouse_code_text_op}
-                                        onApply={(value, op) => setTextFilter("warehouse_code_text", "warehouse_code_text_op", value, op)}
-                                        onClear={() => clearTextFilter("warehouse_code_text", "warehouse_code_text_op")}
-                                    />
-                                </Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[220px]">
-                                    <ColumnTextFilter
-                                        label="Tên kho"
-                                        value={filters.warehouse_name_text}
-                                        op={filters.warehouse_name_text_op}
-                                        onApply={(value, op) => setTextFilter("warehouse_name_text", "warehouse_name_text_op", value, op)}
-                                        onClear={() => clearTextFilter("warehouse_name_text", "warehouse_name_text_op")}
-                                    />
-                                </Th>
-                                {showValues ? <Th rowSpan={2} className="min-w-[120px]">Đơn giá</Th> : null}
-                                <Th colSpan={showValues ? 2 : 1} className="min-w-[120px] text-center">Tồn đầu</Th>
-                                <Th colSpan={showValues ? 2 : 1} className="min-w-[110px] text-center">Nhập</Th>
-                                <Th colSpan={showValues ? 2 : 1} className="min-w-[110px] text-center">Xuất</Th>
-                                <Th colSpan={showValues ? 2 : 1} className="min-w-[120px] text-center">Tồn sau</Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[260px]">
-                                    <LedgerDocTypeFilter
-                                        value={filters.doc_type}
-                                        inboundTypes={direction === "OUT" ? [] : inboundDocTypes}
-                                        outboundTypes={direction === "IN" ? [] : outboundDocTypes}
-                                        onApply={(value) => setFilter("doc_type", value)}
-                                        variant="column"
-                                    />
-                                </Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[180px] text-center">Mã đối tượng tập hợp chi phí</Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[300px]">Tên đối tượng tập hợp chi phí</Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[260px]">
-                                    <ColumnTextFilter
-                                        label="Tên nhà cung cấp"
-                                        value={filters.supplier_text}
-                                        op={filters.supplier_text_op}
-                                        onApply={(value, op) => setTextFilter("supplier_text", "supplier_text_op", value, op)}
-                                        onClear={() => clearTextFilter("supplier_text", "supplier_text_op")}
-                                    />
-                                </Th>
-                                <Th rowSpan={showValues ? 2 : 1} className="min-w-[100px] text-center">
-                                    <LedgerCorrectionHelp />
-                                </Th>
-                            </tr>
-                            {showValues ? (
-                                <tr>
-                                    <Th>Số lượng</Th>
-                                    <Th>Giá trị</Th>
-                                    <Th>Số lượng</Th>
-                                    <Th>Giá trị</Th>
-                                    <Th>Số lượng</Th>
-                                    <Th>Giá trị</Th>
-                                    <Th>Số lượng</Th>
-                                    <Th>Giá trị</Th>
-                                </tr>
-                            ) : null}
-                        </>
-                    )}
+                    columnWidths={[64, ...visibleColumns.map((column) => column.width), 100]}
+                    defaultPinnedUntil={pinnedUntil}
+                    renderHeader={renderLedgerHeaderRows}
                     renderBody={() => (
                         <>
                             {(data || []).map((item, index) => (
                                 <LedgerRow
                                     key={`${item.id}-${index}`}
                                     index={pagination.pageIndex * pagination.pageSize + index + 1}
+                                    pageIndex={index}
                                     item={item}
                                     onOpenVoucher={setDetailVoucherId}
                                     onChangeLot={(canUseLedgerCorrections || canUseScopedLedgerCorrections) ? setLotChangeRow : undefined}
@@ -664,14 +885,20 @@ export function InventoryLedgerTable({
                                     onDeleteOtherExportLine={canUseLedgerCorrections ? setOtherExportLineDeleteRow : undefined}
                                     onDeleteOtherInboundLine={canUseLedgerCorrections ? setOtherInboundLineDeleteRow : undefined}
                                     onEditStaticParameters={canUseLedgerCorrections ? setStaticParametersRow : undefined}
-                                    showValues={showValues}
+                                    onUpdateStaticAccount={canUseLedgerCorrections ? updateInlineStaticAccount : undefined}
+                                    onCopyStaticAccountDown={canUseLedgerCorrections ? copyInlineStaticAccountDown : undefined}
+                                    editingStaticAccount={editingStaticAccount}
+                                    onEditingStaticAccountChange={setEditingStaticAccount}
+                                    staticAccountWorking={staticAccountMutation.isPending}
+                                    onNormalizeLegacyPostingTime={canUseLedgerCorrections ? setLegacyPostingTimeNormalizationRow : undefined}
                                     direction={direction}
+                                    columns={visibleColumns}
                                 />
                             ))}
                         </>
                     )}
                     renderFooter={() => (
-                        <LedgerTotalsRow totals={filterTotals} showValues={showValues} direction={direction} />
+                        <LedgerTotalsRow totals={filterTotals} columns={visibleColumns} direction={direction} />
                     )}
                 />
 
@@ -715,6 +942,7 @@ export function InventoryLedgerTable({
                 onChangeSalesReturnUnitPrice={setSalesReturnUnitPriceChangeRow}
                 onDeleteOtherExportLine={setOtherExportLineDeleteRow}
                 onDeleteOtherInboundLine={setOtherInboundLineDeleteRow}
+                onNormalizeLegacyPostingTime={canUseLedgerCorrections ? setLegacyPostingTimeNormalizationRow : undefined}
             />
             <PurchaseLotChangeDialog
                 row={lotChangeRow}
@@ -889,6 +1117,20 @@ export function InventoryLedgerTable({
                     queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
                     queryClient.invalidateQueries({ queryKey: ["sales-order-detail"] })
                     queryClient.invalidateQueries({ queryKey: ["production-order-detail"] })
+                }}
+            />
+            <LegacyPostingTimeNormalizationDialog
+                row={legacyPostingTimeNormalizationRow}
+                open={!!legacyPostingTimeNormalizationRow}
+                onOpenChange={(open) => {
+                    if (!open) setLegacyPostingTimeNormalizationRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-voucher-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                    setDetailVoucherRefreshKey((value) => value + 1)
                 }}
             />
             <StaticParametersDialog
@@ -1414,55 +1656,252 @@ function FilterOptionButton({
     )
 }
 
+export function LedgerColumnPreferencesControl({ showValues }: { showValues: boolean }) {
+    const queryClient = useQueryClient()
+    const [menuOpen, setMenuOpen] = useState(false)
+    const [panelOpen, setPanelOpen] = useState(false)
+    const { data: preference } = useQuery({
+        queryKey: ["table-preference", LEDGER_TABLE_PREFERENCE_KEY],
+        queryFn: () => getTablePreference<LedgerTablePreference>(LEDGER_TABLE_PREFERENCE_KEY),
+    })
+    const saveMutation = useMutation({
+        mutationFn: (nextPreference: LedgerTablePreference) => saveTablePreference(LEDGER_TABLE_PREFERENCE_KEY, nextPreference),
+        onSuccess: (nextPreference) => {
+            queryClient.setQueryData(["table-preference", LEDGER_TABLE_PREFERENCE_KEY], nextPreference)
+            toast.success("Đã lưu tùy chỉnh bảng.")
+            setPanelOpen(false)
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || "Không lưu được tùy chỉnh bảng.")
+        },
+    })
+    const [draftColumns, setDraftColumns] = useState<LedgerTableColumnPreference[]>(() =>
+        resolveLedgerColumnPreference(preference),
+    )
+    const [draftPinnedColumnKey, setDraftPinnedColumnKey] = useState<LedgerColumnKey | null>(() =>
+        resolveLedgerPinnedColumnKey(preference),
+    )
+    const [draggingKey, setDraggingKey] = useState<LedgerColumnKey | null>(null)
+    const configurableDraftColumns = useMemo(
+        () => draftColumns.filter((columnPreference) => {
+            const column = LEDGER_COLUMN_MAP.get(columnPreference.key)
+            return Boolean(column && (showValues || !column.valueColumn))
+        }),
+        [draftColumns, showValues],
+    )
+
+    useEffect(() => {
+        if (panelOpen) {
+            setDraftColumns(resolveLedgerColumnPreference(preference))
+            setDraftPinnedColumnKey(resolveLedgerPinnedColumnKey(preference))
+        }
+    }, [panelOpen, preference])
+
+    const moveColumn = (sourceKey: LedgerColumnKey, targetKey: LedgerColumnKey) => {
+        if (sourceKey === targetKey) return
+        setDraftColumns((current) => {
+            const sourceIndex = current.findIndex((column) => column.key === sourceKey)
+            const targetIndex = current.findIndex((column) => column.key === targetKey)
+            if (sourceIndex < 0 || targetIndex < 0) return current
+            const next = [...current]
+            const [moved] = next.splice(sourceIndex, 1)
+            next.splice(targetIndex, 0, moved)
+            return next
+        })
+    }
+
+    const toggleColumn = (key: LedgerColumnKey, visible: boolean) => {
+        setDraftColumns((current) =>
+            current.map((column) => column.key === key ? { ...column, visible } : column),
+        )
+        if (!visible && draftPinnedColumnKey === key) {
+            setDraftPinnedColumnKey(null)
+        }
+    }
+
+    const resetDefault = () => {
+        setDraftColumns(LEDGER_COLUMN_DEFINITIONS.map((column) => ({ key: column.key, visible: true })))
+        setDraftPinnedColumnKey("warehouse_name")
+    }
+
+    return (
+        <div className="relative">
+            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen} modal={false}>
+                <DropdownMenuTrigger asChild>
+                    <Button type="button" variant="outline" size="icon" className="h-9 w-9">
+                        <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem
+                        onSelect={(event) => {
+                            event.preventDefault()
+                            setMenuOpen(false)
+                            setPanelOpen(true)
+                        }}
+                    >
+                        <Columns3 className="mr-2 h-4 w-4" />
+                        Tùy chỉnh mẫu báo cáo
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
+                <SheetContent className="w-[min(96vw,560px)] gap-0 p-0 sm:max-w-none">
+                    <SheetHeader className="border-b px-6 py-5">
+                        <SheetTitle className="text-lg">Tùy chỉnh mẫu báo cáo</SheetTitle>
+                        <SheetDescription>
+                            Kéo thả để đổi vị trí, chọn cột muốn hiển thị và cột pin mặc định.
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="min-h-0 flex-1 overflow-y-auto">
+                        <div className="grid grid-cols-[32px_minmax(0,1fr)_72px_64px] border-b bg-slate-50 px-3 py-2 text-xs font-semibold text-muted-foreground">
+                            <div />
+                            <div>Cột</div>
+                            <div className="text-center">Hiện</div>
+                            <div className="text-center">Pin</div>
+                        </div>
+                        {configurableDraftColumns.map((columnPreference, index) => {
+                            const column = LEDGER_COLUMN_MAP.get(columnPreference.key)
+                            if (!column) return null
+                            return (
+                                <div
+                                    key={column.key}
+                                    draggable
+                                    onDragStart={(event) => {
+                                        event.dataTransfer.effectAllowed = "move"
+                                        event.dataTransfer.setData("text/plain", column.key)
+                                        setDraggingKey(column.key)
+                                    }}
+                                    onDragOver={(event) => {
+                                        event.preventDefault()
+                                        event.dataTransfer.dropEffect = "move"
+                                    }}
+                                    onDrop={(event) => {
+                                        event.preventDefault()
+                                        const sourceKey = (event.dataTransfer.getData("text/plain") || draggingKey) as LedgerColumnKey | null
+                                        if (sourceKey) moveColumn(sourceKey, column.key)
+                                        setDraggingKey(null)
+                                    }}
+                                    onDragEnd={() => setDraggingKey(null)}
+                                    className={cn(
+                                        "grid cursor-move grid-cols-[32px_minmax(0,1fr)_72px_64px] items-center border-b px-3 py-2 last:border-b-0",
+                                        draggingKey === column.key && "bg-primary/5 opacity-60",
+                                        index % 2 === 1 && "bg-slate-50/40",
+                                    )}
+                                >
+                                    <div className="flex justify-center text-muted-foreground">
+                                        <GripVertical className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="truncate text-sm font-medium">{column.label}</div>
+                                    </div>
+                                    <div className="flex justify-center">
+                                        <Checkbox
+                                            checked={columnPreference.visible}
+                                            onCheckedChange={(checked) => toggleColumn(column.key, checked === true)}
+                                        />
+                                    </div>
+                                    <div className="flex justify-center">
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            disabled={!columnPreference.visible}
+                                            onClick={() => setDraftPinnedColumnKey(draftPinnedColumnKey === column.key ? null : column.key)}
+                                            title={draftPinnedColumnKey === column.key ? "Bỏ pin mặc định" : "Pin mặc định đến cột này"}
+                                        >
+                                            <Pin className={cn("h-4 w-4", draftPinnedColumnKey === column.key ? "fill-primary text-primary" : "text-muted-foreground")} />
+                                        </Button>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+
+                    <SheetFooter className="flex-row items-center justify-between border-t px-6 py-4 sm:flex-row">
+                        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={resetDefault} disabled={saveMutation.isPending}>
+                            <RotateCcw className="h-4 w-4" />
+                            Mặc định
+                        </Button>
+                        <div className="flex gap-2">
+                            <Button type="button" variant="outline" size="sm" onClick={() => setPanelOpen(false)} disabled={saveMutation.isPending}>
+                                Đóng
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => saveMutation.mutate({ columns: draftColumns, pinnedColumnKey: draftPinnedColumnKey })}
+                                disabled={saveMutation.isPending}
+                            >
+                                {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Lưu
+                            </Button>
+                        </div>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
+        </div>
+    )
+}
+
 function LedgerTotalsRow({
     totals,
-    showValues,
+    columns,
     direction,
 }: {
     totals: Required<InventoryLedgerTotals>
-    showValues: boolean
+    columns: LedgerColumnDefinition[]
     direction?: "IN" | "OUT"
 }) {
     const displayValue = (value: number) => direction === "OUT" ? Math.abs(Number(value || 0)) : Number(value || 0)
-    const labelCell = (
-        <Td colSpan={13} className="bg-slate-50 text-right font-semibold text-slate-700">
-            Tổng theo bộ lọc
-        </Td>
-    )
-    const trailingCell = <Td colSpan={5} className="bg-slate-50" />
-
-    if (!showValues) {
-        return (
-            <tr className="border-t-2 border-slate-300">
-                {labelCell}
-                <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(displayValue(totals.opening_quantity))}</Td>
-                <Td className="bg-slate-50 text-right font-semibold tabular-nums text-emerald-700">{formatNumber(displayValue(totals.inbound_quantity))}</Td>
-                <Td className="bg-slate-50 text-right font-semibold tabular-nums text-rose-700">{formatNumber(displayValue(totals.outbound_quantity))}</Td>
-                <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(displayValue(totals.closing_quantity))}</Td>
-                {trailingCell}
-            </tr>
-        )
+    const totalByColumn: Partial<Record<LedgerColumnKey, number>> = {
+        opening_quantity: displayValue(totals.opening_quantity),
+        opening_value: displayValue(totals.opening_value),
+        inbound_quantity: displayValue(totals.inbound_quantity),
+        inbound_value: displayValue(totals.inbound_value),
+        outbound_quantity: displayValue(totals.outbound_quantity),
+        outbound_value: displayValue(totals.outbound_value),
+        closing_quantity: displayValue(totals.closing_quantity),
+        closing_value: displayValue(totals.closing_value),
     }
 
     return (
         <tr className="border-t-2 border-slate-300">
-            {labelCell}
-            <Td className="bg-slate-50 text-center font-semibold text-muted-foreground">-</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(displayValue(totals.opening_quantity))}</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(displayValue(totals.opening_value))}</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-emerald-700">{formatNumber(displayValue(totals.inbound_quantity))}</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-emerald-700">{formatNumber(displayValue(totals.inbound_value))}</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-rose-700">{formatNumber(displayValue(totals.outbound_quantity))}</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums text-rose-700">{formatNumber(displayValue(totals.outbound_value))}</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(displayValue(totals.closing_quantity))}</Td>
-            <Td className="bg-slate-50 text-right font-semibold tabular-nums">{formatNumber(displayValue(totals.closing_value))}</Td>
-            {trailingCell}
+            <Td className="bg-slate-50 text-center font-semibold text-slate-700">
+                Tổng
+            </Td>
+            {columns.map((column, index) => {
+                const total = totalByColumn[column.key]
+                if (total === undefined) {
+                    return (
+                        <Td key={column.key} className={cn("bg-slate-50", index === 0 && "font-semibold text-slate-700")}>
+                            {index === 0 ? "Tổng theo bộ lọc" : ""}
+                        </Td>
+                    )
+                }
+                return (
+                    <Td
+                        key={column.key}
+                        className={cn(
+                            "bg-slate-50 text-right font-semibold tabular-nums",
+                            column.key.startsWith("inbound") && "text-emerald-700",
+                            column.key.startsWith("outbound") && "text-rose-700",
+                        )}
+                    >
+                        {formatNumber(total)}
+                    </Td>
+                )
+            })}
+            <Td className="bg-slate-50" />
         </tr>
     )
 }
 
 function LedgerRow({
     index,
+    pageIndex,
     item,
     onOpenVoucher,
     onChangeLot,
@@ -1472,10 +1911,17 @@ function LedgerRow({
     onDeleteOtherExportLine,
     onDeleteOtherInboundLine,
     onEditStaticParameters,
-    showValues,
+    onUpdateStaticAccount,
+    onCopyStaticAccountDown,
+    editingStaticAccount,
+    onEditingStaticAccountChange,
+    staticAccountWorking,
+    onNormalizeLegacyPostingTime,
     direction,
+    columns,
 }: {
     index: number
+    pageIndex: number
     item: InventoryLedgerReportRow
     onOpenVoucher: (voucherId: number) => void
     onChangeLot?: (row: InventoryLedgerReportRow) => void
@@ -1485,8 +1931,14 @@ function LedgerRow({
     onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
     onEditStaticParameters?: (row: InventoryLedgerReportRow) => void
-    showValues: boolean
+    onUpdateStaticAccount?: (row: InventoryLedgerReportRow, field: InventoryLedgerStaticAccountField, value: string) => Promise<void>
+    onCopyStaticAccountDown?: (rowIndex: number, field: InventoryLedgerStaticAccountField, value: string) => Promise<void>
+    editingStaticAccount?: { rowId: number; field: InventoryLedgerStaticAccountField } | null
+    onEditingStaticAccountChange?: (value: { rowId: number; field: InventoryLedgerStaticAccountField } | null) => void
+    staticAccountWorking?: boolean
+    onNormalizeLegacyPostingTime?: (row: InventoryLedgerReportRow) => void
     direction?: "IN" | "OUT"
+    columns: LedgerColumnDefinition[]
 }) {
     const meta = getDocTypeMeta(item.doc_type)
     const quantityIn = Number(item.quantity_in || 0)
@@ -1500,118 +1952,206 @@ function LedgerRow({
     const closingValue = closingBalance * rowUnitPrice
     const centerVoucherFields = Boolean(direction)
 
-    return (
-        <tr className="hover:bg-muted/30 border-b">
-            <Td className="text-muted-foreground text-center font-mono">{formatNumber(index)}</Td>
-            <Td className="whitespace-nowrap text-center tabular-nums">
-                {formatDate(item.posting_date)}
-            </Td>
-            <Td className="whitespace-nowrap text-center tabular-nums">
-                {formatTime(item.posting_time)}
-            </Td>
-            <Td className={cn(centerVoucherFields && "text-center")}>
-                <div className={cn("flex items-center gap-1.5", centerVoucherFields && "justify-center")}>
-                    {item.voucher_id ? (
-                        <button
-                            type="button"
-                            className="text-primary font-mono font-semibold underline-offset-2 hover:underline"
-                            onClick={() => onOpenVoucher(Number(item.voucher_id))}
-                        >
-                            {item.doc_no || `#${item.id}`}
-                        </button>
-                    ) : (
-                        <div className="text-primary font-mono font-semibold">{item.doc_no || `#${item.id}`}</div>
-                    )}
-                    {item.voucher_id ? <VoucherPrintButton voucherId={item.voucher_id} /> : null}
-                </div>
-            </Td>
-            <Td>
-                <LedgerText value={item.description} />
-            </Td>
-            <Td className="text-muted-foreground text-center font-mono text-xs">
-                {item.tk_no || "-"}
-            </Td>
-            <Td className="text-muted-foreground text-center font-mono text-xs">
-                {item.tk_co || "-"}
-            </Td>
-            <Td className={cn(centerVoucherFields && "text-center")}>
-                <LedgerText
-                    value={item.product_code}
-                    className={cn("font-mono", centerVoucherFields && "text-center")}
-                />
-            </Td>
-            <Td>
-                <LedgerText value={item.product_name} className="font-semibold text-foreground" />
-            </Td>
-            <Td className="text-muted-foreground text-center">
-                {item.unit || "-"}
-            </Td>
-            <Td className="text-center">
-                <LedgerText value={item.lot_code} className="min-w-0 text-center font-mono" />
-            </Td>
-            <Td className="text-center">
-                <LedgerText value={item.warehouse_code} className="text-center font-mono" />
-            </Td>
-            <Td className="text-center">
-                <LedgerText value={item.warehouse_name} className="text-center font-medium text-foreground" />
-            </Td>
-            {showValues ? (
-                <>
-                    <Td className="tabular-nums">
+    const renderLedgerDataCell = (column: LedgerColumnDefinition) => {
+        switch (column.key) {
+            case "posting_date":
+                return (
+                    <Td key={column.key} className="whitespace-nowrap text-center tabular-nums">
+                        {formatDate(item.posting_date)}
+                    </Td>
+                )
+            case "posting_time":
+                return (
+                    <Td key={column.key} className="whitespace-nowrap text-center tabular-nums">
+                        {formatTime(item.posting_time)}
+                    </Td>
+                )
+            case "doc_no":
+                return (
+                    <Td key={column.key} className={cn(centerVoucherFields && "text-center")}>
+                        <div className={cn("flex items-center gap-1.5", centerVoucherFields && "justify-center")}>
+                            {item.voucher_id ? (
+                                <button
+                                    type="button"
+                                    className="text-primary font-mono font-semibold underline-offset-2 hover:underline"
+                                    onClick={() => onOpenVoucher(Number(item.voucher_id))}
+                                >
+                                    {item.doc_no || `#${item.id}`}
+                                </button>
+                            ) : (
+                                <div className="text-primary font-mono font-semibold">{item.doc_no || `#${item.id}`}</div>
+                            )}
+                            {item.voucher_id ? <VoucherPrintButton voucherId={item.voucher_id} /> : null}
+                        </div>
+                    </Td>
+                )
+            case "description":
+                return (
+                    <Td key={column.key}>
+                        <LedgerText value={item.description} />
+                    </Td>
+                )
+            case "tk_no":
+                return (
+                    <Td key={column.key} className="overflow-visible p-1 text-center">
+                        <InlineStaticAccountCell
+                            row={item}
+                            pageIndex={pageIndex}
+                            field="tk_no"
+                            value={item.tk_no}
+                            editing={editingStaticAccount?.rowId === Number(item.id) && editingStaticAccount.field === "tk_no"}
+                            onEditingChange={(editing) => onEditingStaticAccountChange?.(editing ? { rowId: Number(item.id), field: "tk_no" } : null)}
+                            disabled={!onUpdateStaticAccount || staticAccountWorking}
+                            onSave={onUpdateStaticAccount}
+                            onCopyDown={onCopyStaticAccountDown}
+                        />
+                    </Td>
+                )
+            case "tk_co":
+                return (
+                    <Td key={column.key} className="overflow-visible p-1 text-center">
+                        <InlineStaticAccountCell
+                            row={item}
+                            pageIndex={pageIndex}
+                            field="tk_co"
+                            value={item.tk_co}
+                            editing={editingStaticAccount?.rowId === Number(item.id) && editingStaticAccount.field === "tk_co"}
+                            onEditingChange={(editing) => onEditingStaticAccountChange?.(editing ? { rowId: Number(item.id), field: "tk_co" } : null)}
+                            disabled={!onUpdateStaticAccount || staticAccountWorking}
+                            onSave={onUpdateStaticAccount}
+                            onCopyDown={onCopyStaticAccountDown}
+                        />
+                    </Td>
+                )
+            case "product_code":
+                return (
+                    <Td key={column.key} className={cn(centerVoucherFields && "text-center")}>
+                        <LedgerText
+                            value={item.product_code}
+                            className={cn("font-mono", centerVoucherFields && "text-center")}
+                        />
+                    </Td>
+                )
+            case "product_name":
+                return (
+                    <Td key={column.key}>
+                        <LedgerText value={item.product_name} className="font-semibold text-foreground" />
+                    </Td>
+                )
+            case "unit":
+                return (
+                    <Td key={column.key} className="text-muted-foreground text-center">
+                        {item.unit || "-"}
+                    </Td>
+                )
+            case "lot_code":
+                return (
+                    <Td key={column.key} className="text-center">
+                        <LedgerText value={item.lot_code} className="min-w-0 text-center font-mono" />
+                    </Td>
+                )
+            case "warehouse_code":
+                return (
+                    <Td key={column.key} className="text-center">
+                        <LedgerText value={item.warehouse_code} className="text-center font-mono" />
+                    </Td>
+                )
+            case "warehouse_name":
+                return (
+                    <Td key={column.key} className="text-center">
+                        <LedgerText value={item.warehouse_name} className="text-center font-medium text-foreground" />
+                    </Td>
+                )
+            case "unit_price":
+                return (
+                    <Td key={column.key} className="tabular-nums">
                         <div className="flex items-center justify-between gap-2">
                             <CostPeriodIcon label={item.cost_period_label} docType={item.doc_type} />
                             <span className="min-w-0 text-right">{formatNumber(rowUnitPrice)}</span>
                         </div>
                     </Td>
-                    <QuantityValueCells
-                        quantity={openingBalance}
-                        amount={openingValue}
-                        quantityClassName="font-semibold"
-                    />
-                    <QuantityValueCells
-                        quantity={quantityIn}
-                        amount={inboundValue}
-                        quantityTone="in"
-                    />
-                    <QuantityValueCells
-                        quantity={quantityOut}
-                        amount={outboundValue}
-                        quantityTone="out"
-                    />
-                    <QuantityValueCells
-                        quantity={closingBalance}
-                        amount={closingValue}
-                        quantityClassName="font-bold"
-                    />
-                </>
-            ) : (
-                <>
-                    <Td className="text-right font-semibold tabular-nums">
+                )
+            case "opening_quantity":
+                return (
+                    <Td key={column.key} className="text-right font-semibold tabular-nums">
                         {formatNumber(openingBalance)}
                     </Td>
-                    <Td className="text-right">
+                )
+            case "opening_value":
+                return (
+                    <Td key={column.key} className="text-right tabular-nums">
+                        {formatNumber(openingValue)}
+                    </Td>
+                )
+            case "inbound_quantity":
+                return (
+                    <Td key={column.key} className="text-right">
                         <Quantity value={quantityIn} tone="in" />
                     </Td>
-                    <Td className="text-right">
+                )
+            case "inbound_value":
+                return (
+                    <Td key={column.key} className={cn("text-right tabular-nums", !quantityIn && "text-muted-foreground")}>
+                        {quantityIn ? formatNumber(inboundValue) : "-"}
+                    </Td>
+                )
+            case "outbound_quantity":
+                return (
+                    <Td key={column.key} className="text-right">
                         <Quantity value={quantityOut} tone="out" />
                     </Td>
-                    <Td className="text-right font-bold tabular-nums">
+                )
+            case "outbound_value":
+                return (
+                    <Td key={column.key} className={cn("text-right tabular-nums", !quantityOut && "text-muted-foreground")}>
+                        {quantityOut ? formatNumber(outboundValue) : "-"}
+                    </Td>
+                )
+            case "closing_quantity":
+                return (
+                    <Td key={column.key} className="text-right font-bold tabular-nums">
                         {formatNumber(closingBalance)}
                     </Td>
-                </>
-            )}
-            <Td className="text-center">
-                <LedgerText value={meta.label} className="text-center" />
-            </Td>
-            <Td className="text-center">
-                <LedgerText value={item.cost_object_code} className="text-center font-mono" />
-            </Td>
-            <Td>
-                <LedgerText value={item.cost_object_name} className="font-medium text-foreground" />
-            </Td>
-            <Td>
-                <LedgerText value={item.supplier_name} />
-            </Td>
+                )
+            case "closing_value":
+                return (
+                    <Td key={column.key} className="text-right tabular-nums">
+                        {formatNumber(closingValue)}
+                    </Td>
+                )
+            case "doc_type":
+                return (
+                    <Td key={column.key} className="text-center">
+                        <LedgerText value={meta.label} className="text-center" />
+                    </Td>
+                )
+            case "cost_object_code":
+                return (
+                    <Td key={column.key} className="text-center">
+                        <LedgerText value={item.cost_object_code} className="text-center font-mono" />
+                    </Td>
+                )
+            case "cost_object_name":
+                return (
+                    <Td key={column.key}>
+                        <LedgerText value={item.cost_object_name} className="font-medium text-foreground" />
+                    </Td>
+                )
+            case "supplier_name":
+                return (
+                    <Td key={column.key}>
+                        <LedgerText value={item.supplier_name} />
+                    </Td>
+                )
+            default:
+                return null
+        }
+    }
+
+    return (
+        <tr className="hover:bg-muted/30 border-b">
+            <Td className="text-muted-foreground text-center font-mono">{formatNumber(index)}</Td>
+            {columns.map(renderLedgerDataCell)}
             <Td className="text-center">
                 <LedgerCorrectionActions
                     item={item}
@@ -1623,9 +2163,130 @@ function LedgerRow({
                     onDeleteOtherExportLine={onDeleteOtherExportLine}
                     onDeleteOtherInboundLine={onDeleteOtherInboundLine}
                     onEditStaticParameters={onEditStaticParameters}
+                    onNormalizeLegacyPostingTime={onNormalizeLegacyPostingTime}
                 />
             </Td>
         </tr>
+    )
+}
+
+function InlineStaticAccountCell({
+    row,
+    pageIndex,
+    field,
+    value,
+    editing,
+    onEditingChange,
+    disabled,
+    onSave,
+    onCopyDown,
+}: {
+    row: InventoryLedgerReportRow
+    pageIndex: number
+    field: InventoryLedgerStaticAccountField
+    value?: string | null
+    editing: boolean
+    onEditingChange: (editing: boolean) => void
+    disabled?: boolean
+    onSave?: (row: InventoryLedgerReportRow, field: InventoryLedgerStaticAccountField, value: string) => Promise<void>
+    onCopyDown?: (rowIndex: number, field: InventoryLedgerStaticAccountField, value: string) => Promise<void>
+}) {
+    const [draft, setDraft] = useState(value || "")
+    const inputRef = useRef<HTMLInputElement | null>(null)
+    const normalizedValue = normalizeStaticValue(value)
+    const normalizedDraft = normalizeStaticValue(draft)
+    const canEdit = Boolean(onSave) && !disabled
+
+    useEffect(() => {
+        if (!editing) {
+            setDraft(value || "")
+        }
+    }, [editing, value])
+
+    useEffect(() => {
+        if (editing) {
+            window.setTimeout(() => inputRef.current?.select(), 0)
+        }
+    }, [editing])
+
+    const save = async () => {
+        if (!onSave) return
+        if (normalizedDraft === normalizedValue) {
+            onEditingChange(false)
+            return
+        }
+        await onSave(row, field, normalizedDraft)
+        onEditingChange(false)
+    }
+
+    const copyDown = async () => {
+        if (!onCopyDown || !onSave) return
+        if (normalizedDraft !== normalizedValue) {
+            await onSave(row, field, normalizedDraft)
+        }
+        await onCopyDown(pageIndex, field, normalizedDraft)
+        onEditingChange(false)
+    }
+
+    if (!editing) {
+        return (
+            <button
+                type="button"
+                className={cn(
+                    "inline-flex min-h-7 min-w-14 items-center justify-center rounded px-2 font-mono text-xs",
+                    canEdit ? "text-foreground hover:bg-muted hover:text-primary" : "text-muted-foreground cursor-default",
+                )}
+                onDoubleClick={() => {
+                    if (canEdit) onEditingChange(true)
+                }}
+                title={canEdit ? "Double click để sửa tài khoản" : undefined}
+            >
+                {value || "-"}
+            </button>
+        )
+    }
+
+    return (
+        <div className="flex min-w-[172px] items-center justify-center gap-1">
+            <Input
+                ref={inputRef}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                        event.preventDefault()
+                        void save()
+                    }
+                    if (event.key === "Escape") {
+                        event.preventDefault()
+                        setDraft(value || "")
+                        onEditingChange(false)
+                    }
+                }}
+                className="h-7 w-20 px-2 text-center font-mono text-xs"
+                disabled={disabled}
+            />
+            <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => void save()} disabled={disabled} title="Lưu">
+                <Check className="h-3.5 w-3.5" />
+            </Button>
+            <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => void copyDown()} disabled={disabled || !onCopyDown} title="Sao chép xuống các dòng dưới trong page">
+                <Copy className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={() => {
+                    setDraft(value || "")
+                    onEditingChange(false)
+                }}
+                disabled={disabled}
+                title="Hủy"
+            >
+                <X className="h-3.5 w-3.5" />
+            </Button>
+        </div>
     )
 }
 
@@ -1647,6 +2308,7 @@ function LedgerCorrectionActions({
     onDeleteOtherExportLine,
     onDeleteOtherInboundLine,
     onEditStaticParameters,
+    onNormalizeLegacyPostingTime,
 }: {
     item: InventoryLedgerReportRow
     onOpenVoucher?: () => void
@@ -1657,6 +2319,7 @@ function LedgerCorrectionActions({
     onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
     onEditStaticParameters?: (row: InventoryLedgerReportRow) => void
+    onNormalizeLegacyPostingTime?: (row: InventoryLedgerReportRow) => void
 }) {
     const canOpenVoucher = Boolean(onOpenVoucher)
     const canEditStaticParameters = Boolean(onEditStaticParameters)
@@ -1666,9 +2329,10 @@ function LedgerCorrectionActions({
     const canChangePurchaseProduct = Boolean(onChangePurchaseProduct && isPurchaseProductCorrectionLedger(item))
     const canDeleteOtherExportLine = Boolean(onDeleteOtherExportLine && isOtherExportLineDeleteLedger(item))
     const canDeleteOtherInboundLine = Boolean(onDeleteOtherInboundLine && isOtherInboundLineDeleteLedger(item))
+    const canNormalizeLegacyPostingTime = Boolean(onNormalizeLegacyPostingTime && item.lot_id && item.posting_date)
     const hasQuickActions = canEditStaticParameters || canChangeLot || canChangeSalesExportLot || canChangePurchaseQuantity
         || canChangePurchaseProduct || canDeleteOtherExportLine
-        || canDeleteOtherInboundLine
+        || canDeleteOtherInboundLine || canNormalizeLegacyPostingTime
 
     if (!canOpenVoucher && !hasQuickActions) {
         return <span className="text-muted-foreground">-</span>
@@ -1793,6 +2457,19 @@ function LedgerCorrectionActions({
                                 <NewBadge />
                             </span>
                             <span className="block text-xs text-destructive/80">Nếu là dòng cuối, hệ thống sẽ xóa luôn phiếu.</span>
+                        </span>
+                    </button>
+                ) : null}
+                {canNormalizeLegacyPostingTime ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                        onClick={() => onNormalizeLegacyPostingTime?.(item)}
+                    >
+                        <Clock className="mt-0.5 h-4 w-4 text-primary" />
+                        <span>
+                            <span className="block font-medium">Chuẩn hóa giờ dữ liệu cũ</span>
+                            <span className="block text-xs text-muted-foreground">Chỉ xử lý các dòng cùng ngày/cùng lô đang thiếu giờ hoặc 00:00:00.</span>
                         </span>
                     </button>
                 ) : null}
@@ -3954,12 +4631,18 @@ function SalesExportWarehouseChangeDialog({
     onChanged: () => void
 }) {
     const [newWarehouseId, setNewWarehouseId] = useState<number | undefined>()
+    const [lotSelectionMode, setLotSelectionMode] = useState<"AUTO" | "SINGLE" | "CUSTOM">("AUTO")
+    const [selectedLotNo, setSelectedLotNo] = useState<string | undefined>()
+    const [lotQuantities, setLotQuantities] = useState<Record<string, string>>({})
     const [result, setResult] = useState<SalesExportWarehouseChangeResult | null>(null)
     const [errorMessage, setErrorMessage] = useState("")
 
     useEffect(() => {
         if (open && row) {
             setNewWarehouseId(undefined)
+            setLotSelectionMode("AUTO")
+            setSelectedLotNo(undefined)
+            setLotQuantities({})
             setResult(null)
             setErrorMessage("")
         }
@@ -3968,8 +4651,64 @@ function SalesExportWarehouseChangeDialog({
     const unchanged = Boolean(newWarehouseId && row?.warehouse_id && Number(newWarehouseId) === Number(row.warehouse_id))
     const missingWarehouse = !newWarehouseId
     const busy = false
+    const lotsQuery = useQuery({
+        queryKey: ["sales-export-warehouse-change-lots", row?.id, newWarehouseId],
+        enabled: Boolean(open && row?.id && newWarehouseId && !unchanged),
+        queryFn: () => listSalesExportWarehouseChangeLots(Number(row?.id), Number(newWarehouseId)),
+        staleTime: 10_000,
+    })
+    const contextQuery = useQuery({
+        queryKey: ["sales-export-warehouse-change-context", row?.id, newWarehouseId],
+        enabled: Boolean(open && row?.id && newWarehouseId && !unchanged),
+        queryFn: () => checkSalesExportWarehouseChange(Number(row?.id), Number(newWarehouseId), "AUTO"),
+        staleTime: 10_000,
+    })
+    const availableLots = Array.isArray(lotsQuery.data) ? lotsQuery.data : []
+    const lotSelectValue = lotSelectionMode === "SINGLE" ? (selectedLotNo || "AUTO") : lotSelectionMode
+    const selectedAllocations = buildSalesExportWarehouseLotAllocations(availableLots, lotQuantities)
+    const requiredQuantity = Number(result?.quantity ?? contextQuery.data?.quantity ?? row?.quantity_out ?? 0)
+    const ledgerLineQuantity = Number(row?.quantity_out || 0)
+    const allocatedQuantity = selectedAllocations.reduce((sum, allocation) => sum + Number(allocation.quantity || 0), 0)
+    const allocationDiff = requiredQuantity - allocatedQuantity
+    useEffect(() => {
+        if (lotSelectionMode !== "SINGLE" || !selectedLotNo || requiredQuantity <= 0) return
+        const selectedLot = availableLots.find((lot) => (lot.lot_no || lot.lot_code) === selectedLotNo)
+        const safeQuantity = Number(selectedLot?.history_safe_quantity ?? selectedLot?.available_quantity ?? 0)
+        if (!selectedLot || safeQuantity < requiredQuantity) {
+            setLotSelectionMode("AUTO")
+            setSelectedLotNo(undefined)
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [availableLots, lotSelectionMode, requiredQuantity, selectedLotNo])
+    const allocationHasInvalidLot = availableLots.some((lot) => {
+        const quantity = Number(lotQuantities[salesExportWarehouseLotKey(lot)] || 0)
+        const safeQuantity = Number(lot.history_safe_quantity ?? lot.available_quantity ?? 0)
+        return quantity > safeQuantity
+    })
+    const allocationValid = lotSelectionMode === "AUTO"
+        || (lotSelectionMode === "SINGLE" && Boolean(selectedLotNo))
+        || (selectedAllocations.length > 0 && sameDecimal(allocatedQuantity, requiredQuantity) && !allocationHasInvalidLot)
+    const updateLotQuantity = (lot: SalesExportWarehouseAvailableLot, value: string) => {
+        const key = salesExportWarehouseLotKey(lot)
+        if (!key) return
+        setLotQuantities((current) => ({ ...current, [key]: value }))
+        setResult(null)
+        setErrorMessage("")
+    }
+    const autoAllocateLots = () => {
+        setLotQuantities(autoAllocateSalesExportWarehouseLots(availableLots, requiredQuantity))
+        setResult(null)
+        setErrorMessage("")
+    }
     const checkMutation = useMutation({
-        mutationFn: () => checkSalesExportWarehouseChange(Number(row?.id), Number(newWarehouseId)),
+        mutationFn: () => checkSalesExportWarehouseChange(
+            Number(row?.id),
+            Number(newWarehouseId),
+            lotSelectionMode,
+            lotSelectionMode === "SINGLE" ? selectedLotNo : undefined,
+            lotSelectionMode === "CUSTOM" ? selectedAllocations : undefined
+        ),
         onSuccess: (data) => {
             setResult(data)
             setErrorMessage("")
@@ -3980,7 +4719,13 @@ function SalesExportWarehouseChangeDialog({
         },
     })
     const applyMutation = useMutation({
-        mutationFn: () => applySalesExportWarehouseChange(Number(row?.id), Number(newWarehouseId)),
+        mutationFn: () => applySalesExportWarehouseChange(
+            Number(row?.id),
+            Number(newWarehouseId),
+            lotSelectionMode,
+            lotSelectionMode === "SINGLE" ? selectedLotNo : undefined,
+            lotSelectionMode === "CUSTOM" ? selectedAllocations : undefined
+        ),
         onSuccess: (data) => {
             setResult(data)
             setErrorMessage("")
@@ -3988,11 +4733,13 @@ function SalesExportWarehouseChangeDialog({
             toast.success("Đã đổi kho xuất bán")
         },
         onError: (error: any) => {
+            setResult(null)
             setErrorMessage(error?.message || "Không đổi được kho xuất bán.")
         },
     })
-    const pending = busy || checkMutation.isPending || applyMutation.isPending
-    const canApply = Boolean(result?.valid && !result.applied && !missingWarehouse && !unchanged && !pending)
+    const pending = busy || checkMutation.isPending || applyMutation.isPending || lotsQuery.isLoading || contextQuery.isLoading
+    const canCheck = Boolean(!pending && !missingWarehouse && !unchanged && allocationValid)
+    const canApply = Boolean(result?.valid && !result.applied && !missingWarehouse && !unchanged && allocationValid && !pending)
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -4014,7 +4761,10 @@ function SalesExportWarehouseChangeDialog({
                             <InfoItem label="Ngày chứng từ" value={`${formatDate(row.posting_date)} ${formatTime(row.posting_time)}`} />
                             <InfoItem label="Kho hiện tại" value={row.warehouse_name} />
                             <InfoItem label="Hàng hóa" value={`${row.product_code} - ${row.product_name}`} />
-                            <InfoItem label="Số lượng xuất" value={formatNumber(Number(row.quantity_out || 0))} />
+                            {!sameDecimal(requiredQuantity, ledgerLineQuantity) ? (
+                                <InfoItem label="SL dòng sổ kho" value={formatNumber(ledgerLineQuantity)} />
+                            ) : null}
+                            <InfoItem label="Số lượng xuất" value={formatNumber(requiredQuantity)} />
                             <InfoItem label="Lô hiện tại" value={row.lot_code || "-"} />
                         </div>
 
@@ -4024,6 +4774,9 @@ function SalesExportWarehouseChangeDialog({
                                 value={newWarehouseId}
                                 onChange={(value: number | string | undefined) => {
                                     setNewWarehouseId(value ? Number(value) : undefined)
+                                    setLotSelectionMode("AUTO")
+                                    setSelectedLotNo(undefined)
+                                    setLotQuantities({})
                                     setResult(null)
                                     setErrorMessage("")
                                 }}
@@ -4042,6 +4795,151 @@ function SalesExportWarehouseChangeDialog({
                             {unchanged ? (
                                 <div className="text-sm text-destructive">Kho xuất mới phải khác kho hiện tại.</div>
                             ) : null}
+                        </div>
+
+                        <div className="space-y-3 rounded-md border p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <div className="text-sm font-medium">Lô xuất ở kho mới</div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Tùy chọn sẽ được kiểm tra tồn tại thời điểm xuất và âm tồn lịch sử trước khi áp dụng.
+                                    </div>
+                                </div>
+                                <Select
+                                    value={lotSelectValue}
+                                    disabled={!newWarehouseId || unchanged || pending}
+                                    onValueChange={(value) => {
+                                        if (value === "CUSTOM") {
+                                            setLotSelectionMode("CUSTOM")
+                                            setSelectedLotNo(undefined)
+                                        } else if (value === "AUTO") {
+                                            setLotSelectionMode("AUTO")
+                                            setSelectedLotNo(undefined)
+                                        } else {
+                                            setLotSelectionMode("SINGLE")
+                                            setSelectedLotNo(value)
+                                            setLotQuantities({})
+                                        }
+                                        setResult(null)
+                                        setErrorMessage("")
+                                    }}
+                                >
+                                    <SelectTrigger className="h-9 w-[180px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="AUTO">
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <WarehouseIcon className="h-3.5 w-3.5" />
+                                                Auto FIFO
+                                            </span>
+                                        </SelectItem>
+                                        <SelectItem value="CUSTOM">
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <Pencil className="h-3.5 w-3.5" />
+                                                Tùy chọn
+                                            </span>
+                                        </SelectItem>
+                                        {(lotsQuery.isLoading || lotsQuery.isFetching) && <SelectItem value="LOADING" disabled>Đang tải lô...</SelectItem>}
+                                        {availableLots.map((lot, index) => {
+                                            const lotNo = lot.lot_no || lot.lot_code || ""
+                                            if (!lotNo) return null
+                                            const safeQuantity = Number(lot.history_safe_quantity ?? lot.available_quantity ?? 0)
+                                            const enoughForSingleLot = safeQuantity >= requiredQuantity
+                                            return (
+                                                <SelectItem
+                                                    key={`${lot.id ?? lot.lot_id ?? index}-${lotNo}`}
+                                                    value={lotNo}
+                                                    textValue={lotNo}
+                                                    disabled={!enoughForSingleLot}
+                                                >
+                                                    {lotNo} - {enoughForSingleLot
+                                                        ? `an toàn ${formatNumber(safeQuantity)}`
+                                                        : `không đủ, an toàn ${formatNumber(safeQuantity)}/${formatNumber(requiredQuantity)}`}
+                                                </SelectItem>
+                                            )
+                                        })}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {lotSelectionMode === "CUSTOM" ? (
+                                <div className="space-y-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/30 px-3 py-2 text-sm">
+                                        <span>Cần xuất <b className="tabular-nums">{formatNumber(requiredQuantity)}</b></span>
+                                        <span>Đã phân bổ <b className={sameDecimal(allocatedQuantity, requiredQuantity) ? "text-emerald-700 tabular-nums" : "text-red-700 tabular-nums"}>{formatNumber(allocatedQuantity)}</b></span>
+                                        <span className={sameDecimal(allocationDiff, 0) ? "text-muted-foreground" : "font-medium text-red-700"}>
+                                            Chênh {formatNumber(allocationDiff)}
+                                        </span>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={lotsQuery.isLoading || !availableLots.length}
+                                            onClick={autoAllocateLots}
+                                        >
+                                            Tự phân bổ
+                                        </Button>
+                                    </div>
+
+                                    <div className="max-h-72 overflow-auto rounded-md border">
+                                        <table className="w-full text-sm">
+                                            <thead className="sticky top-0 bg-muted/60 text-xs text-muted-foreground">
+                                                <tr>
+                                                    <Th>Số lô</Th>
+                                                    <Th className="w-36 text-right">Tồn thời điểm</Th>
+                                                    <Th className="w-36 text-right">SL an toàn</Th>
+                                                    <Th className="w-40 text-right">Số lượng xuất</Th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {lotsQuery.isLoading ? (
+                                                    <tr>
+                                                        <Td colSpan={4} className="py-6 text-center text-muted-foreground">Đang tải lô...</Td>
+                                                    </tr>
+                                                ) : availableLots.length ? (
+                                                    availableLots.map((lot, index) => {
+                                                        const key = salesExportWarehouseLotKey(lot)
+                                                        const safeQuantity = Number(lot.history_safe_quantity ?? lot.available_quantity ?? 0)
+                                                        const quantity = Number(lotQuantities[key] || 0)
+                                                        const invalid = quantity > safeQuantity
+                                                        return (
+                                                            <tr key={key || index} className="border-t">
+                                                                <Td className="font-mono">{lot.lot_no || lot.lot_code || "-"}</Td>
+                                                                <Td className="text-right tabular-nums">{formatNumber(Number(lot.available_quantity || 0))}</Td>
+                                                                <Td className="text-right tabular-nums">{formatNumber(safeQuantity)}</Td>
+                                                                <Td>
+                                                                    <Input
+                                                                        type="text"
+                                                                        inputMode="decimal"
+                                                                        className={cn("ml-auto h-8 w-32 text-right tabular-nums", invalid && "border-red-400")}
+                                                                        value={lotQuantities[key] ?? ""}
+                                                                        onChange={(event) => {
+                                                                            const value = event.target.value
+                                                                            if (/^\d*(\.\d*)?$/.test(value)) updateLotQuantity(lot, value)
+                                                                        }}
+                                                                    />
+                                                                    {invalid ? <div className="mt-1 text-right text-xs text-red-600">Vượt SL an toàn</div> : null}
+                                                                </Td>
+                                                            </tr>
+                                                        )
+                                                    })
+                                                ) : (
+                                                    <tr>
+                                                        <Td colSpan={4} className="py-6 text-center text-muted-foreground">Không có lô khả dụng ở kho mới.</Td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="rounded-md bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                                    {lotSelectionMode === "SINGLE" && selectedLotNo
+                                        ? `Hệ thống sẽ xuất toàn bộ theo lô ${selectedLotNo} và kiểm tra tồn/âm tồn lịch sử trước khi áp dụng.`
+                                        : "Hệ thống sẽ tự phân bổ FIFO tại kho mới và bỏ qua lô có nguy cơ làm âm tồn lịch sử."}
+                                </div>
+                            )}
                         </div>
 
                         {errorMessage ? (
@@ -4065,7 +4963,7 @@ function SalesExportWarehouseChangeDialog({
                     <Button
                         type="button"
                         variant="outline"
-                        disabled={pending || missingWarehouse || unchanged}
+                        disabled={!canCheck}
                         onClick={() => checkMutation.mutate()}
                     >
                         {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -4092,6 +4990,8 @@ function SalesExportWarehouseChangeResultPanel({ result }: { result: SalesExport
     const changes = result.changes || {}
     const affectedPeriods = result.affected_period_ids || []
     const plan = result.fifo_plan || []
+    const customMode = result.lot_selection_mode === "CUSTOM"
+    const singleMode = result.lot_selection_mode === "SINGLE"
 
     return (
         <div className={cn(
@@ -4109,7 +5009,7 @@ function SalesExportWarehouseChangeResultPanel({ result }: { result: SalesExport
                 <ResultInfo label="Kho mới" value={result.new_warehouse_name} />
                 <ResultInfo label="Số lượng xuất" value={formatNumber(Number(result.quantity || 0))} />
                 <ResultInfo label="Dòng sổ kho cũ" value={formatNumber(Number(counts.old_ledger_rows || 0))} />
-                <ResultInfo label="Số lô FIFO mới" value={formatNumber(Number(counts.new_fifo_lots || plan.length || 0))} />
+                <ResultInfo label={customMode ? "Số lô tùy chọn" : singleMode ? "Số lô đã chọn" : "Số lô FIFO mới"} value={formatNumber(Number(counts.new_fifo_lots || plan.length || 0))} />
                 <ResultInfo label="Giao dịch bán hàng" value={formatNumber(Number(counts.sales_transactions || changes.updated_sales_transactions || 0))} />
                 <ResultInfo label="Kỳ costing cần tính lại" value={formatNumber(applied ? Number(changes.stale_cost_periods || 0) : affectedPeriods.length)} />
                 {applied ? <ResultInfo label="Ledger cập nhật/tạo/xóa" value={`${formatNumber(Number(changes.reused_ledger_rows || 0))}/${formatNumber(Number(changes.inserted_ledger_rows || 0))}/${formatNumber(Number(changes.deleted_ledger_rows || 0))}`} /> : null}
@@ -4119,7 +5019,7 @@ function SalesExportWarehouseChangeResultPanel({ result }: { result: SalesExport
 
             {plan.length ? (
                 <div className="mt-3 rounded-md border bg-white/80">
-                    <div className="border-b px-3 py-2 font-semibold">FIFO theo kho mới</div>
+                    <div className="border-b px-3 py-2 font-semibold">{customMode ? "Phân bổ lô tùy chọn" : singleMode ? "Lô đã chọn" : "FIFO theo kho mới"}</div>
                     <div className="max-h-56 overflow-auto">
                         <table className="w-full text-sm">
                             <thead className="bg-muted/40 text-xs text-muted-foreground">
@@ -4890,6 +5790,234 @@ function DocumentPostingTimeChangeDialog({
     )
 }
 
+function LegacyPostingTimeNormalizationDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [result, setResult] = useState<LegacyPostingTimeNormalizationResult | null>(null)
+    const [postingTimes, setPostingTimes] = useState<Record<number, string>>({})
+    const [dirtyAfterCheck, setDirtyAfterCheck] = useState(false)
+    const [errorText, setErrorText] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (open) {
+            setResult(null)
+            setPostingTimes({})
+            setDirtyAfterCheck(false)
+            setErrorText(null)
+        }
+    }, [open, row?.id])
+
+    const buildPayload = () => {
+        const rows = result?.rows || []
+        if (!rows.length) return undefined
+        return {
+            rows: rows.map((item) => ({
+                ledgerId: Number(item.ledger_id),
+                postingTime: normalizeTimeForApi(postingTimes[Number(item.ledger_id)] || item.new_posting_time || ""),
+            })),
+        }
+    }
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkLegacyPostingTimeNormalization(Number(row?.id), buildPayload()),
+        onSuccess: (data) => {
+            setResult(data)
+            setPostingTimes(Object.fromEntries((data.rows || []).map((item) => [
+                Number(item.ledger_id),
+                toTimeInputValue(item.new_posting_time),
+            ])))
+            setDirtyAfterCheck(false)
+            setErrorText(null)
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorText(error?.message || "Không kiểm tra được dữ liệu cần chuẩn hóa giờ")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applyLegacyPostingTimeNormalization(Number(row?.id), buildPayload()),
+        onSuccess: (data) => {
+            setResult(data)
+            setPostingTimes(Object.fromEntries((data.rows || []).map((item) => [
+                Number(item.ledger_id),
+                toTimeInputValue(item.new_posting_time),
+            ])))
+            setDirtyAfterCheck(false)
+            setErrorText(null)
+            if (data?.valid) {
+                onChanged()
+                toast.success("Đã chuẩn hóa giờ dữ liệu cũ")
+            }
+        },
+        onError: (error: any) => {
+            setErrorText(error?.message || "Không chuẩn hóa được giờ dữ liệu cũ")
+        },
+    })
+
+    if (!row) return null
+
+    const working = checkMutation.isPending || applyMutation.isPending
+    const applied = Boolean(result?.applied)
+    const valid = Boolean(result?.valid)
+    const canApply = valid && !dirtyAfterCheck
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-h-[calc(100vh-32px)] !w-[min(1180px,calc(100vw-32px))] !max-w-[calc(100vw-32px)] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Chuẩn hóa giờ dữ liệu cũ</DialogTitle>
+                    <DialogDescription>
+                        Chỉ lấy các dòng sổ kho cùng ngày/cùng lô với dòng đang chọn, có giờ trống hoặc 00:00:00. Hệ thống gán nhập trước, xuất sau và kiểm tra âm tồn trước khi cập nhật.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                    <div className="grid gap-3 rounded-md border bg-muted/20 p-3 md:grid-cols-4">
+                        <InfoItem label="Chứng từ chọn" value={row.doc_no || `#${row.id}`} />
+                        <InfoItem label="Ngày" value={formatDate(row.posting_date)} />
+                        <InfoItem label="Giờ hiện tại" value={row.posting_time ? formatTime(row.posting_time) : "Chưa có giờ"} />
+                        <InfoItem label="Số lô" value={row.lot_code || "-"} />
+                        <InfoItem label="Mã hàng" value={row.product_code || "-"} />
+                        <InfoItem label="Tên hàng" value={row.product_name || "-"} />
+                        <InfoItem label="Kho" value={row.warehouse_name || row.warehouse_code || "-"} />
+                        <InfoItem label="Quy tắc" value="Cùng ngày, cùng lot_id" />
+                    </div>
+
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                        Tool này chỉ sửa `posting_time` trên sổ kho. Nếu cập nhật lỗi hoặc sau cập nhật còn âm tồn lịch sử, toàn bộ thay đổi sẽ rollback trong cùng giao dịch.
+                    </div>
+
+                    {errorText ? (
+                        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            {errorText}
+                        </div>
+                    ) : null}
+
+                    {result ? (
+                        <div className={cn(
+                            "rounded-md border p-3 text-sm",
+                            valid ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800",
+                        )}>
+                            <div className="flex items-start gap-2 font-semibold">
+                                {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
+                                <span>{applied ? "Đã chuẩn hóa giờ dữ liệu cũ" : valid ? "Có thể chuẩn hóa giờ dữ liệu cũ" : "Không thể chuẩn hóa giờ dữ liệu cũ"}</span>
+                            </div>
+                            <div className="mt-1 pl-6">{result.message}</div>
+                            <div className="mt-3 grid gap-2 md:grid-cols-4">
+                                <ResultInfo label="Ngày xử lý" value={formatDate(result.posting_date)} />
+                                <ResultInfo label="Số lô" value={result.lot_code || "-"} />
+                                <ResultInfo label="Dòng cần chuẩn hóa" value={formatNumber(Number(result.candidate_count || 0))} />
+                                <ResultInfo label="Dòng đã cập nhật" value={formatNumber(Number(result.changed_count || 0))} />
+                                <ResultInfo label="Kỳ costing ảnh hưởng" value={formatNumber(Number(result.affected_cost_period_count || 0))} />
+                                {applied ? <ResultInfo label="Kỳ đã đánh dấu tính lại" value={formatNumber(Number(result.changes?.stale_cost_periods || 0))} /> : null}
+                            </div>
+                            <WarningList errors={result.errors} warnings={result.warnings} />
+                            {result.negative_items?.length ? (
+                                <div className="mt-3 rounded-md bg-white/70 p-2">
+                                    <div className="font-semibold">Âm tồn còn lại</div>
+                                    {result.negative_items.slice(0, 5).map((item, index) => (
+                                        <div key={index} className="mt-1 text-xs">
+                                            {formatDate(item.posting_date)} {formatTime(item.posting_time)} - {item.doc_no || "-"} - tồn sau {formatNumber(Number(item.balance || 0))}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : (
+                        <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                            Bấm Kiểm tra để xem các dòng cùng ngày/cùng lô sẽ được gán giờ mới. Sau đó có thể chỉnh lại giờ từng dòng theo thứ tự thực tế rồi kiểm tra lại.
+                        </div>
+                    )}
+
+                    {result?.rows?.length ? (
+                        <div className="overflow-hidden rounded-md border">
+                            <div className="border-b bg-muted/40 px-3 py-2 text-sm font-semibold">Dòng sẽ chuẩn hóa</div>
+                            <div className="max-h-80 overflow-auto">
+                                <table className="w-full min-w-[900px] text-sm">
+                                    <thead className="bg-muted/30 text-muted-foreground">
+                                        <tr>
+                                            <th className="px-3 py-2 text-left">ID</th>
+                                            <th className="px-3 py-2 text-left">Chứng từ</th>
+                                            <th className="px-3 py-2 text-left">Loại</th>
+                                            <th className="px-3 py-2 text-left">Mã hàng</th>
+                                            <th className="px-3 py-2 text-left">Kho</th>
+                                            <th className="px-3 py-2 text-left">SL</th>
+                                            <th className="px-3 py-2 text-left">Giờ cũ</th>
+                                            <th className="px-3 py-2 text-left">Giờ mới</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y">
+                                        {result.rows.map((item) => (
+                                            <tr key={item.ledger_id}>
+                                                <td className="px-3 py-2 tabular-nums">{item.ledger_id}</td>
+                                                <td className="px-3 py-2">{item.doc_no || "-"}</td>
+                                                <td className="px-3 py-2">{item.doc_type || "-"}</td>
+                                                <td className="px-3 py-2 font-mono">{item.product_code || "-"}</td>
+                                                <td className="px-3 py-2">{item.warehouse_code || "-"}</td>
+                                                <td className="px-3 py-2 text-right tabular-nums">{formatNumber(Number(item.quantity || 0))}</td>
+                                                <td className="px-3 py-2">{item.old_posting_time ? formatTime(item.old_posting_time) : "-"}</td>
+                                                <td className="px-3 py-2">
+                                                    <Input
+                                                        type="time"
+                                                        step="1"
+                                                        className="h-8 min-w-[130px] font-semibold tabular-nums"
+                                                        value={postingTimes[Number(item.ledger_id)] || toTimeInputValue(item.new_posting_time)}
+                                                        disabled={working || applied}
+                                                        onChange={(event) => {
+                                                            setPostingTimes((current) => ({
+                                                                ...current,
+                                                                [Number(item.ledger_id)]: event.target.value,
+                                                            }))
+                                                            setDirtyAfterCheck(true)
+                                                        }}
+                                                    />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {dirtyAfterCheck ? (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                            Giờ mới đã được chỉnh. Bấm Kiểm tra lại để hệ thống giả lập âm tồn theo giờ vừa nhập trước khi cập nhật.
+                        </div>
+                    ) : null}
+
+                    <div className="flex justify-end gap-2 border-t pt-3">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={working}>
+                            Đóng
+                        </Button>
+                        <Button type="button" variant="outline" disabled={working || applied} onClick={() => checkMutation.mutate()}>
+                            {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Kiểm tra
+                        </Button>
+                        <Button
+                            type="button"
+                            disabled={working || applied || !canApply}
+                            onClick={() => applyMutation.mutate()}
+                        >
+                            {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Cập nhật giờ
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 function PurchasePostingDateTimeChangeResultPanel({
     result,
     timeOnly = false,
@@ -4988,6 +6116,20 @@ function ResultInfo({ label, value }: { label: string; value?: React.ReactNode }
     )
 }
 
+function WarningList({ errors, warnings }: { errors?: string[]; warnings?: string[] }) {
+    if (!errors?.length && !warnings?.length) return null
+    return (
+        <div className="mt-3 space-y-1 rounded-md bg-white/70 p-2">
+            {errors?.map((error, index) => (
+                <div key={`error-${index}`}>- {error}</div>
+            ))}
+            {warnings?.map((warning, index) => (
+                <div key={`warning-${index}`}>- {warning}</div>
+            ))}
+        </div>
+    )
+}
+
 function VoucherDetailDialog({
     voucherId,
     refreshKey,
@@ -5011,6 +6153,7 @@ function VoucherDetailDialog({
     onChangeSalesReturnUnitPrice,
     onDeleteOtherExportLine,
     onDeleteOtherInboundLine,
+    onNormalizeLegacyPostingTime,
 }: {
     voucherId: number | null
     refreshKey?: number
@@ -5034,6 +6177,7 @@ function VoucherDetailDialog({
     onChangeSalesReturnUnitPrice?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
+    onNormalizeLegacyPostingTime?: (row: InventoryLedgerReportRow) => void
 }) {
     const { data: voucher, isLoading } = useQuery({
         queryKey: ["inventory-voucher-detail", voucherId, refreshKey],
@@ -5162,9 +6306,10 @@ function VoucherDetailDialog({
                                                                     onChangePurchaseProduct={canUseScopedCorrections ? onChangePurchaseProduct : undefined}
                                                                     onChangeSalesReturnProduct={canUseFullCorrections ? onChangeSalesReturnProduct : undefined}
                                                                     onChangeSalesReturnUnitPrice={canUsePriceCorrections ? onChangeSalesReturnUnitPrice : undefined}
-                                                                    onDeleteOtherExportLine={canUseScopedCorrections ? onDeleteOtherExportLine : undefined}
-                                                                    onDeleteOtherInboundLine={canUseScopedCorrections ? onDeleteOtherInboundLine : undefined}
-                                                                />
+                                                                     onDeleteOtherExportLine={canUseScopedCorrections ? onDeleteOtherExportLine : undefined}
+                                                                     onDeleteOtherInboundLine={canUseScopedCorrections ? onDeleteOtherInboundLine : undefined}
+                                                                     onNormalizeLegacyPostingTime={canUseFullCorrections ? onNormalizeLegacyPostingTime : undefined}
+                                                                 />
                                                             ) : (
                                                                 <span className="text-muted-foreground">-</span>
                                                             )}
@@ -5278,6 +6423,7 @@ function ScopedVoucherCorrectionActions({
     onChangeSalesReturnUnitPrice,
     onDeleteOtherExportLine,
     onDeleteOtherInboundLine,
+    onNormalizeLegacyPostingTime,
 }: {
     row: InventoryLedgerReportRow
     onChangeLot?: (row: InventoryLedgerReportRow) => void
@@ -5293,6 +6439,7 @@ function ScopedVoucherCorrectionActions({
     onChangeSalesReturnUnitPrice?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
+    onNormalizeLegacyPostingTime?: (row: InventoryLedgerReportRow) => void
 }) {
     const actions: Array<{ label: string; icon: React.ReactNode; onClick: () => void; isNew?: boolean; destructive?: boolean }> = []
     const docType = String(row.doc_type || "").toUpperCase()
@@ -5334,6 +6481,9 @@ function ScopedVoucherCorrectionActions({
     }
     if (isOtherInboundLineDeleteLedger(row) && onDeleteOtherInboundLine) {
         actions.push({ label: "Xóa dòng nhập kho khác", icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => onDeleteOtherInboundLine(row), isNew: true, destructive: true })
+    }
+    if (row.lot_id && row.posting_date && onNormalizeLegacyPostingTime) {
+        actions.push({ label: "Chuẩn hóa giờ dữ liệu cũ", icon: <Clock className="h-3.5 w-3.5" />, onClick: () => onNormalizeLegacyPostingTime(row), isNew: true })
     }
 
     if (!actions.length) {
@@ -5619,30 +6769,6 @@ function Quantity({ value, tone }: { value: number; tone: "in" | "out" }) {
     )
 }
 
-function QuantityValueCells({
-    quantity,
-    amount,
-    quantityTone,
-    quantityClassName,
-}: {
-    quantity: number
-    amount: number
-    quantityTone?: "in" | "out"
-    quantityClassName?: string
-}) {
-    const hasQuantity = Number(quantity || 0) !== 0
-    return (
-        <>
-            <Td className={cn("text-right tabular-nums", quantityClassName)}>
-                {quantityTone ? <Quantity value={quantity} tone={quantityTone} /> : formatNumber(quantity)}
-            </Td>
-            <Td className={cn("text-right tabular-nums", !hasQuantity && "text-muted-foreground")}>
-                {hasQuantity ? formatNumber(amount) : "-"}
-            </Td>
-        </>
-    )
-}
-
 function Th({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
     return <th className={cn("border-r bg-slate-100 px-2 py-1 text-center font-semibold leading-tight last:border-r-0", className)} {...props} />
 }
@@ -5653,6 +6779,83 @@ function Td({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement
 
 function hasPermission(permissions: any[], module: string, action: string) {
     return permissions.some((permission) => permission.module === module && permission.action === action)
+}
+
+function salesExportWarehouseLotKey(lot: SalesExportWarehouseAvailableLot) {
+    const id = lot?.lot_id ?? lot?.id
+    const lotNo = lot?.lot_no ?? lot?.lot_code
+    return id != null ? `id:${id}` : `code:${lotNo || ""}`
+}
+
+function buildSalesExportWarehouseLotAllocations(
+    lots: SalesExportWarehouseAvailableLot[],
+    quantities: Record<string, string>
+): SalesExportWarehouseLotAllocation[] {
+    return lots
+        .map((lot) => ({
+            lot_id: lot.lot_id ?? lot.id,
+            lot_code: lot.lot_no ?? lot.lot_code,
+            quantity: Number(quantities[salesExportWarehouseLotKey(lot)] || 0),
+        }))
+        .filter((allocation) => allocation.quantity > 0)
+}
+
+function autoAllocateSalesExportWarehouseLots(
+    lots: SalesExportWarehouseAvailableLot[],
+    requiredQuantity: number
+) {
+    let remainingUnits = toThousandUnits(requiredQuantity)
+    const next: Record<string, string> = {}
+    const candidates = lots
+        .map((lot) => ({
+            key: salesExportWarehouseLotKey(lot),
+            availableUnits: Math.max(toThousandUnits(Number(lot.history_safe_quantity ?? lot.available_quantity ?? 0)), 0),
+            quantityUnits: 0,
+        }))
+        .filter((row) => row.key && row.availableUnits > 0)
+
+    let active = candidates
+    while (remainingUnits > 0 && active.length > 0) {
+        const shareUnits = Math.floor(remainingUnits / active.length)
+        let extraUnits = remainingUnits % active.length
+        const nextActive: typeof candidates = []
+        let usedUnits = 0
+        for (const row of active) {
+            const roomUnits = row.availableUnits - row.quantityUnits
+            const desiredUnits = shareUnits + (extraUnits > 0 ? 1 : 0)
+            if (extraUnits > 0) extraUnits -= 1
+            const takeUnits = Math.min(roomUnits, desiredUnits)
+            if (takeUnits > 0) {
+                row.quantityUnits += takeUnits
+                usedUnits += takeUnits
+            }
+            if (row.availableUnits - row.quantityUnits > 0) nextActive.push(row)
+        }
+        if (usedUnits <= 0) break
+        remainingUnits -= usedUnits
+        active = nextActive
+    }
+
+    for (const row of candidates) {
+        if (row.quantityUnits > 0) next[row.key] = formatThousandUnits(row.quantityUnits)
+    }
+    return next
+}
+
+function sameDecimal(a: number, b: number) {
+    return Math.abs(Number(a || 0) - Number(b || 0)) < 0.000001
+}
+
+function roundDecimal(value: number) {
+    return Math.round(Number(value || 0) * 1000) / 1000
+}
+
+function toThousandUnits(value: number) {
+    return Math.round(Number(value || 0) * 1000)
+}
+
+function formatThousandUnits(units: number) {
+    return (units / 1000).toFixed(3).replace(/\.?0+$/, "")
 }
 
 function isPurchaseInboundLedger(item: InventoryLedgerReportRow) {
