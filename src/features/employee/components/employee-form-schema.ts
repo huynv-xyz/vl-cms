@@ -78,6 +78,51 @@ export const employeeSchema: RJSFSchema = {
             default: 0,
             minimum: 0,
         },
+        personal_insurance_from: {
+            type: "string",
+            title: "BH cá nhân từ ngày",
+            description: "Chỉ khai báo khi nhân viên tham gia khác cấu hình chung của loại lao động.",
+        },
+        personal_insurance_to: {
+            type: "string",
+            title: "BH cá nhân đến ngày",
+        },
+        personal_bhxh: {
+            type: "integer",
+            title: "Tham gia BHXH",
+            oneOf: [
+                { const: 1, title: "Có" },
+                { const: 0, title: "Không" },
+            ],
+            default: 0,
+        },
+        personal_bhyt: {
+            type: "integer",
+            title: "Tham gia BHYT",
+            oneOf: [
+                { const: 1, title: "Có" },
+                { const: 0, title: "Không" },
+            ],
+            default: 0,
+        },
+        personal_bhtn: {
+            type: "integer",
+            title: "Tham gia BHTN",
+            oneOf: [
+                { const: 1, title: "Có" },
+                { const: 0, title: "Không" },
+            ],
+            default: 0,
+        },
+        personal_kpcd: {
+            type: "integer",
+            title: "Tham gia KPCĐ",
+            oneOf: [
+                { const: 1, title: "Có" },
+                { const: 0, title: "Không" },
+            ],
+            default: 0,
+        },
         is_union_member: {
             type: "integer",
             title: "Đoàn viên công đoàn",
@@ -145,6 +190,12 @@ export const employeeUiSchema: UiSchema = {
     insurance_base: {
         "ui:classNames": "md:col-span-1",
     },
+    personal_insurance_from: { "ui:widget": "date" },
+    personal_insurance_to: { "ui:widget": "date" },
+    personal_bhxh: { "ui:widget": "select" },
+    personal_bhyt: { "ui:widget": "select" },
+    personal_bhtn: { "ui:widget": "select" },
+    personal_kpcd: { "ui:widget": "select" },
     status: {
         "ui:widget": "select",
     },

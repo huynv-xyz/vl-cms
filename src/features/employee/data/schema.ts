@@ -12,6 +12,12 @@ export type Employee = {
     labor_type: string
     dependent_count: number
     insurance_base: number
+    personal_insurance_from?: string
+    personal_insurance_to?: string
+    personal_bhxh: number
+    personal_bhyt: number
+    personal_bhtn: number
+    personal_kpcd: number
     basic_salary: number
     allowance_salary: number
     is_union_member: number

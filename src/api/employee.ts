@@ -20,6 +20,12 @@ export type CreateEmployeeRequest = {
     labor_type?: string
     dependent_count?: number
     insurance_base?: number
+    personal_insurance_from?: string | null
+    personal_insurance_to?: string | null
+    personal_bhxh?: number
+    personal_bhyt?: number
+    personal_bhtn?: number
+    personal_kpcd?: number
     basic_salary?: number
     allowance_salary?: number
     is_union_member?: number
@@ -41,6 +47,12 @@ export type UpdateEmployeeRequest = {
     labor_type?: string
     dependent_count?: number
     insurance_base?: number
+    personal_insurance_from?: string | null
+    personal_insurance_to?: string | null
+    personal_bhxh?: number
+    personal_bhyt?: number
+    personal_bhtn?: number
+    personal_kpcd?: number
     basic_salary?: number
     allowance_salary?: number
     is_union_member?: number
