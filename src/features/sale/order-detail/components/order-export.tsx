@@ -1120,7 +1120,7 @@ function ExportLotSelector({
                 </>
             )
         }
-        return <span className="text-sm text-muted-foreground">{summarizeLotSelection(item) || "Auto"}</span>
+        return <span className="text-sm text-muted-foreground">{describeLotSelection(item) || "Auto FIFO"}</span>
     }
 
     return (
@@ -1147,7 +1147,7 @@ function ExportLotSelector({
                     <SelectItem value="AUTO" textValue="Auto">
                         <span className="inline-flex items-center gap-1.5">
                             <SlidersHorizontal className="h-3.5 w-3.5" />
-                            Auto
+                            Auto FIFO
                         </span>
                     </SelectItem>
                     <SelectItem value="CUSTOM" textValue="Tùy chọn">
@@ -1162,7 +1162,7 @@ function ExportLotSelector({
                         if (!lotNo) return null
                         return (
                             <SelectItem key={`${lot.id}-${lotNo}`} value={lotNo} textValue={lotNo}>
-                                {lotNo} - còn {formatNumber(resolveLotRemaining(lot))}
+                                {lotNo} - ưu tiên trước, còn {formatNumber(resolveLotRemaining(lot))}
                             </SelectItem>
                         )
                     })}
@@ -1178,6 +1178,10 @@ function ExportLotSelector({
                 >
                     {summarizeLotSelection(item)}
                 </button>
+            ) : lotCode ? (
+                <p className="mt-1 max-w-[280px] text-xs leading-4 text-muted-foreground">
+                    Ưu tiên xuất từ lô {lotCode}; nếu thiếu, hệ thống tự lấy các lô còn lại theo FIFO.
+                </p>
             ) : null}
             <CustomLotAllocationDialog
                 open={customOpen}
@@ -1645,6 +1649,13 @@ function summarizeLotSelection(item: any) {
             .join(", ")
     }
     return item?.lot_code || item?.lot_no || item?.lot_nos || ""
+}
+
+function describeLotSelection(item: any) {
+    const allocations = getLotAllocations(item)
+    if (allocations.length) return summarizeLotSelection(item)
+    const preferredLot = item?.lot_code || item?.lot_no || item?.lot_nos
+    return preferredLot ? `Ưu tiên ${preferredLot} + FIFO` : ""
 }
 
 function updateExportItemLotInCache(

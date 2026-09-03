@@ -1977,7 +1977,7 @@ function PreferredLotSelect({
                     <SelectItem value="AUTO">
                         <span className="inline-flex items-center gap-1.5">
                             <SlidersHorizontal className="h-3.5 w-3.5" />
-                            Auto
+                            Auto FIFO
                         </span>
                     </SelectItem>
                     <SelectItem value="CUSTOM">
@@ -1997,7 +1997,7 @@ function PreferredLotSelect({
                         if (!lotNo) return null
                         return (
                             <SelectItem key={`${lot.id}-${lotNo}`} value={lotNo}>
-                                {lotNo} - còn {formatNumber(resolveLotRemaining(lot))}
+                                {lotNo} - ưu tiên trước, còn {formatNumber(resolveLotRemaining(lot))}
                             </SelectItem>
                         )
                     })}
@@ -2016,6 +2016,10 @@ function PreferredLotSelect({
                 >
                     {customAllocationSummary}
                 </button>
+            ) : material.preferred_lot_no ? (
+                <p className="mt-1 max-w-[280px] text-xs leading-4 text-muted-foreground">
+                    Ưu tiên xuất từ lô {material.preferred_lot_no}; nếu thiếu, hệ thống tự lấy các lô còn lại theo FIFO.
+                </p>
             ) : null}
             <Dialog open={customOpen} onOpenChange={(next) => !mutation.isPending && setCustomOpen(next)}>
                 <DialogContent className="max-w-4xl">

@@ -732,7 +732,7 @@ export function LedgerVoucherDialog({ mode, open, onOpenChange }: Props) {
                                         <th className="w-32 px-3 py-2 text-left">TK Nợ</th>
                                         <th className="w-32 px-3 py-2 text-left">TK Có</th>
                                         <th className="w-32 px-3 py-2 text-right">Số lượng</th>
-                                        {isPaired ? <th className="w-52 px-3 py-2 text-left">Số lô</th> : !isInbound ? <th className="w-52 px-3 py-2 text-left">Lô xuất</th> : null}
+                                        {isPaired ? <th className="w-52 px-3 py-2 text-left">Số lô</th> : !isInbound ? <th className="w-52 px-3 py-2 text-left">Lô ưu tiên xuất</th> : null}
                                         {!isPaired && isInbound ? <th className="w-36 px-3 py-2 text-left">Số lô</th> : null}
                                         {isInbound || isPaired ? <th className="w-36 px-3 py-2 text-left">HSD</th> : null}
                                         {!isTransfer && !isPaired ? <th className="w-36 px-3 py-2 text-right">Đơn giá</th> : null}
@@ -1051,49 +1051,56 @@ function PreferredLotSelector({
         : false
 
     return (
-        <Select
-            value={selected}
-            disabled={disabled}
-            onValueChange={(value) => {
-                if (value === "AUTO") {
-                    onChange(undefined, undefined)
-                    return
-                }
-                if (value.startsWith("LOT:")) {
-                    const nextLotId = Number(value.slice(4))
-                    const lot = lots.find((item: any) => Number(item.id) === nextLotId)
-                    onChange(lot?.lot_no ? String(lot.lot_no) : undefined, nextLotId)
-                    return
-                }
-                if (value.startsWith("CODE:")) {
-                    onChange(value.slice(5), undefined)
-                }
-            }}
-        >
-            <SelectTrigger className="h-9 min-w-[190px]">
-                <SelectValue placeholder="Auto" />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="AUTO">
-                    <span className="inline-flex items-center gap-1.5">
-                        <SlidersHorizontal className="h-3.5 w-3.5" />
-                        Auto
-                    </span>
-                </SelectItem>
-                {isLoading ? <SelectItem value="LOADING" disabled>Đang tải...</SelectItem> : null}
-                {lotCode && !lotId ? <SelectItem value={`CODE:${lotCode}`}>{lotCode}</SelectItem> : null}
-                {lotId && !selectedLotInOptions && lotCode ? <SelectItem value={`LOT:${lotId}`}>{lotCode}</SelectItem> : null}
-                {lots.map((lot: any) => {
-                    const nextLotNo = String(lot.lot_no || "")
-                    if (!nextLotNo) return null
-                    return (
-                        <SelectItem key={`${lot.id}-${nextLotNo}`} value={`LOT:${lot.id}`}>
-                            {nextLotNo} - còn {formatNumber(resolveLotRemaining(lot))}
-                        </SelectItem>
-                    )
-                })}
-            </SelectContent>
-        </Select>
+        <div className="min-w-[190px] space-y-1">
+            <Select
+                value={selected}
+                disabled={disabled}
+                onValueChange={(value) => {
+                    if (value === "AUTO") {
+                        onChange(undefined, undefined)
+                        return
+                    }
+                    if (value.startsWith("LOT:")) {
+                        const nextLotId = Number(value.slice(4))
+                        const lot = lots.find((item: any) => Number(item.id) === nextLotId)
+                        onChange(lot?.lot_no ? String(lot.lot_no) : undefined, nextLotId)
+                        return
+                    }
+                    if (value.startsWith("CODE:")) {
+                        onChange(value.slice(5), undefined)
+                    }
+                }}
+            >
+                <SelectTrigger className="h-9 min-w-[190px]">
+                    <SelectValue placeholder="Auto FIFO" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="AUTO">
+                        <span className="inline-flex items-center gap-1.5">
+                            <SlidersHorizontal className="h-3.5 w-3.5" />
+                            Auto FIFO
+                        </span>
+                    </SelectItem>
+                    {isLoading ? <SelectItem value="LOADING" disabled>Đang tải...</SelectItem> : null}
+                    {lotCode && !lotId ? <SelectItem value={`CODE:${lotCode}`}>{lotCode}</SelectItem> : null}
+                    {lotId && !selectedLotInOptions && lotCode ? <SelectItem value={`LOT:${lotId}`}>{lotCode}</SelectItem> : null}
+                    {lots.map((lot: any) => {
+                        const nextLotNo = String(lot.lot_no || "")
+                        if (!nextLotNo) return null
+                        return (
+                            <SelectItem key={`${lot.id}-${nextLotNo}`} value={`LOT:${lot.id}`}>
+                                {nextLotNo} - ưu tiên trước, còn {formatNumber(resolveLotRemaining(lot))}
+                            </SelectItem>
+                        )
+                    })}
+                </SelectContent>
+            </Select>
+            {lotCode ? (
+                <p className="text-muted-foreground text-xs">
+                    Ưu tiên lô này; nếu thiếu sẽ lấy tiếp các lô còn lại theo FIFO.
+                </p>
+            ) : null}
+        </div>
     )
 }
 

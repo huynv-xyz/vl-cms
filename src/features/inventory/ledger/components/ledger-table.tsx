@@ -4670,17 +4670,6 @@ function SalesExportWarehouseChangeDialog({
     const ledgerLineQuantity = Number(row?.quantity_out || 0)
     const allocatedQuantity = selectedAllocations.reduce((sum, allocation) => sum + Number(allocation.quantity || 0), 0)
     const allocationDiff = requiredQuantity - allocatedQuantity
-    useEffect(() => {
-        if (lotSelectionMode !== "SINGLE" || !selectedLotNo || requiredQuantity <= 0) return
-        const selectedLot = availableLots.find((lot) => (lot.lot_no || lot.lot_code) === selectedLotNo)
-        const safeQuantity = Number(selectedLot?.history_safe_quantity ?? selectedLot?.available_quantity ?? 0)
-        if (!selectedLot || safeQuantity < requiredQuantity) {
-            setLotSelectionMode("AUTO")
-            setSelectedLotNo(undefined)
-            setResult(null)
-            setErrorMessage("")
-        }
-    }, [availableLots, lotSelectionMode, requiredQuantity, selectedLotNo])
     const allocationHasInvalidLot = availableLots.some((lot) => {
         const quantity = Number(lotQuantities[salesExportWarehouseLotKey(lot)] || 0)
         const safeQuantity = Number(lot.history_safe_quantity ?? lot.available_quantity ?? 0)
@@ -4845,17 +4834,13 @@ function SalesExportWarehouseChangeDialog({
                                             const lotNo = lot.lot_no || lot.lot_code || ""
                                             if (!lotNo) return null
                                             const safeQuantity = Number(lot.history_safe_quantity ?? lot.available_quantity ?? 0)
-                                            const enoughForSingleLot = safeQuantity >= requiredQuantity
                                             return (
                                                 <SelectItem
                                                     key={`${lot.id ?? lot.lot_id ?? index}-${lotNo}`}
                                                     value={lotNo}
                                                     textValue={lotNo}
-                                                    disabled={!enoughForSingleLot}
                                                 >
-                                                    {lotNo} - {enoughForSingleLot
-                                                        ? `an toàn ${formatNumber(safeQuantity)}`
-                                                        : `không đủ, an toàn ${formatNumber(safeQuantity)}/${formatNumber(requiredQuantity)}`}
+                                                    {lotNo} - ưu tiên trước, an toàn {formatNumber(safeQuantity)}
                                                 </SelectItem>
                                             )
                                         })}
@@ -4936,7 +4921,7 @@ function SalesExportWarehouseChangeDialog({
                             ) : (
                                 <div className="rounded-md bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
                                     {lotSelectionMode === "SINGLE" && selectedLotNo
-                                        ? `Hệ thống sẽ xuất toàn bộ theo lô ${selectedLotNo} và kiểm tra tồn/âm tồn lịch sử trước khi áp dụng.`
+                                        ? `Ưu tiên xuất từ lô ${selectedLotNo}; nếu thiếu, hệ thống tự lấy các lô còn lại theo FIFO và kiểm tra tồn/âm tồn lịch sử trước khi áp dụng.`
                                         : "Hệ thống sẽ tự phân bổ FIFO tại kho mới và bỏ qua lô có nguy cơ làm âm tồn lịch sử."}
                                 </div>
                             )}
