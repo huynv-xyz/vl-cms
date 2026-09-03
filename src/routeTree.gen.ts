@@ -42,8 +42,10 @@ import { Route as AuthenticatedVipCustomerIndexRouteImport } from './routes/_aut
 import { Route as AuthenticatedVipCustomerTargetIndexRouteImport } from './routes/_authenticated/vip/customer-target/index'
 import { Route as AuthenticatedVipCustomerPlanIndexRouteImport } from './routes/_authenticated/vip/customer-plan/index'
 import { Route as AuthenticatedToolsSalesExportInventoryRollbackIndexRouteImport } from './routes/_authenticated/tools/sales-export-inventory-rollback/index'
+import { Route as AuthenticatedToolsSalesExportArMissingRepairIndexRouteImport } from './routes/_authenticated/tools/sales-export-ar-missing-repair/index'
 import { Route as AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRouteImport } from './routes/_authenticated/tools/purchasing-shipment-contract-item-backfill/index'
 import { Route as AuthenticatedToolsProductMergeIndexRouteImport } from './routes/_authenticated/tools/product-merge/index'
+import { Route as AuthenticatedToolsInventoryCostingDbCompareIndexRouteImport } from './routes/_authenticated/tools/inventory-costing-db-compare/index'
 import { Route as AuthenticatedToolsInventoryAccountOverSyncRepairIndexRouteImport } from './routes/_authenticated/tools/inventory-account-over-sync-repair/index'
 import { Route as AuthenticatedSalesReturnsIndexRouteImport } from './routes/_authenticated/sales/returns/index'
 import { Route as AuthenticatedSalesReceiptsIndexRouteImport } from './routes/_authenticated/sales/receipts/index'
@@ -288,6 +290,12 @@ const AuthenticatedToolsSalesExportInventoryRollbackIndexRoute =
     path: '/tools/sales-export-inventory-rollback/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedToolsSalesExportArMissingRepairIndexRoute =
+  AuthenticatedToolsSalesExportArMissingRepairIndexRouteImport.update({
+    id: '/tools/sales-export-ar-missing-repair/',
+    path: '/tools/sales-export-ar-missing-repair/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRoute =
   AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRouteImport.update(
     {
@@ -300,6 +308,12 @@ const AuthenticatedToolsProductMergeIndexRoute =
   AuthenticatedToolsProductMergeIndexRouteImport.update({
     id: '/tools/product-merge/',
     path: '/tools/product-merge/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedToolsInventoryCostingDbCompareIndexRoute =
+  AuthenticatedToolsInventoryCostingDbCompareIndexRouteImport.update({
+    id: '/tools/inventory-costing-db-compare/',
+    path: '/tools/inventory-costing-db-compare/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute =
@@ -713,8 +727,10 @@ export interface FileRoutesByFullPath {
   '/sales/receipts/': typeof AuthenticatedSalesReceiptsIndexRoute
   '/sales/returns/': typeof AuthenticatedSalesReturnsIndexRoute
   '/tools/inventory-account-over-sync-repair/': typeof AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute
+  '/tools/inventory-costing-db-compare/': typeof AuthenticatedToolsInventoryCostingDbCompareIndexRoute
   '/tools/product-merge/': typeof AuthenticatedToolsProductMergeIndexRoute
   '/tools/purchasing-shipment-contract-item-backfill/': typeof AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRoute
+  '/tools/sales-export-ar-missing-repair/': typeof AuthenticatedToolsSalesExportArMissingRepairIndexRoute
   '/tools/sales-export-inventory-rollback/': typeof AuthenticatedToolsSalesExportInventoryRollbackIndexRoute
   '/vip/customer-plan/': typeof AuthenticatedVipCustomerPlanIndexRoute
   '/vip/customer-target/': typeof AuthenticatedVipCustomerTargetIndexRoute
@@ -805,8 +821,10 @@ export interface FileRoutesByTo {
   '/sales/receipts': typeof AuthenticatedSalesReceiptsIndexRoute
   '/sales/returns': typeof AuthenticatedSalesReturnsIndexRoute
   '/tools/inventory-account-over-sync-repair': typeof AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute
+  '/tools/inventory-costing-db-compare': typeof AuthenticatedToolsInventoryCostingDbCompareIndexRoute
   '/tools/product-merge': typeof AuthenticatedToolsProductMergeIndexRoute
   '/tools/purchasing-shipment-contract-item-backfill': typeof AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRoute
+  '/tools/sales-export-ar-missing-repair': typeof AuthenticatedToolsSalesExportArMissingRepairIndexRoute
   '/tools/sales-export-inventory-rollback': typeof AuthenticatedToolsSalesExportInventoryRollbackIndexRoute
   '/vip/customer-plan': typeof AuthenticatedVipCustomerPlanIndexRoute
   '/vip/customer-target': typeof AuthenticatedVipCustomerTargetIndexRoute
@@ -899,8 +917,10 @@ export interface FileRoutesById {
   '/_authenticated/sales/receipts/': typeof AuthenticatedSalesReceiptsIndexRoute
   '/_authenticated/sales/returns/': typeof AuthenticatedSalesReturnsIndexRoute
   '/_authenticated/tools/inventory-account-over-sync-repair/': typeof AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute
+  '/_authenticated/tools/inventory-costing-db-compare/': typeof AuthenticatedToolsInventoryCostingDbCompareIndexRoute
   '/_authenticated/tools/product-merge/': typeof AuthenticatedToolsProductMergeIndexRoute
   '/_authenticated/tools/purchasing-shipment-contract-item-backfill/': typeof AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRoute
+  '/_authenticated/tools/sales-export-ar-missing-repair/': typeof AuthenticatedToolsSalesExportArMissingRepairIndexRoute
   '/_authenticated/tools/sales-export-inventory-rollback/': typeof AuthenticatedToolsSalesExportInventoryRollbackIndexRoute
   '/_authenticated/vip/customer-plan/': typeof AuthenticatedVipCustomerPlanIndexRoute
   '/_authenticated/vip/customer-target/': typeof AuthenticatedVipCustomerTargetIndexRoute
@@ -993,8 +1013,10 @@ export interface FileRouteTypes {
     | '/sales/receipts/'
     | '/sales/returns/'
     | '/tools/inventory-account-over-sync-repair/'
+    | '/tools/inventory-costing-db-compare/'
     | '/tools/product-merge/'
     | '/tools/purchasing-shipment-contract-item-backfill/'
+    | '/tools/sales-export-ar-missing-repair/'
     | '/tools/sales-export-inventory-rollback/'
     | '/vip/customer-plan/'
     | '/vip/customer-target/'
@@ -1085,8 +1107,10 @@ export interface FileRouteTypes {
     | '/sales/receipts'
     | '/sales/returns'
     | '/tools/inventory-account-over-sync-repair'
+    | '/tools/inventory-costing-db-compare'
     | '/tools/product-merge'
     | '/tools/purchasing-shipment-contract-item-backfill'
+    | '/tools/sales-export-ar-missing-repair'
     | '/tools/sales-export-inventory-rollback'
     | '/vip/customer-plan'
     | '/vip/customer-target'
@@ -1178,8 +1202,10 @@ export interface FileRouteTypes {
     | '/_authenticated/sales/receipts/'
     | '/_authenticated/sales/returns/'
     | '/_authenticated/tools/inventory-account-over-sync-repair/'
+    | '/_authenticated/tools/inventory-costing-db-compare/'
     | '/_authenticated/tools/product-merge/'
     | '/_authenticated/tools/purchasing-shipment-contract-item-backfill/'
+    | '/_authenticated/tools/sales-export-ar-missing-repair/'
     | '/_authenticated/tools/sales-export-inventory-rollback/'
     | '/_authenticated/vip/customer-plan/'
     | '/_authenticated/vip/customer-target/'
@@ -1440,6 +1466,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedToolsSalesExportInventoryRollbackIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tools/sales-export-ar-missing-repair/': {
+      id: '/_authenticated/tools/sales-export-ar-missing-repair/'
+      path: '/tools/sales-export-ar-missing-repair'
+      fullPath: '/tools/sales-export-ar-missing-repair/'
+      preLoaderRoute: typeof AuthenticatedToolsSalesExportArMissingRepairIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tools/purchasing-shipment-contract-item-backfill/': {
       id: '/_authenticated/tools/purchasing-shipment-contract-item-backfill/'
       path: '/tools/purchasing-shipment-contract-item-backfill'
@@ -1452,6 +1485,13 @@ declare module '@tanstack/react-router' {
       path: '/tools/product-merge'
       fullPath: '/tools/product-merge/'
       preLoaderRoute: typeof AuthenticatedToolsProductMergeIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tools/inventory-costing-db-compare/': {
+      id: '/_authenticated/tools/inventory-costing-db-compare/'
+      path: '/tools/inventory-costing-db-compare'
+      fullPath: '/tools/inventory-costing-db-compare/'
+      preLoaderRoute: typeof AuthenticatedToolsInventoryCostingDbCompareIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/tools/inventory-account-over-sync-repair/': {
@@ -1917,8 +1957,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSalesReceiptsIndexRoute: typeof AuthenticatedSalesReceiptsIndexRoute
   AuthenticatedSalesReturnsIndexRoute: typeof AuthenticatedSalesReturnsIndexRoute
   AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute: typeof AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute
+  AuthenticatedToolsInventoryCostingDbCompareIndexRoute: typeof AuthenticatedToolsInventoryCostingDbCompareIndexRoute
   AuthenticatedToolsProductMergeIndexRoute: typeof AuthenticatedToolsProductMergeIndexRoute
   AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRoute: typeof AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRoute
+  AuthenticatedToolsSalesExportArMissingRepairIndexRoute: typeof AuthenticatedToolsSalesExportArMissingRepairIndexRoute
   AuthenticatedToolsSalesExportInventoryRollbackIndexRoute: typeof AuthenticatedToolsSalesExportInventoryRollbackIndexRoute
   AuthenticatedVipCustomerPlanIndexRoute: typeof AuthenticatedVipCustomerPlanIndexRoute
   AuthenticatedVipCustomerTargetIndexRoute: typeof AuthenticatedVipCustomerTargetIndexRoute
@@ -2039,10 +2081,14 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSalesReturnsIndexRoute: AuthenticatedSalesReturnsIndexRoute,
   AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute:
     AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute,
+  AuthenticatedToolsInventoryCostingDbCompareIndexRoute:
+    AuthenticatedToolsInventoryCostingDbCompareIndexRoute,
   AuthenticatedToolsProductMergeIndexRoute:
     AuthenticatedToolsProductMergeIndexRoute,
   AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRoute:
     AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRoute,
+  AuthenticatedToolsSalesExportArMissingRepairIndexRoute:
+    AuthenticatedToolsSalesExportArMissingRepairIndexRoute,
   AuthenticatedToolsSalesExportInventoryRollbackIndexRoute:
     AuthenticatedToolsSalesExportInventoryRollbackIndexRoute,
   AuthenticatedVipCustomerPlanIndexRoute:
