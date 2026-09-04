@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type React from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -1896,6 +1896,10 @@ function PreferredLotSelect({
     const [lotQuantities, setLotQuantities] = useState<Record<string, string>>(() =>
         buildProductionLotQuantityMap(material.lot_allocations ?? [])
     )
+    const [lotSelectionReason, setLotSelectionReason] = useState(material.lot_selection_reason || "")
+    useEffect(() => {
+        setLotSelectionReason(material.lot_selection_reason || "")
+    }, [material.id, material.lot_selection_reason])
     const { data, isLoading } = useQuery({
         queryKey: [
             "production-material-lots",
@@ -1942,6 +1946,7 @@ function PreferredLotSelect({
                 lot_no: payload.lotNo || undefined,
                 lot_selection_mode: payload.mode,
                 lot_allocations: payload.allocations,
+                lot_selection_reason: payload.mode === "AUTO" ? "Auto FIFO" : lotSelectionReason.trim(),
             }),
         onSuccess: () => {
             toast.success("Đã cập nhật lô ưu tiên")
@@ -1964,6 +1969,7 @@ function PreferredLotSelect({
                         setCustomOpen(true)
                         return
                     }
+                    if (value !== "AUTO" && !lotSelectionReason.trim()) { toast.error("Vui lòng nhập lý do chọn lô"); return }
                     mutation.mutate({
                         lotNo: value === "AUTO" ? undefined : value,
                         mode: "AUTO",
@@ -2003,6 +2009,7 @@ function PreferredLotSelect({
                     })}
                 </SelectContent>
             </Select>
+            <Input value={lotSelectionReason} onChange={(event) => setLotSelectionReason(event.target.value)} placeholder="Lý do chọn lô" className="mt-2 h-8 max-w-[460px] text-sm" disabled={disabled || mutation.isPending} />
             {customMode ? (
                 <button
                     type="button"
@@ -2102,7 +2109,7 @@ function PreferredLotSelect({
                         <Button type="button" variant="outline" onClick={() => setCustomOpen(false)}>Hủy</Button>
                         <Button
                             type="button"
-                            disabled={mutation.isPending || !allocationValid}
+                            disabled={mutation.isPending || !allocationValid || !lotSelectionReason.trim()}
                             onClick={() => mutation.mutate({
                                 mode: "CUSTOM",
                                 allocations: selectedAllocations,

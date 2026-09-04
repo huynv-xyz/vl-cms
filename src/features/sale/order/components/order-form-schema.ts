@@ -32,6 +32,11 @@ export const orderSchema: RJSFSchema = {
             title: "Ngày đặt hàng",
         },
 
+        expected_delivery_date: {
+            type: "string",
+            title: "Ngày dự kiến giao hàng",
+        },
+
         status: {
             type: "string",
             title: "Trạng thái",
@@ -70,6 +75,10 @@ export const orderUiSchema: UiSchema = {
     },
 
     order_date: {
+        "ui:widget": "date",
+    },
+
+    expected_delivery_date: {
         "ui:widget": "date",
     },
 

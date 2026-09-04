@@ -370,8 +370,9 @@ function OrderListHeader({
     }
 
     return (
-        <div className="bg-muted/95 sticky top-16 z-40 hidden items-center gap-2 rounded-md border px-2.5 py-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground shadow-xs backdrop-blur xl:grid xl:grid-cols-[88px_150px_minmax(210px,1.5fr)_minmax(150px,1fr)_minmax(190px,1.15fr)_140px_330px]">
+        <div className="bg-muted/95 sticky top-16 z-40 hidden items-center gap-2 rounded-md border px-2.5 py-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground shadow-xs backdrop-blur xl:grid xl:grid-cols-[88px_110px_150px_minmax(210px,1.5fr)_minmax(150px,1fr)_minmax(190px,1.15fr)_140px_330px]">
             <div>Ngày đặt</div>
+            <div>Dự kiến giao</div>
             <div>Mã đơn</div>
             <div>Khách hàng</div>
             <div>Hàng hóa</div>
@@ -524,9 +525,13 @@ function OrderCard({
     const employee = (order as any).employee
     return (
         <div className="bg-card overflow-hidden rounded-lg border shadow-sm transition-shadow hover:shadow-md">
-            <div className="grid items-center gap-2 px-2.5 py-2 text-sm xl:grid-cols-[88px_150px_minmax(210px,1.5fr)_minmax(150px,1fr)_minmax(190px,1.15fr)_140px_330px]">
+            <div className="grid items-center gap-2 px-2.5 py-2 text-sm xl:grid-cols-[88px_110px_150px_minmax(210px,1.5fr)_minmax(150px,1fr)_minmax(190px,1.15fr)_140px_330px]">
                 <div className="text-muted-foreground text-xs tabular-nums">
                     {formatDate(order.order_date)}
+                </div>
+
+                <div className="text-muted-foreground text-xs tabular-nums">
+                    {formatDate(order.expected_delivery_date)}
                 </div>
 
                 <div className="min-w-0">
@@ -974,8 +979,13 @@ export async function exportOrdersXlsx(data: Order[], filename?: string) {
     workbook.creator = "VLIFE"
     workbook.created = new Date()
 
-    const sheet = workbook.addWorksheet("Don hang")
+    const sheet = workbook.addWorksheet("Đơn hàng", {
+        views: [{ state: "frozen", ySplit: 4 }],
+    })
     const columns = ORDER_EXPORT_COLUMNS
+    sheet.addRow(["DANH SÁCH ĐƠN HÀNG"])
+    sheet.addRow([`Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}`])
+    sheet.addRow([])
     sheet.addRow(columns.map((column) => column.header))
 
     data.forEach((order: any) => {
@@ -989,6 +999,7 @@ export async function exportOrdersXlsx(data: Order[], filename?: string) {
 
             sheet.addRow([
                 parseExcelDate(order.order_date),
+                parseExcelDate(order.expected_delivery_date),
                 getOrderStatusMeta(order.status || "NEW").label,
                 getDeliveryStatusLabel(order),
                 formatEmployee(order.employee),
@@ -1011,10 +1022,11 @@ export async function exportOrdersXlsx(data: Order[], filename?: string) {
     })
 
     sheet.columns = columns.map((column) => ({ width: column.width }))
-    sheet.views = [{ state: "frozen", ySplit: 1 }]
+    sheet.mergeCells(1, 1, 1, columns.length)
+    sheet.mergeCells(2, 1, 2, columns.length)
     sheet.autoFilter = {
-        from: { row: 1, column: 1 },
-        to: { row: 1, column: columns.length },
+        from: { row: 4, column: 1 },
+        to: { row: 4, column: columns.length },
     }
 
     const border = {
@@ -1024,7 +1036,17 @@ export async function exportOrdersXlsx(data: Order[], filename?: string) {
         right: { style: "thin" as const, color: { argb: "FF000000" } },
     }
 
-    const header = sheet.getRow(1)
+    const titleRow = sheet.getRow(1)
+    titleRow.height = 28
+    titleRow.getCell(1).font = { name: "Arial", size: 14, bold: true, color: { argb: "FF000000" } }
+    titleRow.getCell(1).alignment = { vertical: "middle", horizontal: "center" }
+
+    const exportDateRow = sheet.getRow(2)
+    exportDateRow.height = 22
+    exportDateRow.getCell(1).font = { name: "Arial", size: 10, italic: true, color: { argb: "FF4B5563" } }
+    exportDateRow.getCell(1).alignment = { vertical: "middle", horizontal: "center" }
+
+    const header = sheet.getRow(4)
     header.height = 26
     header.eachCell((cell) => {
         cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FF000000" } }
@@ -1037,7 +1059,7 @@ export async function exportOrdersXlsx(data: Order[], filename?: string) {
         cell.border = border
     })
 
-    for (let rowIndex = 2; rowIndex <= sheet.rowCount; rowIndex++) {
+    for (let rowIndex = 5; rowIndex <= sheet.rowCount; rowIndex++) {
         const row = sheet.getRow(rowIndex)
         row.eachCell((cell, colNumber) => {
             const column = columns[colNumber - 1]
@@ -1074,6 +1096,7 @@ type OrderExportColumn = {
 
 const ORDER_EXPORT_COLUMNS: OrderExportColumn[] = [
     { header: "Ngày đặt hàng", width: 14, type: "date" },
+    { header: "Ngày dự kiến giao", width: 16, type: "date" },
     { header: "Trạng thái đơn", width: 18 },
     { header: "Tình trạng giao hàng", width: 20 },
     { header: "Người thực hiện", width: 24 },
@@ -1095,7 +1118,9 @@ const ORDER_EXPORT_COLUMNS: OrderExportColumn[] = [
 
 function parseExcelDate(value?: string | number | Date) {
     if (!value) return ""
-    if (value instanceof Date && !Number.isNaN(value.getTime())) return value
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return excelDateSerial(value.getFullYear(), value.getMonth() + 1, value.getDate())
+    }
 
     const raw = String(value).trim()
     if (!raw) return ""
@@ -1103,15 +1128,20 @@ function parseExcelDate(value?: string | number | Date) {
     const datePart = raw.split(/[T\s]/)[0]
     const ymd = datePart.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
     if (ymd) {
-        return new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]))
+        return excelDateSerial(Number(ymd[1]), Number(ymd[2]), Number(ymd[3]))
     }
 
     const dmy = datePart.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
     if (dmy) {
-        return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
+        return excelDateSerial(Number(dmy[3]), Number(dmy[2]), Number(dmy[1]))
     }
 
     return raw
+}
+
+// Excel serial values represent a calendar day directly, avoiding timezone conversion.
+function excelDateSerial(year: number, month: number, day: number) {
+    return Math.floor((Date.UTC(year, month - 1, day) - Date.UTC(1899, 11, 30)) / 86_400_000)
 }
 
 function normalizeExcelNumber(value?: number | string) {

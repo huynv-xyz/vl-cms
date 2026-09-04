@@ -52,6 +52,7 @@ export type Order = {
     employee_id?: number
 
     order_date: string
+    expected_delivery_date?: string
     status: string
 
     note?: string

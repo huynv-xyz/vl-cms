@@ -374,15 +374,17 @@ export type SalesExportLotChangeResult = {
     changes: Record<string, number>
 }
 
-export function checkSalesExportLotChange(ledgerId: number, newLotNo: string) {
+export function checkSalesExportLotChange(ledgerId: number, newLotNo: string, lotSelectionReason?: string) {
     return apiPost<SalesExportLotChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-lot-change/check`, {
         newLotNo,
+        lot_selection_reason: lotSelectionReason,
     })
 }
 
-export function applySalesExportLotChange(ledgerId: number, newLotNo: string) {
+export function applySalesExportLotChange(ledgerId: number, newLotNo: string, lotSelectionReason?: string) {
     return apiPost<SalesExportLotChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-lot-change/apply`, {
         newLotNo,
+        lot_selection_reason: lotSelectionReason,
     })
 }
 
@@ -447,13 +449,15 @@ export function checkSalesExportWarehouseChange(
     newWarehouseId: number,
     lotSelectionMode?: "AUTO" | "SINGLE" | "CUSTOM",
     newLotNo?: string,
-    lotAllocations?: SalesExportWarehouseLotAllocation[]
+    lotAllocations?: SalesExportWarehouseLotAllocation[],
+    lotSelectionReason?: string
 ) {
     return apiPost<SalesExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-warehouse-change/check`, {
         newWarehouseId,
         newLotNo,
         lot_selection_mode: lotSelectionMode,
         lot_allocations: lotAllocations,
+        lot_selection_reason: lotSelectionReason,
     })
 }
 
@@ -462,13 +466,15 @@ export function applySalesExportWarehouseChange(
     newWarehouseId: number,
     lotSelectionMode?: "AUTO" | "SINGLE" | "CUSTOM",
     newLotNo?: string,
-    lotAllocations?: SalesExportWarehouseLotAllocation[]
+    lotAllocations?: SalesExportWarehouseLotAllocation[],
+    lotSelectionReason?: string
 ) {
     return apiPost<SalesExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-warehouse-change/apply`, {
         newWarehouseId,
         newLotNo,
         lot_selection_mode: lotSelectionMode,
         lot_allocations: lotAllocations,
+        lot_selection_reason: lotSelectionReason,
     })
 }
 
@@ -544,19 +550,21 @@ export function getTransferExportWarehouseChangeContext(ledgerId: number) {
     return apiGet<TransferExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/transfer-export-warehouse-change/context`)
 }
 
-export function checkTransferExportWarehouseChange(ledgerId: number, newWarehouseId: number, newToWarehouseId: number, newLotNo: string) {
+export function checkTransferExportWarehouseChange(ledgerId: number, newWarehouseId: number, newToWarehouseId: number, newLotNo: string, lotSelectionReason?: string) {
     return apiPost<TransferExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/transfer-export-warehouse-change/check`, {
         newWarehouseId,
         newToWarehouseId,
         newLotNo,
+        lot_selection_reason: lotSelectionReason,
     })
 }
 
-export function applyTransferExportWarehouseChange(ledgerId: number, newWarehouseId: number, newToWarehouseId: number, newLotNo: string) {
+export function applyTransferExportWarehouseChange(ledgerId: number, newWarehouseId: number, newToWarehouseId: number, newLotNo: string, lotSelectionReason?: string) {
     return apiPost<TransferExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/transfer-export-warehouse-change/apply`, {
         newWarehouseId,
         newToWarehouseId,
         newLotNo,
+        lot_selection_reason: lotSelectionReason,
     })
 }
 
@@ -1012,6 +1020,19 @@ export function checkOtherInboundLineDelete(ledgerId: number) {
 
 export function applyOtherInboundLineDelete(ledgerId: number) {
     return apiPost<OtherInboundLineDeleteResult>(`/inventory/ledger/${ledgerId}/other-inbound-line-delete/apply`, {})
+}
+
+export type PurchaseLineDeleteResult = OtherExportLineDeleteResult & {
+    has_voucher_item?: boolean
+    positive_lot_rows?: number
+}
+
+export function checkPurchaseLineDelete(ledgerId: number) {
+    return apiPost<PurchaseLineDeleteResult>(`/inventory/ledger/${ledgerId}/purchase-line-delete/check`, {})
+}
+
+export function applyPurchaseLineDelete(ledgerId: number) {
+    return apiPost<PurchaseLineDeleteResult>(`/inventory/ledger/${ledgerId}/purchase-line-delete/apply`, {})
 }
 
 export async function importProductionCostObjects(file: File, confirm = false) {
