@@ -1101,10 +1101,6 @@ function ExportLotSelector({
     const submitLotSelection = (nextLotCode?: string, nextAllocations?: LotAllocationPayload[]) => {
         const manual = Boolean(nextLotCode) || Boolean(nextAllocations?.length)
         const reason = manual ? lotSelectionReason.trim() : "Auto FIFO"
-        if (manual && !reason) {
-            toast.error("Vui lòng nhập lý do chọn lô")
-            return false
-        }
         onChange(nextLotCode, nextAllocations, reason)
         return true
     }
@@ -1187,7 +1183,7 @@ function ExportLotSelector({
                 value={lotSelectionReason}
                 onChange={(event) => setLotSelectionReason(event.target.value)}
                 disabled={disabled}
-                placeholder="Lý do chọn lô"
+                placeholder="Lý do chọn lô (tùy chọn)"
                 className="mt-1 h-8 max-w-[280px] text-xs"
             />
             {hasCustomAllocations ? (

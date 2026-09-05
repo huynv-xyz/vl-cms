@@ -37,6 +37,26 @@ export type InventoryLedgerListParams = {
     unit?: string
     lot_text?: string
     lot_text_op?: string
+    tk_no?: string
+    tk_co?: string
+    unit_price_op?: string
+    unit_price_value?: string
+    opening_quantity_op?: string
+    opening_quantity_value?: string
+    opening_value_op?: string
+    opening_value_value?: string
+    inbound_quantity_op?: string
+    inbound_quantity_value?: string
+    inbound_value_op?: string
+    inbound_value_value?: string
+    outbound_quantity_op?: string
+    outbound_quantity_value?: string
+    outbound_value_op?: string
+    outbound_value_value?: string
+    closing_quantity_op?: string
+    closing_quantity_value?: string
+    closing_value_op?: string
+    closing_value_value?: string
     time_sort?: "asc" | "desc" | string
     direction?: "IN" | "OUT" | string
     show_values?: boolean
@@ -66,6 +86,12 @@ export function listInventoryLedgerReport(params: InventoryLedgerReportParams) {
         size: number
         totals?: InventoryLedgerTotals
     }>("/inventory/ledger/report", params)
+}
+
+export type InventoryLedgerStaticAccountOption = { value: string; label: string }
+
+export function listInventoryLedgerStaticAccountOptions(field: "tk_no" | "tk_co") {
+    return apiGet<InventoryLedgerStaticAccountOption[]>("/inventory/ledger/static-account-options", { field })
 }
 
 export type NegativeStockAuditItem = {

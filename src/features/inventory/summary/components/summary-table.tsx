@@ -67,9 +67,36 @@ export type SummaryFilters = {
     unit?: string
     nature?: string
     summary_status?: string
+    opening_quantity_op?: NumberFilterOp
+    opening_quantity_value?: string
+    opening_value_op?: NumberFilterOp
+    opening_value_value?: string
+    inbound_quantity_op?: NumberFilterOp
+    inbound_quantity_value?: string
+    inbound_value_op?: NumberFilterOp
+    inbound_value_value?: string
+    outbound_quantity_op?: NumberFilterOp
+    outbound_quantity_value?: string
+    avg_issue_unit_cost_op?: NumberFilterOp
+    avg_issue_unit_cost_value?: string
+    outbound_value_op?: NumberFilterOp
+    outbound_value_value?: string
     closing_quantity_op?: NumberFilterOp
     closing_quantity_value?: string
+    closing_value_op?: NumberFilterOp
+    closing_value_value?: string
 }
+
+type NumberFilterField =
+    | "opening_quantity"
+    | "opening_value"
+    | "inbound_quantity"
+    | "inbound_value"
+    | "outbound_quantity"
+    | "avg_issue_unit_cost"
+    | "outbound_value"
+    | "closing_quantity"
+    | "closing_value"
 
 type Props = {
     data: InventorySummary[]
@@ -296,26 +323,35 @@ export function SummaryTable({
         })
     }
 
-    const setNumberFilter = (
-        opKey: "closing_quantity_op",
-        valueKey: "closing_quantity_value",
-        value: string,
-        op: NumberFilterOp,
-    ) => {
+    const setNumberFilter = (field: NumberFilterField, value: string, op: NumberFilterOp) => {
         const normalized = value.trim()
+        const opKey = `${field}_op` as `${NumberFilterField}_op`
+        const valueKey = `${field}_value` as `${NumberFilterField}_value`
         onFiltersChange({
             ...filters,
             [opKey]: normalized ? op : undefined,
             [valueKey]: normalized || undefined,
-        })
+        } as SummaryFilters)
     }
 
-    const clearNumberFilter = (opKey: "closing_quantity_op", valueKey: "closing_quantity_value") => {
+    const clearNumberFilter = (field: NumberFilterField) => {
+        const opKey = `${field}_op` as `${NumberFilterField}_op`
+        const valueKey = `${field}_value` as `${NumberFilterField}_value`
         onFiltersChange({
             ...filters,
             [opKey]: undefined,
             [valueKey]: undefined,
-        })
+        } as SummaryFilters)
+    }
+
+    const getFilterValue = (field: NumberFilterField) => {
+        const valueKey = `${field}_value` as `${NumberFilterField}_value`
+        return filters[valueKey]
+    }
+
+    const getFilterOp = (field: NumberFilterField) => {
+        const opKey = `${field}_op` as `${NumberFilterField}_op`
+        return filters[opKey]
     }
 
     const setPageIndex = (pageIndex: number) => {
@@ -410,11 +446,67 @@ export function SummaryTable({
                 onClear: () => setFilter("summary_status", undefined),
             }
             : null,
-        filters.closing_quantity_value !== undefined && filters.closing_quantity_value !== ""
+        getFilterValue("opening_quantity") !== undefined && getFilterValue("opening_quantity") !== ""
+            ? {
+                key: "opening_quantity",
+                label: numberFilterDescription("Tồn đầu kỳ / Số lượng", getFilterOp("opening_quantity"), getFilterValue("opening_quantity")),
+                onClear: () => clearNumberFilter("opening_quantity"),
+            }
+            : null,
+        getFilterValue("opening_value") !== undefined && getFilterValue("opening_value") !== ""
+            ? {
+                key: "opening_value",
+                label: numberFilterDescription("Tồn đầu kỳ / Giá trị", getFilterOp("opening_value"), getFilterValue("opening_value")),
+                onClear: () => clearNumberFilter("opening_value"),
+            }
+            : null,
+        getFilterValue("inbound_quantity") !== undefined && getFilterValue("inbound_quantity") !== ""
+            ? {
+                key: "inbound_quantity",
+                label: numberFilterDescription("Nhập kho / Số lượng", getFilterOp("inbound_quantity"), getFilterValue("inbound_quantity")),
+                onClear: () => clearNumberFilter("inbound_quantity"),
+            }
+            : null,
+        getFilterValue("inbound_value") !== undefined && getFilterValue("inbound_value") !== ""
+            ? {
+                key: "inbound_value",
+                label: numberFilterDescription("Nhập kho / Giá trị", getFilterOp("inbound_value"), getFilterValue("inbound_value")),
+                onClear: () => clearNumberFilter("inbound_value"),
+            }
+            : null,
+        getFilterValue("outbound_quantity") !== undefined && getFilterValue("outbound_quantity") !== ""
+            ? {
+                key: "outbound_quantity",
+                label: numberFilterDescription("Xuất kho / Số lượng", getFilterOp("outbound_quantity"), getFilterValue("outbound_quantity")),
+                onClear: () => clearNumberFilter("outbound_quantity"),
+            }
+            : null,
+        getFilterValue("avg_issue_unit_cost") !== undefined && getFilterValue("avg_issue_unit_cost") !== ""
+            ? {
+                key: "avg_issue_unit_cost",
+                label: numberFilterDescription("Xuất kho / Giá xuất BQ", getFilterOp("avg_issue_unit_cost"), getFilterValue("avg_issue_unit_cost")),
+                onClear: () => clearNumberFilter("avg_issue_unit_cost"),
+            }
+            : null,
+        getFilterValue("outbound_value") !== undefined && getFilterValue("outbound_value") !== ""
+            ? {
+                key: "outbound_value",
+                label: numberFilterDescription("Xuất kho / Giá trị", getFilterOp("outbound_value"), getFilterValue("outbound_value")),
+                onClear: () => clearNumberFilter("outbound_value"),
+            }
+            : null,
+        getFilterValue("closing_quantity") !== undefined && getFilterValue("closing_quantity") !== ""
             ? {
                 key: "closing_quantity",
-                label: numberFilterDescription("Tồn cuối kỳ", filters.closing_quantity_op, filters.closing_quantity_value),
-                onClear: () => clearNumberFilter("closing_quantity_op", "closing_quantity_value"),
+                label: numberFilterDescription("Tồn cuối kỳ / Số lượng", getFilterOp("closing_quantity"), getFilterValue("closing_quantity")),
+                onClear: () => clearNumberFilter("closing_quantity"),
+            }
+            : null,
+        getFilterValue("closing_value") !== undefined && getFilterValue("closing_value") !== ""
+            ? {
+                key: "closing_value",
+                label: numberFilterDescription("Tồn cuối kỳ / Giá trị", getFilterOp("closing_value"), getFilterValue("closing_value")),
+                onClear: () => clearNumberFilter("closing_value"),
             }
             : null,
     ].filter(Boolean) as Array<{ key: string; label: string; onClear: () => void }>
@@ -442,8 +534,24 @@ export function SummaryTable({
             unit: undefined,
             nature: undefined,
             summary_status: undefined,
+            opening_quantity_op: undefined,
+            opening_quantity_value: undefined,
+            opening_value_op: undefined,
+            opening_value_value: undefined,
+            inbound_quantity_op: undefined,
+            inbound_quantity_value: undefined,
+            inbound_value_op: undefined,
+            inbound_value_value: undefined,
+            outbound_quantity_op: undefined,
+            outbound_quantity_value: undefined,
+            avg_issue_unit_cost_op: undefined,
+            avg_issue_unit_cost_value: undefined,
+            outbound_value_op: undefined,
+            outbound_value_value: undefined,
             closing_quantity_op: undefined,
             closing_quantity_value: undefined,
+            closing_value_op: undefined,
+            closing_value_value: undefined,
         })
     }
 
@@ -496,6 +604,7 @@ export function SummaryTable({
 
                         <ProductMultiFilter
                             className="min-w-[280px] flex-[1.6_1_320px] xl:max-w-[460px]"
+                            searchPlaceholder="Tìm theo mã, tên hàng"
                             value={filters.product_ids}
                             onChange={(value) =>
                                 onFiltersChange({
@@ -617,19 +726,55 @@ export function SummaryTable({
                                             onClear={() => clearTextFilter("warehouse_name_text", "warehouse_name_text_op")}
                                         />
                                     </Th>
-                                    <Th colSpan={showValues ? 2 : 1} className="text-center">Tồn đầu kỳ</Th>
-                                    <Th colSpan={showValues ? 2 : 1} className="text-center">Nhập kho</Th>
-                                    <Th colSpan={showValues ? 3 : 1} className="text-center">Xuất kho</Th>
+                                    <Th colSpan={showValues ? 2 : 1} className="text-center">
+                                        {showValues ? (
+                                            "Tồn đầu kỳ"
+                                        ) : (
+                                            <ColumnNumberFilter
+                                                label="Tồn đầu kỳ"
+                                                value={getFilterValue("opening_quantity")}
+                                                op={getFilterOp("opening_quantity")}
+                                                onApply={(value, op) => setNumberFilter("opening_quantity", value, op)}
+                                                onClear={() => clearNumberFilter("opening_quantity")}
+                                            />
+                                        )}
+                                    </Th>
+                                    <Th colSpan={showValues ? 2 : 1} className="text-center">
+                                        {showValues ? (
+                                            "Nhập kho"
+                                        ) : (
+                                            <ColumnNumberFilter
+                                                label="Nhập kho"
+                                                value={getFilterValue("inbound_quantity")}
+                                                op={getFilterOp("inbound_quantity")}
+                                                onApply={(value, op) => setNumberFilter("inbound_quantity", value, op)}
+                                                onClear={() => clearNumberFilter("inbound_quantity")}
+                                            />
+                                        )}
+                                    </Th>
+                                    <Th colSpan={showValues ? 3 : 1} className="text-center">
+                                        {showValues ? (
+                                            "Xuất kho"
+                                        ) : (
+                                            <ColumnNumberFilter
+                                                label="Xuất kho"
+                                                value={getFilterValue("outbound_quantity")}
+                                                op={getFilterOp("outbound_quantity")}
+                                                onApply={(value, op) => setNumberFilter("outbound_quantity", value, op)}
+                                                onClear={() => clearNumberFilter("outbound_quantity")}
+                                            />
+                                        )}
+                                    </Th>
                                     <Th colSpan={showValues ? 2 : 1} className="text-center">
                                         {showValues ? (
                                             "Tồn cuối kỳ"
                                         ) : (
                                             <ColumnNumberFilter
                                                 label="Tồn cuối kỳ"
-                                                value={filters.closing_quantity_value}
-                                                op={filters.closing_quantity_op}
-                                                onApply={(value, op) => setNumberFilter("closing_quantity_op", "closing_quantity_value", value, op)}
-                                                onClear={() => clearNumberFilter("closing_quantity_op", "closing_quantity_value")}
+                                                value={getFilterValue("closing_quantity")}
+                                                op={getFilterOp("closing_quantity")}
+                                                onApply={(value, op) => setNumberFilter("closing_quantity", value, op)}
+                                                onClear={() => clearNumberFilter("closing_quantity")}
                                             />
                                         )}
                                     </Th>
@@ -667,23 +812,87 @@ export function SummaryTable({
                                 </tr>
                                 {showValues ? (
                                 <tr>
-                                    <Th>Số lượng</Th>
-                                    <Th>Giá trị</Th>
-                                    <Th>Số lượng</Th>
-                                    <Th>Giá trị</Th>
-                                    <Th>Số lượng</Th>
-                                    <Th>Giá xuất BQ</Th>
-                                    <Th>Giá trị</Th>
                                     <Th>
                                         <ColumnNumberFilter
                                             label="Số lượng"
-                                            value={filters.closing_quantity_value}
-                                            op={filters.closing_quantity_op}
-                                            onApply={(value, op) => setNumberFilter("closing_quantity_op", "closing_quantity_value", value, op)}
-                                            onClear={() => clearNumberFilter("closing_quantity_op", "closing_quantity_value")}
+                                            value={getFilterValue("opening_quantity")}
+                                            op={getFilterOp("opening_quantity")}
+                                            onApply={(value, op) => setNumberFilter("opening_quantity", value, op)}
+                                            onClear={() => clearNumberFilter("opening_quantity")}
                                         />
                                     </Th>
-                                    <Th>Giá trị</Th>
+                                    <Th>
+                                        <ColumnNumberFilter
+                                            label="Giá trị"
+                                            value={getFilterValue("opening_value")}
+                                            op={getFilterOp("opening_value")}
+                                            onApply={(value, op) => setNumberFilter("opening_value", value, op)}
+                                            onClear={() => clearNumberFilter("opening_value")}
+                                        />
+                                    </Th>
+                                    <Th>
+                                        <ColumnNumberFilter
+                                            label="Số lượng"
+                                            value={getFilterValue("inbound_quantity")}
+                                            op={getFilterOp("inbound_quantity")}
+                                            onApply={(value, op) => setNumberFilter("inbound_quantity", value, op)}
+                                            onClear={() => clearNumberFilter("inbound_quantity")}
+                                        />
+                                    </Th>
+                                    <Th>
+                                        <ColumnNumberFilter
+                                            label="Giá trị"
+                                            value={getFilterValue("inbound_value")}
+                                            op={getFilterOp("inbound_value")}
+                                            onApply={(value, op) => setNumberFilter("inbound_value", value, op)}
+                                            onClear={() => clearNumberFilter("inbound_value")}
+                                        />
+                                    </Th>
+                                    <Th>
+                                        <ColumnNumberFilter
+                                            label="Số lượng"
+                                            value={getFilterValue("outbound_quantity")}
+                                            op={getFilterOp("outbound_quantity")}
+                                            onApply={(value, op) => setNumberFilter("outbound_quantity", value, op)}
+                                            onClear={() => clearNumberFilter("outbound_quantity")}
+                                        />
+                                    </Th>
+                                    <Th>
+                                        <ColumnNumberFilter
+                                            label="Giá xuất BQ"
+                                            value={getFilterValue("avg_issue_unit_cost")}
+                                            op={getFilterOp("avg_issue_unit_cost")}
+                                            onApply={(value, op) => setNumberFilter("avg_issue_unit_cost", value, op)}
+                                            onClear={() => clearNumberFilter("avg_issue_unit_cost")}
+                                        />
+                                    </Th>
+                                    <Th>
+                                        <ColumnNumberFilter
+                                            label="Giá trị"
+                                            value={getFilterValue("outbound_value")}
+                                            op={getFilterOp("outbound_value")}
+                                            onApply={(value, op) => setNumberFilter("outbound_value", value, op)}
+                                            onClear={() => clearNumberFilter("outbound_value")}
+                                        />
+                                    </Th>
+                                    <Th>
+                                        <ColumnNumberFilter
+                                            label="Số lượng"
+                                            value={getFilterValue("closing_quantity")}
+                                            op={getFilterOp("closing_quantity")}
+                                            onApply={(value, op) => setNumberFilter("closing_quantity", value, op)}
+                                            onClear={() => clearNumberFilter("closing_quantity")}
+                                        />
+                                    </Th>
+                                    <Th>
+                                        <ColumnNumberFilter
+                                            label="Giá trị"
+                                            value={getFilterValue("closing_value")}
+                                            op={getFilterOp("closing_value")}
+                                            onApply={(value, op) => setNumberFilter("closing_value", value, op)}
+                                            onClear={() => clearNumberFilter("closing_value")}
+                                        />
+                                    </Th>
                                 </tr>
                                 ) : null}
                             </>
@@ -1791,8 +2000,24 @@ export function ExportInventorySummaryButton({
                 unit: filters.unit,
                 nature: filters.nature,
                 summary_status: filters.summary_status,
+                opening_quantity_op: filters.opening_quantity_op,
+                opening_quantity_value: filters.opening_quantity_value,
+                opening_value_op: filters.opening_value_op,
+                opening_value_value: filters.opening_value_value,
+                inbound_quantity_op: filters.inbound_quantity_op,
+                inbound_quantity_value: filters.inbound_quantity_value,
+                inbound_value_op: filters.inbound_value_op,
+                inbound_value_value: filters.inbound_value_value,
+                outbound_quantity_op: filters.outbound_quantity_op,
+                outbound_quantity_value: filters.outbound_quantity_value,
+                avg_issue_unit_cost_op: filters.avg_issue_unit_cost_op,
+                avg_issue_unit_cost_value: filters.avg_issue_unit_cost_value,
+                outbound_value_op: filters.outbound_value_op,
+                outbound_value_value: filters.outbound_value_value,
                 closing_quantity_op: filters.closing_quantity_op,
                 closing_quantity_value: filters.closing_quantity_value,
+                closing_value_op: filters.closing_value_op,
+                closing_value_value: filters.closing_value_value,
             }, listFn)
 
             if (!rows.length) {

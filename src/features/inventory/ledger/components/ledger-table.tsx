@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { AlertTriangle, Check, CheckCircle2, CircleHelp, Clock, Columns3, Copy, Funnel, GripVertical, Loader2, MoreHorizontal, Pencil, Pin, Printer, RotateCcw, Trash2, Warehouse as WarehouseIcon, X } from "lucide-react"
+import { AlertTriangle, ArrowDownWideNarrow, ArrowUpNarrowWide, Check, CheckCircle2, CircleHelp, Clock, Columns3, Copy, Funnel, GripVertical, Loader2, MoreHorizontal, Pencil, Pin, Printer, RotateCcw, Trash2, Warehouse as WarehouseIcon, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { listProductUnitLookups } from "@/api/app-lookup"
@@ -44,6 +44,7 @@ import {
     checkSalesReturnUnitPriceChange,
     checkTransferExportWarehouseChange,
     getTransferExportWarehouseChangeContext,
+    listInventoryLedgerStaticAccountOptions,
     listSalesExportWarehouseChangeLots,
     listTransferExportWarehouseChangeLots,
     updateInventoryLedgerStaticAccount,
@@ -104,7 +105,22 @@ import type { InventoryLedgerReportRow, InventoryLedgerTotals } from "../data/sc
 import { getDocTypeMeta } from "../data/schema"
 import type { Warehouse } from "@/features/warehouse/data/schema"
 
+const EMPTY_ACCOUNT_FILTER_VALUE = "__VL_EMPTY_ACCOUNT__"
+const EMPTY_ACCOUNT_FILTER_OPTION = { value: EMPTY_ACCOUNT_FILTER_VALUE, label: "Rỗng" }
+
 type TextFilterOp = "contains" | "equals" | "not_equals" | "not_contains"
+type NumberFilterOp = "eq" | "ne" | "lt" | "lte" | "gt" | "gte"
+
+type NumberFilterField =
+    | "unit_price"
+    | "opening_quantity"
+    | "opening_value"
+    | "inbound_quantity"
+    | "inbound_value"
+    | "outbound_quantity"
+    | "outbound_value"
+    | "closing_quantity"
+    | "closing_value"
 
 type Props = {
     data: InventoryLedgerReportRow[]
@@ -140,6 +156,26 @@ type Props = {
         unit?: string
         lot_text?: string
         lot_text_op?: string
+        tk_no?: string
+        tk_co?: string
+        unit_price_op?: NumberFilterOp | string
+        unit_price_value?: string
+        opening_quantity_op?: NumberFilterOp | string
+        opening_quantity_value?: string
+        opening_value_op?: NumberFilterOp | string
+        opening_value_value?: string
+        inbound_quantity_op?: NumberFilterOp | string
+        inbound_quantity_value?: string
+        inbound_value_op?: NumberFilterOp | string
+        inbound_value_value?: string
+        outbound_quantity_op?: NumberFilterOp | string
+        outbound_quantity_value?: string
+        outbound_value_op?: NumberFilterOp | string
+        outbound_value_value?: string
+        closing_quantity_op?: NumberFilterOp | string
+        closing_quantity_value?: string
+        closing_value_op?: NumberFilterOp | string
+        closing_value_value?: string
         time_sort?: "asc" | "desc" | string
     }
     onFiltersChange: (f: Props["filters"]) => void
@@ -154,6 +190,15 @@ const TEXT_FILTER_OPERATORS: Array<{ value: TextFilterOp; label: string }> = [
     { value: "equals", label: "Bằng" },
     { value: "not_equals", label: "Khác" },
     { value: "not_contains", label: "Không chứa" },
+]
+
+const NUMBER_FILTER_OPERATORS: Array<{ value: NumberFilterOp; label: string; chipLabel: string }> = [
+    { value: "eq", label: "Bằng (=)", chipLabel: "=" },
+    { value: "ne", label: "Khác (!=)", chipLabel: "!=" },
+    { value: "lt", label: "Nhỏ hơn (<)", chipLabel: "<" },
+    { value: "lte", label: "Nhỏ hơn hoặc bằng (<=)", chipLabel: "<=" },
+    { value: "gt", label: "Lớn hơn (>)", chipLabel: ">" },
+    { value: "gte", label: "Lớn hơn hoặc bằng (>=)", chipLabel: ">=" },
 ]
 
 const LEDGER_TABLE_PREFERENCE_KEY = "inventory.ledgers.report"
@@ -292,6 +337,15 @@ function filterValueLabels(value: string | undefined, options: Array<{ value: st
         .join(", ")
 }
 
+function numberFilterDescription(label: string, op?: string, value?: string) {
+    const operator = NUMBER_FILTER_OPERATORS.find((item) => item.value === op)?.chipLabel || "="
+    return `${label} ${operator} ${value}`
+}
+
+function normalizeNumberOp(value?: string): NumberFilterOp {
+    return NUMBER_FILTER_OPERATORS.some((item) => item.value === value) ? value as NumberFilterOp : "gt"
+}
+
 function uniqueOptions(options: Array<{ value: string; label: string }>) {
     const map = new Map<string, { value: string; label: string }>()
     options.forEach((option) => {
@@ -381,6 +435,30 @@ export function InventoryLedgerTable({
         }))
         return uniqueOptions([...selected, ...fromLookup])
     }, [filters.unit, unitLookupPage])
+    const { data: tkNoLookup = [] } = useQuery({
+        queryKey: ["inventory-ledger-static-account-options", "tk_no"],
+        queryFn: () => listInventoryLedgerStaticAccountOptions("tk_no"),
+    })
+    const { data: tkCoLookup = [] } = useQuery({
+        queryKey: ["inventory-ledger-static-account-options", "tk_co"],
+        queryFn: () => listInventoryLedgerStaticAccountOptions("tk_co"),
+    })
+    const tkNoOptions = useMemo(
+        () => uniqueOptions([
+            EMPTY_ACCOUNT_FILTER_OPTION,
+            ...splitFilterValues(filters.tk_no).map((value) => ({ value, label: value })),
+            ...tkNoLookup,
+        ]),
+        [filters.tk_no, tkNoLookup],
+    )
+    const tkCoOptions = useMemo(
+        () => uniqueOptions([
+            EMPTY_ACCOUNT_FILTER_OPTION,
+            ...splitFilterValues(filters.tk_co).map((value) => ({ value, label: value })),
+            ...tkCoLookup,
+        ]),
+        [filters.tk_co, tkCoLookup],
+    )
     const { data: permissions = [] } = useQuery({
         queryKey: ["my-permissions"],
         queryFn: getMyPermissions,
@@ -447,6 +525,7 @@ export function InventoryLedgerTable({
         })
     }
     const timeSort = filters.time_sort === "desc" ? "desc" : "asc"
+    const setTimeSort = (value: "asc" | "desc") => setFilter("time_sort", value)
 
     const setTextFilter = (
         textKey: "doc_text" | "description_text" | "supplier_text" | "product_text" | "product_code_text" | "product_name_text" | "warehouse_code_text" | "warehouse_name_text" | "lot_text",
@@ -471,6 +550,35 @@ export function InventoryLedgerTable({
             [textKey]: undefined,
             [opKey]: undefined,
         })
+    }
+
+    const setNumberFilter = (field: NumberFilterField, value: string, op: NumberFilterOp) => {
+        const nextValue = value.trim()
+        const opKey = `${field}_op` as keyof Props["filters"]
+        const valueKey = `${field}_value` as keyof Props["filters"]
+        onFiltersChange({
+            ...filters,
+            [opKey]: nextValue ? op : undefined,
+            [valueKey]: nextValue || undefined,
+        })
+    }
+
+    const clearNumberFilter = (field: NumberFilterField) => {
+        const opKey = `${field}_op` as keyof Props["filters"]
+        const valueKey = `${field}_value` as keyof Props["filters"]
+        onFiltersChange({
+            ...filters,
+            [opKey]: undefined,
+            [valueKey]: undefined,
+        })
+    }
+
+    const getNumberFilterValue = (field: NumberFilterField) => {
+        return filters[`${field}_value` as keyof Props["filters"]] as string | undefined
+    }
+
+    const getNumberFilterOp = (field: NumberFilterField) => {
+        return normalizeNumberOp(filters[`${field}_op` as keyof Props["filters"]] as string | undefined)
     }
 
     const setPageIndex = (pageIndex: number) => {
@@ -561,6 +669,40 @@ export function InventoryLedgerTable({
                 onClear: () => clearTextFilter("lot_text", "lot_text_op"),
             }
             : null,
+        filters.tk_no
+            ? {
+                key: "tk_no",
+                label: `TK Nợ: ${filterValueLabels(filters.tk_no, tkNoOptions)}`,
+                onClear: () => setFilter("tk_no", undefined),
+            }
+            : null,
+        filters.tk_co
+            ? {
+                key: "tk_co",
+                label: `TK Có: ${filterValueLabels(filters.tk_co, tkCoOptions)}`,
+                onClear: () => setFilter("tk_co", undefined),
+            }
+            : null,
+        ...([
+            ["unit_price", "Đơn giá"],
+            ["opening_quantity", "Tồn đầu / Số lượng"],
+            ["opening_value", "Tồn đầu / Giá trị"],
+            ["inbound_quantity", "Nhập / Số lượng"],
+            ["inbound_value", "Nhập / Giá trị"],
+            ["outbound_quantity", "Xuất / Số lượng"],
+            ["outbound_value", "Xuất / Giá trị"],
+            ["closing_quantity", "Tồn sau / Số lượng"],
+            ["closing_value", "Tồn sau / Giá trị"],
+        ] as Array<[NumberFilterField, string]>).map(([field, label]) => {
+            const value = getNumberFilterValue(field)
+            return value !== undefined && value !== ""
+                ? {
+                    key: field,
+                    label: numberFilterDescription(label, getNumberFilterOp(field), value),
+                    onClear: () => clearNumberFilter(field),
+                }
+                : null
+        }),
         timeSort === "desc"
             ? {
                 key: "time_sort",
@@ -597,12 +739,48 @@ export function InventoryLedgerTable({
             unit: undefined,
             lot_text: undefined,
             lot_text_op: undefined,
+            tk_no: undefined,
+            tk_co: undefined,
+            unit_price_op: undefined,
+            unit_price_value: undefined,
+            opening_quantity_op: undefined,
+            opening_quantity_value: undefined,
+            opening_value_op: undefined,
+            opening_value_value: undefined,
+            inbound_quantity_op: undefined,
+            inbound_quantity_value: undefined,
+            inbound_value_op: undefined,
+            inbound_value_value: undefined,
+            outbound_quantity_op: undefined,
+            outbound_quantity_value: undefined,
+            outbound_value_op: undefined,
+            outbound_value_value: undefined,
+            closing_quantity_op: undefined,
+            closing_quantity_value: undefined,
+            closing_value_op: undefined,
+            closing_value_value: undefined,
             time_sort: "asc",
         })
     }
 
     const renderLedgerColumnHeader = (column: LedgerColumnDefinition) => {
         switch (column.key) {
+            case "posting_date":
+                return (
+                    <DateSortHeader
+                        title={column.label}
+                        value={timeSort}
+                        onChange={setTimeSort}
+                    />
+                )
+            case "posting_time":
+                return (
+                    <DateSortHeader
+                        title={column.label}
+                        value={timeSort}
+                        onChange={setTimeSort}
+                    />
+                )
             case "doc_no":
                 return (
                     <ColumnTextFilter
@@ -621,6 +799,24 @@ export function InventoryLedgerTable({
                         op={filters.description_text_op}
                         onApply={(value, op) => setTextFilter("description_text", "description_text_op", value, op)}
                         onClear={() => clearTextFilter("description_text", "description_text_op")}
+                    />
+                )
+            case "tk_no":
+                return (
+                    <ColumnMultiSelectFilter
+                        label={column.label}
+                        value={filters.tk_no}
+                        options={tkNoOptions}
+                        onApply={(value) => setFilter("tk_no", value)}
+                    />
+                )
+            case "tk_co":
+                return (
+                    <ColumnMultiSelectFilter
+                        label={column.label}
+                        value={filters.tk_co}
+                        options={tkCoOptions}
+                        onApply={(value) => setFilter("tk_co", value)}
                     />
                 )
             case "product_code":
@@ -702,6 +898,16 @@ export function InventoryLedgerTable({
                         onClear={() => clearTextFilter("supplier_text", "supplier_text_op")}
                     />
                 )
+            case "unit_price":
+                return (
+                    <ColumnNumberFilter
+                        label={column.label}
+                        value={getNumberFilterValue("unit_price")}
+                        op={getNumberFilterOp("unit_price")}
+                        onApply={(value, op) => setNumberFilter("unit_price", value, op)}
+                        onClear={() => clearNumberFilter("unit_price")}
+                    />
+                )
             default:
                 return column.label
         }
@@ -741,9 +947,16 @@ export function InventoryLedgerTable({
             )
             for (let offset = 0; offset < colSpan; offset++) {
                 const groupedColumn = visibleColumns[index + offset]
+                const groupedColumnField = groupedColumn.key as NumberFilterField
                 secondRow.push(
                     <Th key={groupedColumn.key} className="text-center">
-                        {ledgerQuantityGroup(groupedColumn)?.subLabel || groupedColumn.label}
+                        <ColumnNumberFilter
+                            label={ledgerQuantityGroup(groupedColumn)?.subLabel || groupedColumn.label}
+                            value={getNumberFilterValue(groupedColumnField)}
+                            op={getNumberFilterOp(groupedColumnField)}
+                            onApply={(value, op) => setNumberFilter(groupedColumnField, value, op)}
+                            onClear={() => clearNumberFilter(groupedColumnField)}
+                        />
                     </Th>,
                 )
             }
@@ -821,16 +1034,6 @@ export function InventoryLedgerTable({
                         min={filters.from_date}
                         onChange={(value) => setFilter("to_date", value)}
                     />
-
-                    <Select value={timeSort} onValueChange={(value) => setFilter("time_sort", value === "desc" ? "desc" : "asc")}>
-                        <SelectTrigger className={cn(controlClass, "min-w-[170px] flex-[0_1_180px]")}>
-                            <SelectValue placeholder="Sắp xếp thời gian" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="asc">Thời gian tăng dần</SelectItem>
-                            <SelectItem value="desc">Thời gian giảm dần</SelectItem>
-                        </SelectContent>
-                    </Select>
 
                 </div>
             </CardHeader>
@@ -1189,6 +1392,172 @@ export function InventoryLedgerTable({
                 }}
             />
         </Card>
+    )
+}
+
+function DateSortHeader({
+    title,
+    value,
+    onChange,
+}: {
+    title: string
+    value: "asc" | "desc"
+    onChange: (value: "asc" | "desc") => void
+}) {
+    const [open, setOpen] = useState(false)
+    const options: Array<{ value: "asc" | "desc"; label: string; icon: typeof ArrowUpNarrowWide }> = [
+        { value: "asc", label: "Tăng dần", icon: ArrowUpNarrowWide },
+        { value: "desc", label: "Giảm dần", icon: ArrowDownWideNarrow },
+    ]
+
+    return (
+        <div className="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap">
+            <span className="truncate">{title}</span>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className={cn(
+                            "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent",
+                            value === "asc" ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                        )}
+                        aria-label={`Sắp xếp ${title}`}
+                    >
+                        <Funnel className="h-4 w-4" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-56 p-2">
+                    <div className="px-2 pb-2 font-semibold text-foreground">Sắp xếp {title}</div>
+                    <div className="space-y-1">
+                        {options.map((option) => {
+                            const Icon = option.icon
+                            return (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    className={cn(
+                                        "hover:bg-muted flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm",
+                                        value === option.value && "bg-primary/10 text-primary",
+                                    )}
+                                    onClick={() => {
+                                        onChange(option.value)
+                                        setOpen(false)
+                                    }}
+                                >
+                                    <Icon className="h-4 w-4" />
+                                    <span>{option.label}</span>
+                                    {value === option.value ? <Check className="ml-auto h-4 w-4" /> : null}
+                                </button>
+                            )
+                        })}
+                    </div>
+                </PopoverContent>
+            </Popover>
+        </div>
+    )
+}
+
+function ColumnNumberFilter({
+    label,
+    value,
+    op = "gt",
+    onApply,
+    onClear,
+}: {
+    label: string
+    value?: string
+    op?: NumberFilterOp | string
+    onApply: (value: string, op: NumberFilterOp) => void
+    onClear: () => void
+}) {
+    const [open, setOpen] = useState(false)
+    const [draftValue, setDraftValue] = useState(value || "0")
+    const [draftOp, setDraftOp] = useState<NumberFilterOp>(normalizeNumberOp(op))
+    const active = value !== undefined && value !== ""
+
+    const apply = () => {
+        onApply(draftValue, draftOp)
+        setOpen(false)
+    }
+
+    const clear = () => {
+        setDraftValue("0")
+        setDraftOp("gt")
+        onClear()
+        setOpen(false)
+    }
+
+    return (
+        <div className="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap">
+            <span className="truncate">{label}</span>
+            <Popover
+                open={open}
+                onOpenChange={(next) => {
+                    setOpen(next)
+                    if (next) {
+                        setDraftValue(value || "0")
+                        setDraftOp(normalizeNumberOp(op))
+                    }
+                }}
+            >
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className={cn(
+                            "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent",
+                            active ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                        )}
+                        aria-label={`Lọc ${label}`}
+                    >
+                        <Funnel className="h-4 w-4" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72 p-3">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="font-semibold text-foreground">Lọc {label}</div>
+                        <Select value={draftOp} onValueChange={(next) => setDraftOp(next as NumberFilterOp)}>
+                            <SelectTrigger className="h-8 w-36 border-0 bg-transparent px-1 shadow-none">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {NUMBER_FILTER_OPERATORS.map((operator) => (
+                                    <SelectItem key={operator.value} value={operator.value}>
+                                        {operator.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Input
+                        value={draftValue}
+                        onChange={(event) => setDraftValue(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") apply()
+                        }}
+                        inputMode="decimal"
+                        placeholder="Nhập giá trị"
+                    />
+                    <div className="mt-3 flex justify-end gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={clear}>
+                            Xóa
+                        </Button>
+                        <Button type="button" size="sm" onClick={apply}>
+                            Áp dụng
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
+            {active ? (
+                <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={onClear}
+                    aria-label={`Xóa lọc ${label}`}
+                >
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            ) : null}
+        </div>
     )
 }
 
@@ -3352,10 +3721,9 @@ function SalesExportLotChangeDialog({
     })
 
     const trimmedNewLotNo = newLotNo.trim()
-    const trimmedLotSelectionReason = lotSelectionReason.trim()
     const unchanged = trimmedNewLotNo === String(row?.lot_code || "").trim()
     const busy = checkMutation.isPending || applyMutation.isPending
-    const canApply = Boolean(result?.valid && !result.applied && !unchanged && trimmedLotSelectionReason && !busy)
+    const canApply = Boolean(result?.valid && !result.applied && !unchanged && !busy)
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -3406,7 +3774,7 @@ function SalesExportLotChangeDialog({
                                     setResult(null)
                                     setErrorMessage("")
                                 }}
-                                placeholder="Nhập lý do"
+                                placeholder="Nhập lý do (tùy chọn)"
                                 className="h-10"
                             />
                         </div>
@@ -3432,7 +3800,7 @@ function SalesExportLotChangeDialog({
                     <Button
                         type="button"
                         variant="outline"
-                        disabled={busy || unchanged || !trimmedNewLotNo || !trimmedLotSelectionReason}
+                        disabled={busy || unchanged || !trimmedNewLotNo}
                         onClick={() => checkMutation.mutate()}
                     >
                         {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -3647,9 +4015,8 @@ function TransferExportWarehouseChangeDialog({
         )
     }, [destinationWarehouseSearch, warehouses])
     const trimmedNewLotNo = newLotNo.trim()
-    const trimmedLotSelectionReason = lotSelectionReason.trim()
     const busy = checkMutation.isPending || applyMutation.isPending
-    const canApply = Boolean(result?.valid && !result.applied && !unchangedAll && trimmedNewLotNo && trimmedLotSelectionReason && newWarehouseId && newToWarehouseId && !busy)
+    const canApply = Boolean(result?.valid && !result.applied && !unchangedAll && trimmedNewLotNo && newWarehouseId && newToWarehouseId && !busy)
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -3826,7 +4193,7 @@ function TransferExportWarehouseChangeDialog({
                                         setResult(null)
                                         setErrorMessage("")
                                     }}
-                                    placeholder="Nhập lý do"
+                                    placeholder="Nhập lý do (tùy chọn)"
                                     className="h-10"
                                 />
                             </div>
@@ -3853,7 +4220,7 @@ function TransferExportWarehouseChangeDialog({
                     <Button
                         type="button"
                         variant="outline"
-                        disabled={busy || unchangedAll || !newWarehouseId || !newToWarehouseId || !trimmedNewLotNo || !trimmedLotSelectionReason}
+                        disabled={busy || unchangedAll || !newWarehouseId || !newToWarehouseId || !trimmedNewLotNo}
                         onClick={() => checkMutation.mutate()}
                     >
                         {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -4953,10 +5320,8 @@ function SalesExportWarehouseChangeDialog({
         },
     })
     const pending = busy || checkMutation.isPending || applyMutation.isPending || lotsQuery.isLoading || contextQuery.isLoading
-    const trimmedLotSelectionReason = lotSelectionReason.trim()
-    const reasonValid = lotSelectionMode === "AUTO" || Boolean(trimmedLotSelectionReason)
-    const canCheck = Boolean(!pending && !missingWarehouse && !unchanged && allocationValid && reasonValid)
-    const canApply = Boolean(result?.valid && !result.applied && !missingWarehouse && !unchanged && allocationValid && reasonValid && !pending)
+    const canCheck = Boolean(!pending && !missingWarehouse && !unchanged && allocationValid)
+    const canApply = Boolean(result?.valid && !result.applied && !missingWarehouse && !unchanged && allocationValid && !pending)
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -5163,7 +5528,7 @@ function SalesExportWarehouseChangeDialog({
                                         setErrorMessage("")
                                     }}
                                     disabled={pending || lotSelectionMode === "AUTO"}
-                                    placeholder="Nhập lý do"
+                                    placeholder="Nhập lý do (tùy chọn)"
                                     className="h-9"
                                 />
                             </div>

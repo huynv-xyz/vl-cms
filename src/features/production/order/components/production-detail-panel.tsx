@@ -1969,7 +1969,6 @@ function PreferredLotSelect({
                         setCustomOpen(true)
                         return
                     }
-                    if (value !== "AUTO" && !lotSelectionReason.trim()) { toast.error("Vui lòng nhập lý do chọn lô"); return }
                     mutation.mutate({
                         lotNo: value === "AUTO" ? undefined : value,
                         mode: "AUTO",
@@ -2009,7 +2008,7 @@ function PreferredLotSelect({
                     })}
                 </SelectContent>
             </Select>
-            <Input value={lotSelectionReason} onChange={(event) => setLotSelectionReason(event.target.value)} placeholder="Lý do chọn lô" className="mt-2 h-8 max-w-[460px] text-sm" disabled={disabled || mutation.isPending} />
+            <Input value={lotSelectionReason} onChange={(event) => setLotSelectionReason(event.target.value)} placeholder="Lý do chọn lô (tùy chọn)" className="mt-2 h-8 max-w-[460px] text-sm" disabled={disabled || mutation.isPending} />
             {customMode ? (
                 <button
                     type="button"
@@ -2109,7 +2108,7 @@ function PreferredLotSelect({
                         <Button type="button" variant="outline" onClick={() => setCustomOpen(false)}>Hủy</Button>
                         <Button
                             type="button"
-                            disabled={mutation.isPending || !allocationValid || !lotSelectionReason.trim()}
+                            disabled={mutation.isPending || !allocationValid}
                             onClick={() => mutation.mutate({
                                 mode: "CUSTOM",
                                 allocations: selectedAllocations,

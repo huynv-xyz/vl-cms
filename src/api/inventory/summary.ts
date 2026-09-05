@@ -31,6 +31,22 @@ export type SummaryListParams = {
     summary_status?: string
     closing_quantity_op?: string
     closing_quantity_value?: string
+    opening_quantity_op?: string
+    opening_quantity_value?: string
+    opening_value_op?: string
+    opening_value_value?: string
+    inbound_quantity_op?: string
+    inbound_quantity_value?: string
+    inbound_value_op?: string
+    inbound_value_value?: string
+    outbound_quantity_op?: string
+    outbound_quantity_value?: string
+    outbound_value_op?: string
+    outbound_value_value?: string
+    avg_issue_unit_cost_op?: string
+    avg_issue_unit_cost_value?: string
+    closing_value_op?: string
+    closing_value_value?: string
 }
 
 export type CreateSummaryRequest = Partial<InventorySummary>
