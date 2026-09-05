@@ -1081,6 +1081,7 @@ export function InventoryLedgerTable({
                                     onOpenVoucher={setDetailVoucherId}
                                     onChangeLot={(canUseLedgerCorrections || canUseScopedLedgerCorrections) ? setLotChangeRow : undefined}
                                     onChangeSalesExportLot={canUseLedgerCorrections ? setSalesExportLotChangeRow : undefined}
+                                    onChangeInboundWarehouse={(canUseLedgerCorrections || canUseScopedLedgerCorrections) ? setInboundWarehouseChangeRow : undefined}
                                     onChangePurchaseQuantity={(canUseLedgerCorrections || canUseScopedLedgerCorrections) ? setPurchaseQuantityChangeRow : undefined}
                                     onChangePurchaseProduct={(canUseLedgerCorrections || canUseScopedLedgerCorrections) ? setPurchaseProductChangeRow : undefined}
                                     onDeleteOtherExportLine={canUseLedgerCorrections ? setOtherExportLineDeleteRow : undefined}
@@ -2290,6 +2291,7 @@ function LedgerRow({
     onOpenVoucher,
     onChangeLot,
     onChangeSalesExportLot,
+    onChangeInboundWarehouse,
     onChangePurchaseQuantity,
     onChangePurchaseProduct,
     onDeleteOtherExportLine,
@@ -2311,6 +2313,7 @@ function LedgerRow({
     onOpenVoucher: (voucherId: number) => void
     onChangeLot?: (row: InventoryLedgerReportRow) => void
     onChangeSalesExportLot?: (row: InventoryLedgerReportRow) => void
+    onChangeInboundWarehouse?: (row: InventoryLedgerReportRow) => void
     onChangePurchaseQuantity?: (row: InventoryLedgerReportRow) => void
     onChangePurchaseProduct?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
@@ -2544,6 +2547,7 @@ function LedgerRow({
                     onOpenVoucher={item.voucher_id ? () => onOpenVoucher(Number(item.voucher_id)) : undefined}
                     onChangeLot={onChangeLot}
                     onChangeSalesExportLot={onChangeSalesExportLot}
+                    onChangeInboundWarehouse={onChangeInboundWarehouse}
                     onChangePurchaseQuantity={onChangePurchaseQuantity}
                     onChangePurchaseProduct={onChangePurchaseProduct}
                     onDeleteOtherExportLine={onDeleteOtherExportLine}
@@ -2690,6 +2694,7 @@ function LedgerCorrectionActions({
     onOpenVoucher,
     onChangeLot,
     onChangeSalesExportLot,
+    onChangeInboundWarehouse,
     onChangePurchaseQuantity,
     onChangePurchaseProduct,
     onDeleteOtherExportLine,
@@ -2702,6 +2707,7 @@ function LedgerCorrectionActions({
     onOpenVoucher?: () => void
     onChangeLot?: (row: InventoryLedgerReportRow) => void
     onChangeSalesExportLot?: (row: InventoryLedgerReportRow) => void
+    onChangeInboundWarehouse?: (row: InventoryLedgerReportRow) => void
     onChangePurchaseQuantity?: (row: InventoryLedgerReportRow) => void
     onChangePurchaseProduct?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
@@ -2714,13 +2720,14 @@ function LedgerCorrectionActions({
     const canEditStaticParameters = Boolean(onEditStaticParameters)
     const canChangeLot = Boolean(onChangeLot && isPurchaseInboundLedger(item))
     const canChangeSalesExportLot = Boolean(onChangeSalesExportLot && isSalesExportLedger(item))
+    const canChangeInboundWarehouse = Boolean(onChangeInboundWarehouse && isInboundWarehouseCorrectionLedger(item))
     const canChangePurchaseQuantity = Boolean(onChangePurchaseQuantity && isQuantityCorrectionLedger(item))
     const canChangePurchaseProduct = Boolean(onChangePurchaseProduct && isPurchaseProductCorrectionLedger(item))
     const canDeleteOtherExportLine = Boolean(onDeleteOtherExportLine && isOtherExportLineDeleteLedger(item))
     const canDeleteOtherInboundLine = Boolean(onDeleteOtherInboundLine && isOtherInboundLineDeleteLedger(item))
     const canDeletePurchaseLine = Boolean(onDeletePurchaseLine && isPurchaseLineDeleteLedger(item))
     const canNormalizeLegacyPostingTime = Boolean(onNormalizeLegacyPostingTime && item.lot_id && item.posting_date)
-    const hasQuickActions = canEditStaticParameters || canChangeLot || canChangeSalesExportLot || canChangePurchaseQuantity
+    const hasQuickActions = canEditStaticParameters || canChangeLot || canChangeSalesExportLot || canChangeInboundWarehouse || canChangePurchaseQuantity
         || canChangePurchaseProduct || canDeleteOtherExportLine
         || canDeleteOtherInboundLine || canDeletePurchaseLine || canNormalizeLegacyPostingTime
 
@@ -2789,6 +2796,22 @@ function LedgerCorrectionActions({
                         <span>
                             <span className="block font-medium">Đổi số lô xuất kho</span>
                             <span className="block text-xs text-muted-foreground">Chuyển dòng xuất sang lô đã tồn tại và kiểm tra lịch sử tồn.</span>
+                        </span>
+                    </button>
+                ) : null}
+                {canChangeInboundWarehouse ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                        onClick={() => onChangeInboundWarehouse?.(item)}
+                    >
+                        <WarehouseIcon className="mt-0.5 h-4 w-4 text-primary" />
+                        <span>
+                            <span className="block font-medium">
+                                Đổi kho nhập
+                                <NewBadge />
+                            </span>
+                            <span className="block text-xs text-muted-foreground">Dòng import không có phiếu sẽ chỉ cập nhật sổ kho, lô tồn và tồn kho.</span>
                         </span>
                     </button>
                 ) : null}
@@ -3146,7 +3169,6 @@ function OtherExportLineDeleteDialog({
                             <div className="grid gap-2 md:grid-cols-4">
                                 <ResultInfo label="Dòng ledger sẽ xóa" value={formatNumber(resultCount(result, "ledger_rows"))} />
                                 <ResultInfo label="Dòng phiếu sẽ xóa" value={formatNumber(resultCount(result, "voucher_items"))} />
-                                <ResultInfo label="Cost consumption" value={formatNumber(resultCount(result, "cost_consumptions"))} />
                                 <ResultInfo label="FIFO allocation" value={formatNumber(resultCount(result, "fifo_allocations"))} />
                                 <ResultInfo label="Số dòng trong phiếu" value={formatNumber(result.voucher_item_count || 0)} />
                                 <ResultInfo label="Xóa luôn phiếu" value={result.delete_voucher ? "Có" : "Không"} />
@@ -3294,7 +3316,6 @@ function OtherInboundLineDeleteDialog({
                             <div className="grid gap-2 md:grid-cols-4">
                                 <ResultInfo label="Dòng ledger sẽ xóa" value={formatNumber(resultCount(result, "ledger_rows"))} />
                                 <ResultInfo label="Dòng phiếu sẽ xóa" value={formatNumber(resultCount(result, "voucher_items"))} />
-                                <ResultInfo label="Cost layer" value={formatNumber(resultCount(result, "cost_layers"))} />
                                 <ResultInfo label="FIFO allocation" value={formatNumber(resultCount(result, "fifo_allocations"))} />
                                 <ResultInfo label="Số dòng trong phiếu" value={formatNumber(result.voucher_item_count || 0)} />
                                 <ResultInfo label="Xóa luôn phiếu" value={result.delete_voucher ? "Có" : "Không"} />
@@ -3439,13 +3460,8 @@ function PurchaseLineDeleteDialog({
                             <div className="grid gap-2 md:grid-cols-4">
                                 <ResultInfo label="Dòng ledger sẽ xóa" value={formatNumber(resultCount(result, "ledger_rows"))} />
                                 <ResultInfo label="Dòng phiếu sẽ xóa" value={formatNumber(resultCount(result, "voucher_items"))} />
-                                <ResultInfo label="Cost layer" value={formatNumber(resultCount(result, "cost_layers"))} />
-                                <ResultInfo label="Cost consumption" value={formatNumber(resultCount(result, "cost_consumptions"))} />
-                                <ResultInfo label="Cost layer hoàn trả" value={formatNumber(resultCount(result, "cost_layers_to_restore"))} />
-                                <ResultInfo label="Ledger giá vốn reset" value={formatNumber(resultCount(result, "costed_ledgers"))} />
                                 <ResultInfo label="Xuất NVL sản xuất" value={formatNumber(resultCount(result, "production_materials"))} />
                                 <ResultInfo label="Nhập TP sản xuất" value={formatNumber(resultCount(result, "production_outputs"))} />
-                                <ResultInfo label="Cost layer khác" value={formatNumber(resultCount(result, "blocking_cost_layers"))} />
                                 <ResultInfo label="FIFO allocation" value={formatNumber(resultCount(result, "fifo_allocations"))} />
                                 <ResultInfo label="Có phiếu kho" value={result.has_voucher_item ? "Có" : "Không"} />
                                 <ResultInfo label="Số dòng trong phiếu" value={formatNumber(result.voucher_item_count || 0)} />
@@ -4543,7 +4559,7 @@ function InboundWarehouseChangeDialog({
                 <DialogHeader>
                     <DialogTitle>Đổi kho nhập</DialogTitle>
                     <DialogDescription>
-                        Chỉ đổi kho cho dòng nhập đang chọn. Hệ thống kiểm tra địa điểm kho, lịch sử tồn và rollback toàn bộ nếu cập nhật lỗi.
+                        Chỉ đổi kho cho dòng nhập đang chọn. Dòng import không có phiếu kho sẽ chỉ cập nhật sổ kho, lô tồn và tồn kho.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -4973,7 +4989,6 @@ function LedgerAmountChangeResultPanel({ result }: { result: LedgerAmountChangeR
                 <ResultInfo label="Đơn giá mới" value={formatNumber(Number(result.new_unit_price || 0))} />
                 <ResultInfo label="Dòng sổ kho" value={applied ? formatNumber(Number(changes.updated_ledgers || 0)) : "Sẽ cập nhật 1 dòng"} />
                 <ResultInfo label="Dòng phiếu kho" value={applied ? formatNumber(Number(changes.updated_voucher_items || 0)) : result.voucher_item_id ? "Sẽ đồng bộ" : "Không có"} />
-                <ResultInfo label="Cost layer" value={applied ? formatNumber(Number(changes.updated_cost_layers || 0)) : result.direction === "IN" ? "Sẽ đồng bộ" : "Không áp dụng"} />
             </div>
 
             {result.errors?.length ? (
@@ -5606,7 +5621,6 @@ function SalesExportWarehouseChangeResultPanel({ result }: { result: SalesExport
                 <ResultInfo label="Kỳ costing cần tính lại" value={formatNumber(applied ? Number(changes.stale_cost_periods || 0) : affectedPeriods.length)} />
                 {applied ? <ResultInfo label="Ledger cập nhật/tạo/xóa" value={`${formatNumber(Number(changes.reused_ledger_rows || 0))}/${formatNumber(Number(changes.inserted_ledger_rows || 0))}/${formatNumber(Number(changes.deleted_ledger_rows || 0))}`} /> : null}
                 {applied ? <ResultInfo label="FIFO tạo lại" value={formatNumber(Number(changes.inserted_fifo_rows || 0))} /> : null}
-                {applied ? <ResultInfo label="Giá vốn tạo lại" value={formatNumber(Number(changes.rebuilt_cost_consumptions || 0))} /> : null}
             </div>
 
             {plan.length ? (
@@ -5838,7 +5852,6 @@ function PurchaseProductChangeResultPanel({ result }: { result: PurchaseProductC
                 <ResultInfo label="Dòng sổ kho ảnh hưởng" value={formatNumber(Number(counts.ledger_rows || changes.updated_ledgers || 0))} />
                 <ResultInfo label="Dòng phiếu kho ảnh hưởng" value={formatNumber(Number(counts.voucher_items || changes.updated_voucher_items || 0))} />
                 <ResultInfo label="FIFO ảnh hưởng" value={formatNumber(Number(counts.fifo_allocations || changes.updated_fifo_allocations || 0))} />
-                <ResultInfo label="Lớp giá vốn ảnh hưởng" value={formatNumber(Number(counts.cost_layers || changes.updated_cost_layers || 0))} />
                 <ResultInfo label="SX nguyên liệu ảnh hưởng" value={formatNumber(Number(counts.production_materials || changes.updated_production_materials || 0))} />
                 <ResultInfo label="Giao dịch bán hàng" value={formatNumber(Number(counts.sales_transactions || changes.updated_sales_transactions || 0))} />
                 <ResultInfo label="Công nợ dòng trả" value={formatNumber(Number(counts.ar_ledger || changes.updated_ar_ledger || 0))} />
@@ -7541,8 +7554,6 @@ function isInboundWarehouseCorrectionLedger(item: InventoryLedgerReportRow) {
     const docType = String(item.doc_type || "").toUpperCase()
     return ["IMPORT_PURCHASE", "DOMESTIC_PURCHASE", "OTHER_INBOUND"].includes(docType)
         && Number(item.quantity_in || 0) > 0
-        && Boolean(item.voucher_id)
-        && Boolean(item.voucher_item_id)
         && Boolean(item.lot_code)
 }
 
