@@ -769,14 +769,16 @@ function ItemsTable({
             itemId,
             lotCode,
             allocations,
+            lotSelectionReason,
         }: {
             itemId: number
             lotCode?: string
             allocations?: LotAllocationPayload[]
-        }) => updateExportItemLot(exportDoc.id, itemId, lotCode, allocations),
+            lotSelectionReason?: string
+        }) => updateExportItemLot(exportDoc.id, itemId, lotCode, allocations, lotSelectionReason),
         onSuccess: (_res, variables) => {
             toast.success("Đã cập nhật lô xuất")
-            updateExportItemLotInCache(queryClient, orderId, exportDoc.id, variables.itemId, variables.lotCode, variables.allocations)
+            updateExportItemLotInCache(queryClient, orderId, exportDoc.id, variables.itemId, variables.lotCode, variables.allocations, variables.lotSelectionReason)
             queryClient.invalidateQueries({ queryKey: ["order-detail", orderId], refetchType: "inactive" })
             queryClient.invalidateQueries({ queryKey: ["exports"] })
             queryClient.invalidateQueries({ queryKey: ["export-inventory-check"] })
@@ -1018,7 +1020,7 @@ function ItemsTable({
                                         isNew={canEditExport}
                                         canEditDoneCustom={canEditDoneCustom}
                                         disabled={isChangingLot || !(canEditExport || canEditDoneCustom) || !warehouseId || !productId}
-                                        onChange={(lotCode, allocations) => changeLot({ itemId: item.id, lotCode, allocations })}
+                                        onChange={(lotCode, allocations, lotSelectionReason) => changeLot({ itemId: item.id, lotCode, allocations, lotSelectionReason })}
                                     />
                                 </TableCell>
                                 <TableCell>
@@ -1068,9 +1070,13 @@ function ExportLotSelector({
     isNew: boolean
     canEditDoneCustom?: boolean
     disabled?: boolean
-    onChange: (lotCode?: string, allocations?: LotAllocationPayload[]) => void
+    onChange: (lotCode?: string, allocations?: LotAllocationPayload[], lotSelectionReason?: string) => void
 }) {
     const [customOpen, setCustomOpen] = useState(false)
+    const [lotSelectionReason, setLotSelectionReason] = useState(String(item?.lot_selection_reason || ""))
+    useEffect(() => {
+        setLotSelectionReason(String(item?.lot_selection_reason || ""))
+    }, [item?.id, item?.lot_selection_reason])
     const hasParentLots = availableLots !== undefined
     const { data, isLoading } = useQuery({
         queryKey: ["export-item-lots", productId, warehouseId, normalizeDateParam(exportDate), normalizeTimeForInput(exportTime), lotCode],
@@ -1092,6 +1098,12 @@ function ExportLotSelector({
         : lotCode && lots.some((lot: any) => lot?.lot_no === lotCode)
             ? lotCode
             : "AUTO"
+    const submitLotSelection = (nextLotCode?: string, nextAllocations?: LotAllocationPayload[]) => {
+        const manual = Boolean(nextLotCode) || Boolean(nextAllocations?.length)
+        const reason = manual ? lotSelectionReason.trim() : "Auto FIFO"
+        onChange(nextLotCode, nextAllocations, reason)
+        return true
+    }
 
     if (!isNew) {
         if (canEditDoneCustom && hasCustomAllocations) {
@@ -1113,14 +1125,13 @@ function ExportLotSelector({
                         lots={lots}
                         lotsLoading={Boolean(lotsLoading || isLoading)}
                         onSave={(nextAllocations) => {
-                            onChange(undefined, nextAllocations)
-                            setCustomOpen(false)
+                            if (submitLotSelection(undefined, nextAllocations)) setCustomOpen(false)
                         }}
                     />
                 </>
             )
         }
-        return <span className="text-sm text-muted-foreground">{summarizeLotSelection(item) || "Auto"}</span>
+        return <span className="text-sm text-muted-foreground">{describeLotSelection(item) || "Auto FIFO"}</span>
     }
 
     return (
@@ -1133,7 +1144,7 @@ function ExportLotSelector({
                         setCustomOpen(true)
                         return
                     }
-                    onChange(value === "AUTO" ? undefined : value, undefined)
+                    submitLotSelection(value === "AUTO" ? undefined : value, undefined)
                 }}
             >
                 <SelectTrigger className="h-8 min-w-[220px]" title={hasCustomAllocations ? summarizeLotSelection(item) : undefined}>
@@ -1147,7 +1158,7 @@ function ExportLotSelector({
                     <SelectItem value="AUTO" textValue="Auto">
                         <span className="inline-flex items-center gap-1.5">
                             <SlidersHorizontal className="h-3.5 w-3.5" />
-                            Auto
+                            Auto FIFO
                         </span>
                     </SelectItem>
                     <SelectItem value="CUSTOM" textValue="Tùy chọn">
@@ -1162,12 +1173,19 @@ function ExportLotSelector({
                         if (!lotNo) return null
                         return (
                             <SelectItem key={`${lot.id}-${lotNo}`} value={lotNo} textValue={lotNo}>
-                                {lotNo} - còn {formatNumber(resolveLotRemaining(lot))}
+                                {lotNo} - ưu tiên trước, còn {formatNumber(resolveLotRemaining(lot))}
                             </SelectItem>
                         )
                     })}
                 </SelectContent>
             </Select>
+            <Input
+                value={lotSelectionReason}
+                onChange={(event) => setLotSelectionReason(event.target.value)}
+                disabled={disabled}
+                placeholder="Lý do chọn lô (tùy chọn)"
+                className="mt-1 h-8 max-w-[280px] text-xs"
+            />
             {hasCustomAllocations ? (
                 <button
                     type="button"
@@ -1178,6 +1196,10 @@ function ExportLotSelector({
                 >
                     {summarizeLotSelection(item)}
                 </button>
+            ) : lotCode ? (
+                <p className="mt-1 max-w-[280px] text-xs leading-4 text-muted-foreground">
+                    Ưu tiên xuất từ lô {lotCode}; nếu thiếu, hệ thống tự lấy các lô còn lại theo FIFO.
+                </p>
             ) : null}
             <CustomLotAllocationDialog
                 open={customOpen}
@@ -1186,8 +1208,7 @@ function ExportLotSelector({
                 lots={lots}
                 lotsLoading={Boolean(lotsLoading || isLoading)}
                 onSave={(nextAllocations) => {
-                    onChange(undefined, nextAllocations)
-                    setCustomOpen(false)
+                    if (submitLotSelection(undefined, nextAllocations)) setCustomOpen(false)
                 }}
             />
         </>
@@ -1647,13 +1668,21 @@ function summarizeLotSelection(item: any) {
     return item?.lot_code || item?.lot_no || item?.lot_nos || ""
 }
 
+function describeLotSelection(item: any) {
+    const allocations = getLotAllocations(item)
+    if (allocations.length) return summarizeLotSelection(item)
+    const preferredLot = item?.lot_code || item?.lot_no || item?.lot_nos
+    return preferredLot ? `Ưu tiên ${preferredLot} + FIFO` : ""
+}
+
 function updateExportItemLotInCache(
     queryClient: any,
     orderId: number,
     exportId: number,
     itemId: number,
     lotCode?: string,
-    allocations?: LotAllocationPayload[]
+    allocations?: LotAllocationPayload[],
+    lotSelectionReason?: string
 ) {
     const updateOrderDetail = (current: any) => {
         const wrapped = current?.data ? current : null
@@ -1680,6 +1709,7 @@ function updateExportItemLotInCache(
                             lot_code: nextAllocations.length ? null : lotCode ?? null,
                             lot_allocations: nextAllocations,
                             lot_selection_mode: nextAllocations.length ? "CUSTOM" : lotCode ? "SINGLE" : "AUTO",
+                            lot_selection_reason: lotSelectionReason ?? (nextAllocations.length || lotCode ? item?.lot_selection_reason : "Auto FIFO"),
                         }
                     }),
                 }

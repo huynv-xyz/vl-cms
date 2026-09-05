@@ -27,7 +27,7 @@ export function OrderHeaderFields({ value, onChange, showStatus = true, lockAfte
         customerOption?.raw?.employee_id ?? customerOption?.raw?.employee?.id ?? undefined
 
     return (
-        <div className="grid gap-x-4 gap-y-2.5 md:grid-cols-2 xl:grid-cols-[minmax(420px,1fr)_minmax(360px,0.9fr)_minmax(300px,0.75fr)]">
+        <div className="grid gap-x-4 gap-y-2.5 md:grid-cols-2 xl:grid-cols-[minmax(360px,1fr)_minmax(280px,0.8fr)_minmax(210px,0.55fr)_minmax(210px,0.55fr)]">
             <Field icon={User} label="Khách hàng" required>
                 <AsyncSelect
                     placeholder="Chọn khách hàng"
@@ -76,8 +76,17 @@ export function OrderHeaderFields({ value, onChange, showStatus = true, lockAfte
                 />
             </Field>
 
+            <Field icon={CalendarDays} label="Ngày dự kiến giao">
+                <Input
+                    type="date"
+                    value={value.expected_delivery_date || ""}
+                    disabled={lockAfterDoneExport}
+                    onChange={(event) => update({ expected_delivery_date: event.target.value })}
+                />
+            </Field>
+
             {showStatus && (
-                <Field label="Trạng thái" className="xl:col-start-3 xl:row-start-2">
+                <Field label="Trạng thái" className="xl:col-start-4 xl:row-start-2">
                     <Select
                         value={value.status || "NEW"}
                         onValueChange={(status) => update({ status })}
@@ -107,7 +116,7 @@ export function OrderHeaderFields({ value, onChange, showStatus = true, lockAfte
             <Field
                 icon={FileSignature}
                 label="Ghi chú"
-                className={cn("md:col-span-2", showStatus ? "xl:col-span-2 xl:row-start-2" : "xl:col-span-3")}
+                className={cn("md:col-span-2", showStatus ? "xl:col-span-3 xl:row-start-2" : "xl:col-span-4")}
             >
                 <Input
                     placeholder="VD: Giao trước 5h chiều, gọi điện trước khi tới..."

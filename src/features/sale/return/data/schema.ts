@@ -3,6 +3,7 @@ import { Customer } from "@/features/customer/data/schema"
 import { Warehouse } from "@/features/warehouse/data/schema"
 import { Export } from "../../export/data/schema"
 import { Order } from "../../order/data/schema"
+import type { InventoryVoucher } from "@/api/inventory/voucher"
 
 export type ReturnItem = {
     id: number
@@ -32,6 +33,8 @@ export type Return = {
     status: string
     reason?: string
     return_date?: string
+    return_time?: string
+    inventory_voucher?: InventoryVoucher | null
     created_at?: string | number[]
     updated_at?: string | number[]
 

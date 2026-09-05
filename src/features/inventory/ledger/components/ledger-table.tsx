@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { AlertTriangle, Check, CheckCircle2, CircleHelp, Clock, Columns3, Copy, Funnel, GripVertical, Loader2, MoreHorizontal, Pencil, Pin, Printer, RotateCcw, Trash2, Warehouse as WarehouseIcon, X } from "lucide-react"
+import { AlertTriangle, ArrowDownWideNarrow, ArrowUpNarrowWide, Check, CheckCircle2, CircleHelp, Clock, Columns3, Copy, Funnel, GripVertical, Loader2, MoreHorizontal, Pencil, Pin, Printer, RotateCcw, Trash2, Warehouse as WarehouseIcon, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { listProductUnitLookups } from "@/api/app-lookup"
@@ -18,6 +18,7 @@ import {
     applyLegacyPostingTimeNormalization,
     applyOtherExportLineDelete,
     applyOtherInboundLineDelete,
+    applyPurchaseLineDelete,
     applyReturnWarehouseChange,
     applySalesExportLotChange,
     applySalesExportWarehouseChange,
@@ -35,6 +36,7 @@ import {
     checkLegacyPostingTimeNormalization,
     checkOtherExportLineDelete,
     checkOtherInboundLineDelete,
+    checkPurchaseLineDelete,
     checkReturnWarehouseChange,
     checkSalesExportLotChange,
     checkSalesExportWarehouseChange,
@@ -42,6 +44,7 @@ import {
     checkSalesReturnUnitPriceChange,
     checkTransferExportWarehouseChange,
     getTransferExportWarehouseChangeContext,
+    listInventoryLedgerStaticAccountOptions,
     listSalesExportWarehouseChangeLots,
     listTransferExportWarehouseChangeLots,
     updateInventoryLedgerStaticAccount,
@@ -57,6 +60,7 @@ import {
     type DocumentPostingTimeChangeResult,
     type OtherExportLineDeleteResult,
     type OtherInboundLineDeleteResult,
+    type PurchaseLineDeleteResult,
     type ReturnWarehouseChangeResult,
     type SalesExportLotChangeResult,
     type SalesExportWarehouseAvailableLot,
@@ -71,12 +75,12 @@ import { getVoucherPrintDetail, listVoucherTypes, VOUCHER_TYPE_LABEL, type Inven
 import { getProduct, listProducts } from "@/api/product"
 import { getTablePreference, saveTablePreference } from "@/api/ui-preference"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
-import { DatePicker } from "@/components/date-picker"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { ProductMultiFilter } from "@/features/inventory/components/product-multi-filter"
 import { StickyReportTable } from "@/features/inventory/components/sticky-report-table"
 import { WarehouseTreeFilter } from "@/features/inventory/components/warehouse-tree-filter"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
+import { DateFilterInput } from "@/components/date-filter-input"
 import { CardPagination } from "@/components/table/card-pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -101,7 +105,22 @@ import type { InventoryLedgerReportRow, InventoryLedgerTotals } from "../data/sc
 import { getDocTypeMeta } from "../data/schema"
 import type { Warehouse } from "@/features/warehouse/data/schema"
 
+const EMPTY_ACCOUNT_FILTER_VALUE = "__VL_EMPTY_ACCOUNT__"
+const EMPTY_ACCOUNT_FILTER_OPTION = { value: EMPTY_ACCOUNT_FILTER_VALUE, label: "Rỗng" }
+
 type TextFilterOp = "contains" | "equals" | "not_equals" | "not_contains"
+type NumberFilterOp = "eq" | "ne" | "lt" | "lte" | "gt" | "gte"
+
+type NumberFilterField =
+    | "unit_price"
+    | "opening_quantity"
+    | "opening_value"
+    | "inbound_quantity"
+    | "inbound_value"
+    | "outbound_quantity"
+    | "outbound_value"
+    | "closing_quantity"
+    | "closing_value"
 
 type Props = {
     data: InventoryLedgerReportRow[]
@@ -137,6 +156,26 @@ type Props = {
         unit?: string
         lot_text?: string
         lot_text_op?: string
+        tk_no?: string
+        tk_co?: string
+        unit_price_op?: NumberFilterOp | string
+        unit_price_value?: string
+        opening_quantity_op?: NumberFilterOp | string
+        opening_quantity_value?: string
+        opening_value_op?: NumberFilterOp | string
+        opening_value_value?: string
+        inbound_quantity_op?: NumberFilterOp | string
+        inbound_quantity_value?: string
+        inbound_value_op?: NumberFilterOp | string
+        inbound_value_value?: string
+        outbound_quantity_op?: NumberFilterOp | string
+        outbound_quantity_value?: string
+        outbound_value_op?: NumberFilterOp | string
+        outbound_value_value?: string
+        closing_quantity_op?: NumberFilterOp | string
+        closing_quantity_value?: string
+        closing_value_op?: NumberFilterOp | string
+        closing_value_value?: string
         time_sort?: "asc" | "desc" | string
     }
     onFiltersChange: (f: Props["filters"]) => void
@@ -151,6 +190,15 @@ const TEXT_FILTER_OPERATORS: Array<{ value: TextFilterOp; label: string }> = [
     { value: "equals", label: "Bằng" },
     { value: "not_equals", label: "Khác" },
     { value: "not_contains", label: "Không chứa" },
+]
+
+const NUMBER_FILTER_OPERATORS: Array<{ value: NumberFilterOp; label: string; chipLabel: string }> = [
+    { value: "eq", label: "Bằng (=)", chipLabel: "=" },
+    { value: "ne", label: "Khác (!=)", chipLabel: "!=" },
+    { value: "lt", label: "Nhỏ hơn (<)", chipLabel: "<" },
+    { value: "lte", label: "Nhỏ hơn hoặc bằng (<=)", chipLabel: "<=" },
+    { value: "gt", label: "Lớn hơn (>)", chipLabel: ">" },
+    { value: "gte", label: "Lớn hơn hoặc bằng (>=)", chipLabel: ">=" },
 ]
 
 const LEDGER_TABLE_PREFERENCE_KEY = "inventory.ledgers.report"
@@ -263,7 +311,7 @@ function activeLedgerColumns(preference?: LedgerTablePreference | null, showValu
 
 function resolveLedgerPinnedColumnKey(preference?: LedgerTablePreference | null) {
     const key = preference?.pinnedColumnKey
-    return key && LEDGER_COLUMN_MAP.has(key) ? key : "warehouse_name"
+    return key && LEDGER_COLUMN_MAP.has(key) ? key : "doc_no"
 }
 
 function ledgerQuantityGroup(column: LedgerColumnDefinition) {
@@ -287,6 +335,15 @@ function filterValueLabels(value: string | undefined, options: Array<{ value: st
     return splitFilterValues(value)
         .map((item) => optionMap.get(item) || item)
         .join(", ")
+}
+
+function numberFilterDescription(label: string, op?: string, value?: string) {
+    const operator = NUMBER_FILTER_OPERATORS.find((item) => item.value === op)?.chipLabel || "="
+    return `${label} ${operator} ${value}`
+}
+
+function normalizeNumberOp(value?: string): NumberFilterOp {
+    return NUMBER_FILTER_OPERATORS.some((item) => item.value === value) ? value as NumberFilterOp : "gt"
 }
 
 function uniqueOptions(options: Array<{ value: string; label: string }>) {
@@ -342,6 +399,7 @@ export function InventoryLedgerTable({
     const [legacyPostingTimeNormalizationRow, setLegacyPostingTimeNormalizationRow] = useState<InventoryLedgerReportRow | null>(null)
     const [otherExportLineDeleteRow, setOtherExportLineDeleteRow] = useState<InventoryLedgerReportRow | null>(null)
     const [otherInboundLineDeleteRow, setOtherInboundLineDeleteRow] = useState<InventoryLedgerReportRow | null>(null)
+    const [purchaseLineDeleteRow, setPurchaseLineDeleteRow] = useState<InventoryLedgerReportRow | null>(null)
     const [staticParametersRow, setStaticParametersRow] = useState<InventoryLedgerReportRow | null>(null)
     const [editingStaticAccount, setEditingStaticAccount] = useState<{ rowId: number; field: InventoryLedgerStaticAccountField } | null>(null)
     const queryClient = useQueryClient()
@@ -377,6 +435,30 @@ export function InventoryLedgerTable({
         }))
         return uniqueOptions([...selected, ...fromLookup])
     }, [filters.unit, unitLookupPage])
+    const { data: tkNoLookup = [] } = useQuery({
+        queryKey: ["inventory-ledger-static-account-options", "tk_no"],
+        queryFn: () => listInventoryLedgerStaticAccountOptions("tk_no"),
+    })
+    const { data: tkCoLookup = [] } = useQuery({
+        queryKey: ["inventory-ledger-static-account-options", "tk_co"],
+        queryFn: () => listInventoryLedgerStaticAccountOptions("tk_co"),
+    })
+    const tkNoOptions = useMemo(
+        () => uniqueOptions([
+            EMPTY_ACCOUNT_FILTER_OPTION,
+            ...splitFilterValues(filters.tk_no).map((value) => ({ value, label: value })),
+            ...tkNoLookup,
+        ]),
+        [filters.tk_no, tkNoLookup],
+    )
+    const tkCoOptions = useMemo(
+        () => uniqueOptions([
+            EMPTY_ACCOUNT_FILTER_OPTION,
+            ...splitFilterValues(filters.tk_co).map((value) => ({ value, label: value })),
+            ...tkCoLookup,
+        ]),
+        [filters.tk_co, tkCoLookup],
+    )
     const { data: permissions = [] } = useQuery({
         queryKey: ["my-permissions"],
         queryFn: getMyPermissions,
@@ -443,6 +525,7 @@ export function InventoryLedgerTable({
         })
     }
     const timeSort = filters.time_sort === "desc" ? "desc" : "asc"
+    const setTimeSort = (value: "asc" | "desc") => setFilter("time_sort", value)
 
     const setTextFilter = (
         textKey: "doc_text" | "description_text" | "supplier_text" | "product_text" | "product_code_text" | "product_name_text" | "warehouse_code_text" | "warehouse_name_text" | "lot_text",
@@ -467,6 +550,35 @@ export function InventoryLedgerTable({
             [textKey]: undefined,
             [opKey]: undefined,
         })
+    }
+
+    const setNumberFilter = (field: NumberFilterField, value: string, op: NumberFilterOp) => {
+        const nextValue = value.trim()
+        const opKey = `${field}_op` as keyof Props["filters"]
+        const valueKey = `${field}_value` as keyof Props["filters"]
+        onFiltersChange({
+            ...filters,
+            [opKey]: nextValue ? op : undefined,
+            [valueKey]: nextValue || undefined,
+        })
+    }
+
+    const clearNumberFilter = (field: NumberFilterField) => {
+        const opKey = `${field}_op` as keyof Props["filters"]
+        const valueKey = `${field}_value` as keyof Props["filters"]
+        onFiltersChange({
+            ...filters,
+            [opKey]: undefined,
+            [valueKey]: undefined,
+        })
+    }
+
+    const getNumberFilterValue = (field: NumberFilterField) => {
+        return filters[`${field}_value` as keyof Props["filters"]] as string | undefined
+    }
+
+    const getNumberFilterOp = (field: NumberFilterField) => {
+        return normalizeNumberOp(filters[`${field}_op` as keyof Props["filters"]] as string | undefined)
     }
 
     const setPageIndex = (pageIndex: number) => {
@@ -557,6 +669,40 @@ export function InventoryLedgerTable({
                 onClear: () => clearTextFilter("lot_text", "lot_text_op"),
             }
             : null,
+        filters.tk_no
+            ? {
+                key: "tk_no",
+                label: `TK Nợ: ${filterValueLabels(filters.tk_no, tkNoOptions)}`,
+                onClear: () => setFilter("tk_no", undefined),
+            }
+            : null,
+        filters.tk_co
+            ? {
+                key: "tk_co",
+                label: `TK Có: ${filterValueLabels(filters.tk_co, tkCoOptions)}`,
+                onClear: () => setFilter("tk_co", undefined),
+            }
+            : null,
+        ...([
+            ["unit_price", "Đơn giá"],
+            ["opening_quantity", "Tồn đầu / Số lượng"],
+            ["opening_value", "Tồn đầu / Giá trị"],
+            ["inbound_quantity", "Nhập / Số lượng"],
+            ["inbound_value", "Nhập / Giá trị"],
+            ["outbound_quantity", "Xuất / Số lượng"],
+            ["outbound_value", "Xuất / Giá trị"],
+            ["closing_quantity", "Tồn sau / Số lượng"],
+            ["closing_value", "Tồn sau / Giá trị"],
+        ] as Array<[NumberFilterField, string]>).map(([field, label]) => {
+            const value = getNumberFilterValue(field)
+            return value !== undefined && value !== ""
+                ? {
+                    key: field,
+                    label: numberFilterDescription(label, getNumberFilterOp(field), value),
+                    onClear: () => clearNumberFilter(field),
+                }
+                : null
+        }),
         timeSort === "desc"
             ? {
                 key: "time_sort",
@@ -593,12 +739,48 @@ export function InventoryLedgerTable({
             unit: undefined,
             lot_text: undefined,
             lot_text_op: undefined,
+            tk_no: undefined,
+            tk_co: undefined,
+            unit_price_op: undefined,
+            unit_price_value: undefined,
+            opening_quantity_op: undefined,
+            opening_quantity_value: undefined,
+            opening_value_op: undefined,
+            opening_value_value: undefined,
+            inbound_quantity_op: undefined,
+            inbound_quantity_value: undefined,
+            inbound_value_op: undefined,
+            inbound_value_value: undefined,
+            outbound_quantity_op: undefined,
+            outbound_quantity_value: undefined,
+            outbound_value_op: undefined,
+            outbound_value_value: undefined,
+            closing_quantity_op: undefined,
+            closing_quantity_value: undefined,
+            closing_value_op: undefined,
+            closing_value_value: undefined,
             time_sort: "asc",
         })
     }
 
     const renderLedgerColumnHeader = (column: LedgerColumnDefinition) => {
         switch (column.key) {
+            case "posting_date":
+                return (
+                    <DateSortHeader
+                        title={column.label}
+                        value={timeSort}
+                        onChange={setTimeSort}
+                    />
+                )
+            case "posting_time":
+                return (
+                    <DateSortHeader
+                        title={column.label}
+                        value={timeSort}
+                        onChange={setTimeSort}
+                    />
+                )
             case "doc_no":
                 return (
                     <ColumnTextFilter
@@ -617,6 +799,24 @@ export function InventoryLedgerTable({
                         op={filters.description_text_op}
                         onApply={(value, op) => setTextFilter("description_text", "description_text_op", value, op)}
                         onClear={() => clearTextFilter("description_text", "description_text_op")}
+                    />
+                )
+            case "tk_no":
+                return (
+                    <ColumnMultiSelectFilter
+                        label={column.label}
+                        value={filters.tk_no}
+                        options={tkNoOptions}
+                        onApply={(value) => setFilter("tk_no", value)}
+                    />
+                )
+            case "tk_co":
+                return (
+                    <ColumnMultiSelectFilter
+                        label={column.label}
+                        value={filters.tk_co}
+                        options={tkCoOptions}
+                        onApply={(value) => setFilter("tk_co", value)}
                     />
                 )
             case "product_code":
@@ -698,6 +898,16 @@ export function InventoryLedgerTable({
                         onClear={() => clearTextFilter("supplier_text", "supplier_text_op")}
                     />
                 )
+            case "unit_price":
+                return (
+                    <ColumnNumberFilter
+                        label={column.label}
+                        value={getNumberFilterValue("unit_price")}
+                        op={getNumberFilterOp("unit_price")}
+                        onApply={(value, op) => setNumberFilter("unit_price", value, op)}
+                        onClear={() => clearNumberFilter("unit_price")}
+                    />
+                )
             default:
                 return column.label
         }
@@ -737,9 +947,16 @@ export function InventoryLedgerTable({
             )
             for (let offset = 0; offset < colSpan; offset++) {
                 const groupedColumn = visibleColumns[index + offset]
+                const groupedColumnField = groupedColumn.key as NumberFilterField
                 secondRow.push(
                     <Th key={groupedColumn.key} className="text-center">
-                        {ledgerQuantityGroup(groupedColumn)?.subLabel || groupedColumn.label}
+                        <ColumnNumberFilter
+                            label={ledgerQuantityGroup(groupedColumn)?.subLabel || groupedColumn.label}
+                            value={getNumberFilterValue(groupedColumnField)}
+                            op={getNumberFilterOp(groupedColumnField)}
+                            onApply={(value, op) => setNumberFilter(groupedColumnField, value, op)}
+                            onClear={() => clearNumberFilter(groupedColumnField)}
+                        />
                     </Th>,
                 )
             }
@@ -802,37 +1019,21 @@ export function InventoryLedgerTable({
                         onApply={(value) => setFilter("doc_type", value)}
                     />
 
-                    <DatePicker
-                        className="min-w-[180px] flex-[0_1_190px] [&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
+                    <DateFilterInput
+                        aria-label="Từ ngày"
+                        className="h-10 min-w-[160px] flex-1 rounded-md border-slate-300 bg-white shadow-xs"
                         value={filters.from_date}
-                        onChange={(value) => setFilter("from_date", value || undefined)}
-                        disabled={(date) => {
-                            const value = dateToYmd(date)
-                            return Boolean(filters.to_date && value > filters.to_date)
-                        }}
-                        placeholder="Từ ngày"
+                        max={filters.to_date}
+                        onChange={(value) => setFilter("from_date", value)}
                     />
 
-                    <DatePicker
-                        className="min-w-[180px] flex-[0_1_190px] [&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
+                    <DateFilterInput
+                        aria-label="Đến ngày"
+                        className="h-10 min-w-[160px] flex-1 rounded-md border-slate-300 bg-white shadow-xs"
                         value={filters.to_date}
-                        onChange={(value) => setFilter("to_date", value || undefined)}
-                        disabled={(date) => {
-                            const value = dateToYmd(date)
-                            return Boolean(filters.from_date && value < filters.from_date)
-                        }}
-                        placeholder="Đến ngày"
+                        min={filters.from_date}
+                        onChange={(value) => setFilter("to_date", value)}
                     />
-
-                    <Select value={timeSort} onValueChange={(value) => setFilter("time_sort", value === "desc" ? "desc" : "asc")}>
-                        <SelectTrigger className={cn(controlClass, "min-w-[170px] flex-[0_1_180px]")}>
-                            <SelectValue placeholder="Sắp xếp thời gian" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="asc">Thời gian tăng dần</SelectItem>
-                            <SelectItem value="desc">Thời gian giảm dần</SelectItem>
-                        </SelectContent>
-                    </Select>
 
                 </div>
             </CardHeader>
@@ -884,6 +1085,7 @@ export function InventoryLedgerTable({
                                     onChangePurchaseProduct={(canUseLedgerCorrections || canUseScopedLedgerCorrections) ? setPurchaseProductChangeRow : undefined}
                                     onDeleteOtherExportLine={canUseLedgerCorrections ? setOtherExportLineDeleteRow : undefined}
                                     onDeleteOtherInboundLine={canUseLedgerCorrections ? setOtherInboundLineDeleteRow : undefined}
+                                    onDeletePurchaseLine={canUseLedgerCorrections ? setPurchaseLineDeleteRow : undefined}
                                     onEditStaticParameters={canUseLedgerCorrections ? setStaticParametersRow : undefined}
                                     onUpdateStaticAccount={canUseLedgerCorrections ? updateInlineStaticAccount : undefined}
                                     onCopyStaticAccountDown={canUseLedgerCorrections ? copyInlineStaticAccountDown : undefined}
@@ -942,6 +1144,7 @@ export function InventoryLedgerTable({
                 onChangeSalesReturnUnitPrice={setSalesReturnUnitPriceChangeRow}
                 onDeleteOtherExportLine={setOtherExportLineDeleteRow}
                 onDeleteOtherInboundLine={setOtherInboundLineDeleteRow}
+                onDeletePurchaseLine={canUseLedgerCorrections ? setPurchaseLineDeleteRow : undefined}
                 onNormalizeLegacyPostingTime={canUseLedgerCorrections ? setLegacyPostingTimeNormalizationRow : undefined}
             />
             <PurchaseLotChangeDialog
@@ -1173,7 +1376,188 @@ export function InventoryLedgerTable({
                     setDetailVoucherRefreshKey((value) => value + 1)
                 }}
             />
+            <PurchaseLineDeleteDialog
+                row={purchaseLineDeleteRow}
+                open={!!purchaseLineDeleteRow}
+                onOpenChange={(open) => {
+                    if (!open) setPurchaseLineDeleteRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["inventory-ledger-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-voucher-detail"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-lot-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-summary-report"] })
+                    queryClient.invalidateQueries({ queryKey: ["inventory-costing"] })
+                    setDetailVoucherRefreshKey((value) => value + 1)
+                }}
+            />
         </Card>
+    )
+}
+
+function DateSortHeader({
+    title,
+    value,
+    onChange,
+}: {
+    title: string
+    value: "asc" | "desc"
+    onChange: (value: "asc" | "desc") => void
+}) {
+    const [open, setOpen] = useState(false)
+    const options: Array<{ value: "asc" | "desc"; label: string; icon: typeof ArrowUpNarrowWide }> = [
+        { value: "asc", label: "Tăng dần", icon: ArrowUpNarrowWide },
+        { value: "desc", label: "Giảm dần", icon: ArrowDownWideNarrow },
+    ]
+
+    return (
+        <div className="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap">
+            <span className="truncate">{title}</span>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className={cn(
+                            "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent",
+                            value === "asc" ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                        )}
+                        aria-label={`Sắp xếp ${title}`}
+                    >
+                        <Funnel className="h-4 w-4" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-56 p-2">
+                    <div className="px-2 pb-2 font-semibold text-foreground">Sắp xếp {title}</div>
+                    <div className="space-y-1">
+                        {options.map((option) => {
+                            const Icon = option.icon
+                            return (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    className={cn(
+                                        "hover:bg-muted flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm",
+                                        value === option.value && "bg-primary/10 text-primary",
+                                    )}
+                                    onClick={() => {
+                                        onChange(option.value)
+                                        setOpen(false)
+                                    }}
+                                >
+                                    <Icon className="h-4 w-4" />
+                                    <span>{option.label}</span>
+                                    {value === option.value ? <Check className="ml-auto h-4 w-4" /> : null}
+                                </button>
+                            )
+                        })}
+                    </div>
+                </PopoverContent>
+            </Popover>
+        </div>
+    )
+}
+
+function ColumnNumberFilter({
+    label,
+    value,
+    op = "gt",
+    onApply,
+    onClear,
+}: {
+    label: string
+    value?: string
+    op?: NumberFilterOp | string
+    onApply: (value: string, op: NumberFilterOp) => void
+    onClear: () => void
+}) {
+    const [open, setOpen] = useState(false)
+    const [draftValue, setDraftValue] = useState(value || "0")
+    const [draftOp, setDraftOp] = useState<NumberFilterOp>(normalizeNumberOp(op))
+    const active = value !== undefined && value !== ""
+
+    const apply = () => {
+        onApply(draftValue, draftOp)
+        setOpen(false)
+    }
+
+    const clear = () => {
+        setDraftValue("0")
+        setDraftOp("gt")
+        onClear()
+        setOpen(false)
+    }
+
+    return (
+        <div className="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap">
+            <span className="truncate">{label}</span>
+            <Popover
+                open={open}
+                onOpenChange={(next) => {
+                    setOpen(next)
+                    if (next) {
+                        setDraftValue(value || "0")
+                        setDraftOp(normalizeNumberOp(op))
+                    }
+                }}
+            >
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className={cn(
+                            "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent",
+                            active ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                        )}
+                        aria-label={`Lọc ${label}`}
+                    >
+                        <Funnel className="h-4 w-4" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72 p-3">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="font-semibold text-foreground">Lọc {label}</div>
+                        <Select value={draftOp} onValueChange={(next) => setDraftOp(next as NumberFilterOp)}>
+                            <SelectTrigger className="h-8 w-36 border-0 bg-transparent px-1 shadow-none">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {NUMBER_FILTER_OPERATORS.map((operator) => (
+                                    <SelectItem key={operator.value} value={operator.value}>
+                                        {operator.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Input
+                        value={draftValue}
+                        onChange={(event) => setDraftValue(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") apply()
+                        }}
+                        inputMode="decimal"
+                        placeholder="Nhập giá trị"
+                    />
+                    <div className="mt-3 flex justify-end gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={clear}>
+                            Xóa
+                        </Button>
+                        <Button type="button" size="sm" onClick={apply}>
+                            Áp dụng
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
+            {active ? (
+                <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={onClear}
+                    aria-label={`Xóa lọc ${label}`}
+                >
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            ) : null}
+        </div>
     )
 }
 
@@ -1910,6 +2294,7 @@ function LedgerRow({
     onChangePurchaseProduct,
     onDeleteOtherExportLine,
     onDeleteOtherInboundLine,
+    onDeletePurchaseLine,
     onEditStaticParameters,
     onUpdateStaticAccount,
     onCopyStaticAccountDown,
@@ -1930,6 +2315,7 @@ function LedgerRow({
     onChangePurchaseProduct?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
+    onDeletePurchaseLine?: (row: InventoryLedgerReportRow) => void
     onEditStaticParameters?: (row: InventoryLedgerReportRow) => void
     onUpdateStaticAccount?: (row: InventoryLedgerReportRow, field: InventoryLedgerStaticAccountField, value: string) => Promise<void>
     onCopyStaticAccountDown?: (rowIndex: number, field: InventoryLedgerStaticAccountField, value: string) => Promise<void>
@@ -2162,6 +2548,7 @@ function LedgerRow({
                     onChangePurchaseProduct={onChangePurchaseProduct}
                     onDeleteOtherExportLine={onDeleteOtherExportLine}
                     onDeleteOtherInboundLine={onDeleteOtherInboundLine}
+                    onDeletePurchaseLine={onDeletePurchaseLine}
                     onEditStaticParameters={onEditStaticParameters}
                     onNormalizeLegacyPostingTime={onNormalizeLegacyPostingTime}
                 />
@@ -2307,6 +2694,7 @@ function LedgerCorrectionActions({
     onChangePurchaseProduct,
     onDeleteOtherExportLine,
     onDeleteOtherInboundLine,
+    onDeletePurchaseLine,
     onEditStaticParameters,
     onNormalizeLegacyPostingTime,
 }: {
@@ -2318,6 +2706,7 @@ function LedgerCorrectionActions({
     onChangePurchaseProduct?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
+    onDeletePurchaseLine?: (row: InventoryLedgerReportRow) => void
     onEditStaticParameters?: (row: InventoryLedgerReportRow) => void
     onNormalizeLegacyPostingTime?: (row: InventoryLedgerReportRow) => void
 }) {
@@ -2329,10 +2718,11 @@ function LedgerCorrectionActions({
     const canChangePurchaseProduct = Boolean(onChangePurchaseProduct && isPurchaseProductCorrectionLedger(item))
     const canDeleteOtherExportLine = Boolean(onDeleteOtherExportLine && isOtherExportLineDeleteLedger(item))
     const canDeleteOtherInboundLine = Boolean(onDeleteOtherInboundLine && isOtherInboundLineDeleteLedger(item))
+    const canDeletePurchaseLine = Boolean(onDeletePurchaseLine && isPurchaseLineDeleteLedger(item))
     const canNormalizeLegacyPostingTime = Boolean(onNormalizeLegacyPostingTime && item.lot_id && item.posting_date)
     const hasQuickActions = canEditStaticParameters || canChangeLot || canChangeSalesExportLot || canChangePurchaseQuantity
         || canChangePurchaseProduct || canDeleteOtherExportLine
-        || canDeleteOtherInboundLine || canNormalizeLegacyPostingTime
+        || canDeleteOtherInboundLine || canDeletePurchaseLine || canNormalizeLegacyPostingTime
 
     if (!canOpenVoucher && !hasQuickActions) {
         return <span className="text-muted-foreground">-</span>
@@ -2457,6 +2847,22 @@ function LedgerCorrectionActions({
                                 <NewBadge />
                             </span>
                             <span className="block text-xs text-destructive/80">Nếu là dòng cuối, hệ thống sẽ xóa luôn phiếu.</span>
+                        </span>
+                    </button>
+                ) : null}
+                {canDeletePurchaseLine ? (
+                    <button
+                        type="button"
+                        className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
+                        onClick={() => onDeletePurchaseLine?.(item)}
+                    >
+                        <Trash2 className="mt-0.5 h-4 w-4" />
+                        <span>
+                            <span className="block font-medium">
+                                Xóa dòng mua hàng
+                                <NewBadge />
+                            </span>
+                            <span className="block text-xs text-destructive/80">Dòng import không có phiếu vẫn được kiểm tra riêng trước khi xóa.</span>
                         </span>
                     </button>
                 ) : null}
@@ -2788,7 +3194,7 @@ function OtherExportLineDeleteDialog({
     )
 }
 
-function resultCount(result: OtherExportLineDeleteResult, key: string) {
+function resultCount(result: { counts?: Record<string, number> }, key: string) {
     return Number(result.counts?.[key] || 0)
 }
 
@@ -2914,6 +3320,159 @@ function OtherInboundLineDeleteDialog({
                     ) : (
                         <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
                             Bấm kiểm tra để hệ thống đọc các dòng liên quan và xác nhận có thể xóa an toàn.
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex justify-end gap-2 border-t pt-4">
+                    <Button type="button" variant="outline" disabled={working} onClick={() => onOpenChange(false)}>
+                        Đóng
+                    </Button>
+                    <Button type="button" variant="outline" disabled={!row || working} onClick={() => checkMutation.mutate()}>
+                        {checkMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Kiểm tra
+                    </Button>
+                    <Button type="button" variant="destructive" disabled={!canApply} onClick={() => applyMutation.mutate()}>
+                        {applyMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                        Xóa dòng
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function PurchaseLineDeleteDialog({
+    row,
+    open,
+    onOpenChange,
+    onChanged,
+}: {
+    row: InventoryLedgerReportRow | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [result, setResult] = useState<PurchaseLineDeleteResult | null>(null)
+    const [errorMessage, setErrorMessage] = useState("")
+
+    useEffect(() => {
+        if (open && row) {
+            setResult(null)
+            setErrorMessage("")
+        }
+    }, [open, row?.id])
+
+    const checkMutation = useMutation({
+        mutationFn: () => checkPurchaseLineDelete(Number(row?.id)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+        },
+        onError: (error: any) => {
+            setResult(null)
+            setErrorMessage(error?.message || "Không kiểm tra được dòng mua hàng.")
+        },
+    })
+
+    const applyMutation = useMutation({
+        mutationFn: () => applyPurchaseLineDelete(Number(row?.id)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            toast.success(data?.delete_voucher ? "Đã xóa dòng và phiếu mua hàng." : "Đã xóa dòng mua hàng.")
+            onChanged()
+            onOpenChange(false)
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không xóa được dòng mua hàng.")
+        },
+    })
+
+    const working = checkMutation.isPending || applyMutation.isPending
+    const canApply = Boolean(result?.valid) && !result?.applied && !working
+    const quantity = Number(result?.quantity ?? row?.quantity_in ?? 0)
+    const amount = Number(result?.amount ?? row?.amount ?? 0)
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle>Xóa dòng mua hàng</DialogTitle>
+                    <DialogDescription>
+                        Xóa đúng dòng nhập mua đang chọn. Dòng import không có phiếu kho sẽ được xử lý như nhánh riêng và không xóa chứng từ gốc.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                    <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-3">
+                        <InfoItem label="Chứng từ" value={result?.doc_no || row?.doc_no || "-"} />
+                        <InfoItem label="Ngày chứng từ" value={formatDate(result?.posting_date || row?.posting_date)} />
+                        <InfoItem label="Kho" value={result?.warehouse_name || row?.warehouse_name || row?.warehouse_code || "-"} />
+                        <InfoItem
+                            label="Hàng hóa"
+                            value={`${result?.product_code || row?.product_code || ""} - ${result?.product_name || row?.product_name || ""}`.replace(/^ - /, "")}
+                            className="md:col-span-2"
+                        />
+                        <InfoItem label="Số lô" value={result?.lot_no || row?.lot_code || "-"} />
+                        <InfoItem label="Loại chứng từ" value={result?.doc_type || row?.doc_type || "-"} />
+                        <InfoItem label="Số lượng nhập" value={formatNumber(quantity)} />
+                        <InfoItem label="Đơn giá" value={formatMoney(result?.unit_price ?? row?.unit_price)} />
+                        <InfoItem label="Thành tiền" value={formatMoney(Math.abs(amount))} />
+                    </div>
+
+                    {errorMessage ? (
+                        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                            {errorMessage}
+                        </div>
+                    ) : null}
+
+                    {result ? (
+                        <div className={cn(
+                            "rounded-md border p-3 text-sm",
+                            result.valid ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-destructive/30 bg-destructive/10 text-destructive",
+                        )}>
+                            <div className="mb-2 flex items-center gap-2 font-semibold">
+                                {result.valid ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                                <span>{result.message}</span>
+                            </div>
+                            <div className="grid gap-2 md:grid-cols-4">
+                                <ResultInfo label="Dòng ledger sẽ xóa" value={formatNumber(resultCount(result, "ledger_rows"))} />
+                                <ResultInfo label="Dòng phiếu sẽ xóa" value={formatNumber(resultCount(result, "voucher_items"))} />
+                                <ResultInfo label="Cost layer" value={formatNumber(resultCount(result, "cost_layers"))} />
+                                <ResultInfo label="Cost consumption" value={formatNumber(resultCount(result, "cost_consumptions"))} />
+                                <ResultInfo label="Cost layer hoàn trả" value={formatNumber(resultCount(result, "cost_layers_to_restore"))} />
+                                <ResultInfo label="Ledger giá vốn reset" value={formatNumber(resultCount(result, "costed_ledgers"))} />
+                                <ResultInfo label="Xuất NVL sản xuất" value={formatNumber(resultCount(result, "production_materials"))} />
+                                <ResultInfo label="Nhập TP sản xuất" value={formatNumber(resultCount(result, "production_outputs"))} />
+                                <ResultInfo label="Cost layer khác" value={formatNumber(resultCount(result, "blocking_cost_layers"))} />
+                                <ResultInfo label="FIFO allocation" value={formatNumber(resultCount(result, "fifo_allocations"))} />
+                                <ResultInfo label="Có phiếu kho" value={result.has_voucher_item ? "Có" : "Không"} />
+                                <ResultInfo label="Số dòng trong phiếu" value={formatNumber(result.voucher_item_count || 0)} />
+                                <ResultInfo label="Xóa luôn phiếu" value={result.delete_voucher ? "Có" : "Không"} />
+                                <ResultInfo label="Dòng nhập cùng lô" value={formatNumber(result.positive_lot_rows || 0)} />
+                                <ResultInfo label="Kỳ costing ảnh hưởng" value={formatNumber(result.affected_period_ids?.length || 0)} />
+                                <ResultInfo label="Trạng thái" value={result.valid ? "Đủ điều kiện" : "Không đủ điều kiện"} />
+                            </div>
+
+                            {result.warnings?.length ? (
+                                <div className="mt-3 space-y-1 text-sm text-amber-800">
+                                    {result.warnings.map((warning) => (
+                                        <div key={warning}>- {warning}</div>
+                                    ))}
+                                </div>
+                            ) : null}
+                            {result.errors?.length ? (
+                                <div className="mt-3 space-y-1 text-sm text-destructive">
+                                    {result.errors.map((error) => (
+                                        <div key={error}>- {error}</div>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : (
+                        <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
+                            Bấm kiểm tra để hệ thống đọc dòng mua, liên kết phiếu/lô/cost layer và xác nhận có thể xóa an toàn.
                         </div>
                     )}
                 </div>
@@ -3124,19 +3683,21 @@ function SalesExportLotChangeDialog({
     onChanged: () => void
 }) {
     const [newLotNo, setNewLotNo] = useState("")
+    const [lotSelectionReason, setLotSelectionReason] = useState("")
     const [result, setResult] = useState<SalesExportLotChangeResult | null>(null)
     const [errorMessage, setErrorMessage] = useState("")
 
     useEffect(() => {
         if (open && row) {
             setNewLotNo(row.lot_code || "")
+            setLotSelectionReason("")
             setResult(null)
             setErrorMessage("")
         }
     }, [open, row])
 
     const checkMutation = useMutation({
-        mutationFn: () => checkSalesExportLotChange(Number(row?.id), newLotNo),
+        mutationFn: () => checkSalesExportLotChange(Number(row?.id), newLotNo, lotSelectionReason.trim()),
         onSuccess: (data) => {
             setResult(data)
             setErrorMessage("")
@@ -3148,7 +3709,7 @@ function SalesExportLotChangeDialog({
     })
 
     const applyMutation = useMutation({
-        mutationFn: () => applySalesExportLotChange(Number(row?.id), newLotNo),
+        mutationFn: () => applySalesExportLotChange(Number(row?.id), newLotNo, lotSelectionReason.trim()),
         onSuccess: (data) => {
             setResult(data)
             setErrorMessage("")
@@ -3203,6 +3764,19 @@ function SalesExportLotChangeDialog({
                             {unchanged ? (
                                 <div className="text-sm text-destructive">Số lô đúng phải khác số lô hiện tại.</div>
                             ) : null}
+                        </div>
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Lý do chọn lô</label>
+                            <Input
+                                value={lotSelectionReason}
+                                onChange={(event) => {
+                                    setLotSelectionReason(event.target.value)
+                                    setResult(null)
+                                    setErrorMessage("")
+                                }}
+                                placeholder="Nhập lý do (tùy chọn)"
+                                className="h-10"
+                            />
                         </div>
 
                         {errorMessage ? (
@@ -3306,6 +3880,7 @@ function TransferExportWarehouseChangeDialog({
     const [newWarehouseId, setNewWarehouseId] = useState("")
     const [newToWarehouseId, setNewToWarehouseId] = useState("")
     const [newLotNo, setNewLotNo] = useState("")
+    const [lotSelectionReason, setLotSelectionReason] = useState("")
     const [sourceWarehouseSearch, setSourceWarehouseSearch] = useState("")
     const [destinationWarehouseSearch, setDestinationWarehouseSearch] = useState("")
     const [sourceWarehouseSelectOpen, setSourceWarehouseSelectOpen] = useState(false)
@@ -3348,6 +3923,7 @@ function TransferExportWarehouseChangeDialog({
             setNewWarehouseId("")
             setNewToWarehouseId("")
             setNewLotNo("")
+            setLotSelectionReason("")
             setSourceWarehouseSearch("")
             setDestinationWarehouseSearch("")
             setSourceWarehouseSelectOpen(false)
@@ -3389,7 +3965,7 @@ function TransferExportWarehouseChangeDialog({
     }, [availableLots, contextData?.old_lot_no, newLotNo, newWarehouseId, open, row?.lot_code])
 
     const checkMutation = useMutation({
-        mutationFn: () => checkTransferExportWarehouseChange(Number(row?.id), Number(newWarehouseId), Number(newToWarehouseId), newLotNo),
+        mutationFn: () => checkTransferExportWarehouseChange(Number(row?.id), Number(newWarehouseId), Number(newToWarehouseId), newLotNo, lotSelectionReason.trim()),
         onSuccess: (data) => {
             setResult(data)
             setErrorMessage("")
@@ -3401,7 +3977,7 @@ function TransferExportWarehouseChangeDialog({
     })
 
     const applyMutation = useMutation({
-        mutationFn: () => applyTransferExportWarehouseChange(Number(row?.id), Number(newWarehouseId), Number(newToWarehouseId), newLotNo),
+        mutationFn: () => applyTransferExportWarehouseChange(Number(row?.id), Number(newWarehouseId), Number(newToWarehouseId), newLotNo, lotSelectionReason.trim()),
         onSuccess: (data) => {
             setResult(data)
             setErrorMessage("")
@@ -3607,6 +4183,19 @@ function TransferExportWarehouseChangeDialog({
                                 <div className="text-xs text-muted-foreground">
                                     Chỉ hiển thị các lô có tồn trong kho mới tại thời điểm chứng từ; lô không đủ số lượng sẽ không được chọn.
                                 </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <label className="text-sm font-medium">Lý do chọn lô</label>
+                                <Input
+                                    value={lotSelectionReason}
+                                    onChange={(event) => {
+                                        setLotSelectionReason(event.target.value)
+                                        setResult(null)
+                                        setErrorMessage("")
+                                    }}
+                                    placeholder="Nhập lý do (tùy chọn)"
+                                    className="h-10"
+                                />
                             </div>
                         </div>
 
@@ -4634,6 +5223,7 @@ function SalesExportWarehouseChangeDialog({
     const [lotSelectionMode, setLotSelectionMode] = useState<"AUTO" | "SINGLE" | "CUSTOM">("AUTO")
     const [selectedLotNo, setSelectedLotNo] = useState<string | undefined>()
     const [lotQuantities, setLotQuantities] = useState<Record<string, string>>({})
+    const [lotSelectionReason, setLotSelectionReason] = useState("")
     const [result, setResult] = useState<SalesExportWarehouseChangeResult | null>(null)
     const [errorMessage, setErrorMessage] = useState("")
 
@@ -4643,6 +5233,7 @@ function SalesExportWarehouseChangeDialog({
             setLotSelectionMode("AUTO")
             setSelectedLotNo(undefined)
             setLotQuantities({})
+            setLotSelectionReason("")
             setResult(null)
             setErrorMessage("")
         }
@@ -4670,17 +5261,6 @@ function SalesExportWarehouseChangeDialog({
     const ledgerLineQuantity = Number(row?.quantity_out || 0)
     const allocatedQuantity = selectedAllocations.reduce((sum, allocation) => sum + Number(allocation.quantity || 0), 0)
     const allocationDiff = requiredQuantity - allocatedQuantity
-    useEffect(() => {
-        if (lotSelectionMode !== "SINGLE" || !selectedLotNo || requiredQuantity <= 0) return
-        const selectedLot = availableLots.find((lot) => (lot.lot_no || lot.lot_code) === selectedLotNo)
-        const safeQuantity = Number(selectedLot?.history_safe_quantity ?? selectedLot?.available_quantity ?? 0)
-        if (!selectedLot || safeQuantity < requiredQuantity) {
-            setLotSelectionMode("AUTO")
-            setSelectedLotNo(undefined)
-            setResult(null)
-            setErrorMessage("")
-        }
-    }, [availableLots, lotSelectionMode, requiredQuantity, selectedLotNo])
     const allocationHasInvalidLot = availableLots.some((lot) => {
         const quantity = Number(lotQuantities[salesExportWarehouseLotKey(lot)] || 0)
         const safeQuantity = Number(lot.history_safe_quantity ?? lot.available_quantity ?? 0)
@@ -4707,7 +5287,8 @@ function SalesExportWarehouseChangeDialog({
             Number(newWarehouseId),
             lotSelectionMode,
             lotSelectionMode === "SINGLE" ? selectedLotNo : undefined,
-            lotSelectionMode === "CUSTOM" ? selectedAllocations : undefined
+            lotSelectionMode === "CUSTOM" ? selectedAllocations : undefined,
+            lotSelectionMode === "AUTO" ? "Auto FIFO" : lotSelectionReason.trim()
         ),
         onSuccess: (data) => {
             setResult(data)
@@ -4724,7 +5305,8 @@ function SalesExportWarehouseChangeDialog({
             Number(newWarehouseId),
             lotSelectionMode,
             lotSelectionMode === "SINGLE" ? selectedLotNo : undefined,
-            lotSelectionMode === "CUSTOM" ? selectedAllocations : undefined
+            lotSelectionMode === "CUSTOM" ? selectedAllocations : undefined,
+            lotSelectionMode === "AUTO" ? "Auto FIFO" : lotSelectionReason.trim()
         ),
         onSuccess: (data) => {
             setResult(data)
@@ -4845,17 +5427,13 @@ function SalesExportWarehouseChangeDialog({
                                             const lotNo = lot.lot_no || lot.lot_code || ""
                                             if (!lotNo) return null
                                             const safeQuantity = Number(lot.history_safe_quantity ?? lot.available_quantity ?? 0)
-                                            const enoughForSingleLot = safeQuantity >= requiredQuantity
                                             return (
                                                 <SelectItem
                                                     key={`${lot.id ?? lot.lot_id ?? index}-${lotNo}`}
                                                     value={lotNo}
                                                     textValue={lotNo}
-                                                    disabled={!enoughForSingleLot}
                                                 >
-                                                    {lotNo} - {enoughForSingleLot
-                                                        ? `an toàn ${formatNumber(safeQuantity)}`
-                                                        : `không đủ, an toàn ${formatNumber(safeQuantity)}/${formatNumber(requiredQuantity)}`}
+                                                    {lotNo} - ưu tiên trước, an toàn {formatNumber(safeQuantity)}
                                                 </SelectItem>
                                             )
                                         })}
@@ -4936,10 +5514,24 @@ function SalesExportWarehouseChangeDialog({
                             ) : (
                                 <div className="rounded-md bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
                                     {lotSelectionMode === "SINGLE" && selectedLotNo
-                                        ? `Hệ thống sẽ xuất toàn bộ theo lô ${selectedLotNo} và kiểm tra tồn/âm tồn lịch sử trước khi áp dụng.`
+                                        ? `Ưu tiên xuất từ lô ${selectedLotNo}; nếu thiếu, hệ thống tự lấy các lô còn lại theo FIFO và kiểm tra tồn/âm tồn lịch sử trước khi áp dụng.`
                                         : "Hệ thống sẽ tự phân bổ FIFO tại kho mới và bỏ qua lô có nguy cơ làm âm tồn lịch sử."}
                                 </div>
                             )}
+                            <div className="grid max-w-md gap-2">
+                                <label className="text-sm font-medium">Lý do chọn lô</label>
+                                <Input
+                                    value={lotSelectionMode === "AUTO" ? "Auto FIFO" : lotSelectionReason}
+                                    onChange={(event) => {
+                                        setLotSelectionReason(event.target.value)
+                                        setResult(null)
+                                        setErrorMessage("")
+                                    }}
+                                    disabled={pending || lotSelectionMode === "AUTO"}
+                                    placeholder="Nhập lý do (tùy chọn)"
+                                    className="h-9"
+                                />
+                            </div>
                         </div>
 
                         {errorMessage ? (
@@ -6153,6 +6745,7 @@ function VoucherDetailDialog({
     onChangeSalesReturnUnitPrice,
     onDeleteOtherExportLine,
     onDeleteOtherInboundLine,
+    onDeletePurchaseLine,
     onNormalizeLegacyPostingTime,
 }: {
     voucherId: number | null
@@ -6177,6 +6770,7 @@ function VoucherDetailDialog({
     onChangeSalesReturnUnitPrice?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
+    onDeletePurchaseLine?: (row: InventoryLedgerReportRow) => void
     onNormalizeLegacyPostingTime?: (row: InventoryLedgerReportRow) => void
 }) {
     const { data: voucher, isLoading } = useQuery({
@@ -6306,9 +6900,10 @@ function VoucherDetailDialog({
                                                                     onChangePurchaseProduct={canUseScopedCorrections ? onChangePurchaseProduct : undefined}
                                                                     onChangeSalesReturnProduct={canUseFullCorrections ? onChangeSalesReturnProduct : undefined}
                                                                     onChangeSalesReturnUnitPrice={canUsePriceCorrections ? onChangeSalesReturnUnitPrice : undefined}
-                                                                     onDeleteOtherExportLine={canUseScopedCorrections ? onDeleteOtherExportLine : undefined}
-                                                                     onDeleteOtherInboundLine={canUseScopedCorrections ? onDeleteOtherInboundLine : undefined}
-                                                                     onNormalizeLegacyPostingTime={canUseFullCorrections ? onNormalizeLegacyPostingTime : undefined}
+                                                                    onDeleteOtherExportLine={canUseScopedCorrections ? onDeleteOtherExportLine : undefined}
+                                                                    onDeleteOtherInboundLine={canUseScopedCorrections ? onDeleteOtherInboundLine : undefined}
+                                                                    onDeletePurchaseLine={canUseFullCorrections ? onDeletePurchaseLine : undefined}
+                                                                    onNormalizeLegacyPostingTime={canUseFullCorrections ? onNormalizeLegacyPostingTime : undefined}
                                                                  />
                                                             ) : (
                                                                 <span className="text-muted-foreground">-</span>
@@ -6423,6 +7018,7 @@ function ScopedVoucherCorrectionActions({
     onChangeSalesReturnUnitPrice,
     onDeleteOtherExportLine,
     onDeleteOtherInboundLine,
+    onDeletePurchaseLine,
     onNormalizeLegacyPostingTime,
 }: {
     row: InventoryLedgerReportRow
@@ -6439,6 +7035,7 @@ function ScopedVoucherCorrectionActions({
     onChangeSalesReturnUnitPrice?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherExportLine?: (row: InventoryLedgerReportRow) => void
     onDeleteOtherInboundLine?: (row: InventoryLedgerReportRow) => void
+    onDeletePurchaseLine?: (row: InventoryLedgerReportRow) => void
     onNormalizeLegacyPostingTime?: (row: InventoryLedgerReportRow) => void
 }) {
     const actions: Array<{ label: string; icon: React.ReactNode; onClick: () => void; isNew?: boolean; destructive?: boolean }> = []
@@ -6481,6 +7078,9 @@ function ScopedVoucherCorrectionActions({
     }
     if (isOtherInboundLineDeleteLedger(row) && onDeleteOtherInboundLine) {
         actions.push({ label: "Xóa dòng nhập kho khác", icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => onDeleteOtherInboundLine(row), isNew: true, destructive: true })
+    }
+    if (isPurchaseLineDeleteLedger(row) && onDeletePurchaseLine) {
+        actions.push({ label: "Xóa dòng mua hàng", icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => onDeletePurchaseLine(row), isNew: true, destructive: true })
     }
     if (row.lot_id && row.posting_date && onNormalizeLegacyPostingTime) {
         actions.push({ label: "Chuẩn hóa giờ dữ liệu cũ", icon: <Clock className="h-3.5 w-3.5" />, onClick: () => onNormalizeLegacyPostingTime(row), isNew: true })
@@ -6927,6 +7527,13 @@ function isOtherInboundLineDeleteLedger(item: InventoryLedgerReportRow) {
         && Number(item.quantity_in || 0) > 0
         && Boolean(item.voucher_id)
         && Boolean(item.voucher_item_id)
+        && Boolean(item.lot_code)
+}
+
+function isPurchaseLineDeleteLedger(item: InventoryLedgerReportRow) {
+    const docType = String(item.doc_type || "").toUpperCase()
+    return ["IMPORT_PURCHASE", "DOMESTIC_PURCHASE", "PURCHASE"].includes(docType)
+        && Number(item.quantity_in || 0) > 0
         && Boolean(item.lot_code)
 }
 

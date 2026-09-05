@@ -106,10 +106,12 @@ export function updateExportItemLot(
     exportId: number,
     itemId: number,
     lotCode?: string,
-    allocations?: Array<{ lot_id?: number; lot_code?: string; quantity: number }>
+    allocations?: Array<{ lot_id?: number; lot_code?: string; quantity: number }>,
+    lotSelectionReason?: string
 ) {
     return apiPut(`/sales/exports/${exportId}/items/${itemId}/lot`, {
         lot_code: lotCode,
         allocations,
+        lot_selection_reason: lotSelectionReason,
     })
 }

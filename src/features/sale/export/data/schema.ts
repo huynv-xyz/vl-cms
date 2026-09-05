@@ -2,6 +2,7 @@ import { Warehouse } from "@/features/warehouse/data/schema"
 import { Delivery } from "../../delivery/data/schema"
 import { Order } from "../../order/data/schema"
 import { Product } from "@/features/product/data/schema"
+import type { InventoryVoucher } from "@/api/inventory/voucher"
 
 export type ExportItem = {
     id: number
@@ -16,6 +17,7 @@ export type ExportItem = {
     lot_code?: string
     lot_no?: string
     lot_nos?: string
+    lot_selection_reason?: string
     quantity: number
     unit_price?: number
     returned_quantity?: number
@@ -34,6 +36,7 @@ export type Export = {
     order?: Order
     warehouse_id: number
     warehouse?: Warehouse
+    inventory_voucher?: InventoryVoucher | null
 
     status: string
     note?: string

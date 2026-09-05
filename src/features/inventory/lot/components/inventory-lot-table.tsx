@@ -342,6 +342,7 @@ export function InventoryLotTable({
 
                         <ProductMultiFilter
                             className="min-w-[280px] flex-[1.6_1_320px] xl:max-w-[460px]"
+                            searchPlaceholder="Tìm theo mã, tên hàng"
                             value={filters.product_ids}
                             onChange={(value) =>
                                 onFiltersChange({

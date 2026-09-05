@@ -63,7 +63,7 @@ export function ExportInfo({ data }: Props) {
             <div className="flex justify-between items-center px-3 py-1.5 bg-gray-50/60">
                 <div className="flex items-center gap-3">
                     <span className="font-semibold text-[12px] text-muted-foreground">
-                        Số phiếu XK
+                        Số phiếu
                     </span>
                     <span className="font-bold border border-blue-300 bg-blue-50 px-3 py-0.5 text-sm">
                         {data.export_no ?? "—"}
