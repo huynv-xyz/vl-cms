@@ -1,5 +1,6 @@
 export type ProductFormValues = {
     code: string
+    product_code_update_mode?: "ONLY_PRODUCT" | "SYNC_SNAPSHOTS"
     name: string
     quote_name?: string
     quote_code?: string

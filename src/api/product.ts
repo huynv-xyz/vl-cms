@@ -18,7 +18,10 @@ export type ProductListParams = {
 }
 
 export type CreateProductRequest = Partial<Product>
-export type UpdateProductRequest = Product
+export type ProductCodeUpdateMode = "ONLY_PRODUCT" | "SYNC_SNAPSHOTS"
+export type UpdateProductRequest = Product & {
+    product_code_update_mode?: ProductCodeUpdateMode
+}
 
 export type ProductInventoryAccountMismatch = {
     product_id: number
