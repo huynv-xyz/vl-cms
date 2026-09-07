@@ -76,6 +76,7 @@ export type ProductionMaterial = {
     lot_id?: number
     preferred_lot_no?: string
     lot_selection_mode?: "AUTO" | "CUSTOM" | string
+    lot_selection_reason?: string
     check_status?: string
     fifo_status?: string
     fifo_unit_cost?: number

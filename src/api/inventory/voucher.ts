@@ -36,6 +36,7 @@ export type InventoryVoucher = {
     purchase_contract_id?: number
     source_type?: string
     source_id?: number
+    source_document_no?: string
     created_at?: string
     updated_at?: string
     physical_warehouse?: { id: number; name: string; code?: string }
@@ -59,6 +60,7 @@ export type InventoryVoucherItem = {
     to_warehouse_id?: number
     lot_id?: number
     lot_code?: string
+    lot_selection_reason?: string
     expiry_date?: string
     quantity?: number
     unit?: string
@@ -137,6 +139,7 @@ export type ListVouchersParams = {
     type?: string
     status?: string
     warehouse_id?: number
+    warehouse_ids?: number[]
     product_id?: number
     from?: string
     to?: string
@@ -197,6 +200,7 @@ export function listVouchers(params: ListVouchersParams) {
         type: params.type,
         status: params.status,
         warehouse_id: params.warehouse_id,
+        warehouse_ids: params.warehouse_ids?.join(","),
         product_id: params.product_id,
         from: params.from,
         to: params.to,

@@ -10,9 +10,9 @@ import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { deliveryOption, orderOption, warehouseOption } from "@/lib/option-mapper"
 import { cn, formatNumber } from "@/lib/utils"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
-import { DatePicker } from "@/components/date-picker"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { DateFilterInput } from "@/components/date-filter-input"
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -189,32 +189,20 @@ export function ExportTable({
                         }
                     />
 
-                    <DatePicker
-                        className={cn(
-                            "h-10 min-w-[170px] flex-1",
-                            "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
-                        )}
+                    <DateFilterInput
+                        aria-label="Từ ngày"
+                        className="h-10 min-w-[160px] flex-1 rounded-md border-slate-300 bg-white shadow-xs"
                         value={filters.from_date}
-                        onChange={(value) => setFilter("from_date", value || undefined)}
-                        disabled={(date) => {
-                            const value = dateToYmd(date)
-                            return value > today || Boolean(filters.to_date && value > filters.to_date)
-                        }}
-                        placeholder="Từ ngày"
+                        max={filters.to_date || today}
+                        onChange={(value) => setFilter("from_date", value)}
                     />
 
-                    <DatePicker
-                        className={cn(
-                            "h-10 min-w-[170px] flex-1",
-                            "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
-                        )}
+                    <DateFilterInput
+                        aria-label="Đến ngày"
+                        className="h-10 min-w-[160px] flex-1 rounded-md border-slate-300 bg-white shadow-xs"
                         value={filters.to_date}
-                        onChange={(value) => setFilter("to_date", value || undefined)}
-                        disabled={(date) => {
-                            const value = dateToYmd(date)
-                            return Boolean(filters.from_date && value < filters.from_date)
-                        }}
-                        placeholder="Đến ngày"
+                        min={filters.from_date}
+                        onChange={(value) => setFilter("to_date", value)}
                     />
                 </div>
             </div>
@@ -227,6 +215,10 @@ export function ExportTable({
                 onPaginationChange={onPaginationChange}
                 pageCount={pageCount}
                 showToolbar={false}
+                enableColumnResize
+                enableStickyHorizontalScroll
+                headerVariant="report"
+                footer={false}
             />
 
         </div>

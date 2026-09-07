@@ -1,6 +1,5 @@
-import { useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Printer } from "lucide-react"
+import { ExternalLink } from "lucide-react"
 import { getReturn } from "@/api/sale/return"
 import {
     Dialog,
@@ -19,48 +18,6 @@ import { formatNumber } from "@/lib/utils"
 import type { Return } from "../data/schema"
 import { returnStatusLabel } from "./return-status"
 
-const RETURN_DIALOG_PRINT_CSS = `
-@media print {
-  html, body {
-    margin: 0 !important;
-    padding: 0 !important;
-    height: auto !important;
-    overflow: visible !important;
-  }
-  body * { visibility: hidden !important; }
-  #return-dialog-print-document, #return-dialog-print-document * { visibility: visible !important; }
-  #return-dialog-print-document {
-    display: block !important;
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
-    background: white !important;
-    transform: none !important;
-    overflow: visible !important;
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-  #return-dialog-print-document .return-print-title { font-size: 17px !important; }
-  #return-dialog-print-document .return-print-company { margin-bottom: 4px !important; }
-  #return-dialog-print-document .return-print-info-lines { padding-top: 5px !important; padding-bottom: 5px !important; }
-  #return-dialog-print-document table { font-size: 10px !important; line-height: 1.2 !important; }
-  #return-dialog-print-document th,
-  #return-dialog-print-document td { padding: 3px 3px !important; }
-  #return-dialog-print-document .return-print-note { padding-top: 4px !important; padding-bottom: 4px !important; }
-  #return-dialog-print-document .return-print-signatures { padding-top: 6px !important; padding-bottom: 6px !important; }
-  #return-dialog-print-document .return-print-sign-date { margin-bottom: 10px !important; }
-  #return-dialog-print-document .return-print-sign-space { margin-top: 32px !important; }
-  #return-dialog-print-document table { page-break-inside: auto; }
-  #return-dialog-print-document tr { page-break-inside: avoid; page-break-after: auto; }
-}
-`
-
 export function ReturnDetailDialog({
     open,
     id,
@@ -72,7 +29,6 @@ export function ReturnDetailDialog({
     onClose: () => void
     printOnOpen?: boolean
 }) {
-    const printedRef = useRef(false)
     const query: any = useQuery({
         queryKey: ["return-detail", id],
         queryFn: () => getReturn(id!),
@@ -82,22 +38,8 @@ export function ReturnDetailDialog({
     const data: Return | undefined = query.data?.data ?? query.data
     const canPrint = data?.status === "DONE"
 
-    useEffect(() => {
-        printedRef.current = false
-    }, [id, open])
-
-    useEffect(() => {
-        if (!open || !printOnOpen || !canPrint || !data || printedRef.current) return
-
-        printedRef.current = true
-        const timer = window.setTimeout(() => window.print(), 150)
-
-        return () => window.clearTimeout(timer)
-    }, [canPrint, data, open, printOnOpen])
-
     return (
-        <Dialog open={open} onOpenChange={onClose}>
-            <style>{RETURN_DIALOG_PRINT_CSS}</style>
+        <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
             <DialogContent className="flex max-h-[92vh] w-[min(96vw,980px)] !max-w-none flex-col gap-0 overflow-hidden p-0 print:hidden">
                 <DialogHeader className="flex-row items-center justify-between border-b bg-muted/20 px-5 py-3.5 pr-14 space-y-0">
                     <DialogTitle className="text-base font-semibold">
@@ -109,12 +51,7 @@ export function ReturnDetailDialog({
                         )}
                     </DialogTitle>
 
-                    {canPrint && (
-                        <Button variant="outline" size="sm" onClick={() => window.print()}>
-                            <Printer className="mr-1.5 h-3.5 w-3.5" />
-                            In phiếu nhập kho
-                        </Button>
-                    )}
+                    {canPrint && data?.return_no && <Button variant="outline" size="sm" asChild><a href={`/inventory/vouchers?keyword=${encodeURIComponent(data.return_no)}`} target="_blank" rel="noreferrer">Mở chứng từ kho<ExternalLink className="ml-1.5 h-3.5 w-3.5" /></a></Button>}
                 </DialogHeader>
 
                 <div className="min-h-0 flex-1 overflow-y-auto p-5">
@@ -153,12 +90,6 @@ export function ReturnDetailDialog({
                     )}
                 </div>
             </DialogContent>
-
-            {data && canPrint && (
-                <div id="return-dialog-print-document" className="hidden bg-white">
-                    <ReturnStockInPrintDocument data={data} />
-                </div>
-            )}
         </Dialog>
     )
 }

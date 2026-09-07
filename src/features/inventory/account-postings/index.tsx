@@ -8,6 +8,7 @@ import { listInventoryAccountPostings, type InventoryAccountPosting, type Invent
 import type { PagedResult } from "@/api/client"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { CrudTable } from "@/components/crud/crud-table"
+import { DateFilterInput } from "@/components/date-filter-input"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -125,19 +126,27 @@ export default function InventoryAccountPostingsPage() {
                             className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
                         />
                     </div>
-                    <Input
-                        type="date"
+                    <DateFilterInput
                         aria-label="Từ ngày"
                         className={filterControlClass("min-w-[160px] flex-1")}
                         value={draft.from_date}
-                        onChange={(event) => setDraft((current) => ({ ...current, from_date: event.target.value }))}
+                        max={draft.to_date || undefined}
+                        onChange={(fromDate) => {
+                            const from_date = fromDate || ""
+                            setDraft((current) => ({ ...current, from_date }))
+                            applyFilters({ from_date })
+                        }}
                     />
-                    <Input
-                        type="date"
+                    <DateFilterInput
                         aria-label="Đến ngày"
                         className={filterControlClass("min-w-[160px] flex-1")}
                         value={draft.to_date}
-                        onChange={(event) => setDraft((current) => ({ ...current, to_date: event.target.value }))}
+                        min={draft.from_date || undefined}
+                        onChange={(toDate) => {
+                            const to_date = toDate || ""
+                            setDraft((current) => ({ ...current, to_date }))
+                            applyFilters({ to_date })
+                        }}
                     />
                     <div className="flex gap-2">
                         <Button onClick={() => applyFilters()} disabled={isFetching}>

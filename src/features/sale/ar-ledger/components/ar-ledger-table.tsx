@@ -22,7 +22,7 @@ import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { CardPagination } from "@/components/table/card-pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { DatePicker } from "@/components/date-picker"
+import { DateFilterInput } from "@/components/date-filter-input"
 import {
     Popover,
     PopoverContent,
@@ -504,32 +504,20 @@ export function ArLedgerTable({
                     />
 
                     <div className="flex items-center gap-1.5">
-                        <DatePicker
-                            className={cn(
-                                "h-9 w-[150px]",
-                                "[&_button]:h-9 [&_button]:min-h-9 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
-                            )}
+                        <DateFilterInput
+                            className="h-9 w-[150px] rounded-md border-slate-300 bg-white shadow-xs"
                             value={filters.from_date}
                             onChange={(value) => setFilter("from_date", value || undefined)}
-                            disabled={(date) => {
-                                const value = dateToYmd(date)
-                                return value > today || (!!filters.to_date && value > filters.to_date)
-                            }}
-                            placeholder="Từ ngày"
+                            max={minYmd(today, filters.to_date)}
+                            aria-label="Từ ngày"
                         />
                         <span className="text-xs text-slate-400">—</span>
-                        <DatePicker
-                            className={cn(
-                                "h-9 w-[150px]",
-                                "[&_button]:h-9 [&_button]:min-h-9 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
-                            )}
+                        <DateFilterInput
+                            className="h-9 w-[150px] rounded-md border-slate-300 bg-white shadow-xs"
                             value={filters.to_date}
                             onChange={(value) => setFilter("to_date", value || undefined)}
-                            disabled={(date) => {
-                                const value = dateToYmd(date)
-                                return !!filters.from_date && value < filters.from_date
-                            }}
-                            placeholder="Đến ngày"
+                            min={filters.from_date}
+                            aria-label="Đến ngày"
                         />
                     </div>
 
@@ -1422,6 +1410,11 @@ function dateToYmd(date: Date) {
     const month = String(date.getMonth() + 1).padStart(2, "0")
     const day = String(date.getDate()).padStart(2, "0")
     return `${year}-${month}-${day}`
+}
+
+function minYmd(...values: Array<string | undefined>) {
+    const dates = values.filter(Boolean) as string[]
+    return dates.length ? dates.sort()[0] : undefined
 }
 
 const PRINT_CSS = `

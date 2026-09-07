@@ -6,7 +6,7 @@ import { listProductGroupPpStatusLookups } from "@/api/app-lookup"
 import { getMyPermissions } from "@/api/auth/permission"
 import { listTransactionOptions, updateTransactionUnitPrice } from "@/api/transactions"
 import { CrudTable } from "@/components/crud/crud-table"
-import { DatePicker } from "@/components/date-picker"
+import { DateFilterInput } from "@/components/date-filter-input"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -299,18 +299,20 @@ export function TransactionTable({
                         className="min-w-[180px] flex-1"
                     />
 
-                    <DatePicker
-                        className="min-w-[150px] flex-1 [&_button]:h-10"
+                    <DateFilterInput
+                        className="h-10 min-w-[150px] flex-1 rounded-md border-slate-300 bg-white shadow-xs"
                         value={filters.document_date_from}
                         onChange={(v) => setFilter("document_date_from", v)}
-                        placeholder="Tu ngay CT"
+                        max={filters.document_date_to}
+                        aria-label="Từ ngày CT"
                     />
 
-                    <DatePicker
-                        className="min-w-[150px] flex-1 [&_button]:h-10"
+                    <DateFilterInput
+                        className="h-10 min-w-[150px] flex-1 rounded-md border-slate-300 bg-white shadow-xs"
                         value={filters.document_date_to}
                         onChange={(v) => setFilter("document_date_to", v)}
-                        placeholder="Den ngay CT"
+                        min={filters.document_date_from}
+                        aria-label="Đến ngày CT"
                     />
                 </div>
             </div>

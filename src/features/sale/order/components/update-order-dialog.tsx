@@ -33,6 +33,7 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
             customer_type: detail.customer?.type ?? undefined,
             employee_id: detail.employee_id ?? undefined,
             order_date: normalizeDate(detail.order_date),
+            expected_delivery_date: normalizeDate(detail.expected_delivery_date),
             status: detail.status ?? "NEW",
             note: detail.note ?? "",
         })

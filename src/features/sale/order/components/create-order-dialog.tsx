@@ -24,6 +24,7 @@ function buildInitialHeader(initialData?: any) {
         customer_type: initialData?.customer?.type ?? undefined,
         employee_id: initialData?.employee_id ?? initialData?.employee?.id ?? undefined,
         order_date: normalizeDate(initialData?.order_date) || new Date().toISOString().slice(0, 10),
+        expected_delivery_date: normalizeDate(initialData?.expected_delivery_date),
         status: "NEW",
         note: initialData?.note ?? "",
     }

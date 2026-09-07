@@ -8,7 +8,7 @@ import { CustomerVipDetailTable } from "./components/customer-vip-detail-table"
 import { CustomerVipAuditPanel } from "./components/customer-vip-audit-panel"
 import { CustomerVipPlanSheet } from "../components/customer-vip-plan-sheet"
 import { Button } from "@/components/ui/button"
-import { DatePicker } from "@/components/date-picker"
+import { DateFilterInput } from "@/components/date-filter-input"
 import { formatCurrency, formatNumber } from "@/lib/utils"
 import {
     Sparkles,
@@ -86,17 +86,19 @@ export default function CustomerVipDetailPage() {
                             </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            <DatePicker
-                                className="min-w-[180px] [&_button]:h-10"
+                            <DateFilterInput
+                                className="h-10 min-w-[180px] rounded-md border-slate-300 bg-white shadow-xs"
                                 value={fromDate}
                                 onChange={(value) => setDateRange({ from_date: value, to_date: toDate })}
-                                placeholder="Từ ngày CT"
+                                max={toDate}
+                                aria-label="Từ ngày CT"
                             />
-                            <DatePicker
-                                className="min-w-[180px] [&_button]:h-10"
+                            <DateFilterInput
+                                className="h-10 min-w-[180px] rounded-md border-slate-300 bg-white shadow-xs"
                                 value={toDate}
                                 onChange={(value) => setDateRange({ from_date: fromDate, to_date: value })}
-                                placeholder="Đến ngày CT"
+                                min={fromDate}
+                                aria-label="Đến ngày CT"
                             />
                         </div>
                     </div>

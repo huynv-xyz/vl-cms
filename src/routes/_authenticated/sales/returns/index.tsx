@@ -42,11 +42,11 @@ function validYmd(value: unknown): value is string {
 }
 
 function normalizeFromDate(value: unknown, today: string) {
-    if (!validYmd(value)) return today
+    if (!validYmd(value)) return undefined
     return value > today ? today : value
 }
 
-function normalizeToDate(value: unknown, fromDate: string, today: string) {
+function normalizeToDate(value: unknown, fromDate: string | undefined, today: string) {
     if (!validYmd(value)) return today
-    return value < fromDate ? fromDate : value
+    return fromDate && value < fromDate ? fromDate : value
 }

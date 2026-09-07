@@ -37,6 +37,26 @@ export type InventoryLedgerListParams = {
     unit?: string
     lot_text?: string
     lot_text_op?: string
+    tk_no?: string
+    tk_co?: string
+    unit_price_op?: string
+    unit_price_value?: string
+    opening_quantity_op?: string
+    opening_quantity_value?: string
+    opening_value_op?: string
+    opening_value_value?: string
+    inbound_quantity_op?: string
+    inbound_quantity_value?: string
+    inbound_value_op?: string
+    inbound_value_value?: string
+    outbound_quantity_op?: string
+    outbound_quantity_value?: string
+    outbound_value_op?: string
+    outbound_value_value?: string
+    closing_quantity_op?: string
+    closing_quantity_value?: string
+    closing_value_op?: string
+    closing_value_value?: string
     time_sort?: "asc" | "desc" | string
     direction?: "IN" | "OUT" | string
     show_values?: boolean
@@ -66,6 +86,12 @@ export function listInventoryLedgerReport(params: InventoryLedgerReportParams) {
         size: number
         totals?: InventoryLedgerTotals
     }>("/inventory/ledger/report", params)
+}
+
+export type InventoryLedgerStaticAccountOption = { value: string; label: string }
+
+export function listInventoryLedgerStaticAccountOptions(field: "tk_no" | "tk_co") {
+    return apiGet<InventoryLedgerStaticAccountOption[]>("/inventory/ledger/static-account-options", { field })
 }
 
 export type NegativeStockAuditItem = {
@@ -374,15 +400,17 @@ export type SalesExportLotChangeResult = {
     changes: Record<string, number>
 }
 
-export function checkSalesExportLotChange(ledgerId: number, newLotNo: string) {
+export function checkSalesExportLotChange(ledgerId: number, newLotNo: string, lotSelectionReason?: string) {
     return apiPost<SalesExportLotChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-lot-change/check`, {
         newLotNo,
+        lot_selection_reason: lotSelectionReason,
     })
 }
 
-export function applySalesExportLotChange(ledgerId: number, newLotNo: string) {
+export function applySalesExportLotChange(ledgerId: number, newLotNo: string, lotSelectionReason?: string) {
     return apiPost<SalesExportLotChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-lot-change/apply`, {
         newLotNo,
+        lot_selection_reason: lotSelectionReason,
     })
 }
 
@@ -447,13 +475,15 @@ export function checkSalesExportWarehouseChange(
     newWarehouseId: number,
     lotSelectionMode?: "AUTO" | "SINGLE" | "CUSTOM",
     newLotNo?: string,
-    lotAllocations?: SalesExportWarehouseLotAllocation[]
+    lotAllocations?: SalesExportWarehouseLotAllocation[],
+    lotSelectionReason?: string
 ) {
     return apiPost<SalesExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-warehouse-change/check`, {
         newWarehouseId,
         newLotNo,
         lot_selection_mode: lotSelectionMode,
         lot_allocations: lotAllocations,
+        lot_selection_reason: lotSelectionReason,
     })
 }
 
@@ -462,13 +492,15 @@ export function applySalesExportWarehouseChange(
     newWarehouseId: number,
     lotSelectionMode?: "AUTO" | "SINGLE" | "CUSTOM",
     newLotNo?: string,
-    lotAllocations?: SalesExportWarehouseLotAllocation[]
+    lotAllocations?: SalesExportWarehouseLotAllocation[],
+    lotSelectionReason?: string
 ) {
     return apiPost<SalesExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/sales-export-warehouse-change/apply`, {
         newWarehouseId,
         newLotNo,
         lot_selection_mode: lotSelectionMode,
         lot_allocations: lotAllocations,
+        lot_selection_reason: lotSelectionReason,
     })
 }
 
@@ -544,19 +576,21 @@ export function getTransferExportWarehouseChangeContext(ledgerId: number) {
     return apiGet<TransferExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/transfer-export-warehouse-change/context`)
 }
 
-export function checkTransferExportWarehouseChange(ledgerId: number, newWarehouseId: number, newToWarehouseId: number, newLotNo: string) {
+export function checkTransferExportWarehouseChange(ledgerId: number, newWarehouseId: number, newToWarehouseId: number, newLotNo: string, lotSelectionReason?: string) {
     return apiPost<TransferExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/transfer-export-warehouse-change/check`, {
         newWarehouseId,
         newToWarehouseId,
         newLotNo,
+        lot_selection_reason: lotSelectionReason,
     })
 }
 
-export function applyTransferExportWarehouseChange(ledgerId: number, newWarehouseId: number, newToWarehouseId: number, newLotNo: string) {
+export function applyTransferExportWarehouseChange(ledgerId: number, newWarehouseId: number, newToWarehouseId: number, newLotNo: string, lotSelectionReason?: string) {
     return apiPost<TransferExportWarehouseChangeResult>(`/inventory/ledger/${ledgerId}/transfer-export-warehouse-change/apply`, {
         newWarehouseId,
         newToWarehouseId,
         newLotNo,
+        lot_selection_reason: lotSelectionReason,
     })
 }
 
@@ -1012,6 +1046,19 @@ export function checkOtherInboundLineDelete(ledgerId: number) {
 
 export function applyOtherInboundLineDelete(ledgerId: number) {
     return apiPost<OtherInboundLineDeleteResult>(`/inventory/ledger/${ledgerId}/other-inbound-line-delete/apply`, {})
+}
+
+export type PurchaseLineDeleteResult = OtherExportLineDeleteResult & {
+    has_voucher_item?: boolean
+    positive_lot_rows?: number
+}
+
+export function checkPurchaseLineDelete(ledgerId: number) {
+    return apiPost<PurchaseLineDeleteResult>(`/inventory/ledger/${ledgerId}/purchase-line-delete/check`, {})
+}
+
+export function applyPurchaseLineDelete(ledgerId: number) {
+    return apiPost<PurchaseLineDeleteResult>(`/inventory/ledger/${ledgerId}/purchase-line-delete/apply`, {})
 }
 
 export async function importProductionCostObjects(file: File, confirm = false) {

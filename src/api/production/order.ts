@@ -252,6 +252,7 @@ export type SetPreferredLotRequest = {
     lot_id?: number
     lot_no?: string
     lot_selection_mode?: "AUTO" | "CUSTOM"
+    lot_selection_reason?: string
     lot_allocations?: {
         lot_id?: number
         lot_no?: string

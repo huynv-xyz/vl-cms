@@ -15,6 +15,7 @@ import { OrderQuantityAdjustmentDialog } from "../../order/components/order-quan
 import { OrderSalespersonAdjustmentDialog } from "../../order/components/order-salesperson-adjustment-dialog"
 import {
     CalendarDays,
+    CalendarClock,
     Clock,
     CopyPlus,
     FileText,
@@ -97,6 +98,10 @@ export function OrderInfo({ order, metrics }: Props) {
                             <span className="inline-flex items-center gap-1">
                                 <CalendarDays className="h-3.5 w-3.5" />
                                 Ngày đặt: <strong className="text-foreground">{formatDate(order.order_date)}</strong>
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                                <CalendarClock className="h-3.5 w-3.5" />
+                                Dự kiến giao: <strong className="text-foreground">{formatDate(order.expected_delivery_date)}</strong>
                             </span>
                             <span className="inline-flex items-center gap-1">
                                 <Clock className="h-3.5 w-3.5" />

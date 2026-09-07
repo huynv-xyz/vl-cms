@@ -23,6 +23,7 @@ const getItems = (res: any) => res?.items ?? res?.data?.items ?? []
 type Option = {
     value: string | number
     label: string
+    description?: string
     raw?: any
     values?: Array<string | number>
 }
@@ -39,6 +40,8 @@ export function AsyncMultiSelect({
     dedupeByLabel = false,
     closeOnSelect = false,
     deferChange = false,
+    popoverClassName,
+    commandListClassName,
 }: any) {
     const [draftValue, setDraftValue] = React.useState<Array<string | number>>(value ?? [])
     const activeValue = deferChange ? draftValue : value
@@ -237,14 +240,17 @@ export function AsyncMultiSelect({
                 </Button>
             </PopoverTrigger>
 
-            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+            <PopoverContent
+                className={cn("w-[var(--radix-popover-trigger-width)] max-w-[95vw] p-0", popoverClassName)}
+                align="start"
+            >
                 <Command shouldFilter={false}>
                     <CommandInput
                         placeholder={searchPlaceholder}
                         value={keyword}
                         onValueChange={setKeyword}
                     />
-                    <CommandList className="max-h-80 overflow-y-auto">
+                    <CommandList className={cn("max-h-80 overflow-y-auto", commandListClassName)}>
                         <CommandEmpty>{loading ? "Đang tải..." : emptyText}</CommandEmpty>
 
                         {selected.length > 0 && (
@@ -258,7 +264,14 @@ export function AsyncMultiSelect({
                                             onSelect={() => toggle(option)}
                                         >
                                             <Check className="mr-2 h-4 w-4 opacity-100" />
-                                            <span className="truncate">{option.label}</span>
+                                            <span className="flex min-w-0 flex-col gap-0.5">
+                                                <span className="whitespace-normal break-words">{option.label}</span>
+                                                {option.description ? (
+                                                    <span className="text-muted-foreground text-xs whitespace-normal break-words">
+                                                        {option.description}
+                                                    </span>
+                                                ) : null}
+                                            </span>
                                             <X className="ml-auto h-4 w-4 opacity-60" />
                                         </CommandItem>
                                     ))}
@@ -276,7 +289,14 @@ export function AsyncMultiSelect({
                                     onSelect={() => toggle(option)}
                                 >
                                     <Check className="mr-2 h-4 w-4 opacity-0" />
-                                    <span className="truncate">{option.label}</span>
+                                    <span className="flex min-w-0 flex-col gap-0.5">
+                                        <span className="whitespace-normal break-words">{option.label}</span>
+                                        {option.description ? (
+                                            <span className="text-muted-foreground text-xs whitespace-normal break-words">
+                                                {option.description}
+                                            </span>
+                                        ) : null}
+                                    </span>
                                 </CommandItem>
                             ))}
                         </CommandGroup>

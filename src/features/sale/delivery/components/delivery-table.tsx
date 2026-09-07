@@ -11,7 +11,7 @@ import {
     orderOption,
 } from "@/lib/option-mapper"
 import { cn, formatNumber } from "@/lib/utils"
-import { DatePicker } from "@/components/date-picker"
+import { DateFilterInput } from "@/components/date-filter-input"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { Button } from "@/components/ui/button"
 import {
@@ -166,28 +166,24 @@ export function DeliveryTable({
                         mapOption={companyOption}
                     />
 
-                    <DatePicker
-                        className={cn(
-                            "h-10 min-w-[150px] flex-1",
-                            "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
-                        )}
+                    <DateFilterInput
+                        className="h-10 min-w-[150px] flex-1 rounded-md border-slate-300 bg-white shadow-xs"
                         value={filters?.from_date}
                         onChange={(value) =>
                             setFilter("from_date", value || undefined)
                         }
-                        placeholder="Từ ngày"
+                        max={filters?.to_date}
+                        aria-label="Từ ngày"
                     />
 
-                    <DatePicker
-                        className={cn(
-                            "h-10 min-w-[150px] flex-1",
-                            "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
-                        )}
+                    <DateFilterInput
+                        className="h-10 min-w-[150px] flex-1 rounded-md border-slate-300 bg-white shadow-xs"
                         value={filters?.to_date}
                         onChange={(value) =>
                             setFilter("to_date", value || undefined)
                         }
-                        placeholder="Đến ngày"
+                        min={filters?.from_date}
+                        aria-label="Đến ngày"
                     />
                 </div>
             </div>

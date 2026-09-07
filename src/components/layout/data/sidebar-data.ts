@@ -250,7 +250,7 @@ export const sidebarData: SidebarData = {
                     icon: Truck,
                 },
                 {
-                    title: 'Xuất kho',
+                    title: 'Xuất bán',
                     url: '/sales/exports',
                     icon: Boxes,
                 },
@@ -299,6 +299,11 @@ export const sidebarData: SidebarData = {
                     title: 'Tồn kho (KT)',
                     url: '/inventory/summary',
                     icon: BarChart3,
+                },
+                {
+                    title: 'Chứng từ kho',
+                    url: '/inventory/vouchers',
+                    icon: ReceiptText,
                 },
                 {
                     title: 'Sổ chi tiết vật tư hàng hóa',

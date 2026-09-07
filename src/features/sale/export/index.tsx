@@ -68,7 +68,7 @@ export default function ExportPage() {
         <PageSection
             isLoading={isLoading}
             error={error}
-            title="Phiếu xuất"
+            title="Phiếu xuất bán"
             data={data}
         >
             {(data) => (

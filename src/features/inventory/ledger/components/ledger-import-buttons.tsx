@@ -1174,13 +1174,11 @@ function OpeningCostNormalizationDialog({
                                 ]}
                             />
                             <ResultBox
-                                title="6. Cập nhật giá vốn phát sinh mới"
+                                title="6. Cập nhật phân bổ FIFO phát sinh mới"
                                 note="Chỉ sửa phát sinh mới có link trực tiếp tới lô đầu kỳ; dữ liệu import cũ không có link rõ không bị đụng."
                                 items={[
                                     ["Xuất kho bán hàng", fmt(downstream.inventory_fifo_allocations)],
                                     ["Xuất NVL sản xuất", fmt(downstream.production_fifo_allocations)],
-                                    ["Lớp giá vốn tồn kho", fmt(downstream.inventory_cost_layers)],
-                                    ["Dòng tiêu hao giá vốn", fmt(downstream.inventory_cost_consumptions)],
                                 ]}
                             />
                             <ResultBox

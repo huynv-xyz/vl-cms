@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type React from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -1896,6 +1896,10 @@ function PreferredLotSelect({
     const [lotQuantities, setLotQuantities] = useState<Record<string, string>>(() =>
         buildProductionLotQuantityMap(material.lot_allocations ?? [])
     )
+    const [lotSelectionReason, setLotSelectionReason] = useState(material.lot_selection_reason || "")
+    useEffect(() => {
+        setLotSelectionReason(material.lot_selection_reason || "")
+    }, [material.id, material.lot_selection_reason])
     const { data, isLoading } = useQuery({
         queryKey: [
             "production-material-lots",
@@ -1942,6 +1946,7 @@ function PreferredLotSelect({
                 lot_no: payload.lotNo || undefined,
                 lot_selection_mode: payload.mode,
                 lot_allocations: payload.allocations,
+                lot_selection_reason: payload.mode === "AUTO" ? "Auto FIFO" : lotSelectionReason.trim(),
             }),
         onSuccess: () => {
             toast.success("Đã cập nhật lô ưu tiên")
@@ -1977,7 +1982,7 @@ function PreferredLotSelect({
                     <SelectItem value="AUTO">
                         <span className="inline-flex items-center gap-1.5">
                             <SlidersHorizontal className="h-3.5 w-3.5" />
-                            Auto
+                            Auto FIFO
                         </span>
                     </SelectItem>
                     <SelectItem value="CUSTOM">
@@ -1997,12 +2002,13 @@ function PreferredLotSelect({
                         if (!lotNo) return null
                         return (
                             <SelectItem key={`${lot.id}-${lotNo}`} value={lotNo}>
-                                {lotNo} - còn {formatNumber(resolveLotRemaining(lot))}
+                                {lotNo} - ưu tiên trước, còn {formatNumber(resolveLotRemaining(lot))}
                             </SelectItem>
                         )
                     })}
                 </SelectContent>
             </Select>
+            <Input value={lotSelectionReason} onChange={(event) => setLotSelectionReason(event.target.value)} placeholder="Lý do chọn lô (tùy chọn)" className="mt-2 h-8 max-w-[460px] text-sm" disabled={disabled || mutation.isPending} />
             {customMode ? (
                 <button
                     type="button"
@@ -2016,6 +2022,10 @@ function PreferredLotSelect({
                 >
                     {customAllocationSummary}
                 </button>
+            ) : material.preferred_lot_no ? (
+                <p className="mt-1 max-w-[280px] text-xs leading-4 text-muted-foreground">
+                    Ưu tiên xuất từ lô {material.preferred_lot_no}; nếu thiếu, hệ thống tự lấy các lô còn lại theo FIFO.
+                </p>
             ) : null}
             <Dialog open={customOpen} onOpenChange={(next) => !mutation.isPending && setCustomOpen(next)}>
                 <DialogContent className="max-w-4xl">

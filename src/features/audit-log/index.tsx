@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Activity, AlertCircle, ArrowRight, Check, ChevronsUpDown, Clock3, Eye, Filter, Info, RotateCcw, Search, Shield, X, XCircle } from "lucide-react"
+import { Activity, AlertCircle, ArrowRight, Check, ChevronsUpDown, Clock3, Eye, Filter, Info, LoaderCircle, RotateCcw, Search, Shield, X, XCircle } from "lucide-react"
 import { getAuditLogOptions, searchAuditLogs, type AuditLog, type AuditLogFilters, type AuditLogOption } from "@/api/audit-log"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -74,6 +74,7 @@ export default function AuditLogPage() {
     const activeChips = useMemo(() => buildActiveChips(filters, labelers), [filters, labelers])
     const activeFilterCount = activeChips.length
     const hasDraftChanges = filterKey(draft) !== filterKey(filters)
+    const isSearching = logs.isFetching && !logs.isLoading
 
     useEffect(() => {
         if (!options.data) return
@@ -158,6 +159,7 @@ export default function AuditLogPage() {
                         Bộ lọc tra cứu
                         {activeFilterCount > 0 && <Badge variant="outline">{activeFilterCount} điều kiện</Badge>}
                         {options.isFetching && <Badge variant="outline">Đang cập nhật lựa chọn</Badge>}
+                        {isSearching && <Badge className="gap-1 bg-sky-100 text-sky-700"><LoaderCircle className="h-3 w-3 animate-spin" />Đang tìm</Badge>}
                         {hasDraftChanges && <Badge className="bg-amber-100 text-amber-700">Chưa áp dụng</Badge>}
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -203,12 +205,20 @@ export default function AuditLogPage() {
                 </div>
 
                 <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-12">
-                    <FilterField label="Từ khóa" className="md:col-span-2 xl:col-span-4">
+                    <FilterField label="Mã nghiệp vụ/chứng từ" className="xl:col-span-3">
+                        <Input
+                            placeholder={businessKeyPlaceholder(draft.entity_type)}
+                            value={draft.business_key ?? ""}
+                            onChange={(event) => setDraft({ ...draft, business_key: event.target.value })}
+                            onKeyDown={(event) => event.key === "Enter" && applyFilters()}
+                        />
+                    </FilterField>
+                    <FilterField label="Từ khóa" className="xl:col-span-3">
                         <div className="relative">
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 className="pl-9"
-                                placeholder="User, request id, endpoint, tóm tắt..."
+                                placeholder="Người, endpoint, nội dung thay đổi..."
                                 value={draft.keyword ?? ""}
                                 onChange={(event) => setDraft({ ...draft, keyword: event.target.value })}
                                 onKeyDown={(event) => event.key === "Enter" && applyFilters()}
@@ -247,9 +257,6 @@ export default function AuditLogPage() {
                             <Input placeholder="ID người thao tác" inputMode="numeric" value={draft.changed_by ?? ""} onChange={(event) => setDraft({ ...draft, changed_by: event.target.value })} />
                         )}
                     </FilterField>
-                    <FilterField label="Mã bản ghi" className="xl:col-span-2">
-                        <Input placeholder="VD: 1016" value={draft.entity_id ?? ""} onChange={(event) => setDraft({ ...draft, entity_id: event.target.value })} />
-                    </FilterField>
                 </div>
 
                 <div className="mt-3 grid gap-3 md:grid-cols-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(160px,0.75fr)]">
@@ -260,7 +267,8 @@ export default function AuditLogPage() {
                         <Input type="date" aria-label="Đến ngày" value={draft.to_date ?? ""} onChange={(event) => setDraft(cleanFilters({ ...draft, to_date: event.target.value, page: 1 }))} />
                     </FilterField>
                     <Button className="md:col-span-2 xl:col-span-1 xl:self-end" onClick={applyFilters} disabled={logs.isFetching || !hasDraftChanges}>
-                        <Filter className="mr-2 h-4 w-4" />Áp dụng
+                        {logs.isFetching ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Filter className="mr-2 h-4 w-4" />}
+                        {logs.isFetching ? "Đang tìm" : "Áp dụng"}
                     </Button>
                 </div>
                 {activeChips.length > 0 && (
@@ -281,11 +289,17 @@ export default function AuditLogPage() {
                 )}
             </div>
 
-            <div className="overflow-hidden rounded-lg border bg-background">
-                <Table>
+            <div className="relative overflow-hidden rounded-lg border bg-background">
+                {isSearching && (
+                    <div className="absolute inset-x-0 top-0 z-10 flex items-center gap-2 border-b bg-background/95 px-4 py-2 text-sm text-sky-700 shadow-sm">
+                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                        Đang tìm nhật ký phù hợp...
+                    </div>
+                )}
+                <Table className={cn(isSearching && "opacity-60")}>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-36">Thời điểm</TableHead>
+                            <TableHead className="w-40">Thời điểm thao tác</TableHead>
                             <TableHead className="w-48">Người thao tác</TableHead>
                             <TableHead className="w-40">Thao tác</TableHead>
                             <TableHead>Dữ liệu</TableHead>
@@ -303,6 +317,7 @@ export default function AuditLogPage() {
                             const changedFields = parseFields(log.changed_fields)
                             const subject = buildSubject(log, labelers)
                             const metadata = buildRequestMetadata(log)
+                            const documentTime = buildDocumentTime(log)
                             return (
                                 <TableRow key={log.id} className={cn(riskyActions.has(log.action) && "bg-amber-50/50", isFallback(log) && "bg-red-50/40")}>
                                     <TableCell className="align-top">
@@ -318,7 +333,6 @@ export default function AuditLogPage() {
                                             <ActionBadge action={log.action} />
                                             <ResultBadge status={log.result_status} />
                                             <SourceBadge source={log.source_type} />
-                                            {isFallback(log) && <Badge className="bg-red-100 text-red-700">Audit yếu</Badge>}
                                         </div>
                                     </TableCell>
                                     <TableCell className="min-w-64 align-top">
@@ -327,14 +341,15 @@ export default function AuditLogPage() {
                                             <span className="text-sm font-medium">{subject.entity}</span>
                                         </div>
                                         <div className="mt-1 line-clamp-1 text-sm">{subject.title}</div>
-                                        <div className="text-xs text-muted-foreground">ID: {log.entity_id}</div>
+                                        {subject.recordId && <div className="text-xs text-muted-foreground">ID nghiệp vụ: {subject.recordId}</div>}
                                     </TableCell>
                                     <TableCell className="max-w-2xl align-top">
                                         <div className="line-clamp-2 text-sm">{buildAuditSummary(log, changedFields)}</div>
+                                        {documentTime && <div className="mt-1 text-xs font-medium text-sky-700">Thời gian chứng từ: {documentTime}</div>}
                                         {changedFields.length > 0 && (
                                             <div className="mt-1 flex flex-wrap gap-1">
                                                 {changedFields.slice(0, 3).map((field) => (
-                                                    <Badge key={field} variant="outline" className="max-w-40 truncate rounded-md font-normal">{humanize(field)}</Badge>
+                                                    <Badge key={field} variant="outline" className="max-w-40 truncate rounded-md font-normal">{fieldLabel(field)}</Badge>
                                                 ))}
                                                 {changedFields.length > 3 && <Badge variant="outline" className="rounded-md font-normal">+{changedFields.length - 3} trường</Badge>}
                                             </div>
@@ -380,7 +395,7 @@ function filtersFromUrl(): AuditLogFilters {
     if (typeof window === "undefined") return initialFilters
     const query = new URLSearchParams(window.location.search)
     const filters: AuditLogFilters = { ...initialFilters }
-    ;(["module", "entity_type", "entity_id", "action", "source_type", "result_status", "changed_by", "from_date", "to_date", "keyword"] as const)
+    ;(["module", "entity_type", "entity_id", "business_key", "action", "source_type", "result_status", "changed_by", "from_date", "to_date", "keyword"] as const)
         .forEach((key) => {
             const value = query.get(key)
             if (value) filters[key] = value
@@ -533,7 +548,7 @@ function AuditDetailSheet({ log, labelers, onOpenChange }: { log: AuditLog | nul
             <SheetContent className="w-full overflow-auto p-0 sm:max-w-3xl">
                 <SheetHeader className="border-b p-5 pr-12">
                     <SheetTitle>Nhật ký #{log?.id}</SheetTitle>
-                    <SheetDescription>{log && subject ? `${log.changed_by_name || "System"} · ${formatDateTime(log.changed_at)} · ${subject.entity} #${log.entity_id}` : ""}</SheetDescription>
+                    <SheetDescription>{log && subject ? `${log.changed_by_name || "System"} · ${formatDateTime(log.changed_at)} · ${subject.entity}${subject.recordId ? ` #${subject.recordId}` : ""}` : ""}</SheetDescription>
                 </SheetHeader>
                 {log && (
                     <div className="space-y-5 p-5">
@@ -541,6 +556,8 @@ function AuditDetailSheet({ log, labelers, onOpenChange }: { log: AuditLog | nul
                             <InfoBlock label="Hành động" value={<div className="flex flex-wrap gap-2"><ActionBadge action={log.action} /><ResultBadge status={log.result_status} /><SourceBadge source={log.source_type} /></div>} />
                             <InfoBlock label="Đối tượng" value={`${subject?.module} / ${subject?.entity} / ${subject?.title}`} />
                             <InfoBlock label="Người thao tác" value={`${log.changed_by_name || "System"}${log.changed_by ? ` (ID ${log.changed_by})` : ""}`} />
+                            <InfoBlock label="Thời điểm thao tác" value={formatDateTime(log.changed_at)} />
+                            <InfoBlock label="Thời gian chứng từ" value={buildDocumentTime(log) || "—"} />
                             <InfoBlock label="Request" value={[log.request_method, log.request_path].filter(Boolean).join(" ") || "—"} />
                             <InfoBlock label="IP" value={log.ip_address || "—"} />
                             <InfoBlock label="Request ID" value={log.request_id || "—"} />
@@ -551,7 +568,7 @@ function AuditDetailSheet({ log, labelers, onOpenChange }: { log: AuditLog | nul
                             <div className="text-sm text-muted-foreground">{log.summary || "Không có tóm tắt"}</div>
                             {isFallback(log) && (
                                 <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-                                    Log này là audit yếu: hệ thống chỉ ghi request/body/path, chưa có before/after nghiệp vụ. Nếu endpoint này quan trọng, cần bổ sung ghi audit riêng bằng AuditService.
+                                    Đây là log cũ chỉ có request/body/path, chưa có before/after nghiệp vụ. Các thao tác mới của nghiệp vụ này đã được ghi audit chi tiết hơn.
                                 </div>
                             )}
                             {log.detail_ref_type && <div className="mt-2 text-xs text-muted-foreground">Chi tiết: {log.detail_ref_type} #{log.detail_ref_id}</div>}
@@ -565,7 +582,7 @@ function AuditDetailSheet({ log, labelers, onOpenChange }: { log: AuditLog | nul
                                         <TableRow key={field} className={changedFields.has(field) ? "bg-amber-50/70" : undefined}>
                                             <TableCell className="w-48 align-top font-medium">
                                                 <div className="flex flex-wrap items-center gap-2">
-                                                    {humanize(field)}
+                                                    {fieldLabel(field)}
                                                     {changedFields.has(field) && <Badge className="bg-amber-100 text-amber-700">Đã đổi</Badge>}
                                                 </div>
                                             </TableCell>
@@ -608,23 +625,35 @@ function ResultBadge({ status }: { status?: string | null }) {
 }
 
 function SourceBadge({ source }: { source?: string | null }) {
+    if (source === "FALLBACK") return <Badge className="bg-red-100 text-red-700">Audit yếu</Badge>
     return <Badge variant="outline">{source ? sourceLabel(source) : "Nguồn cũ"}</Badge>
 }
 
 function buildSubject(log: AuditLog, labelers: FilterValueLabelers) {
+    const recordId = inferRecordId(log)
     return {
         module: (labelers.module ?? humanize)(log.module),
         entity: (labelers.entity_type ?? entityTypeLabel)(log.entity_type),
-        title: inferRecordTitle(log) ?? `Bản ghi #${log.entity_id}`,
+        title: inferRecordTitle(log) ?? (recordId ? `Bản ghi #${recordId}` : `Bản ghi #${log.entity_id}`),
+        recordId,
     }
 }
 
 function inferRecordTitle(log: AuditLog) {
+    if (log.business_key?.trim()) return log.business_key.trim()
     const values = { ...parseObject(log.old_values), ...parseObject(log.new_values) }
-    const first = pickValue(values, ["code", "ma", "ma_vthh", "ma_kh", "sku", "order_code", "contract_code", "invoice_no", "document_no"])
+    const first = pickValue(values, ["export_no", "inventory_voucher_no", "voucher_no", "code", "ma", "ma_vthh", "ma_kh", "sku", "order_code", "contract_code", "invoice_no", "document_no"])
     const second = pickValue(values, ["name", "ten", "ten_vthh", "customer_name", "supplier_name", "full_name", "email", "phone"])
     if (first && second && first !== second) return `${first} · ${second}`
     return first ?? second
+}
+
+function inferRecordId(log: AuditLog) {
+    if (/^\d+$/.test(log.entity_id)) return log.entity_id
+    const entityMatch = log.entity_type.match(/_(\d+)(?:_|$)/)
+    if (entityMatch?.[1]) return entityMatch[1]
+    const pathMatch = log.request_path?.match(/\/(?:sales\/exports|sales\/orders|sales\/deliveries|sales\/returns|inventory\/vouchers)\/(\d+)(?:\/|$)/)
+    return pathMatch?.[1]
 }
 
 function pickValue(values: Record<string, unknown>, keys: string[]) {
@@ -636,10 +665,36 @@ function pickValue(values: Record<string, unknown>, keys: string[]) {
     return undefined
 }
 
+function fieldLabel(field: string) {
+    const labels: Record<string, string> = {
+        audit_quality: "Chất lượng audit",
+        endpoint: "Endpoint",
+        export_date: "Ngày chứng từ",
+        export_time: "Giờ chứng từ",
+        status: "Trạng thái",
+        http_status: "HTTP status",
+        inventory_voucher_id: "ID chứng từ kho",
+        inventory_voucher_no: "Mã chứng từ kho",
+        inventory_voucher_status: "Trạng thái chứng từ kho",
+        inventory_document_date: "Ngày chứng từ kho",
+        inventory_document_time: "Giờ chứng từ kho",
+        inventory_posting_date: "Ngày ghi sổ kho",
+        inventory_posting_time: "Giờ ghi sổ kho",
+        order_id: "ID đơn hàng",
+        delivery_id: "ID giao hàng",
+    }
+    return labels[field] ?? humanize(field)
+}
+
 function buildAuditSummary(log: AuditLog, changedFields: string[]) {
+    if (isFallback(log)) {
+        const values = parseObject(log.new_values)
+        const status = pickValue(values, ["status"])
+        if (status && log.request_path?.includes("/status")) return `Đổi trạng thái phiếu xuất sang ${status}`
+    }
     if (log.summary?.trim()) return log.summary.trim()
     if (changedFields.length > 0) {
-        const fieldText = changedFields.slice(0, 4).map(humanize).join(", ")
+        const fieldText = changedFields.slice(0, 4).map(fieldLabel).join(", ")
         const suffix = changedFields.length > 4 ? ` và ${changedFields.length - 4} trường khác` : ""
         return `${actionLabel(log.action)}: ${fieldText}${suffix}`
     }
@@ -652,6 +707,21 @@ function buildRequestMetadata(log: AuditLog) {
         log.ip_address ? `IP ${log.ip_address}` : undefined,
         log.request_id ? `Request ${log.request_id}` : undefined,
     ].filter(Boolean).join(" · ")
+}
+
+function buildDocumentTime(log: AuditLog) {
+    if (log.document_time) return formatLooseDateTime(log.document_time)
+
+    const values = { ...parseObject(log.old_values), ...parseObject(log.new_values) }
+    const directTimestamp = pickValue(values, ["document_at", "posting_at", "voucher_at", "export_at", "delivery_at", "order_at"])
+    if (directTimestamp) return formatLooseDateTime(directTimestamp)
+
+    const date = pickValue(values, ["document_date", "posting_date", "voucher_date", "export_date", "delivery_date", "order_date", "return_date"])
+    const time = pickValue(values, ["document_time", "posting_time", "voucher_time", "export_time", "delivery_time", "order_time", "return_time"])
+    if (date && time) return `${formatLooseDate(date)} ${formatLooseTime(time)}`
+    if (date) return formatLooseDate(date)
+    if (time) return formatLooseTime(time)
+    return undefined
 }
 
 function cleanFilters(value: AuditLogFilters) {
@@ -675,6 +745,7 @@ function buildActiveChips(filters: AuditLogFilters, labelers: FilterValueLabeler
     const labels: Partial<Record<FilterKey, string>> = {
         module: "Module",
         entity_type: "Đối tượng",
+        business_key: "Mã nghiệp vụ",
         entity_id: "Mã bản ghi",
         action: "Hành động",
         source_type: "Nguồn",
@@ -703,6 +774,19 @@ function filterValueLabel(key: FilterKey, value: string, labelers: FilterValueLa
     if (key === "from_date" || key === "to_date") return formatInputDate(value)
     if (key === "keyword") return value
     return humanize(value)
+}
+
+function businessKeyPlaceholder(entityType?: string) {
+    const normalized = entityType ? normalizeEntityType(entityType) : ""
+    if (normalized.includes("sales_export")) return "VD: PX/2026/001137, PX-20260905-012"
+    if (normalized.includes("sales_order")) return "VD: DH001, SO-2026-001"
+    if (normalized.includes("sales_delivery")) return "VD: GH001, DL-2026-001"
+    if (normalized.includes("sales_return")) return "VD: TH001, SR-2026-001"
+    if (normalized.includes("contract")) return "VD: HD001, PO-2026-001"
+    if (normalized.includes("customer")) return "Mã/tên khách hàng"
+    if (normalized.includes("product")) return "Mã/tên sản phẩm"
+    if (normalized.includes("inventory")) return "Mã chứng từ, mã lot, mã hàng"
+    return "Mã phiếu, mã đơn, mã KH/SP..."
 }
 
 function normalizeEntityType(value: string) {
@@ -914,6 +998,28 @@ function formatDate(value: string) {
 function formatTime(value: string) {
     const date = parseDate(value)
     return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+}
+
+function formatLooseDateTime(value: string) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return formatInputDate(value)
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(value)) {
+        const [datePart, timePart = ""] = value.replace("T", " ").split(" ")
+        return `${formatLooseDate(datePart)} ${formatLooseTime(timePart)}`
+    }
+    return value
+}
+
+function formatLooseDate(value: string) {
+    const datePart = value.replace("T", " ").split(" ")[0]
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return formatInputDate(datePart)
+    return value
+}
+
+function formatLooseTime(value: string) {
+    const match = value.match(/^(\d{2}:\d{2}:\d{2})(?:\.\d+)?/)
+    if (match?.[1]) return match[1]
+    const shortMatch = value.match(/^(\d{2}:\d{2})/)
+    return shortMatch?.[1] ?? value
 }
 
 function parseDate(value: string) {
