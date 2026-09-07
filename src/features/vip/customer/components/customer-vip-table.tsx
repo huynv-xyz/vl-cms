@@ -6,7 +6,7 @@ import type { CustomerVip } from '../data/schema'
 import { customerVipColumns } from './customer-vip-columns'
 import { listCustomerVips } from '@/api/customer-vip'
 import { listVipTiers } from '@/api/vip-tier'
-import { DatePicker } from '@/components/date-picker'
+import { DateFilterInput } from '@/components/date-filter-input'
 import { SearchOnBlurInput } from '@/components/search-on-blur-input'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -231,17 +231,19 @@ export function CustomerVipTable({
                         selected={filters.group_codes ?? []}
                         onChange={(v) => setFilter('group_codes', v)}
                     />
-                    <DatePicker
-                        className="min-w-[180px] flex-1 [&_button]:h-10 [&_button]:rounded-md [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
+                    <DateFilterInput
+                        className="h-10 min-w-[180px] flex-1 rounded-md border-slate-300 bg-white shadow-xs"
                         value={filters.from_date}
                         onChange={(value) => onDateRangeChange({ from_date: value, to_date: filters.to_date })}
-                        placeholder="Từ ngày CT"
+                        max={filters.to_date}
+                        aria-label="Từ ngày CT"
                     />
-                    <DatePicker
-                        className="min-w-[180px] flex-1 [&_button]:h-10 [&_button]:rounded-md [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
+                    <DateFilterInput
+                        className="h-10 min-w-[180px] flex-1 rounded-md border-slate-300 bg-white shadow-xs"
                         value={filters.to_date}
                         onChange={(value) => onDateRangeChange({ from_date: filters.from_date, to_date: value })}
-                        placeholder="Đến ngày CT"
+                        min={filters.from_date}
+                        aria-label="Đến ngày CT"
                     />
                 </div>
             </div>

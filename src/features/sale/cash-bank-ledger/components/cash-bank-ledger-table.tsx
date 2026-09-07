@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/select"
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
+import { DateFilterInput } from "@/components/date-filter-input"
 import { DatePicker } from "@/components/date-picker"
 import { CrudRowActions } from "@/components/crud/crud-row-actions"
 import { cn } from "@/lib/utils"
@@ -670,35 +671,19 @@ export function CashBankLedgerTable({
                                 }}
                             mapOption={useCustomerSelector ? customerOption : aliasCustomerOption}
                         />
-                        <DatePicker
-                            className={cn(
-                                "h-10 min-w-0",
-                                "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
-                            )}
+                        <DateFilterInput
+                            className="h-10 min-w-0 rounded-md border-slate-300 bg-white shadow-xs"
                             value={filters.from_date}
+                            max={shouldConstrainDateFilters ? minYmd(today, filters.to_date) : undefined}
                             onChange={(value) => setFilter("from_date", value || undefined)}
-                            placeholder="Từ ngày"
-                            disabled={shouldConstrainDateFilters
-                                ? (date) => {
-                                    const value = dateToYmd(date)
-                                    return value > today || Boolean(filters.to_date && value > filters.to_date)
-                                }
-                                : undefined}
+                            aria-label="Từ ngày"
                         />
-                        <DatePicker
-                            className={cn(
-                                "h-10 min-w-0",
-                                "[&_button]:h-10 [&_button]:min-h-10 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
-                            )}
+                        <DateFilterInput
+                            className="h-10 min-w-0 rounded-md border-slate-300 bg-white shadow-xs"
                             value={filters.to_date}
                             onChange={(value) => setFilter("to_date", value || undefined)}
-                            placeholder="Đến ngày"
-                            disabled={shouldConstrainDateFilters
-                                ? (date) => {
-                                    const value = dateToYmd(date)
-                                    return Boolean(filters.from_date && value < filters.from_date)
-                                }
-                                : undefined}
+                            min={shouldConstrainDateFilters ? filters.from_date : undefined}
+                            aria-label="Đến ngày"
                         />
                     </div>
                 </div>
@@ -1189,6 +1174,11 @@ function dateToYmd(date: Date) {
     const month = String(date.getMonth() + 1).padStart(2, "0")
     const day = String(date.getDate()).padStart(2, "0")
     return `${year}-${month}-${day}`
+}
+
+function minYmd(...values: Array<string | undefined>) {
+    const dates = values.filter(Boolean) as string[]
+    return dates.length ? dates.sort()[0] : undefined
 }
 
 function formatDate(value?: string) {

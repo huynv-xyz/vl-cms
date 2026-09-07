@@ -3,7 +3,7 @@ import { AlertTriangle, Factory, PackageCheck, Scale } from "lucide-react"
 import { getProduct, listProducts } from "@/api/product"
 import { getPhysicalWarehouse, listPhysicalWarehouses } from "@/api/physical-warehouse"
 import { CrudTable } from "@/components/crud/crud-table"
-import { DatePicker } from "@/components/date-picker"
+import { DateFilterInput } from "@/components/date-filter-input"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import {
@@ -155,18 +155,20 @@ export function ProductionHistoryTable({
                         </SelectContent>
                     </Select>
 
-                    <DatePicker
-                        className="min-w-[145px] flex-1 [&_button]:h-10"
+                    <DateFilterInput
+                        className="h-10 min-w-[145px] flex-1 rounded-md border-slate-300 bg-white shadow-xs"
                         value={filters.from_date}
                         onChange={(value) => setFilter("from_date", value || undefined)}
-                        placeholder="Từ ngày"
+                        max={filters.to_date}
+                        aria-label="Từ ngày"
                     />
 
-                    <DatePicker
-                        className="min-w-[145px] flex-1 [&_button]:h-10"
+                    <DateFilterInput
+                        className="h-10 min-w-[145px] flex-1 rounded-md border-slate-300 bg-white shadow-xs"
                         value={filters.to_date}
                         onChange={(value) => setFilter("to_date", value || undefined)}
-                        placeholder="Đến ngày"
+                        min={filters.from_date}
+                        aria-label="Đến ngày"
                     />
                 </div>
             </div>

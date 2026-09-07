@@ -22,6 +22,8 @@ export type AuditLog = {
     request_id?: string | null
     detail_ref_type?: string | null
     detail_ref_id?: string | null
+    business_key?: string | null
+    document_time?: string | null
     changed_at: string
 }
 
@@ -40,6 +42,7 @@ export type AuditLogFilters = {
     module?: string
     entity_type?: string
     entity_id?: string
+    business_key?: string
     action?: string
     source_type?: string
     result_status?: string

@@ -27,7 +27,7 @@ import { useOrders } from "./orders-provider"
 
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
-import { DatePicker } from "@/components/date-picker"
+import { DateFilterInput } from "@/components/date-filter-input"
 import { CardPagination } from "@/components/table/card-pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -261,23 +261,19 @@ export function OrderTable({
                                     })}
                                 />
 
-                                <DatePicker
-                                    className={cn(
-                                        "min-w-[140px] flex-1",
-                                        "[&_button]:h-9 [&_button]:min-h-9 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
-                                    )}
+                                <DateFilterInput
+                                    className="h-9 min-w-[140px] flex-1 rounded-md border-slate-300 bg-white shadow-xs"
                                     value={filters?.from_date}
                                     onChange={(v) => setFilter("from_date", v || undefined)}
-                                    placeholder="Từ ngày"
+                                    max={filters?.to_date}
+                                    aria-label="Từ ngày"
                                 />
-                                <DatePicker
-                                    className={cn(
-                                        "min-w-[140px] flex-1",
-                                        "[&_button]:h-9 [&_button]:min-h-9 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs"
-                                    )}
+                                <DateFilterInput
+                                    className="h-9 min-w-[140px] flex-1 rounded-md border-slate-300 bg-white shadow-xs"
                                     value={filters?.to_date}
                                     onChange={(v) => setFilter("to_date", v || undefined)}
-                                    placeholder="Đến ngày"
+                                    min={filters?.from_date}
+                                    aria-label="Đến ngày"
                                 />
                                 <Select
                                     value={filters?.order_date_sort || "desc"}

@@ -23,7 +23,7 @@ import {
     type ArLedgerSummaryTotals,
 } from "@/api/sale/ar-ledger"
 import { getCustomer, listCustomers } from "@/api/customer"
-import { DatePicker } from "@/components/date-picker"
+import { DateFilterInput } from "@/components/date-filter-input"
 import { PageSection } from "@/components/page-section"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
@@ -446,31 +446,19 @@ function ArSummaryTable({
                             }}
                             mapOption={customerOption}
                         />
-                        <DatePicker
-                            className={cn(
-                                "h-9 min-w-0",
-                                "[&_button]:h-9 [&_button]:min-h-9 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
-                            )}
+                        <DateFilterInput
+                            className="h-9 min-w-0 rounded-md border-slate-300 bg-white shadow-xs"
                             value={filters.from_date}
                             onChange={(value) => setFilter("from_date", value || undefined)}
-                            disabled={(date) => {
-                                const value = dateToYmd(date)
-                                return value > today || (!!filters.to_date && value > filters.to_date)
-                            }}
-                            placeholder="Từ ngày"
+                            max={minYmd(today, filters.to_date)}
+                            aria-label="Từ ngày"
                         />
-                        <DatePicker
-                            className={cn(
-                                "h-9 min-w-0",
-                                "[&_button]:h-9 [&_button]:min-h-9 [&_button]:border-slate-300 [&_button]:bg-white [&_button]:shadow-xs",
-                            )}
+                        <DateFilterInput
+                            className="h-9 min-w-0 rounded-md border-slate-300 bg-white shadow-xs"
                             value={filters.to_date}
                             onChange={(value) => setFilter("to_date", value || undefined)}
-                            disabled={(date) => {
-                                const value = dateToYmd(date)
-                                return !!filters.from_date && value < filters.from_date
-                            }}
-                            placeholder="Đến ngày"
+                            min={filters.from_date}
+                            aria-label="Đến ngày"
                         />
                     </div>
                     <div className="flex w-full flex-wrap items-center gap-2">
@@ -1059,4 +1047,9 @@ function dateToYmd(date: Date) {
     const month = String(date.getMonth() + 1).padStart(2, "0")
     const day = String(date.getDate()).padStart(2, "0")
     return `${year}-${month}-${day}`
+}
+
+function minYmd(...values: Array<string | undefined>) {
+    const dates = values.filter(Boolean) as string[]
+    return dates.length ? dates.sort()[0] : undefined
 }
