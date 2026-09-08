@@ -164,3 +164,61 @@ export function apiDelete<T>(path: string, body?: any) {
         body: body ? JSON.stringify(body) : undefined,
     })
 }
+
+export async function apiDownload(path: string, query?: Record<string, any>) {
+    const url = buildUrl(path, query)
+    const token = getAccessToken()
+    const headers = new Headers()
+    if (token) headers.set("Authorization", `Bearer ${token}`)
+
+    const response = await fetch(url.toString(), {
+        method: "GET",
+        headers,
+        signal: AbortSignal.timeout(120_000),
+    })
+
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+    }
+
+    const contentType = response.headers.get("Content-Type") ?? ""
+    if (contentType.includes("application/json")) {
+        const body = await response.json().catch(() => null)
+        if (body?.code !== 0) {
+            const error = new Error(body?.msg ?? "API error")
+            ;(error as any).data = body?.data ?? body?.meta ?? null
+            ;(error as any).code = body?.code
+            throw error
+        }
+        throw new Error("Không có file để tải")
+    }
+
+    const contentDisposition = response.headers.get("Content-Disposition") ?? ""
+    const fileName = parseDownloadFileName(contentDisposition)
+    return {
+        blob: await response.blob(),
+        fileName,
+    }
+}
+
+function parseDownloadFileName(contentDisposition: string) {
+    const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
+    if (utf8Match?.[1]) {
+        return safeDecodeFileName(utf8Match[1].trim().replace(/^"|"$/g, ""))
+    }
+
+    const fileNameMatch = contentDisposition.match(/filename="?([^";]+)"?/i)
+    if (fileNameMatch?.[1]) {
+        return safeDecodeFileName(fileNameMatch[1].trim())
+    }
+
+    return "download"
+}
+
+function safeDecodeFileName(fileName: string) {
+    try {
+        return decodeURIComponent(fileName)
+    } catch {
+        return fileName
+    }
+}
