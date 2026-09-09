@@ -446,7 +446,7 @@ function SeminarDialog({
 
                 <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
                     <div className="grid gap-4 lg:grid-cols-3">
-                        <Field label="Tên hội thảo">
+                        <Field label="Tên hội thảo" placeholders="seminar_name">
                             {isEditing ? (
                                 <>
                                     <Input
@@ -491,7 +491,7 @@ function SeminarDialog({
                                 </Select>
                             ) : <DisplayValue value={selected ? seminarStatusLabel(selected) : statusLabel(form.status)} />}
                         </Field>
-                        <Field label="Báo cáo viên">
+                        <Field label="Báo cáo viên" placeholders="reporter_employee_name">
                             {isEditing ? (
                                 <>
                                     <AsyncSelect
@@ -509,7 +509,7 @@ function SeminarDialog({
                                 </>
                             ) : <DisplayValue value={form.reporter_employee_name} />}
                         </Field>
-                        <Field label="Tên đại lý trên hồ sơ">
+                        <Field label="Tên đại lý trên hồ sơ" placeholders="dealer_name">
                             {isEditing ? (
                                 <>
                                     <Input
@@ -525,7 +525,7 @@ function SeminarDialog({
                                 </>
                             ) : <DisplayValue value={form.dealer_name} />}
                         </Field>
-                        <Field label="Người liên hệ đại lý">
+                        <Field label="Người liên hệ đại lý" placeholders="dealer_contact_name">
                             {isEditing ? (
                                 <Input
                                     value={form.dealer_contact_name ?? ""}
@@ -533,7 +533,7 @@ function SeminarDialog({
                                 />
                             ) : <DisplayValue value={form.dealer_contact_name} />}
                         </Field>
-                        <Field label="SĐT liên hệ đại lý">
+                        <Field label="SĐT liên hệ đại lý" placeholders="dealer_contact_phone">
                             {isEditing ? (
                                 <Input
                                     value={form.dealer_contact_phone ?? ""}
@@ -541,12 +541,12 @@ function SeminarDialog({
                                 />
                             ) : <DisplayValue value={form.dealer_contact_phone} />}
                         </Field>
-                        <Field label="Nơi xin phép">
+                        <Field label="Nơi xin phép" placeholders="permission_authority">
                             {isEditing ? (
                                 <Input value={form.permission_authority ?? ""} onChange={(e) => setForm({ ...form, permission_authority: e.target.value })} />
                             ) : <DisplayValue value={form.permission_authority} />}
                         </Field>
-                        <Field label="Ngày đơn xin phép">
+                        <Field label="Ngày đơn xin phép" placeholders={["permit_application_date", "permit_application_date_code"]}>
                             {isEditing ? (
                                 <Input
                                     type="date"
@@ -555,7 +555,7 @@ function SeminarDialog({
                                 />
                             ) : <DisplayValue value={formatDate(form.permit_application_date)} />}
                         </Field>
-                        <Field label="Ngày hội thảo">
+                        <Field label="Ngày hội thảo" placeholders={["seminar_date", "seminar_date_text"]}>
                             {isEditing ? (
                                 <>
                                     <Input
@@ -572,22 +572,22 @@ function SeminarDialog({
                                 </>
                             ) : <DisplayValue value={formatDate(form.seminar_date)} />}
                         </Field>
-                        <Field label="Giờ bắt đầu">
+                        <Field label="Giờ bắt đầu" placeholders="seminar_time">
                             {isEditing ? (
                                 <Input type="time" value={(form.start_time ?? "").slice(0, 5)} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
                             ) : <DisplayValue value={(form.start_time ?? "").slice(0, 5)} />}
                         </Field>
-                        <Field label="Người liên hệ">
+                        <Field label="Người liên hệ" placeholders="contact_name">
                             {isEditing ? (
                                 <Input value={form.contact_name ?? ""} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} />
                             ) : <DisplayValue value={form.contact_name} />}
                         </Field>
-                        <Field label="Điện thoại">
+                        <Field label="Điện thoại" placeholders="contact_phone">
                             {isEditing ? (
                                 <Input value={form.contact_phone ?? ""} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} />
                             ) : <DisplayValue value={form.contact_phone} />}
                         </Field>
-                        <Field label="Số lượng tham dự">
+                        <Field label="Số lượng tham dự" placeholders="attendee_count">
                             {isEditing ? (
                                 <>
                                     <Input
@@ -604,7 +604,7 @@ function SeminarDialog({
                             ) : <DisplayValue value={form.attendee_count} />}
                         </Field>
                         <div className="lg:col-span-2">
-                            <Field label="Địa chỉ tổ chức">
+                            <Field label="Địa chỉ tổ chức" placeholders="venue_address">
                                 {isEditing ? (
                                     <Input value={form.venue_address ?? ""} onChange={(e) => setForm({ ...form, venue_address: e.target.value })} />
                                 ) : <DisplayValue value={form.venue_address} />}
@@ -621,7 +621,12 @@ function SeminarDialog({
 
                     <div className="space-y-3 border-t pt-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="text-sm font-semibold">Sản phẩm lưu hành dùng trong hội thảo</div>
+                            <div className="space-y-1">
+                                <div className="text-sm font-semibold">Sản phẩm lưu hành dùng trong hội thảo</div>
+                                <PlaceholderHint
+                                    placeholders={["index", "product_type", "product_name", "circulation_code", "decision_no", "issued_date", "expired_date"]}
+                                />
+                            </div>
                             {canUpdate && isEditing ? (
                                 <ProductSearchPicker
                                     open={productSearchOpen}
@@ -747,11 +752,28 @@ function SeminarDialog({
     )
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, placeholders, children }: { label: string; placeholders?: string | string[]; children: ReactNode }) {
     return (
         <div className="space-y-1.5">
-            <Label>{label}</Label>
+            <div className="flex flex-wrap items-center gap-2">
+                <Label>{label}</Label>
+                <PlaceholderHint placeholders={placeholders} />
+            </div>
             {children}
+        </div>
+    )
+}
+
+function PlaceholderHint({ placeholders }: { placeholders?: string | string[] }) {
+    if (!placeholders) return null
+    const items = Array.isArray(placeholders) ? placeholders : [placeholders]
+    return (
+        <div className="flex flex-wrap items-center gap-1">
+            {items.map((item) => (
+                <code key={item} className="rounded border bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    {`{{${item}}}`}
+                </code>
+            ))}
         </div>
     )
 }

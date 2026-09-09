@@ -255,7 +255,7 @@ export default function CirculationDecisionsPage() {
                             const nextErrors = validateProduct(productForm)
                             setProductErrors(nextErrors)
                             if (Object.keys(nextErrors).length > 0) return
-                            setDraftProducts([...draftProducts, { ...productForm, tempId: crypto.randomUUID() }])
+                            setDraftProducts([...draftProducts, { ...productForm, tempId: createTempId() }])
                             setProductForm(emptyProduct)
                         }}
                         onDeleteProduct={async (product) => {
@@ -559,6 +559,13 @@ function normalizeProductPayload(form: Partial<CirculationProduct>) {
 function toggle(values: number[], id: number, checked: boolean) {
     if (checked) return values.includes(id) ? values : [...values, id]
     return values.filter((value) => value !== id)
+}
+
+function createTempId() {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+        return crypto.randomUUID()
+    }
+    return `draft-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
 function withoutError(errors: Record<string, string>, ...keys: string[]) {
