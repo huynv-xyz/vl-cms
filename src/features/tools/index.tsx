@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { ArrowRight, Boxes, DatabaseBackup, DatabaseZap, GitCompareArrows, PackageCheck, ReceiptText, ShieldCheck, TableProperties } from "lucide-react"
+import { ArrowRight, Boxes, DatabaseBackup, DatabaseZap, GitCompareArrows, PackageCheck, ReceiptText, Ruler, ShieldCheck, TableProperties } from "lucide-react"
 
 import { Main } from "@/components/layout/main"
 import { Badge } from "@/components/ui/badge"
@@ -30,6 +30,14 @@ const tools: ToolItem[] = [
         url: "/tools/sales-transactions-vip-validity-repair",
         status: "Bảo trì dữ liệu",
         icon: ShieldCheck,
+    },
+    {
+        title: "Sửa ĐVT giao dịch bán hàng",
+        description:
+            "Quét và fill sales_transactions.unit theo products.unit, base_unit_code và ĐVT nhóm sản phẩm.",
+        url: "/tools/sales-transactions-unit-repair",
+        status: "Bảo trì dữ liệu",
+        icon: Ruler,
     },
     {
         title: "Đối chiếu dữ liệu tính giá",
