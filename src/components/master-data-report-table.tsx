@@ -1,53 +1,71 @@
-import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
-import { Building2, type LucideIcon } from "lucide-react"
+import type {
+    ColumnDef,
+    OnChangeFn,
+    PaginationState,
+} from "@tanstack/react-table"
+import { Database, type LucideIcon } from "lucide-react"
+import type { ReactNode } from "react"
 
 import { CrudTable } from "@/components/crud/crud-table"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
 import { cn, formatNumber } from "@/lib/utils"
-import type { Company } from "../data/schema"
-import { companyColumns } from "./company-columns"
 
-type CompanySummary = {
-    total: number
-}
-
-type CompanyTableProps = {
-    data: Company[]
-    summary?: CompanySummary
+type MasterDataReportTableProps<T> = {
+    data: T[]
+    columns: ColumnDef<T, unknown>[]
+    entityName: string
+    summaryLabel: string
+    summaryValue?: number
+    searchPlaceholder: string
     pagination: PaginationState
     onPaginationChange: OnChangeFn<PaginationState>
     pageCount: number
     keyword: string
     onKeywordChange: (value: string) => void
+    icon?: LucideIcon
+    filters?: ReactNode
 }
 
-export function CompanyTable({
+export function MasterDataReportTable<T>({
     data,
-    summary,
+    columns,
+    entityName,
+    summaryLabel,
+    summaryValue,
+    searchPlaceholder,
     pagination,
     onPaginationChange,
     pageCount,
     keyword,
     onKeywordChange,
-}: CompanyTableProps) {
+    icon = Database,
+    filters,
+}: MasterDataReportTableProps<T>) {
     return (
         <div className="space-y-4">
-            <CompanySummaryStrip summary={summary} />
+            <div className="grid gap-2 md:grid-cols-3">
+                <MetricCard
+                    icon={icon}
+                    label={summaryLabel}
+                    value={formatNumber(summaryValue ?? 0)}
+                />
+            </div>
 
             <div className="flex w-full flex-wrap items-center gap-2">
                 <SearchOnBlurInput
                     value={keyword}
                     onChange={onKeywordChange}
-                    placeholder="Tìm tên công ty, địa chỉ..."
+                    placeholder={searchPlaceholder}
                     wrapperClassName="relative h-10 min-w-[280px] flex-[1.8_1_0]"
                     className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
                 />
+                {filters}
             </div>
 
-            <CrudTable<Company>
+            <CrudTable<T>
                 data={data}
-                columns={companyColumns}
-                entityName="công ty"
+                columns={columns}
+                entityName={entityName}
                 pagination={pagination}
                 onPaginationChange={onPaginationChange}
                 pageCount={pageCount}
@@ -61,49 +79,26 @@ export function CompanyTable({
     )
 }
 
-function CompanySummaryStrip({ summary }: { summary?: CompanySummary }) {
-    return (
-        <div className="grid gap-2 md:grid-cols-3">
-            <MetricCard
-                icon={Building2}
-                label="Tổng công ty"
-                value={formatNumber(summary?.total ?? 0)}
-                tone="opening"
-            />
-        </div>
-    )
-}
-
 function MetricCard({
     icon: Icon,
     label,
     value,
-    tone,
 }: {
     icon: LucideIcon
     label: string
     value: string
-    tone: "opening"
 }) {
-    const toneClass = {
-        opening: {
-            card: "border-sky-200 bg-sky-50 text-sky-800",
-            icon: "bg-white/75 text-sky-700",
-            value: "text-sky-950",
-        },
-    }[tone]
-
     return (
-        <div className={cn("rounded-lg border p-2.5 shadow-sm", toneClass.card)}>
+        <div className={cn("rounded-lg border border-sky-200 bg-sky-50 p-2.5 text-sky-800 shadow-sm")}>
             <div className="flex items-center gap-2">
-                <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-md", toneClass.icon)}>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/75 text-sky-700">
                     <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
                     <div className="text-center text-[11px] font-semibold uppercase leading-tight tracking-wide">
                         {label}
                     </div>
-                    <div className={cn("mt-1 truncate text-right text-lg font-semibold tabular-nums", toneClass.value)}>
+                    <div className="mt-1 truncate text-right text-lg font-semibold tabular-nums text-sky-950">
                         {value}
                     </div>
                 </div>

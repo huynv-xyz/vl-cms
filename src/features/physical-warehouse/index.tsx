@@ -47,15 +47,20 @@ export default function PhysicalWarehousePage() {
                     <div className="space-y-4">
                         <PhysicalWarehouseTable
                             data={data.items}
+                            summaryValue={data.total ?? 0}
                             pagination={pagination}
                             onPaginationChange={setPagination}
                             pageCount={data.total_page}
                             keyword={filters.keyword}
-                            onKeywordChange={filters.setKeyword}
+                            onKeywordChange={(value: string) => {
+                                setPagination((p) => ({ ...p, pageIndex: 0 }))
+                                filters.setKeyword(value)
+                            }}
                             status={status}
-                            onStatusChange={(value: any) =>
+                            onStatusChange={(value: string[]) => {
+                                setPagination((p) => ({ ...p, pageIndex: 0 }))
                                 filters.setMulti("status", value)
-                            }
+                            }}
                         />
                         <PhysicalWarehouseDialogs />
                     </div>

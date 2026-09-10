@@ -3,7 +3,7 @@ export type PhysicalWarehouse = {
     code?: string
     name: string
     address?: string
-    status: "ACTIVE" | "INACTIVE" | string
+    status?: "ACTIVE" | "INACTIVE" | string
     note?: string
     created_at?: string
     updated_at?: string

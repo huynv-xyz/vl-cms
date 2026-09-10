@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Edit, FileDown, Loader2, Plus, Save, Trash2, Upload } from "lucide-react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import type { ColumnDef, PaginationState } from "@tanstack/react-table"
+import { Edit, FileDown, Loader2, Plus, Save, Search, Trash2, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -16,13 +17,16 @@ import {
 import { getMyPermissions } from "@/api/auth/permission"
 import type { CirculationDecision, CirculationProduct } from "./data/schema"
 import { PageSection } from "@/components/page-section"
+import { CrudTable } from "@/components/crud/crud-table"
+import { buildIndexColumn } from "@/components/crud/build-index-column"
+import { buildTextColumn } from "@/components/crud/build-text-column"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
-import { cn } from "@/lib/utils"
+import { cn, formatNumber } from "@/lib/utils"
 
 const emptyDecision: Partial<CirculationDecision> = {
     decision_no: "",
@@ -48,6 +52,8 @@ export default function CirculationDecisionsPage() {
     const fileInputRef = useRef<HTMLInputElement | null>(null)
     const [keyword, setKeyword] = useState("")
     const debouncedKeyword = useDebouncedValue(keyword, 300)
+    const [nearExpiryOnly, setNearExpiryOnly] = useState(false)
+    const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 20 })
     const [expandedRows, setExpandedRows] = useState<number[]>([])
     const [dialogOpen, setDialogOpen] = useState(false)
     const [selected, setSelected] = useState<CirculationDecision | null>(null)
@@ -61,8 +67,34 @@ export default function CirculationDecisionsPage() {
     const canUpdateDecisions = hasPermission(permissionsQuery.data ?? [], "seminars.circulation-decisions", "update")
 
     const decisionsQuery = useQuery({
-        queryKey: ["circulation-decisions", debouncedKeyword],
-        queryFn: () => listCirculationDecisions({ page: 1, size: 100, keyword: debouncedKeyword }),
+        queryKey: ["circulation-decisions", debouncedKeyword, nearExpiryOnly, pagination.pageIndex, pagination.pageSize],
+        queryFn: () => listCirculationDecisions({
+            page: pagination.pageIndex + 1,
+            size: pagination.pageSize,
+            keyword: debouncedKeyword,
+            validity: nearExpiryOnly ? "expiring_soon" : undefined,
+        }),
+        placeholderData: keepPreviousData,
+    })
+
+    const nearExpiryCountQuery = useQuery({
+        queryKey: ["circulation-decisions-near-expiry-count", debouncedKeyword],
+        queryFn: () => listCirculationDecisions({
+            page: 1,
+            size: 1,
+            keyword: debouncedKeyword,
+            validity: "expiring_soon",
+        }),
+        placeholderData: keepPreviousData,
+    })
+    const nearExpiryCount = nearExpiryCountQuery.data?.total ?? 0
+
+    const columns = useCirculationDecisionColumns({
+        expandedRows,
+        setExpandedRows,
+        canUpdate: canUpdateDecisions,
+        onEdit: openEditDialog,
+        onDownloadPdf: (item) => downloadCirculationDecisionPdf(item.id, item.pdf_file_name),
     })
 
     const saveDecision = useMutation({
@@ -131,7 +163,7 @@ export default function CirculationDecisionsPage() {
 
     return (
         <PageSection
-            isLoading={decisionsQuery.isLoading}
+            isLoading={decisionsQuery.isLoading && !decisionsQuery.data}
             error={decisionsQuery.error}
             title="Quyết định lưu hành"
             description="Quản lý PDF QĐLH và danh sách sản phẩm đã có lưu hành."
@@ -145,89 +177,55 @@ export default function CirculationDecisionsPage() {
         >
             {(page) => (
                 <div className="space-y-4">
-                    <Input
-                        className="max-w-xl"
-                        value={keyword}
-                        onChange={(e) => setKeyword(e.target.value)}
-                        placeholder="Tìm số QĐLH hoặc tên sản phẩm..."
-                    />
-
-                    <div className="overflow-auto rounded-md border bg-background">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="min-w-36">Số QĐLH</TableHead>
-                                    <TableHead className="min-w-28">Ngày cấp</TableHead>
-                                    <TableHead className="min-w-32">Ngày hết hạn</TableHead>
-                                    <TableHead className="min-w-[360px]">Sản phẩm thuộc quyết định</TableHead>
-                                    <TableHead className="min-w-40">Ghi chú</TableHead>
-                                    <TableHead className="min-w-24">PDF</TableHead>
-                                    <TableHead className="w-28 text-right"></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {page.items.map((item) => {
-                                    const products = item.products ?? []
-                                    const expanded = expandedRows.includes(item.id)
-                                    const visibleProducts = expanded ? products : products.slice(0, 5)
-
-                                    return (
-                                        <TableRow key={item.id}>
-                                            <TableCell className="font-medium">{item.decision_no}</TableCell>
-                                            <TableCell>{formatDate(item.issued_date)}</TableCell>
-                                            <TableCell>{formatDate(item.expired_date)}</TableCell>
-                                            <TableCell>
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {visibleProducts.map((product) => (
-                                                        <span
-                                                            key={product.id}
-                                                            className="rounded-md border bg-muted/40 px-2 py-1 text-xs"
-                                                            title={`${product.product_name} - ${product.circulation_code}`}
-                                                        >
-                                                            {product.product_name}
-                                                        </span>
-                                                    ))}
-                                                    {products.length === 0 ? (
-                                                        <span className="text-sm text-muted-foreground">Chưa có sản phẩm</span>
-                                                    ) : null}
-                                                    {products.length > 5 ? (
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-7 px-2 text-xs"
-                                                            onClick={() => setExpandedRows(toggle(expandedRows, item.id, !expanded))}
-                                                        >
-                                                            {expanded ? "Thu gọn" : `Xem thêm ${products.length - 5}`}
-                                                        </Button>
-                                                    ) : null}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="max-w-56 truncate">{item.note}</TableCell>
-                                            <TableCell>{item.pdf_file_name ? item.pdf_file_name : ""}</TableCell>
-                                            <TableCell>
-                                                <div className="flex justify-end gap-1">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        disabled={!item.pdf_file_name}
-                                                        onClick={() => downloadCirculationDecisionPdf(item.id, item.pdf_file_name)}
-                                                    >
-                                                        <FileDown className="h-4 w-4" />
-                                                    </Button>
-                                                    {canUpdateDecisions ? (
-                                                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(item)}>
-                                                            <Edit className="h-4 w-4" />
-                                                        </Button>
-                                                    ) : null}
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                })}
-                            </TableBody>
-                        </Table>
+                    <div className="flex w-full flex-wrap items-center gap-2">
+                        <div className="relative h-10 min-w-[280px] flex-[1.8_1_0]">
+                            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                            <Input
+                                className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
+                                value={keyword}
+                                onChange={(e) => {
+                                    setKeyword(e.target.value)
+                                    setPagination((current) => current.pageIndex === 0 ? current : { ...current, pageIndex: 0 })
+                                }}
+                                placeholder="Tìm số QĐLH hoặc tên sản phẩm..."
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            variant={nearExpiryOnly ? "default" : "outline"}
+                            className={cn("h-10", nearExpiryCount > 0 && !nearExpiryOnly && "border-red-200 bg-red-50 text-red-700 hover:bg-red-100")}
+                            onClick={() => {
+                                setNearExpiryOnly(!nearExpiryOnly)
+                                setPagination((current) => current.pageIndex === 0 ? current : { ...current, pageIndex: 0 })
+                            }}
+                        >
+                            Còn hạn dưới 4 tháng
+                            <span
+                                className={cn(
+                                    "ml-2 rounded px-1.5 py-0.5 text-xs font-semibold",
+                                    nearExpiryCount > 0
+                                        ? "bg-destructive text-white"
+                                        : "bg-background/20"
+                                )}
+                            >
+                                {formatNumber(nearExpiryCount)}
+                            </span>
+                        </Button>
                     </div>
+
+                    <CrudTable<CirculationDecision>
+                        data={page.items}
+                        columns={columns}
+                        entityName="quyết định lưu hành"
+                        pagination={pagination}
+                        onPaginationChange={setPagination}
+                        pageCount={page.total_page}
+                        showToolbar={false}
+                        enableColumnResize
+                        enableStickyHorizontalScroll
+                        headerVariant="report"
+                        footer={false}
+                    />
 
                     <DecisionDialog
                         open={dialogOpen}
@@ -281,6 +279,172 @@ export default function CirculationDecisionsPage() {
             )}
         </PageSection>
     )
+}
+
+function useCirculationDecisionColumns({
+    expandedRows,
+    setExpandedRows,
+    canUpdate,
+    onEdit,
+    onDownloadPdf,
+}: {
+    expandedRows: number[]
+    setExpandedRows: (rows: number[]) => void
+    canUpdate: boolean
+    onEdit: (item: CirculationDecision) => void
+    onDownloadPdf: (item: CirculationDecision) => void
+}) {
+    return useMemo<ColumnDef<CirculationDecision>[]>(() => {
+        const gridCell = "border-r border-slate-200 last:border-r-0"
+        const centerCell = `${gridCell} text-center`
+
+        return [
+            {
+                ...buildIndexColumn<CirculationDecision>(),
+                size: 56,
+                minSize: 48,
+                meta: {
+                    thClassName: `w-14 whitespace-nowrap ${centerCell}`,
+                    tdClassName: `w-14 whitespace-nowrap ${centerCell}`,
+                },
+            },
+            buildTextColumn({
+                accessorKey: "decision_no",
+                title: "Số QĐLH",
+                width: 170,
+                className: `w-[170px] ${centerCell}`,
+                render: (row) => <OneLineText value={row.decision_no} className="text-center text-sm font-medium" />,
+            }),
+            buildTextColumn({
+                accessorKey: "issued_date",
+                title: "Ngày cấp",
+                width: 130,
+                className: `w-[130px] ${centerCell}`,
+                render: (row) => <OneLineText value={formatDate(row.issued_date)} className="text-center text-sm" />,
+            }),
+            buildTextColumn({
+                accessorKey: "expired_date",
+                title: "Ngày hết hạn",
+                width: 140,
+                className: `w-[140px] ${centerCell}`,
+                render: (row) => <OneLineText value={formatDate(row.expired_date)} className="text-center text-sm" />,
+            }),
+            buildTextColumn({
+                title: "Thời gian còn hạn",
+                width: 170,
+                className: `w-[170px] ${centerCell}`,
+                render: (row) => {
+                    const remaining = circulationRemaining(row.expired_date)
+                    return (
+                        <span className={cn("block truncate text-center text-sm font-medium", remaining.warning && "text-destructive")}>
+                            {remaining.label}
+                        </span>
+                    )
+                },
+            }),
+            buildTextColumn({
+                title: "Sản phẩm thuộc quyết định",
+                width: 430,
+                className: `w-[430px] ${gridCell}`,
+                render: (row) => (
+                    <DecisionProductsCell
+                        decision={row}
+                        expanded={expandedRows.includes(row.id)}
+                        onExpandedChange={(expanded) => setExpandedRows(toggle(expandedRows, row.id, expanded))}
+                    />
+                ),
+            }),
+            buildTextColumn({
+                accessorKey: "note",
+                title: "Ghi chú",
+                width: 240,
+                className: `w-[240px] ${gridCell}`,
+                render: (row) => <OneLineText value={row.note} className="text-sm" />,
+            }),
+            buildTextColumn({
+                accessorKey: "pdf_file_name",
+                title: "PDF",
+                width: 220,
+                className: `w-[220px] ${gridCell}`,
+                render: (row) => <OneLineText value={row.pdf_file_name} className="text-sm" />,
+            }),
+            {
+                id: "actions",
+                header: "Thao tác",
+                enableSorting: false,
+                enableHiding: false,
+                size: 96,
+                cell: ({ row }) => (
+                    <div className="flex items-center justify-center gap-1">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={!row.original.pdf_file_name}
+                            onClick={() => onDownloadPdf(row.original)}
+                        >
+                            <FileDown className="h-4 w-4" />
+                        </Button>
+                        {canUpdate ? (
+                            <Button variant="ghost" size="icon" onClick={() => onEdit(row.original)}>
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                        ) : null}
+                    </div>
+                ),
+                meta: {
+                    thClassName: `w-24 whitespace-nowrap ${centerCell}`,
+                    tdClassName: `w-24 whitespace-nowrap ${centerCell}`,
+                },
+            },
+        ]
+    }, [canUpdate, expandedRows, onDownloadPdf, onEdit, setExpandedRows])
+}
+
+function DecisionProductsCell({
+    decision,
+    expanded,
+    onExpandedChange,
+}: {
+    decision: CirculationDecision
+    expanded: boolean
+    onExpandedChange: (expanded: boolean) => void
+}) {
+    const products = decision.products ?? []
+    const visibleProducts = expanded ? products : products.slice(0, 5)
+
+    if (products.length === 0) {
+        return <span className="text-sm text-muted-foreground">Chưa có sản phẩm</span>
+    }
+
+    return (
+        <div className="flex flex-wrap gap-1.5">
+            {visibleProducts.map((product) => (
+                <span
+                    key={product.id}
+                    className="max-w-[180px] truncate rounded-md border bg-muted/40 px-2 py-1 text-xs"
+                    title={`${product.product_name} - ${product.circulation_code}`}
+                >
+                    {product.product_name}
+                </span>
+            ))}
+            {products.length > 5 ? (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => onExpandedChange(!expanded)}
+                >
+                    {expanded ? "Thu gọn" : `Xem thêm ${products.length - 5}`}
+                </Button>
+            ) : null}
+        </div>
+    )
+}
+
+function OneLineText({ value, className }: { value: unknown; className?: string }) {
+    const display = value === null || value === undefined || value === "" ? "-" : String(value)
+    return <span className={cn("block min-w-0 truncate", className)}>{display}</span>
 }
 
 function DecisionDialog({
@@ -590,4 +754,43 @@ function hasPermission(permissions: any[], module: string, action: string) {
 function formatDate(value?: string) {
     if (!value) return ""
     return value.slice(0, 10).split("-").reverse().join("/")
+}
+
+function circulationRemaining(value?: string) {
+    if (!value) return { label: "-", warning: false }
+    const expiredDate = parseDate(value)
+    if (!expiredDate) return { label: "-", warning: false }
+
+    const today = startOfToday()
+    if (expiredDate < today) return { label: "Đã hết hạn", warning: true }
+
+    let years = expiredDate.getFullYear() - today.getFullYear()
+    let months = expiredDate.getMonth() - today.getMonth()
+    if (expiredDate.getDate() < today.getDate()) months -= 1
+    let totalMonths = years * 12 + months
+    if (totalMonths < 0) totalMonths = 0
+
+    years = Math.floor(totalMonths / 12)
+    months = totalMonths % 12
+    const parts: string[] = []
+    if (years > 0) parts.push(`${years} năm`)
+    if (months > 0) parts.push(`${months} tháng`)
+    if (parts.length === 0) parts.push("Dưới 1 tháng")
+
+    return {
+        label: parts.join(" "),
+        warning: totalMonths <= 4,
+    }
+}
+
+function parseDate(value: string) {
+    const [year, month, day] = value.slice(0, 10).split("-").map(Number)
+    if (!year || !month || !day) return null
+    return new Date(year, month - 1, day)
+}
+
+function startOfToday() {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return today
 }
