@@ -79,6 +79,8 @@ const PURCHASE_PRICE_REQUIRED_COLUMNS = [
     "Số lượng mua",
     "Mã kho",
     "Tổng giá trị",
+    "TK Nợ",
+    "TK Có",
 ]
 
 const VTHH_DETAIL_REQUIRED_COLUMNS = [
@@ -151,6 +153,8 @@ function readStructuredResult(result: ProductionCostObjectImportResult | Invento
             alreadyCorrect: 0,
             toUpdate: 0,
             changed: 0,
+            staleCostPeriods: 0,
+            splitInserted: 0,
             skipped: 0,
             failed: 0,
             preview: false,
@@ -164,6 +168,8 @@ function readStructuredResult(result: ProductionCostObjectImportResult | Invento
         totalRows?: number
         alreadyCorrect?: number
         toUpdate?: number
+        staleCostPeriods?: number
+        splitInserted?: number
         requiresConfirm?: boolean
         pendingChanges?: ProductionCostObjectImportResult["pending_changes"]
         skippedDocTypes?: Record<string, number>
@@ -175,6 +181,8 @@ function readStructuredResult(result: ProductionCostObjectImportResult | Invento
         alreadyCorrect: raw.already_correct ?? raw.alreadyCorrect ?? 0,
         toUpdate: raw.to_update ?? raw.toUpdate ?? 0,
         changed: raw.changed ?? 0,
+        staleCostPeriods: raw.stale_cost_periods ?? raw.staleCostPeriods ?? 0,
+        splitInserted: raw.split_inserted ?? raw.splitInserted ?? 0,
         skipped: raw.skipped ?? 0,
         failed: raw.failed ?? raw.errors?.length ?? 0,
         preview: !!raw.preview,
@@ -628,7 +636,9 @@ export function LedgerImportButtons() {
                                     Đọc {normalized.totalRows} dòng, cập nhật {normalized.updated} dòng,
                                     chờ cập nhật {normalized.toUpdate + normalized.changed} dòng,
                                     đã đúng sẵn {normalized.alreadyCorrect} dòng, bỏ qua {normalized.skipped} dòng,
-                                    lỗi {normalized.failed} dòng.
+                                    lỗi {normalized.failed} dòng
+                                    {normalized.splitInserted > 0 ? `, tách thêm ${normalized.splitInserted} dòng DB theo file` : ""}
+                                    {normalized.staleCostPeriods > 0 ? `, đánh dấu tính lại ${normalized.staleCostPeriods} kỳ costing` : ""}.
                                 </>
                             ) : (
                                 <>
@@ -1415,13 +1425,13 @@ function purchaseBasePriceGuide(inputRef: RefObject<HTMLInputElement | null>): I
         description: "File này dùng để giữ Tổng giá trị mua hàng đúng theo hệ thống cũ; hệ thống tự tính lại đơn giá từ Tổng giá trị / Số lượng.",
         columns: PURCHASE_PRICE_REQUIRED_COLUMNS,
         notes: [
-            "Cột Tên hàng chỉ để người dùng dễ kiểm tra file; hệ thống map dòng theo Mã hàng.",
-            "Cột Tổng giá trị là số chuẩn cần khớp tuyệt đối. Hệ thống lưu amount theo cột này và tính unit_price = Tổng giá trị / Số lượng với phần thập phân cao.",
-            "Nếu cùng ngày/mã hàng/kho/lô khớp nhưng Số chứng từ khác, hệ thống chỉ tự fallback khi tìm được đúng một nhóm DB; nếu có nhiều nhóm khớp sẽ báo lỗi.",
-            "Nếu nhiều dòng file cùng khớp một dòng DB và tổng số lượng bằng DB, hệ thống gom Tổng giá trị file để cập nhật dòng DB đó.",
-            "Các trường hợp lệch số dòng còn lại sẽ báo lỗi và không tự phân bổ Tổng giá trị. Người dùng cần tách/gộp dữ liệu cho khớp từng dòng trước khi import.",
-            "Nếu có lỗi ở bất kỳ dòng nào, toàn bộ file rollback và không cập nhật nửa chừng.",
-            "Sau khi cập nhật, hệ thống tính lại inventory_lots.unit_cost theo tổng amount của các dòng mua hàng dương của lô đó.",
+            "Tổng giá trị và TK Nợ/TK Có là dữ liệu chuẩn lấy từ file để cập nhật vào DB.",
+            "Hệ thống tính đơn giá = Tổng giá trị / Số lượng.",
+            "Khác Số chứng từ chỉ fallback khi tìm được đúng một nhóm DB; nhiều nhóm sẽ báo lỗi.",
+            "Nhiều dòng file khớp một dòng DB không có phiếu kho sẽ được tách theo thứ tự file nếu tổng số lượng và Tổng giá trị đều khớp DB.",
+            "Dòng cần tách phải có giờ chứng từ; thiếu giờ hoặc 00:00:00 thì cần Chuẩn hóa giờ dữ liệu cũ trước.",
+            "Lệch số dòng còn lại sẽ báo lỗi, không tự phân bổ Tổng giá trị.",
+            "Có rollback.",
         ],
         inputRef,
     }

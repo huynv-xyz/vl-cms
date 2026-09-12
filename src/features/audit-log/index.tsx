@@ -630,6 +630,14 @@ function SourceBadge({ source }: { source?: string | null }) {
 }
 
 function buildSubject(log: AuditLog, labelers: FilterValueLabelers) {
+    if (isPermissionDeniedLog(log)) {
+        return {
+            module: (labelers.module ?? humanize)(log.module),
+            entity: "Kiểm tra quyền truy cập",
+            title: endpointTitle(log),
+            recordId: undefined,
+        }
+    }
     const recordId = inferRecordId(log)
     return {
         module: (labelers.module ?? humanize)(log.module),
@@ -637,6 +645,29 @@ function buildSubject(log: AuditLog, labelers: FilterValueLabelers) {
         title: inferRecordTitle(log) ?? (recordId ? `Bản ghi #${recordId}` : `Bản ghi #${log.entity_id}`),
         recordId,
     }
+}
+
+function isPermissionDeniedLog(log: AuditLog) {
+    return log.action === "PERMISSION_DENIED" || log.result_status === "DENIED"
+}
+
+function endpointTitle(log: AuditLog) {
+    const path = log.request_path || (log.entity_id?.startsWith("/") ? log.entity_id : "")
+    const title = path ? endpointLabel(path) : undefined
+    return title || log.summary || "Yêu cầu bị từ chối quyền"
+}
+
+function endpointLabel(path: string) {
+    const cleanPath = path.split("?")[0]
+    const labels: Record<string, string> = {
+        "/inventory/ledger/static-account-options": "Tùy chọn tài khoản sổ kho",
+        "/inventory/summary/quote-name-options": "Tùy chọn tên báo giá tồn kho",
+        "/inventory/summary/nature-options": "Tùy chọn tính chất tồn kho",
+        "/auth/me/permissions": "Danh sách quyền hiện tại",
+    }
+    if (labels[cleanPath]) return labels[cleanPath]
+    if (cleanPath.endsWith("-options")) return `Tùy chọn ${humanize(cleanPath.split("/").filter(Boolean).pop() || cleanPath).toLowerCase()}`
+    return cleanPath
 }
 
 function inferRecordTitle(log: AuditLog) {
@@ -886,6 +917,8 @@ function entityTypeLabel(value: string) {
         "customers_historical-sync_check": "Kiểm tra đồng bộ lịch sử khách hàng",
         "customers_historical-sync_apply": "Đồng bộ lịch sử khách hàng",
         "customers_historical-sync_apply-mappings": "Đồng bộ mapping lịch sử khách hàng",
+        view_permission: "Kiểm tra quyền truy cập",
+        update_permission: "Kiểm tra quyền cập nhật",
         user: "Người dùng",
         user_roles: "Vai trò người dùng",
         vip_customers_recalc: "Tính lại VIP khách hàng",
@@ -941,6 +974,7 @@ function actionLabel(action: string) {
         APPLY: "Áp dụng",
         UPDATE_STATUS: "Đổi trạng thái",
         UPDATE_PERMISSIONS: "Đổi quyền",
+        PERMISSION_DENIED: "Từ chối quyền",
         ADJUST_PRICE: "Sửa giá",
         ADJUST_QUANTITY: "Sửa số lượng",
         ADJUST_PP_STATUS: "Sửa PP",
@@ -1038,6 +1072,7 @@ const actionOptions = [
     "APPLY",
     "UPDATE_STATUS",
     "UPDATE_PERMISSIONS",
+    "PERMISSION_DENIED",
     "ADJUST_PRICE",
     "ADJUST_QUANTITY",
     "ADJUST_PP_STATUS",
