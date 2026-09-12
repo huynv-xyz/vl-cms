@@ -661,6 +661,8 @@ function endpointLabel(path: string) {
     const cleanPath = path.split("?")[0]
     const labels: Record<string, string> = {
         "/inventory/ledger/static-account-options": "Tùy chọn tài khoản sổ kho",
+        "/inventory/vouchers": "Danh sách chứng từ kho",
+        "/inventory/vouchers/types": "Danh mục loại chứng từ kho",
         "/inventory/summary/quote-name-options": "Tùy chọn tên báo giá tồn kho",
         "/inventory/summary/nature-options": "Tùy chọn tính chất tồn kho",
         "/auth/me/permissions": "Danh sách quyền hiện tại",

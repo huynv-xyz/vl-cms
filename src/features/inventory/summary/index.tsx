@@ -4,7 +4,7 @@ import { usePaginatedList } from "@/hooks/use-paginated-list"
 import { useUrlListFilters } from "@/hooks/use-url-list-filters"
 import { useUrlPagination } from "@/hooks/use-url-pagination"
 import { Route } from "@/routes/_authenticated/inventory/summary"
-import { ExportInventorySummaryButton, SummaryTable, type SummaryFilters } from "./components/summary-table"
+import { ExportInventorySummaryButton, SummaryColumnPreferencesControl, SummaryTable, type SummaryFilters } from "./components/summary-table"
 
 function today() {
     return dateToYmd(new Date())
@@ -222,7 +222,12 @@ export default function InventorySummaryPage() {
             error={error}
             title="Báo cáo tồn kho"
             data={data}
-            actions={<ExportInventorySummaryButton keyword={keyword} filters={tableFilters} />}
+            actions={
+                <div className="flex items-center gap-2">
+                    <ExportInventorySummaryButton keyword={keyword} filters={tableFilters} />
+                    <SummaryColumnPreferencesControl showValues={true} />
+                </div>
+            }
         >
             {(data) => (
                 <SummaryTable
@@ -234,6 +239,7 @@ export default function InventorySummaryPage() {
                     keyword={keyword}
                     onKeywordChange={setKeyword}
                     filters={tableFilters}
+                    enableColumnPreferences
                         onFiltersChange={(next) => {
                         setMultiFilters({
                             product_ids: next.product_ids || [],
