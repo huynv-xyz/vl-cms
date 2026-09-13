@@ -29,7 +29,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import type { Transaction } from "../data/schema"
-import { buildTransactionColumns } from "./transaction-columns"
+import { buildTransactionColumns, numberFilterDescription } from "./transaction-columns"
 
 type TransactionFilters = {
     customer_code?: string[]
@@ -47,6 +47,20 @@ type TransactionFilters = {
     time_sort?: "asc" | "desc" | string
     document_date_from?: string
     document_date_to?: string
+    sale_qty_op?: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | string
+    sale_qty_value?: string
+    unit_price_op?: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | string
+    unit_price_value?: string
+    sale_revenue_op?: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | string
+    sale_revenue_value?: string
+    return_revenue_op?: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | string
+    return_revenue_value?: string
+    actual_revenue_op?: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | string
+    actual_revenue_value?: string
+    return_qty_op?: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | string
+    return_qty_value?: string
+    actual_qty_op?: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | string
+    actual_qty_value?: string
 }
 
 type TransactionTableProps = {
@@ -132,6 +146,13 @@ export function TransactionTable({
         key: K,
         value: TransactionFilters[K],
     ) => onFiltersChange({ ...filters, [key]: value })
+    const clearNumberFilter = (field: "sale_qty" | "unit_price" | "sale_revenue" | "return_revenue" | "actual_revenue" | "return_qty" | "actual_qty") => {
+        onFiltersChange({
+            ...filters,
+            [`${field}_op`]: undefined,
+            [`${field}_value`]: undefined,
+        })
+    }
     const columns = buildTransactionColumns(filters, onFiltersChange, {
         revenue: totalRevenue,
         returnRevenue: totalReturnRevenue,
@@ -217,6 +238,27 @@ export function TransactionTable({
         filters.document_date_to
             ? { key: "document_date_to", label: `Đến ngày CT: ${filters.document_date_to}`, onClear: () => setFilter("document_date_to", undefined) }
             : null,
+        filters.sale_qty_value
+            ? { key: "sale_qty", label: numberFilterDescription("Tổng SL bán theo ĐVC", filters.sale_qty_op, filters.sale_qty_value), onClear: () => clearNumberFilter("sale_qty") }
+            : null,
+        filters.unit_price_value
+            ? { key: "unit_price", label: numberFilterDescription("Đơn giá theo ĐVC", filters.unit_price_op, filters.unit_price_value), onClear: () => clearNumberFilter("unit_price") }
+            : null,
+        filters.sale_revenue_value
+            ? { key: "sale_revenue", label: numberFilterDescription("Doanh thu", filters.sale_revenue_op, filters.sale_revenue_value), onClear: () => clearNumberFilter("sale_revenue") }
+            : null,
+        filters.return_revenue_value
+            ? { key: "return_revenue", label: numberFilterDescription("Giá trị trả lại", filters.return_revenue_op, filters.return_revenue_value), onClear: () => clearNumberFilter("return_revenue") }
+            : null,
+        filters.actual_revenue_value
+            ? { key: "actual_revenue", label: numberFilterDescription("Doanh thu thuần", filters.actual_revenue_op, filters.actual_revenue_value), onClear: () => clearNumberFilter("actual_revenue") }
+            : null,
+        filters.return_qty_value
+            ? { key: "return_qty", label: numberFilterDescription("SL trả lại theo ĐVC", filters.return_qty_op, filters.return_qty_value), onClear: () => clearNumberFilter("return_qty") }
+            : null,
+        filters.actual_qty_value
+            ? { key: "actual_qty", label: numberFilterDescription("SL bán thực tế theo ĐVC", filters.actual_qty_op, filters.actual_qty_value), onClear: () => clearNumberFilter("actual_qty") }
+            : null,
     ].filter(Boolean) as Array<{ key: string; label: string; onClear: () => void }>
 
     const clearAllActiveFilters = () => {
@@ -237,6 +279,20 @@ export function TransactionTable({
             time_sort: "desc",
             document_date_from: undefined,
             document_date_to: undefined,
+            sale_qty_op: undefined,
+            sale_qty_value: undefined,
+            unit_price_op: undefined,
+            unit_price_value: undefined,
+            sale_revenue_op: undefined,
+            sale_revenue_value: undefined,
+            return_revenue_op: undefined,
+            return_revenue_value: undefined,
+            actual_revenue_op: undefined,
+            actual_revenue_value: undefined,
+            return_qty_op: undefined,
+            return_qty_value: undefined,
+            actual_qty_op: undefined,
+            actual_qty_value: undefined,
         })
     }
 

@@ -24,6 +24,20 @@ export type TransactionListParams = {
     time_sort?: "asc" | "desc" | string
     document_date_from?: string
     document_date_to?: string
+    sale_qty_op?: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | string
+    sale_qty_value?: string
+    unit_price_op?: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | string
+    unit_price_value?: string
+    sale_revenue_op?: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | string
+    sale_revenue_value?: string
+    return_revenue_op?: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | string
+    return_revenue_value?: string
+    actual_revenue_op?: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | string
+    actual_revenue_value?: string
+    return_qty_op?: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | string
+    return_qty_value?: string
+    actual_qty_op?: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | string
+    actual_qty_value?: string
 }
 
 export type TransactionOptionParams = Omit<TransactionListParams, "page" | "size"> & {

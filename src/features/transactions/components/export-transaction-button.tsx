@@ -8,24 +8,7 @@ import type { Transaction } from "../data/schema"
 
 type Props = {
     keyword?: string
-    filters: Pick<
-        TransactionListParams,
-        | "customer_code"
-        | "customer_name"
-        | "product_code"
-        | "product_name"
-        | "product_group_name"
-        | "sale_user_name"
-        | "unit"
-        | "customer_type"
-        | "is_gift"
-        | "npp"
-        | "hdn_status"
-        | "region"
-        | "time_sort"
-        | "document_date_from"
-        | "document_date_to"
-    >
+    filters: Omit<TransactionListParams, "page" | "size" | "keyword">
 }
 
 type ExportColumn = {
@@ -111,6 +94,20 @@ export function ExportTransactionButton({ keyword, filters }: Props) {
                 time_sort: filters.time_sort || undefined,
                 document_date_from: filters.document_date_from || undefined,
                 document_date_to: filters.document_date_to || undefined,
+                sale_qty_op: filters.sale_qty_op || undefined,
+                sale_qty_value: filters.sale_qty_value || undefined,
+                unit_price_op: filters.unit_price_op || undefined,
+                unit_price_value: filters.unit_price_value || undefined,
+                sale_revenue_op: filters.sale_revenue_op || undefined,
+                sale_revenue_value: filters.sale_revenue_value || undefined,
+                return_revenue_op: filters.return_revenue_op || undefined,
+                return_revenue_value: filters.return_revenue_value || undefined,
+                actual_revenue_op: filters.actual_revenue_op || undefined,
+                actual_revenue_value: filters.actual_revenue_value || undefined,
+                return_qty_op: filters.return_qty_op || undefined,
+                return_qty_value: filters.return_qty_value || undefined,
+                actual_qty_op: filters.actual_qty_op || undefined,
+                actual_qty_value: filters.actual_qty_value || undefined,
             })
 
             if (!rows.length) {

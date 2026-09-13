@@ -39,11 +39,15 @@ export default function CurrencyPage() {
                     <div className="space-y-4">
                         <CurrencyTable
                             data={data.items}
+                            summaryValue={data.total ?? 0}
                             pagination={pagination}
                             onPaginationChange={setPagination}
                             pageCount={data.total_page}
                             keyword={keyword}
-                            onKeywordChange={setKeyword}
+                            onKeywordChange={(value: string) => {
+                                setPagination((p) => ({ ...p, pageIndex: 0 }))
+                                setKeyword(value)
+                            }}
                         />
 
                         <CurrencyDialogs />

@@ -20,6 +20,8 @@ export type Shipment = {
     eta?: string
     ata?: string
     warehouse_at?: string
+    production_date?: string
+    expiry_date?: string
 
     container_no?: string
     destination_port_id?: number
