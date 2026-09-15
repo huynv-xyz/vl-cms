@@ -1428,7 +1428,7 @@ function purchaseBasePriceGuide(inputRef: RefObject<HTMLInputElement | null>): I
             "Tổng giá trị và TK Nợ/TK Có là dữ liệu chuẩn lấy từ file để cập nhật vào DB.",
             "Hệ thống tính đơn giá = Tổng giá trị / Số lượng.",
             "Khác Số chứng từ chỉ fallback khi tìm được đúng một nhóm DB; nhiều nhóm sẽ báo lỗi.",
-            "Nhiều dòng file khớp một dòng DB không có phiếu kho sẽ được tách theo thứ tự file nếu tổng số lượng và Tổng giá trị đều khớp DB.",
+            "Nhiều dòng file khớp một dòng DB không có phiếu kho sẽ được tách theo thứ tự file nếu tổng số lượng khớp DB; Tổng giá trị và TK Nợ/TK Có lấy theo từng dòng file.",
             "Dòng cần tách phải có giờ chứng từ; thiếu giờ hoặc 00:00:00 thì cần Chuẩn hóa giờ dữ liệu cũ trước.",
             "Lệch số dòng còn lại sẽ báo lỗi, không tự phân bổ Tổng giá trị.",
             "Có rollback.",

@@ -292,6 +292,11 @@ export const sidebarData: SidebarData = {
                     icon: BarChart3,
                 },
                 {
+                    title: 'Công nợ trễ hạn',
+                    url: '/sales/ar-overdue',
+                    icon: TrendingUp,
+                },
+                {
                     title: 'Chi tiết công nợ',
                     url: '/sales/ar-ledgers',
                     icon: ListOrdered,
