@@ -9,6 +9,7 @@ import { getMyPermissions } from "@/api/auth/permission"
 import {
     createSeminar,
     downloadSeminarCirculationDecisionFiles,
+    downloadSeminarCirculationDecisionFilesWithAuthorizations,
     downloadSeminarDocument,
     downloadSeminarTemplate,
     generateSeminarDocument,
@@ -221,8 +222,12 @@ export default function SeminarPage() {
         }
     }
 
-    async function onDownloadCirculationDecisionFiles(seminar: Seminar) {
+    async function onDownloadCirculationDecisionFiles(seminar: Seminar, includeAuthorizations = false) {
         try {
+            if (includeAuthorizations) {
+                await downloadSeminarCirculationDecisionFilesWithAuthorizations(seminar.id, `QDLH kem uy quyen - ${seminar.code}.zip`)
+                return
+            }
             await downloadSeminarCirculationDecisionFiles(seminar.id, `QDLH - ${seminar.code}.zip`)
         } catch (e: any) {
             toast.error(e?.message || "Không tải được file QĐLH")
@@ -415,7 +420,7 @@ function SeminarDialog({
     onSave: () => void
     onGenerate: (type: "permit" | "invitation") => void
     onDownloadDocument: (id: number) => void
-    onDownloadCirculationDecisionFiles: (seminar: Seminar) => void
+    onDownloadCirculationDecisionFiles: (seminar: Seminar, includeAuthorizations?: boolean) => void
 }) {
     const isEditing = !selected?.id || mode === "edit"
 
@@ -723,6 +728,15 @@ function SeminarDialog({
                                 >
                                     <FileDown className="mr-2 h-4 w-4" />
                                     Tải QĐLH
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    type="button"
+                                    disabled={!selected?.id || selectedProducts.length === 0}
+                                    onClick={() => selected && onDownloadCirculationDecisionFiles(selected, true)}
+                                >
+                                    <FileDown className="mr-2 h-4 w-4" />
+                                    Tải QĐLH + ủy quyền
                                 </Button>
                                 <Button variant="outline" type="button" disabled={!selected?.id} onClick={() => onGenerate("permit")}>
                                     <FileText className="mr-2 h-4 w-4" />

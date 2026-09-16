@@ -21,6 +21,7 @@ export type CirculationDecisionListParams = {
     size: number
     keyword?: string
     validity?: string
+    source_type?: string
 }
 
 export type CirculationProductListParams = {
@@ -107,6 +108,16 @@ export function uploadCirculationDecisionPdf(id: number, file: File) {
     return apiPostMultipart<CirculationDecision>(`/seminars/circulation-decisions/${id}/pdf`, formData)
 }
 
+export function uploadCirculationDecisionAuthorizationFile(id: number, file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+    return apiPostMultipart<CirculationDecision>(`/seminars/circulation-decisions/${id}/authorization-files`, formData)
+}
+
+export function deleteCirculationDecisionAuthorizationFile(id: number, index: number) {
+    return apiDelete<CirculationDecision>(`/seminars/circulation-decisions/${id}/authorization-files/${index}`, { id, index })
+}
+
 export function listCirculationProducts(params: CirculationProductListParams) {
     return apiGet<PagedResult<CirculationProduct>>("/seminars/circulation-decisions/products", { ...params, limit: params.size })
 }
@@ -131,8 +142,16 @@ export async function downloadSeminarCirculationDecisionFiles(id: number, fallba
     return downloadBlob(await apiDownload(`/seminars/${id}/circulation-decision-files`), fallbackFileName)
 }
 
+export async function downloadSeminarCirculationDecisionFilesWithAuthorizations(id: number, fallbackFileName?: string) {
+    return downloadBlob(await apiDownload(`/seminars/${id}/circulation-decision-files`, { include_authorizations: true }), fallbackFileName)
+}
+
 export async function downloadCirculationDecisionPdf(id: number, fallbackFileName?: string) {
     return downloadBlob(await apiDownload(`/seminars/circulation-decisions/${id}/pdf`), fallbackFileName)
+}
+
+export async function downloadCirculationDecisionAuthorizationFile(id: number, index: number, fallbackFileName?: string) {
+    return downloadBlob(await apiDownload(`/seminars/circulation-decisions/${id}/authorization-files/${index}`), fallbackFileName)
 }
 
 function downloadBlob(result: { blob: Blob; fileName: string }, fallbackFileName?: string) {

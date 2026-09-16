@@ -7,15 +7,20 @@ import { toast } from "sonner"
 import {
     createCirculationDecision,
     createCirculationProduct,
+    deleteCirculationDecisionAuthorizationFile,
     deleteCirculationProduct,
+    downloadCirculationDecisionAuthorizationFile,
     downloadCirculationDecisionPdf,
     getCirculationDecision,
     listCirculationDecisions,
     updateCirculationDecision,
+    uploadCirculationDecisionAuthorizationFile,
     uploadCirculationDecisionPdf,
 } from "@/api/seminar"
+import { getCompany, listCompanies } from "@/api/company"
 import { getMyPermissions } from "@/api/auth/permission"
 import type { CirculationDecision, CirculationProduct } from "./data/schema"
+import { AsyncSelect } from "@/components/rjsf/async-select"
 import { PageSection } from "@/components/page-section"
 import { CrudTable } from "@/components/crud/crud-table"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
@@ -24,14 +29,21 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
+import { companyOption } from "@/lib/option-mapper"
 import { cn, formatNumber } from "@/lib/utils"
 
 const emptyDecision: Partial<CirculationDecision> = {
     decision_no: "",
     issued_date: "",
     expired_date: "",
+    source_type: "INTERNAL",
+    source_company_id: undefined,
+    source_company_name: "",
+    authorization_valid_from: "",
+    authorization_valid_to: "",
     note: "",
 }
 
@@ -50,8 +62,10 @@ type DraftCirculationProduct = Partial<CirculationProduct> & {
 export default function CirculationDecisionsPage() {
     const queryClient = useQueryClient()
     const fileInputRef = useRef<HTMLInputElement | null>(null)
+    const authorizationFileInputRef = useRef<HTMLInputElement | null>(null)
     const [keyword, setKeyword] = useState("")
     const debouncedKeyword = useDebouncedValue(keyword, 300)
+    const [sourceTypeFilter, setSourceTypeFilter] = useState("ALL")
     const [nearExpiryOnly, setNearExpiryOnly] = useState(false)
     const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 20 })
     const [expandedRows, setExpandedRows] = useState<number[]>([])
@@ -63,26 +77,29 @@ export default function CirculationDecisionsPage() {
     const [productErrors, setProductErrors] = useState<Record<string, string>>({})
     const [draftProducts, setDraftProducts] = useState<DraftCirculationProduct[]>([])
     const [pdfFile, setPdfFile] = useState<File | null>(null)
+    const [authorizationFiles, setAuthorizationFiles] = useState<File[]>([])
     const permissionsQuery = useQuery({ queryKey: ["my-permissions"], queryFn: getMyPermissions })
     const canUpdateDecisions = hasPermission(permissionsQuery.data ?? [], "seminars.circulation-decisions", "update")
 
     const decisionsQuery = useQuery({
-        queryKey: ["circulation-decisions", debouncedKeyword, nearExpiryOnly, pagination.pageIndex, pagination.pageSize],
+        queryKey: ["circulation-decisions", debouncedKeyword, sourceTypeFilter, nearExpiryOnly, pagination.pageIndex, pagination.pageSize],
         queryFn: () => listCirculationDecisions({
             page: pagination.pageIndex + 1,
             size: pagination.pageSize,
             keyword: debouncedKeyword,
+            source_type: sourceTypeFilter === "ALL" ? undefined : sourceTypeFilter,
             validity: nearExpiryOnly ? "expiring_soon" : undefined,
         }),
         placeholderData: keepPreviousData,
     })
 
     const nearExpiryCountQuery = useQuery({
-        queryKey: ["circulation-decisions-near-expiry-count", debouncedKeyword],
+        queryKey: ["circulation-decisions-near-expiry-count", debouncedKeyword, sourceTypeFilter],
         queryFn: () => listCirculationDecisions({
             page: 1,
             size: 1,
             keyword: debouncedKeyword,
+            source_type: sourceTypeFilter === "ALL" ? undefined : sourceTypeFilter,
             validity: "expiring_soon",
         }),
         placeholderData: keepPreviousData,
@@ -111,6 +128,10 @@ export default function CirculationDecisionsPage() {
                 await uploadCirculationDecisionPdf(decision.id, pdfFile)
             }
 
+            for (const file of authorizationFiles) {
+                await uploadCirculationDecisionAuthorizationFile(decision.id, file)
+            }
+
             return getCirculationDecision(decision.id)
         },
         onSuccess: async (detail) => {
@@ -120,9 +141,11 @@ export default function CirculationDecisionsPage() {
             setForm(detail)
             setDraftProducts([])
             setPdfFile(null)
+            setAuthorizationFiles([])
             setProductForm(emptyProduct)
             setProductErrors({})
             if (fileInputRef.current) fileInputRef.current.value = ""
+            if (authorizationFileInputRef.current) authorizationFileInputRef.current.value = ""
             setDialogOpen(false)
         },
         onError: (e: any) => toast.error(e?.message || "Không lưu được QĐLH"),
@@ -144,7 +167,9 @@ export default function CirculationDecisionsPage() {
         setProductErrors({})
         setDraftProducts([])
         setPdfFile(null)
+        setAuthorizationFiles([])
         if (fileInputRef.current) fileInputRef.current.value = ""
+        if (authorizationFileInputRef.current) authorizationFileInputRef.current.value = ""
         setDialogOpen(true)
     }
 
@@ -157,7 +182,9 @@ export default function CirculationDecisionsPage() {
         setProductErrors({})
         setDraftProducts([])
         setPdfFile(null)
+        setAuthorizationFiles([])
         if (fileInputRef.current) fileInputRef.current.value = ""
+        if (authorizationFileInputRef.current) authorizationFileInputRef.current.value = ""
         setDialogOpen(true)
     }
 
@@ -190,6 +217,22 @@ export default function CirculationDecisionsPage() {
                                 placeholder="Tìm số QĐLH hoặc tên sản phẩm..."
                             />
                         </div>
+                        <Select
+                            value={sourceTypeFilter}
+                            onValueChange={(value) => {
+                                setSourceTypeFilter(value)
+                                setPagination((current) => current.pageIndex === 0 ? current : { ...current, pageIndex: 0 })
+                            }}
+                        >
+                            <SelectTrigger className="h-10 w-[230px] bg-white">
+                                <SelectValue placeholder="Nguồn QĐLH" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Tất cả nguồn</SelectItem>
+                                <SelectItem value="INTERNAL">Công ty trực thuộc</SelectItem>
+                                <SelectItem value="EXTERNAL_AUTHORIZED">Công ty ngoài ủy quyền</SelectItem>
+                            </SelectContent>
+                        </Select>
                         <Button
                             type="button"
                             variant={nearExpiryOnly ? "default" : "outline"}
@@ -237,6 +280,7 @@ export default function CirculationDecisionsPage() {
                         setProductForm={setProductForm}
                         draftProducts={draftProducts}
                         pdfFile={pdfFile}
+                        authorizationFiles={authorizationFiles}
                         savePending={saveDecision.isPending}
                         errors={errors}
                         setErrors={setErrors}
@@ -266,6 +310,16 @@ export default function CirculationDecisionsPage() {
                         }}
                         onPickPdf={() => fileInputRef.current?.click()}
                         onDownloadPdf={() => selected?.id && downloadCirculationDecisionPdf(selected.id, selected.pdf_file_name)}
+                        onPickAuthorizationFiles={() => authorizationFileInputRef.current?.click()}
+                        onRemovePickedAuthorizationFile={(index) => setAuthorizationFiles(authorizationFiles.filter((_, fileIndex) => fileIndex !== index))}
+                        onDownloadAuthorizationFile={(index, fileName) => selected?.id && downloadCirculationDecisionAuthorizationFile(selected.id, index, fileName)}
+                        onDeleteAuthorizationFile={async (index) => {
+                            if (!selected?.id) return
+                            const detail = await deleteCirculationDecisionAuthorizationFile(selected.id, index)
+                            setSelected(detail)
+                            setForm(detail)
+                            await queryClient.invalidateQueries({ queryKey: ["circulation-decisions"] })
+                        }}
                     />
 
                     <input
@@ -274,6 +328,14 @@ export default function CirculationDecisionsPage() {
                         type="file"
                         accept=".pdf,application/pdf"
                         onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
+                    />
+                    <input
+                        ref={authorizationFileInputRef}
+                        className="hidden"
+                        type="file"
+                        multiple
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png"
+                        onChange={(e) => setAuthorizationFiles(Array.from(e.target.files ?? []))}
                     />
                 </div>
             )}
@@ -314,6 +376,17 @@ function useCirculationDecisionColumns({
                 width: 170,
                 className: `w-[170px] ${centerCell}`,
                 render: (row) => <OneLineText value={row.decision_no} className="text-center text-sm font-medium" />,
+            }),
+            buildTextColumn({
+                title: "Nguồn",
+                width: 220,
+                className: `w-[220px] ${gridCell}`,
+                render: (row) => (
+                    <div className="min-w-0">
+                        <OneLineText value={sourceTypeLabel(row.source_type)} className="text-sm font-medium" />
+                        <OneLineText value={row.source_company?.name ?? row.source_company_name} className="text-xs text-muted-foreground" />
+                    </div>
+                ),
             }),
             buildTextColumn({
                 accessorKey: "issued_date",
@@ -457,6 +530,7 @@ function DecisionDialog({
     setProductForm,
     draftProducts,
     pdfFile,
+    authorizationFiles,
     savePending,
     errors,
     setErrors,
@@ -468,6 +542,10 @@ function DecisionDialog({
     onDeleteProduct,
     onPickPdf,
     onDownloadPdf,
+    onPickAuthorizationFiles,
+    onRemovePickedAuthorizationFile,
+    onDownloadAuthorizationFile,
+    onDeleteAuthorizationFile,
 }: {
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -478,6 +556,7 @@ function DecisionDialog({
     setProductForm: (form: Partial<CirculationProduct>) => void
     draftProducts: DraftCirculationProduct[]
     pdfFile: File | null
+    authorizationFiles: File[]
     savePending: boolean
     errors: Record<string, string>
     setErrors: (errors: Record<string, string>) => void
@@ -489,11 +568,20 @@ function DecisionDialog({
     onDeleteProduct: (product: DraftCirculationProduct) => Promise<void> | void
     onPickPdf: () => void
     onDownloadPdf: () => void
+    onPickAuthorizationFiles: () => void
+    onRemovePickedAuthorizationFile: (index: number) => void
+    onDownloadAuthorizationFile: (index: number, fileName?: string) => void
+    onDeleteAuthorizationFile: (index: number) => Promise<void> | void
 }) {
     const products = [
         ...(selected?.products ?? []).map((product) => ({ ...product, tempId: `saved-${product.id}` })),
         ...draftProducts,
     ]
+    const sourceType = form.source_type ?? "INTERNAL"
+    const sourceCompanyInitialOption = useMemo(() => {
+        if (!form.source_company_id) return undefined
+        return companyOption(form.source_company ?? { id: form.source_company_id, name: form.source_company_name ?? "" })
+    }, [form.source_company, form.source_company_id, form.source_company_name])
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -542,6 +630,91 @@ function DecisionDialog({
                             />
                             <FieldError message={errors.expired_date} />
                         </Field>
+                        <Field label="Nguồn QĐLH">
+                            <Select
+                                value={sourceType}
+                                onValueChange={(value) => {
+                                    setForm({
+                                        ...form,
+                                        source_type: value,
+                                        source_company_id: value === "INTERNAL" ? form.source_company_id : undefined,
+                                        source_company_name: value === "INTERNAL" ? form.source_company_name : "",
+                                    })
+                                    setErrors(withoutError(errors, "source_company_id", "source_company_name"))
+                                }}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="INTERNAL">Công ty trực thuộc</SelectItem>
+                                    <SelectItem value="EXTERNAL_AUTHORIZED">Công ty ngoài ủy quyền</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </Field>
+                        {sourceType === "INTERNAL" ? (
+                            <Field label="Công ty nguồn">
+                                <AsyncSelect
+                                    value={form.source_company_id}
+                                    onChange={(value: number | undefined, option: any) => {
+                                        setForm({
+                                            ...form,
+                                            source_company_id: value,
+                                            source_company_name: option?.raw?.name ?? option?.label ?? "",
+                                            source_company: option?.raw,
+                                        })
+                                        setErrors(withoutError(errors, "source_company_id"))
+                                    }}
+                                    dataSource={companyDataSource()}
+                                    mapOption={companyOption}
+                                    initialOption={sourceCompanyInitialOption}
+                                    placeholder="Chọn công ty"
+                                    searchPlaceholder="Tìm công ty..."
+                                    popoverContentClassName="w-[min(560px,calc(100vw-3rem))]"
+                                    optionWrapLabel
+                                    required
+                                />
+                                <FieldError message={errors.source_company_id} />
+                            </Field>
+                        ) : (
+                            <>
+                                <Field label="Công ty ủy quyền">
+                                    <Input
+                                        aria-invalid={Boolean(errors.source_company_name)}
+                                        className={cn(errors.source_company_name && "border-destructive focus-visible:ring-destructive/30")}
+                                        value={form.source_company_name ?? ""}
+                                        onChange={(e) => {
+                                            setForm({ ...form, source_company_name: e.target.value })
+                                            setErrors(withoutError(errors, "source_company_name"))
+                                        }}
+                                    />
+                                    <FieldError message={errors.source_company_name} />
+                                </Field>
+                                <Field label="Hiệu lực ủy quyền từ">
+                                    <Input
+                                        type="date"
+                                        value={form.authorization_valid_from ?? ""}
+                                        onChange={(e) => {
+                                            setForm({ ...form, authorization_valid_from: e.target.value })
+                                            setErrors(withoutError(errors, "authorization_valid_to"))
+                                        }}
+                                    />
+                                </Field>
+                                <Field label="Hiệu lực ủy quyền đến">
+                                    <Input
+                                        aria-invalid={Boolean(errors.authorization_valid_to)}
+                                        className={cn(errors.authorization_valid_to && "border-destructive focus-visible:ring-destructive/30")}
+                                        type="date"
+                                        value={form.authorization_valid_to ?? ""}
+                                        onChange={(e) => {
+                                            setForm({ ...form, authorization_valid_to: e.target.value })
+                                            setErrors(withoutError(errors, "authorization_valid_to"))
+                                        }}
+                                    />
+                                    <FieldError message={errors.authorization_valid_to} />
+                                </Field>
+                            </>
+                        )}
                         <div className="md:col-span-3">
                             <Field label="Ghi chú">
                                 <Textarea value={form.note ?? ""} onChange={(e) => setForm({ ...form, note: e.target.value })} />
@@ -626,6 +799,76 @@ function DecisionDialog({
                             </Table>
                         </div>
                     </div>
+
+                    {sourceType === "EXTERNAL_AUTHORIZED" ? (
+                        <div className="space-y-3 border-t pt-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <div className="text-sm font-semibold">Giấy ủy quyền</div>
+                                    <div className="text-xs text-muted-foreground">Có thể chọn nhiều file, lưu cùng QĐLH.</div>
+                                </div>
+                                {canUpdate ? (
+                                    <Button variant="outline" type="button" onClick={onPickAuthorizationFiles}>
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Chọn giấy ủy quyền
+                                    </Button>
+                                ) : null}
+                            </div>
+
+                            <div className="overflow-auto rounded-md border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Tên file</TableHead>
+                                            <TableHead className="w-40">Ngày tải lên</TableHead>
+                                            <TableHead className="w-28 text-center">Thao tác</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {(selected?.authorization_files ?? []).map((file, index) => (
+                                            <TableRow key={`${file.file_name}-${index}`}>
+                                                <TableCell className="font-medium">{file.file_name}</TableCell>
+                                                <TableCell>{formatDateTime(file.uploaded_at)}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex justify-center gap-1">
+                                                        <Button variant="ghost" size="icon" type="button" onClick={() => onDownloadAuthorizationFile(index, file.file_name)}>
+                                                            <FileDown className="h-4 w-4" />
+                                                        </Button>
+                                                        {canUpdate ? (
+                                                            <Button variant="ghost" size="icon" type="button" onClick={() => onDeleteAuthorizationFile(index)}>
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        ) : null}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {authorizationFiles.map((file, index) => (
+                                            <TableRow key={`${file.name}-${index}`}>
+                                                <TableCell className="font-medium">
+                                                    {file.name}
+                                                    <span className="ml-2 text-xs text-muted-foreground">chưa lưu</span>
+                                                </TableCell>
+                                                <TableCell>-</TableCell>
+                                                <TableCell className="text-center">
+                                                    <Button variant="ghost" size="icon" type="button" onClick={() => onRemovePickedAuthorizationFile(index)}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {(selected?.authorization_files?.length ?? 0) + authorizationFiles.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="py-6 text-center text-sm text-muted-foreground">
+                                                    Chưa có giấy ủy quyền
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : null}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
 
                 <DialogFooter className="border-t pt-4 sm:justify-between">
@@ -684,6 +927,15 @@ function validateDecision(form: Partial<CirculationDecision>) {
     if (form.issued_date && form.expired_date && form.issued_date > form.expired_date) {
         errors.expired_date = "Ngày hết hạn phải sau ngày cấp"
     }
+    if ((form.source_type ?? "INTERNAL") === "INTERNAL" && !form.source_company_id) {
+        errors.source_company_id = "Vui lòng chọn công ty nguồn"
+    }
+    if (form.source_type === "EXTERNAL_AUTHORIZED" && !form.source_company_name?.trim()) {
+        errors.source_company_name = "Vui lòng nhập công ty ủy quyền"
+    }
+    if (form.authorization_valid_from && form.authorization_valid_to && form.authorization_valid_from > form.authorization_valid_to) {
+        errors.authorization_valid_to = "Ngày hết hiệu lực phải sau ngày bắt đầu"
+    }
     return errors
 }
 
@@ -702,10 +954,16 @@ function validateProduct(form: Partial<CirculationProduct>) {
 }
 
 function normalizeDecisionPayload(form: Partial<CirculationDecision>) {
+    const sourceType = form.source_type ?? "INTERNAL"
     return {
         decision_no: form.decision_no?.trim(),
         issued_date: form.issued_date || undefined,
         expired_date: form.expired_date || undefined,
+        source_type: sourceType,
+        source_company_id: sourceType === "INTERNAL" ? form.source_company_id : undefined,
+        source_company_name: form.source_company_name?.trim() || undefined,
+        authorization_valid_from: sourceType === "EXTERNAL_AUTHORIZED" ? form.authorization_valid_from || undefined : undefined,
+        authorization_valid_to: sourceType === "EXTERNAL_AUTHORIZED" ? form.authorization_valid_to || undefined : undefined,
         note: form.note?.trim() || undefined,
     }
 }
@@ -751,9 +1009,32 @@ function hasPermission(permissions: any[], module: string, action: string) {
     return permissions.some((permission) => permission.module === module && permission.action === action)
 }
 
+function companyDataSource() {
+    return {
+        getList: (params: any) => listCompanies({ page: 1, size: 20, keyword: params?.keyword }),
+        getById: getCompany,
+    }
+}
+
+function sourceTypeLabel(value?: string) {
+    if (value === "EXTERNAL_AUTHORIZED") return "Công ty ngoài ủy quyền"
+    return "Công ty trực thuộc"
+}
+
 function formatDate(value?: string) {
     if (!value) return ""
     return value.slice(0, 10).split("-").reverse().join("/")
+}
+
+function formatDateTime(value?: string) {
+    if (!value) return ""
+    const datePart = formatDate(value)
+    const timePart = value.includes("T")
+        ? value.split("T")[1]?.slice(0, 5)
+        : value.includes(" ")
+            ? value.split(" ")[1]?.slice(0, 5)
+            : ""
+    return [datePart, timePart].filter(Boolean).join(" ")
 }
 
 function circulationRemaining(value?: string) {
