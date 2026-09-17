@@ -56,10 +56,10 @@ type Filters = {
     overdue_61_90_value?: string
     overdue_91_120_op?: string
     overdue_91_120_value?: string
-    overdue_over_120_op?: string
-    overdue_over_120_value?: string
-    unknown_debt_op?: string
-    unknown_debt_value?: string
+    overdue_121_150_op?: string
+    overdue_121_150_value?: string
+    overdue_over_150_op?: string
+    overdue_over_150_value?: string
 }
 
 const controlClass = "h-10 rounded-md border-slate-300 bg-white shadow-xs"
@@ -73,8 +73,8 @@ type NumberFilterField =
     | "overdue_31_60"
     | "overdue_61_90"
     | "overdue_91_120"
-    | "overdue_over_120"
-    | "unknown_debt"
+    | "overdue_121_150"
+    | "overdue_over_150"
 
 const NUMBER_FILTER_OPERATORS: Array<{ value: NumberFilterOp; label: string; chipLabel: string }> = [
     { value: "eq", label: "Bằng", chipLabel: "=" },
@@ -93,8 +93,8 @@ const NUMBER_FIELD_LABELS: Array<{ field: NumberFilterField; label: string }> = 
     { field: "overdue_31_60", label: "Trễ 31-60" },
     { field: "overdue_61_90", label: "Trễ 61-90" },
     { field: "overdue_91_120", label: "Trễ 91-120" },
-    { field: "overdue_over_120", label: "Trễ trên 120" },
-    { field: "unknown_debt", label: "Không xác định đơn" },
+    { field: "overdue_121_150", label: "Trễ 121-150" },
+    { field: "overdue_over_150", label: "Trễ trên 150" },
 ]
 
 const BUCKET_OPTIONS: Array<{ value: ArOverdueBucket; label: string }> = [
@@ -104,8 +104,8 @@ const BUCKET_OPTIONS: Array<{ value: ArOverdueBucket; label: string }> = [
     { value: "DAYS_31_60", label: "Trễ 31-60 ngày" },
     { value: "DAYS_61_90", label: "Trễ 61-90 ngày" },
     { value: "DAYS_91_120", label: "Trễ 91-120 ngày" },
-    { value: "DAYS_OVER_120", label: "Trễ trên 120 ngày" },
-    { value: "UNKNOWN", label: "Không xác định đơn" },
+    { value: "DAYS_121_150", label: "Trễ 121-150 ngày" },
+    { value: "DAYS_OVER_150", label: "Trễ trên 150 ngày" },
 ]
 
 const COLUMNS = [
@@ -119,8 +119,8 @@ const COLUMNS = [
     { key: "overdue_31_60", width: 140, minWidth: 110 },
     { key: "overdue_61_90", width: 140, minWidth: 110 },
     { key: "overdue_91_120", width: 150, minWidth: 120 },
-    { key: "overdue_over_120", width: 160, minWidth: 120 },
-    { key: "unknown_debt", width: 170, minWidth: 130 },
+    { key: "overdue_121_150", width: 150, minWidth: 120 },
+    { key: "overdue_over_150", width: 160, minWidth: 120 },
 ] as const
 
 const EXPORT_PAGE_SIZE = 200
@@ -147,8 +147,8 @@ const EXCEL_COLUMNS: ExcelColumn[] = [
     { label: "Trễ 31-60 ngày", width: 18, type: "number", align: "right", numFmt: "#,##0", value: (row) => row.overdue_31_60 },
     { label: "Trễ 61-90 ngày", width: 18, type: "number", align: "right", numFmt: "#,##0", value: (row) => row.overdue_61_90 },
     { label: "Trễ 91-120 ngày", width: 18, type: "number", align: "right", numFmt: "#,##0", value: (row) => row.overdue_91_120 },
-    { label: "Trễ trên 120 ngày", width: 20, type: "number", align: "right", numFmt: "#,##0", value: (row) => row.overdue_over_120 },
-    { label: "Không xác định đơn", width: 22, type: "number", align: "right", numFmt: "#,##0", value: (row) => row.unknown_debt },
+    { label: "Trễ 121-150 ngày", width: 18, type: "number", align: "right", numFmt: "#,##0", value: (row) => row.overdue_121_150 },
+    { label: "Trễ trên 150 ngày", width: 20, type: "number", align: "right", numFmt: "#,##0", value: (row) => row.overdue_over_150 },
 ]
 
 export default function ArOverduePage() {
@@ -176,10 +176,10 @@ export default function ArOverduePage() {
             "overdue_61_90_value",
             "overdue_91_120_op",
             "overdue_91_120_value",
-            "overdue_over_120_op",
-            "overdue_over_120_value",
-            "unknown_debt_op",
-            "unknown_debt_value",
+            "overdue_121_150_op",
+            "overdue_121_150_value",
+            "overdue_over_150_op",
+            "overdue_over_150_value",
         ],
     )
 
@@ -202,10 +202,10 @@ export default function ArOverduePage() {
         overdue_61_90_value: singleFilters.overdue_61_90_value,
         overdue_91_120_op: singleFilters.overdue_91_120_op,
         overdue_91_120_value: singleFilters.overdue_91_120_value,
-        overdue_over_120_op: singleFilters.overdue_over_120_op,
-        overdue_over_120_value: singleFilters.overdue_over_120_value,
-        unknown_debt_op: singleFilters.unknown_debt_op,
-        unknown_debt_value: singleFilters.unknown_debt_value,
+        overdue_121_150_op: singleFilters.overdue_121_150_op,
+        overdue_121_150_value: singleFilters.overdue_121_150_value,
+        overdue_over_150_op: singleFilters.overdue_over_150_op,
+        overdue_over_150_value: singleFilters.overdue_over_150_value,
     }
 
     const { data, isLoading, error } = usePaginatedList(
@@ -231,10 +231,10 @@ export default function ArOverduePage() {
             requestFilters.overdue_61_90_value,
             requestFilters.overdue_91_120_op,
             requestFilters.overdue_91_120_value,
-            requestFilters.overdue_over_120_op,
-            requestFilters.overdue_over_120_value,
-            requestFilters.unknown_debt_op,
-            requestFilters.unknown_debt_value,
+            requestFilters.overdue_121_150_op,
+            requestFilters.overdue_121_150_value,
+            requestFilters.overdue_over_150_op,
+            requestFilters.overdue_over_150_value,
         ],
         listArOverdueReport,
         {
@@ -313,10 +313,10 @@ export default function ArOverduePage() {
                             overdue_61_90_value: next.overdue_61_90_value,
                             overdue_91_120_op: next.overdue_91_120_op,
                             overdue_91_120_value: next.overdue_91_120_value,
-                            overdue_over_120_op: next.overdue_over_120_op,
-                            overdue_over_120_value: next.overdue_over_120_value,
-                            unknown_debt_op: next.unknown_debt_op,
-                            unknown_debt_value: next.unknown_debt_value,
+                            overdue_121_150_op: next.overdue_121_150_op,
+                            overdue_121_150_value: next.overdue_121_150_value,
+                            overdue_over_150_op: next.overdue_over_150_op,
+                            overdue_over_150_value: next.overdue_over_150_value,
                         })
                         setMultiFilters({
                             customer_id: next.customer_id ?? [],
@@ -440,8 +440,8 @@ function ArOverdueTable({
             <ReportTh resizeIndex={7} onResizeStart={startColumnResize}><ColumnNumberFilter label="Trễ 31-60" field="overdue_31_60" filters={filters} onApply={setNumberFilter} onClear={clearNumberFilter} /></ReportTh>
             <ReportTh resizeIndex={8} onResizeStart={startColumnResize}><ColumnNumberFilter label="Trễ 61-90" field="overdue_61_90" filters={filters} onApply={setNumberFilter} onClear={clearNumberFilter} /></ReportTh>
             <ReportTh resizeIndex={9} onResizeStart={startColumnResize}><ColumnNumberFilter label="Trễ 91-120" field="overdue_91_120" filters={filters} onApply={setNumberFilter} onClear={clearNumberFilter} /></ReportTh>
-            <ReportTh resizeIndex={10} onResizeStart={startColumnResize}><ColumnNumberFilter label="Trễ trên 120" field="overdue_over_120" filters={filters} onApply={setNumberFilter} onClear={clearNumberFilter} /></ReportTh>
-            <ReportTh resizeIndex={11} onResizeStart={startColumnResize}><ColumnNumberFilter label="Không xác định đơn" field="unknown_debt" filters={filters} onApply={setNumberFilter} onClear={clearNumberFilter} /></ReportTh>
+            <ReportTh resizeIndex={10} onResizeStart={startColumnResize}><ColumnNumberFilter label="Trễ 121-150" field="overdue_121_150" filters={filters} onApply={setNumberFilter} onClear={clearNumberFilter} /></ReportTh>
+            <ReportTh resizeIndex={11} onResizeStart={startColumnResize}><ColumnNumberFilter label="Trễ trên 150" field="overdue_over_150" filters={filters} onApply={setNumberFilter} onClear={clearNumberFilter} /></ReportTh>
         </tr>
     )
 
@@ -626,8 +626,8 @@ function ArOverdueTable({
                                     <MoneyCell value={row.overdue_31_60} />
                                     <MoneyCell value={row.overdue_61_90} />
                                     <MoneyCell value={row.overdue_91_120} />
-                                    <MoneyCell value={row.overdue_over_120} />
-                                    <MoneyCell value={row.unknown_debt} tone="warning" />
+                                    <MoneyCell value={row.overdue_121_150} />
+                                    <MoneyCell value={row.overdue_over_150} />
                                 </tr>
                             ))}
                         </tbody>
@@ -642,8 +642,8 @@ function ArOverdueTable({
                                     <MoneyCell value={totals?.overdue_31_60} strong />
                                     <MoneyCell value={totals?.overdue_61_90} strong />
                                     <MoneyCell value={totals?.overdue_91_120} strong />
-                                    <MoneyCell value={totals?.overdue_over_120} strong />
-                                    <MoneyCell value={totals?.unknown_debt} tone="warning" strong />
+                                    <MoneyCell value={totals?.overdue_121_150} strong />
+                                    <MoneyCell value={totals?.overdue_over_150} strong />
                                 </tr>
                             </tfoot>
                         ) : null}
@@ -1312,8 +1312,8 @@ function buildTotalsFromRows(rows: ArOverdueReportRow[]) {
             overdue_31_60: total.overdue_31_60 + Number(row.overdue_31_60 || 0),
             overdue_61_90: total.overdue_61_90 + Number(row.overdue_61_90 || 0),
             overdue_91_120: total.overdue_91_120 + Number(row.overdue_91_120 || 0),
-            overdue_over_120: total.overdue_over_120 + Number(row.overdue_over_120 || 0),
-            unknown_debt: total.unknown_debt + Number(row.unknown_debt || 0),
+            overdue_121_150: total.overdue_121_150 + Number(row.overdue_121_150 || 0),
+            overdue_over_150: total.overdue_over_150 + Number(row.overdue_over_150 || 0),
         }),
         {
             total_debt: 0,
@@ -1323,8 +1323,8 @@ function buildTotalsFromRows(rows: ArOverdueReportRow[]) {
             overdue_31_60: 0,
             overdue_61_90: 0,
             overdue_91_120: 0,
-            overdue_over_120: 0,
-            unknown_debt: 0,
+            overdue_121_150: 0,
+            overdue_over_150: 0,
         },
     )
 }
@@ -1365,8 +1365,8 @@ async function exportArOverdueXlsx(
         toExcelNumber(totals.overdue_31_60),
         toExcelNumber(totals.overdue_61_90),
         toExcelNumber(totals.overdue_91_120),
-        toExcelNumber(totals.overdue_over_120),
-        toExcelNumber(totals.unknown_debt),
+        toExcelNumber(totals.overdue_121_150),
+        toExcelNumber(totals.overdue_over_150),
     ])
 
     sheet.columns = EXCEL_COLUMNS.map((column) => ({ width: column.width }))

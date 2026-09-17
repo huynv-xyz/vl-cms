@@ -68,6 +68,44 @@ export type ImportTransactionsResponse = {
     inserted: number
 }
 
+export type TransactionUnitPriceImportPreviewRow = {
+    source_row_no: number
+    transaction_id?: number | null
+    status: string
+    message?: string | null
+    document_date?: string | null
+    document_no?: string | null
+    customer_code?: string | null
+    product_code?: string | null
+    unit?: string | null
+    sale_qty?: number | null
+    return_qty?: number | null
+    file_unit_price?: number | null
+    file_sale_revenue?: number | null
+    current_unit_price?: number | null
+    old_revenue?: number | null
+    new_unit_price?: number | null
+    new_revenue?: number | null
+}
+
+export type TransactionUnitPriceImportResult = {
+    applied: boolean
+    total_rows: number
+    matched_count: number
+    updatable_count: number
+    updated_count: number
+    already_priced_count: number
+    unmatched_count: number
+    ambiguous_count: number
+    out_of_scope_date_count: number
+    invalid_count: number
+    old_revenue_total: number
+    new_revenue_total: number
+    revenue_delta: number
+    rows: TransactionUnitPriceImportPreviewRow[]
+    message: string
+}
+
 export type TransactionSummary = {
     revenue: number
     return_revenue: number
@@ -109,6 +147,28 @@ export function importTransactionsFile(file: File) {
 }
 
 export const importTransactionsCsv = importTransactionsFile
+
+export function previewTransactionUnitPriceImport(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<TransactionUnitPriceImportResult>(
+        "/transactions/unit-price-import/preview",
+        formData,
+        { signal: AbortSignal.timeout(120_000) }
+    )
+}
+
+export function applyTransactionUnitPriceImport(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return apiPostMultipart<TransactionUnitPriceImportResult>(
+        "/transactions/unit-price-import/apply",
+        formData,
+        { signal: AbortSignal.timeout(120_000) }
+    )
+}
 
 export function updateTransactionUnitPrice(id: number, unitPrice: number) {
     return apiPut<Transaction>(`/transactions/${id}/unit-price`, { unitPrice })

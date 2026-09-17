@@ -7,8 +7,8 @@ export type ArOverdueBucket =
     | "DAYS_31_60"
     | "DAYS_61_90"
     | "DAYS_91_120"
-    | "DAYS_OVER_120"
-    | "UNKNOWN"
+    | "DAYS_121_150"
+    | "DAYS_OVER_150"
 
 export type ArOverdueReportParams = {
     page: number
@@ -31,10 +31,10 @@ export type ArOverdueReportParams = {
     overdue_61_90_value?: string
     overdue_91_120_op?: string
     overdue_91_120_value?: string
-    overdue_over_120_op?: string
-    overdue_over_120_value?: string
-    unknown_debt_op?: string
-    unknown_debt_value?: string
+    overdue_121_150_op?: string
+    overdue_121_150_value?: string
+    overdue_over_150_op?: string
+    overdue_over_150_value?: string
 }
 
 export type ArOverdueReportRow = {
@@ -50,8 +50,8 @@ export type ArOverdueReportRow = {
     overdue_31_60: number
     overdue_61_90: number
     overdue_91_120: number
-    overdue_over_120: number
-    unknown_debt: number
+    overdue_121_150: number
+    overdue_over_150: number
 }
 
 export type ArOverdueReportTotals = Omit<

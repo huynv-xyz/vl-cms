@@ -7,6 +7,7 @@ import { getTransactionSummary, listTransactions } from '@/api/transactions'
 import { TransactionTable } from './components/transaction-table'
 import { ImportTransactionButton } from './components/import-transaction-button'
 import { ExportTransactionButton } from './components/export-transaction-button'
+import { UnitPriceImportUpdateButton } from './components/unit-price-import-update-button'
 import { TransactionSummaryStrip } from './components/transaction-summary-strip'
 import { Route } from '@/routes/_authenticated/transactions'
 
@@ -201,6 +202,7 @@ export default function TransactionPage() {
             actions={
                 <div className="flex flex-wrap items-center gap-2">
                     <ImportTransactionButton
+                        disabled
                         onSuccess={(result) => {
                             alert(`Import thành công: ${result.inserted} dòng`)
                             queryClient.invalidateQueries({ queryKey: ['transactions'] })
@@ -208,6 +210,12 @@ export default function TransactionPage() {
                         }}
                         onError={(error) => {
                             alert(error.message)
+                        }}
+                    />
+                    <UnitPriceImportUpdateButton
+                        onApplied={() => {
+                            queryClient.invalidateQueries({ queryKey: ['transactions'] })
+                            queryClient.invalidateQueries({ queryKey: ['transactions-summary'] })
                         }}
                     />
                     <ExportTransactionButton

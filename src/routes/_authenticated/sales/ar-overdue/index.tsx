@@ -25,10 +25,10 @@ export const Route = createFileRoute("/_authenticated/sales/ar-overdue/")({
             overdue_61_90_value: normalizeNumber(search.overdue_61_90_value),
             overdue_91_120_op: normalizeOp(search.overdue_91_120_op),
             overdue_91_120_value: normalizeNumber(search.overdue_91_120_value),
-            overdue_over_120_op: normalizeOp(search.overdue_over_120_op),
-            overdue_over_120_value: normalizeNumber(search.overdue_over_120_value),
-            unknown_debt_op: normalizeOp(search.unknown_debt_op),
-            unknown_debt_value: normalizeNumber(search.unknown_debt_value),
+            overdue_121_150_op: normalizeOp(search.overdue_121_150_op),
+            overdue_121_150_value: normalizeNumber(search.overdue_121_150_value),
+            overdue_over_150_op: normalizeOp(search.overdue_over_150_op),
+            overdue_over_150_value: normalizeNumber(search.overdue_over_150_value),
         }
     },
     component: ArOverduePage,
@@ -65,8 +65,8 @@ function normalizeBuckets(value: unknown) {
         "DAYS_31_60",
         "DAYS_61_90",
         "DAYS_91_120",
-        "DAYS_OVER_120",
-        "UNKNOWN",
+        "DAYS_121_150",
+        "DAYS_OVER_150",
     ])
     const items = value
         .split(",")
