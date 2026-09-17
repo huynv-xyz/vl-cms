@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getCustomerVipPlan, saveCustomerVipPlan } from '@/api/customer-vip'
+import { createCustomerVipPlan, getCustomerVipPlan, makeCustomerVipPlanPrimary, saveCustomerVipPlan } from '@/api/customer-vip'
 import type { CustomerVip, CustomerVipPlanItem } from '../data/schema'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,6 +35,8 @@ import {
     Eye,
     EyeOff,
     Loader2,
+    Pin,
+    Plus,
     Save,
     Target,
     Trophy,
@@ -43,6 +45,7 @@ import {
     type LucideIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 type AllocationStrategy = 'PRO_RATA' | 'FACTOR_HIGH' | 'EQUAL' | 'PRIORITY'
 
@@ -86,10 +89,11 @@ export function CustomerVipPlanSheet({
 }: Props) {
     const queryClient = useQueryClient()
     const customerId = customer?.id
+    const [selectedPlanId, setSelectedPlanId] = React.useState<number>()
 
     const { data, isLoading, error } = useQuery({
-        queryKey: ['customer-vip-plan', customerId],
-        queryFn: () => getCustomerVipPlan(customerId!, {}),
+        queryKey: ['customer-vip-plan', customerId, selectedPlanId],
+        queryFn: () => getCustomerVipPlan(customerId!, { plan_id: selectedPlanId }),
         enabled: open && !!customerId,
     })
 
@@ -97,6 +101,13 @@ export function CustomerVipPlanSheet({
     const [items, setItems] = React.useState<CustomerVipPlanItem[]>([])
     const [strategy, setStrategy] = React.useState<AllocationStrategy>('PRO_RATA')
     const [showPlannedQtyColumn, setShowPlannedQtyColumn] = React.useState(true)
+    const [createOpen, setCreateOpen] = React.useState(false)
+    const [newPlanName, setNewPlanName] = React.useState('')
+    const [baselineMode, setBaselineMode] = React.useState<'COPY_PRIMARY' | 'CURRENT'>('COPY_PRIMARY')
+
+    React.useEffect(() => {
+        if (!open) setSelectedPlanId(undefined)
+    }, [open, customerId])
 
     React.useEffect(() => {
         if (!data) return
@@ -117,7 +128,10 @@ export function CustomerVipPlanSheet({
     const selectedTier = data?.available_tiers?.find((tier) => tier.code === targetTierCode)
     const targetPoint = Number(selectedTier?.point ?? data?.target_point ?? 0)
     const plannedPoint = sum(items.map((item) => item.projected_point))
-    const projectedTotalPoint = currentPoint + plannedPoint
+    const remainingPlannedPoint = sum(items.map((item) => item.has_plan
+        ? Math.max(0, Number(item.projected_point || 0) - Number(item.actual_added_point || 0))
+        : Number(item.projected_point || 0)))
+    const projectedTotalPoint = currentPoint + remainingPlannedPoint
     const missingToTarget = Math.max(0, targetPoint - projectedTotalPoint)
     const targetProgress = targetPoint > 0
         ? Math.min(100, Math.round((projectedTotalPoint / targetPoint) * 100))
@@ -127,6 +141,9 @@ export function CustomerVipPlanSheet({
         mutationFn: () => {
             if (!customerId || !targetTierCode) throw new Error('Vui lòng chọn hạng mục tiêu năm nay')
             return saveCustomerVipPlan(customerId, {
+                plan_id: data?.target_id ?? undefined,
+                plan_name: data?.plan_name ?? undefined,
+                calc_year: data?.calc_year,
                 target_tier_code: targetTierCode,
                 target_tier_name: selectedTier?.name,
                 from_date: undefined,
@@ -154,6 +171,37 @@ export function CustomerVipPlanSheet({
         },
     })
 
+    const createMutation = useMutation({
+        mutationFn: () => {
+            if (!customerId || !data || !newPlanName.trim()) throw new Error('Vui lòng nhập tên kế hoạch')
+            return createCustomerVipPlan(customerId, {
+                calc_year: data.calc_year,
+                plan_name: newPlanName.trim(),
+                baseline_mode: baselineMode,
+            })
+        },
+        onSuccess: (next) => {
+            setCreateOpen(false)
+            setNewPlanName('')
+            setSelectedPlanId(next.target_id ?? undefined)
+            queryClient.invalidateQueries({ queryKey: ['customer-vip-plan'] })
+            toast.success('Đã tạo phương án kế hoạch')
+        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : 'Tạo kế hoạch thất bại'),
+    })
+
+    const primaryMutation = useMutation({
+        mutationFn: () => {
+            if (!customerId || !data?.target_id) throw new Error('Chưa chọn kế hoạch')
+            return makeCustomerVipPlanPrimary(customerId, data.target_id, data.calc_year)
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['customer-vip-plan'] })
+            toast.success('Đã chọn làm kế hoạch chính')
+        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : 'Không thể đổi kế hoạch chính'),
+    })
+
     const handleSave = () => {
         if (!data || !targetTierCode) {
             toast.error('Vui lòng chọn hạng mục tiêu năm nay')
@@ -177,6 +225,8 @@ export function CustomerVipPlanSheet({
                 ...item,
                 planned_qty: qty,
                 projected_point: round2(projectedPoint),
+                remaining_planned_qty: item.has_plan ? Math.max(0, round2(qty - Number(item.actual_added_qty || 0))) : undefined,
+                remaining_planned_point: item.has_plan ? Math.max(0, round2(projectedPoint - Number(item.actual_added_point || 0))) : undefined,
                 total_point_after_plan: round2(Number(item.achieved_point || 0) + projectedPoint),
             }
         }))
@@ -207,11 +257,14 @@ export function CustomerVipPlanSheet({
         const applyToRow = (index: number, qty: number) => {
             const item = next[index]
             const factor = Number(item.point_factor || 0)
-            const projectedPoint = round2(qty * factor)
+            const totalQty = round2(qty + Number(item.actual_added_qty || 0))
+            const projectedPoint = round2(totalQty * factor)
             next[index] = {
                 ...item,
-                planned_qty: round2(qty),
+                planned_qty: totalQty,
                 projected_point: projectedPoint,
+                remaining_planned_qty: round2(qty),
+                remaining_planned_point: round2(qty * factor),
                 total_point_after_plan: round2(Number(item.achieved_point || 0) + projectedPoint),
             }
         }
@@ -292,6 +345,28 @@ export function CustomerVipPlanSheet({
                         </div>
                     ) : data ? (
                         <div className="space-y-4">
+                            <div className="flex flex-wrap items-end gap-2 rounded-md border bg-muted/20 p-3">
+                                <div className="min-w-[280px] flex-1 space-y-1">
+                                    <label className="text-xs font-medium text-muted-foreground">Phương án kế hoạch</label>
+                                    <Select value={String(selectedPlanId ?? data.target_id ?? '')} onValueChange={(value) => setSelectedPlanId(Number(value))} disabled={!data.plans?.length}>
+                                        <SelectTrigger className="h-10 bg-background"><SelectValue placeholder="Chưa có kế hoạch" /></SelectTrigger>
+                                        <SelectContent>
+                                            {(data.plans ?? []).map((plan) => (
+                                                <SelectItem key={plan.id} value={String(plan.id)}>{plan.plan_name}{plan.is_primary ? ' (Chính)' : ''}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <Button variant="outline" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Tạo kế hoạch</Button>
+                                {data.has_plan && !data.is_primary ? (
+                                    <Button variant="outline" onClick={() => primaryMutation.mutate()} disabled={primaryMutation.isPending}>
+                                        <Pin className="mr-2 h-4 w-4" />Chọn làm chính
+                                    </Button>
+                                ) : null}
+                                <div className="w-full text-xs text-muted-foreground">
+                                    {data.plan_name || 'Chưa lưu kế hoạch'}{data.baseline_date ? ` · Mốc dữ liệu ${formatDisplayDate(data.baseline_date)}` : ''}
+                                </div>
+                            </div>
                             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                                 <StatCard
                                     icon={Trophy}
@@ -576,6 +651,33 @@ export function CustomerVipPlanSheet({
                     </div>
                 </SheetFooter>
             </SheetContent>
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader><DialogTitle>Tạo phương án kế hoạch</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium">Tên kế hoạch</label>
+                            <Input value={newPlanName} onChange={(event) => setNewPlanName(event.target.value)} placeholder="Ví dụ: Phương án tăng trưởng" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium">Mốc so sánh</label>
+                            <Select value={baselineMode} onValueChange={(value) => setBaselineMode(value as 'COPY_PRIMARY' | 'CURRENT')}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="COPY_PRIMARY">Sao chép mốc dữ liệu của kế hoạch chính</SelectItem>
+                                    <SelectItem value="CURRENT">Tạo mốc theo dữ liệu hiện tại</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setCreateOpen(false)}>Hủy</Button>
+                        <Button onClick={() => createMutation.mutate()} disabled={!newPlanName.trim() || createMutation.isPending}>
+                            {createMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Tạo kế hoạch
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Sheet>
     )
 }

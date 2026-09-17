@@ -86,18 +86,43 @@ export type CustomerVipPlanItem = {
 export type CustomerVipPlan = CustomerVip & {
     has_plan?: boolean
     target_id?: number | null
+    plan_code?: string | null
+    plan_name?: string | null
+    plan_status?: string | null
+    is_primary?: boolean
+    baseline_date?: string | null
+    snapshot_source?: string | null
     plan_created_at?: string | null
     plan_updated_at?: string | null
     target_tier_code?: string | null
     target_tier_name?: string | null
     target_point: number
     planned_point: number
+    remaining_planned_point?: number
     projected_total_point: number
     missing_point_to_target: number
     target_status: 'NO_TARGET' | 'MISSING' | 'ACHIEVED'
     target_message: string
     available_tiers: CustomerVipPlanTier[]
+    plans?: CustomerVipPlanOption[]
     items: CustomerVipPlanItem[]
+}
+
+export type CustomerVipPlanOption = {
+    id: number
+    plan_code?: string | null
+    plan_name: string
+    plan_status: string
+    is_primary: boolean
+    baseline_date?: string | null
+    target_tier_name?: string | null
+    updated_at?: string | null
+    target_point?: number
+    planned_point?: number
+    actual_added_point?: number
+    remaining_planned_point?: number
+    projected_total_point?: number
+    missing_point?: number
 }
 
 export type CustomerVipAuditLine = {

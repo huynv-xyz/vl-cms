@@ -35,7 +35,7 @@ import {
 const gridCell = "border-r border-slate-200 last:border-r-0"
 const centerCell = `${gridCell} text-center`
 
-export function useExportColumns() {
+export function useExportColumns(rowIndexOffset = 0) {
     const queryClient = useQueryClient()
     const returnTo = useLocation({ select: (location) => location.href })
     const { data: permissions = [] } = useQuery({
@@ -64,6 +64,23 @@ export function useExportColumns() {
     })
 
     const columns: ColumnDef<Export>[] = [
+        {
+            id: "row_index",
+            header: "STT",
+            enableSorting: false,
+            enableHiding: false,
+            size: 64,
+            cell: ({ row }) => (
+                <span className="tabular-nums">
+                    {rowIndexOffset + row.index + 1}
+                </span>
+            ),
+            meta: {
+                thClassName: `w-[64px] whitespace-nowrap ${centerCell}`,
+                tdClassName: `w-[64px] whitespace-nowrap ${centerCell}`,
+            },
+        },
+
         {
             id: "print",
             header: "In phiếu",

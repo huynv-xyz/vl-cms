@@ -16,6 +16,13 @@ type ToolItem = {
 
 const tools: ToolItem[] = [
     {
+        title: "Backfill kế hoạch điểm VIP",
+        description: "Chuẩn hóa kế hoạch cũ sang mô hình nhiều phương án, có kiểm tra, snapshot, hậu kiểm và rollback theo lần chạy.",
+        url: "/tools/vip-customer-plan-backfill",
+        status: "Bảo trì dữ liệu",
+        icon: DatabaseBackup,
+    },
+    {
         title: "Sửa product_id bán hàng",
         description:
             "Map thử và cập nhật product_id cho các dòng sales_transactions đang thiếu liên kết sản phẩm.",
@@ -34,7 +41,7 @@ const tools: ToolItem[] = [
     {
         title: "Sửa ĐVT giao dịch bán hàng",
         description:
-            "Quét và fill sales_transactions.unit theo products.unit, base_unit_code và ĐVT nhóm sản phẩm.",
+            "Quét và fill sales_transactions.unit theo products.unit, fallback product_groups.standard_unit.",
         url: "/tools/sales-transactions-unit-repair",
         status: "Bảo trì dữ liệu",
         icon: Ruler,

@@ -21,13 +21,14 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { listCustomerVips, getCustomerVipPlan, saveCustomerVipPlan } from "@/api/customer-vip"
+import { createCustomerVipPlan, getCustomerVipPlan, listCustomerVips, listPlannedVipCustomers, makeCustomerVipPlanPrimary, saveCustomerVipPlan, type PlannedVipCustomer } from "@/api/customer-vip"
 import { listVipTiers } from "@/api/vip-tier"
-import type { CustomerVip, CustomerVipPlan, CustomerVipPlanItem } from "@/features/vip/customer/data/schema"
+import type { CustomerVip, CustomerVipPlan, CustomerVipPlanItem, CustomerVipPlanOption } from "@/features/vip/customer/data/schema"
 import type { VipTier } from "@/features/vip/tier/data/schema"
 import { Route } from "@/routes/_authenticated/vip/customer-plan"
 import { cn } from "@/lib/utils"
-import { AlertTriangle, CheckCircle2, Download, Loader2, Save, Wand2 } from "lucide-react"
+import { AlertTriangle, ArrowLeft, CheckCircle2, Download, Loader2, Pin, Plus, Save, Search, Users, Wand2 } from "lucide-react"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 
 type AllocationStrategy = "PRO_RATA" | "FACTOR_HIGH" | "EQUAL" | "PRIORITY"
@@ -69,10 +70,11 @@ export default function VipCustomerPlanPage() {
     const yearOptions = React.useMemo(() => [currentYear - 1, currentYear, currentYear + 1], [currentYear])
     const customerListYear = selectedYear > currentYear ? currentYear : selectedYear
     const customerId = cleanId(search.customer_id)
-    const dateRange = React.useMemo(() => ({ calc_year: selectedYear }), [selectedYear])
+    const selectedPlanId = Number(search.plan_id || 0) || undefined
+    const dateRange = React.useMemo(() => ({ calc_year: selectedYear, plan_id: selectedPlanId }), [selectedYear, selectedPlanId])
 
     const planQuery = useQuery({
-        queryKey: ["customer-vip-plan-page", selectedYear, customerId],
+        queryKey: ["customer-vip-plan-page", selectedYear, customerId, selectedPlanId],
         queryFn: () => getCustomerVipPlan(customerId!, dateRange),
         enabled: !!customerId,
     })
@@ -82,6 +84,23 @@ export default function VipCustomerPlanPage() {
     const [items, setItems] = React.useState<CustomerVipPlanItem[]>([])
     const [plannedQtyInputs, setPlannedQtyInputs] = React.useState<Record<string, string>>({})
     const [strategy, setStrategy] = React.useState<AllocationStrategy>("PRO_RATA")
+    const [createOpen, setCreateOpen] = React.useState(false)
+    const [newCustomerOpen, setNewCustomerOpen] = React.useState(false)
+    const [newCustomerId, setNewCustomerId] = React.useState<string>()
+    const [plannedKeyword, setPlannedKeyword] = React.useState("")
+    const [newPlanName, setNewPlanName] = React.useState("")
+    const [baselineMode, setBaselineMode] = React.useState<"COPY_PRIMARY" | "CURRENT">("COPY_PRIMARY")
+
+    const plannedCustomersQuery = useQuery({
+        queryKey: ["planned-vip-customers", selectedYear],
+        queryFn: () => listPlannedVipCustomers(selectedYear),
+    })
+    const plannedCustomers = React.useMemo(() => {
+        const keyword = plannedKeyword.trim().toLocaleLowerCase("vi")
+        const rows = plannedCustomersQuery.data?.items ?? []
+        if (!keyword) return rows
+        return rows.filter((row) => `${row.customer_code} ${row.customer_name} ${row.primary_plan_name ?? ""}`.toLocaleLowerCase("vi").includes(keyword))
+    }, [plannedCustomersQuery.data?.items, plannedKeyword])
 
     React.useEffect(() => {
         if (search.customer_id && customerId && search.customer_id !== customerId) {
@@ -111,13 +130,18 @@ export default function VipCustomerPlanPage() {
     const targetPoint = Number(selectedTier?.point ?? data?.target_point ?? 0)
     const currentPoint = Number(data?.total_vip_point ?? 0)
     const plannedPoint = sum(items.map((item) => item.projected_point))
-    const projectedTotalPoint = currentPoint + plannedPoint
+    const remainingPlannedPoint = sum(items.map((item) => item.has_plan
+        ? Math.max(0, Number(item.projected_point || 0) - Number(item.actual_added_point || 0))
+        : Number(item.projected_point || 0)))
+    const projectedTotalPoint = currentPoint + remainingPlannedPoint
     const missingToTarget = Math.max(0, targetPoint - projectedTotalPoint)
 
     const saveMutation = useMutation({
         mutationFn: () => {
             if (!customerId || !targetTierCode) throw new Error("Vui lòng chọn khách hàng và hạng mục tiêu")
             return saveCustomerVipPlan(customerId, {
+                plan_id: data?.target_id ?? undefined,
+                plan_name: data?.plan_name ?? undefined,
                 calc_year: selectedYear,
                 target_tier_code: targetTierCode,
                 target_tier_name: selectedTier?.name,
@@ -139,6 +163,7 @@ export default function VipCustomerPlanPage() {
             queryClient.invalidateQueries({ queryKey: ["customer-vip-plan-page"] })
             queryClient.invalidateQueries({ queryKey: ["customer-vip-plan"] })
             queryClient.invalidateQueries({ queryKey: ["customer-vip"] })
+            queryClient.invalidateQueries({ queryKey: ["planned-vip-customers"] })
             toast.success("Đã lưu kế hoạch VIP")
         },
         onError: (err) => {
@@ -146,12 +171,48 @@ export default function VipCustomerPlanPage() {
         },
     })
 
-    const updateSearch = (next: Partial<{ customer_id?: string; calc_year: number; from_date?: string; to_date?: string }>) => {
+    const createMutation = useMutation({
+        mutationFn: () => {
+            if (!customerId || !newPlanName.trim()) throw new Error("Vui lòng nhập tên kế hoạch")
+            return createCustomerVipPlan(customerId, {
+                calc_year: selectedYear,
+                plan_name: newPlanName.trim(),
+                baseline_mode: baselineMode,
+            })
+        },
+        onSuccess: (next) => {
+            setCreateOpen(false)
+            setNewPlanName("")
+            updateSearch({ plan_id: next.target_id ?? undefined })
+            queryClient.invalidateQueries({ queryKey: ["customer-vip-plan-page"] })
+            queryClient.invalidateQueries({ queryKey: ["customer-vip-plan"] })
+            queryClient.invalidateQueries({ queryKey: ["planned-vip-customers"] })
+            toast.success("Đã tạo phương án kế hoạch")
+        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : "Tạo kế hoạch thất bại"),
+    })
+
+    const primaryMutation = useMutation({
+        mutationFn: () => {
+            if (!customerId || !data?.target_id) throw new Error("Chưa chọn kế hoạch")
+            return makeCustomerVipPlanPrimary(customerId, data.target_id, selectedYear)
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["customer-vip-plan-page"] })
+            queryClient.invalidateQueries({ queryKey: ["customer-vip-plan"] })
+            queryClient.invalidateQueries({ queryKey: ["planned-vip-customers"] })
+            toast.success("Đã chọn làm kế hoạch chính")
+        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : "Không thể đổi kế hoạch chính"),
+    })
+
+    const updateSearch = (next: Partial<{ customer_id?: string; plan_id?: number; calc_year: number; from_date?: string; to_date?: string }>) => {
         navigate({
             search: (prev) => {
                 const merged = { ...prev, ...next }
                 return {
                     customer_id: merged.customer_id || undefined,
+                    plan_id: merged.plan_id || undefined,
                     calc_year: merged.calc_year,
                     from_date: merged.from_date || undefined,
                     to_date: merged.to_date || undefined,
@@ -174,6 +235,8 @@ export default function VipCustomerPlanPage() {
                 ...item,
                 planned_qty: qty,
                 projected_point: round2(projectedPoint),
+                remaining_planned_qty: item.has_plan ? Math.max(0, round2(qty - Number(item.actual_added_qty || 0))) : undefined,
+                remaining_planned_point: item.has_plan ? Math.max(0, round2(projectedPoint - Number(item.actual_added_point || 0))) : undefined,
                 total_point_after_plan: round2(Number(item.achieved_point || 0) + projectedPoint),
             }
         }))
@@ -208,11 +271,14 @@ export default function VipCustomerPlanPage() {
         const applyToRow = (index: number, qty: number) => {
             const item = next[index]
             const factor = Number(item.point_factor || 0)
-            const projectedPoint = round2(qty * factor)
+            const totalQty = round2(qty + Number(item.actual_added_qty || 0))
+            const projectedPoint = round2(totalQty * factor)
             next[index] = {
                 ...item,
-                planned_qty: round2(qty),
+                planned_qty: totalQty,
                 projected_point: projectedPoint,
+                remaining_planned_qty: round2(qty),
+                remaining_planned_point: round2(qty * factor),
                 total_point_after_plan: round2(Number(item.achieved_point || 0) + projectedPoint),
             }
         }
@@ -269,6 +335,7 @@ export default function VipCustomerPlanPage() {
     }
 
     return (
+        <>
         <PageSection
             title="Kế hoạch điểm"
             description="Xem điểm/hạng hiện tại và lập kế hoạch số lượng dự kiến để đạt hạng mục tiêu năm nay."
@@ -288,10 +355,15 @@ export default function VipCustomerPlanPage() {
             {() => (
                 <div className="space-y-4">
                     <div className="rounded-md border bg-background p-3 shadow-sm">
-                        <div className="grid gap-3 md:grid-cols-[180px_1fr]">
+                        <div className={cn("grid gap-3", customerId ? "md:grid-cols-[auto_160px_minmax(280px,1fr)_minmax(240px,360px)_auto]" : "md:grid-cols-[180px_minmax(280px,1fr)_auto]") }>
+                            {customerId ? (
+                                <Button type="button" variant="outline" onClick={() => updateSearch({ customer_id: undefined, plan_id: undefined })}>
+                                    <ArrowLeft className="mr-2 h-4 w-4" />Danh sách
+                                </Button>
+                            ) : null}
                             <Select
                                 value={String(selectedYear)}
-                                onValueChange={(value) => updateSearch({ calc_year: Number(value), customer_id: undefined })}
+                                onValueChange={(value) => updateSearch({ calc_year: Number(value), customer_id: undefined, plan_id: undefined })}
                             >
                                 <SelectTrigger className="h-10 bg-background">
                                     <SelectValue placeholder="Chọn năm" />
@@ -304,45 +376,59 @@ export default function VipCustomerPlanPage() {
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <AsyncSelect
-                                key={selectedYear}
-                                value={customerId}
-                                onChange={(value: string | undefined) => updateSearch({ customer_id: value })}
-                                dataSource={{
-                                    getList: (params: any) => listCustomerVips({ page: 1, size: 30, keyword: params.keyword, calc_year: customerListYear }),
-                                }}
-                                mapOption={(x: CustomerVip) => ({
-                                    value: String(x.id),
-                                    label: `${x.customer_code} - ${x.customer_name}`,
-                                    raw: x,
-                                })}
-                                placeholder="Chọn khách hàng VIP"
-                                searchPlaceholder="Tìm mã hoặc tên khách hàng..."
-                                emptyText="Không có khách hàng VIP"
-                                initialOption={
-                                    data && customerId
-                                        ? {
-                                            value: String(data.id),
-                                            label: `${data.customer_code} - ${data.customer_name}`,
-                                            raw: data,
-                                        }
-                                        : undefined
-                                }
-                                required
-                                className="h-10"
-                            />
-                            {customerListYear !== selectedYear ? (
-                                <div className="md:col-start-2 text-xs text-muted-foreground">
-                                    Danh sách khách lấy từ năm {customerListYear}; kế hoạch sẽ được tính và lưu cho năm {selectedYear}.
+                            {customerId ? (
+                                <>
+                                    <div className="flex h-10 min-w-0 items-center rounded-md border bg-muted/20 px-3 text-sm font-medium">
+                                        <span className="truncate">{data ? `${data.customer_code} - ${data.customer_name}` : "Đang tải khách hàng..."}</span>
+                                    </div>
+                                    <Select
+                                        value={String(selectedPlanId ?? data?.target_id ?? "")}
+                                        onValueChange={(value) => updateSearch({ plan_id: Number(value) })}
+                                        disabled={!(data?.plans?.length)}
+                                    >
+                                        <SelectTrigger className="h-10 bg-background">
+                                            <SelectValue placeholder="Chưa có kế hoạch" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {(data?.plans ?? []).map((plan) => (
+                                                <SelectItem key={plan.id} value={String(plan.id)}>
+                                                    {plan.plan_name}{plan.is_primary ? " (Kế hoạch chính)" : ""}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Button type="button" variant="outline" onClick={() => setCreateOpen(true)}>
+                                        <Plus className="mr-2 h-4 w-4" />Tạo phương án
+                                    </Button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                        <Input value={plannedKeyword} onChange={(event) => setPlannedKeyword(event.target.value)} className="h-10 pl-9" placeholder="Tìm mã, tên khách hàng hoặc kế hoạch chính..." />
+                                    </div>
+                                    <Button type="button" onClick={() => setNewCustomerOpen(true)}>
+                                        <Plus className="mr-2 h-4 w-4" />Lập kế hoạch cho khách mới
+                                    </Button>
+                                </>
+                            )}
+                            {customerId && customerListYear !== selectedYear ? (
+                                <div className="text-xs text-muted-foreground md:col-start-3 md:col-span-3">
+                                    Thông tin khách lấy từ năm {customerListYear}; kế hoạch được tính và lưu cho năm {selectedYear}.
                                 </div>
                             ) : null}
                         </div>
                     </div>
 
                     {!customerId ? (
-                        <div className="rounded-md border border-dashed p-10 text-center text-sm text-muted-foreground">
-                            Chọn khách hàng để lập kế hoạch VIP năm {selectedYear}.
-                        </div>
+                        <PlannedCustomerList
+                            year={selectedYear}
+                            rows={plannedCustomers}
+                            total={plannedCustomersQuery.data?.total ?? 0}
+                            isLoading={plannedCustomersQuery.isLoading}
+                            error={plannedCustomersQuery.error}
+                            onSelect={(row) => updateSearch({ customer_id: String(row.customer_id), plan_id: row.primary_plan_id ?? undefined })}
+                        />
                     ) : planQuery.isLoading ? (
                         <div className="flex h-56 items-center justify-center rounded-md border text-sm text-muted-foreground">
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -357,6 +443,10 @@ export default function VipCustomerPlanPage() {
                             Khách hàng đang chọn thuộc năm {planQuery.data.calc_year}. Vui lòng chọn lại khách hàng trong năm {selectedYear}.
                         </div>
                     ) : data ? (
+                        <>
+                        {(data.plans?.length ?? 0) > 1 ? (
+                            <PlanComparison plans={data.plans ?? []} selectedPlanId={data.target_id ?? undefined} onSelect={(planId) => updateSearch({ plan_id: planId })} />
+                        ) : null}
                         <PlanBoard
                             data={data}
                             items={items}
@@ -376,11 +466,157 @@ export default function VipCustomerPlanPage() {
                             autoAllocate={autoAllocate}
                             strategy={strategy}
                             setStrategy={setStrategy}
+                            onMakePrimary={() => primaryMutation.mutate()}
+                            isMakingPrimary={primaryMutation.isPending}
                         />
+                        </>
                     ) : null}
                 </div>
             )}
         </PageSection>
+            <Dialog open={newCustomerOpen} onOpenChange={(open) => { setNewCustomerOpen(open); if (!open) setNewCustomerId(undefined) }}>
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader><DialogTitle>Lập kế hoạch cho khách hàng</DialogTitle></DialogHeader>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Khách hàng</label>
+                        <AsyncSelect
+                            key={`new-customer-${selectedYear}`}
+                            value={newCustomerId}
+                            onChange={(value: string | undefined) => setNewCustomerId(value)}
+                            dataSource={{
+                                getList: (params: any) => listCustomerVips({ page: 1, size: 30, keyword: params.keyword, calc_year: customerListYear }),
+                            }}
+                            mapOption={(x: CustomerVip) => ({
+                                value: String(x.id),
+                                label: `${x.customer_code} - ${x.customer_name}`,
+                                raw: x,
+                            })}
+                            placeholder="Chọn khách hàng VIP"
+                            searchPlaceholder="Tìm mã hoặc tên khách hàng..."
+                            emptyText="Không có khách hàng VIP"
+                            required
+                        />
+                        {customerListYear !== selectedYear ? (
+                            <p className="text-xs text-muted-foreground">Khách hàng được lấy từ năm {customerListYear}; kế hoạch mới sẽ thuộc năm {selectedYear}.</p>
+                        ) : null}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setNewCustomerOpen(false)}>Hủy</Button>
+                        <Button disabled={!newCustomerId} onClick={() => {
+                            if (!newCustomerId) return
+                            updateSearch({ customer_id: newCustomerId, plan_id: undefined })
+                            setNewCustomerOpen(false)
+                            setNewCustomerId(undefined)
+                        }}>Tiếp tục</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader><DialogTitle>Tạo phương án kế hoạch</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium">Tên kế hoạch</label>
+                            <Input value={newPlanName} onChange={(event) => setNewPlanName(event.target.value)} placeholder="Ví dụ: Phương án tăng trưởng" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium">Mốc so sánh</label>
+                            <Select value={baselineMode} onValueChange={(value) => setBaselineMode(value as "COPY_PRIMARY" | "CURRENT")}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="COPY_PRIMARY">Sao chép mốc dữ liệu của kế hoạch chính</SelectItem>
+                                    <SelectItem value="CURRENT">Tạo mốc theo dữ liệu hiện tại</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">Dùng mốc của kế hoạch chính để các phương án có cùng cơ sở so sánh.</p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setCreateOpen(false)}>Hủy</Button>
+                        <Button onClick={() => createMutation.mutate()} disabled={!newPlanName.trim() || createMutation.isPending}>
+                            {createMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                            Tạo kế hoạch
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
+    )
+}
+
+function PlannedCustomerList({
+    year,
+    rows,
+    total,
+    isLoading,
+    error,
+    onSelect,
+}: {
+    year: number
+    rows: PlannedVipCustomer[]
+    total: number
+    isLoading: boolean
+    error: unknown
+    onSelect: (row: PlannedVipCustomer) => void
+}) {
+    return (
+        <div className="overflow-hidden rounded-md border bg-background">
+            <div className="flex items-center justify-between gap-3 border-b bg-muted/20 px-4 py-3">
+                <div>
+                    <div className="font-semibold">Khách hàng đã lập kế hoạch năm {year}</div>
+                    <div className="text-xs text-muted-foreground">{total} khách hàng có ít nhất một kế hoạch</div>
+                </div>
+                <Users className="h-5 w-5 text-muted-foreground" />
+            </div>
+            {isLoading ? (
+                <div className="flex h-48 items-center justify-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Đang tải danh sách...</div>
+            ) : error ? (
+                <div className="m-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error instanceof Error ? error.message : "Không tải được danh sách kế hoạch"}</div>
+            ) : rows.length === 0 ? (
+                <div className="p-10 text-center text-sm text-muted-foreground">Không có khách hàng phù hợp trong năm {year}.</div>
+            ) : (
+                <div className="overflow-x-auto">
+                    <Table className="min-w-[900px]">
+                        <TableHeader><TableRow><TableHead className="w-16 text-center">STT</TableHead><TableHead className="min-w-[160px]">Mã khách hàng</TableHead><TableHead className="min-w-[260px]">Tên khách hàng</TableHead><TableHead className="w-32 text-center">Số kế hoạch</TableHead><TableHead className="min-w-[240px]">Kế hoạch chính</TableHead><TableHead className="min-w-[160px]">Hạng mục tiêu</TableHead><TableHead className="min-w-[160px]">Cập nhật gần nhất</TableHead></TableRow></TableHeader>
+                        <TableBody>{rows.map((row, index) => (
+                            <TableRow key={`${row.customer_code}-${row.calc_year}`} className="cursor-pointer hover:bg-muted/40" onClick={() => onSelect(row)}>
+                                <TableCell className="text-center tabular-nums">{index + 1}</TableCell>
+                                <TableCell className="font-mono font-semibold">{row.customer_code}</TableCell>
+                                <TableCell><div className="max-w-[360px] truncate font-medium" title={row.customer_name}>{row.customer_name}</div></TableCell>
+                                <TableCell className="text-center tabular-nums">{row.plan_count}</TableCell>
+                                <TableCell><div className="max-w-[300px] truncate" title={row.primary_plan_name ?? ""}>{row.primary_plan_name || "-"}</div></TableCell>
+                                <TableCell>{row.target_tier_name || "-"}</TableCell>
+                                <TableCell className="text-muted-foreground">{formatDateTime(row.latest_updated_at)}</TableCell>
+                            </TableRow>
+                        ))}</TableBody>
+                    </Table>
+                </div>
+            )}
+        </div>
+    )
+}
+
+function PlanComparison({ plans, selectedPlanId, onSelect }: { plans: CustomerVipPlanOption[]; selectedPlanId?: number; onSelect: (planId: number) => void }) {
+    return (
+        <div className="overflow-hidden rounded-md border bg-background">
+            <div className="border-b bg-muted/30 px-4 py-2 text-sm font-semibold">So sánh phương án</div>
+            <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] text-sm">
+                    <thead><tr className="border-b text-muted-foreground"><th className="px-3 py-2 text-left">Kế hoạch</th><th className="px-3 py-2 text-left">Mục tiêu</th><th className="px-3 py-2 text-right">Điểm kế hoạch</th><th className="px-3 py-2 text-right">Đã thực hiện thêm</th><th className="px-3 py-2 text-right">Còn lại</th><th className="px-3 py-2 text-right">Tổng dự kiến</th><th className="px-3 py-2 text-right">Thiếu mục tiêu</th></tr></thead>
+                    <tbody>{plans.map((plan) => (
+                        <tr key={plan.id} className={cn("cursor-pointer border-b last:border-0 hover:bg-muted/40", plan.id === selectedPlanId && "bg-primary/5")} onClick={() => onSelect(plan.id)}>
+                            <td className="px-3 py-2"><div className="font-medium">{plan.plan_name}</div><div className="text-xs text-muted-foreground">Mốc dữ liệu {formatDisplayDate(plan.baseline_date)} {plan.is_primary ? "· Kế hoạch chính" : ""}</div></td>
+                            <td className="px-3 py-2">{plan.target_tier_name || "-"}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{formatNumberOrDash(plan.planned_point)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{formatNumberOrDash(plan.actual_added_point)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{formatNumberOrDash(plan.remaining_planned_point)}</td>
+                            <td className="px-3 py-2 text-right font-semibold tabular-nums">{formatNumberOrDash(plan.projected_total_point)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums">{Number(plan.missing_point || 0) > 0 ? formatNumber(plan.missing_point) : "Đạt"}</td>
+                        </tr>
+                    ))}</tbody>
+                </table>
+            </div>
+        </div>
     )
 }
 
@@ -403,6 +639,8 @@ function PlanBoard({
     autoAllocate,
     strategy,
     setStrategy,
+    onMakePrimary,
+    isMakingPrimary,
 }: {
     data: NonNullable<Awaited<ReturnType<typeof getCustomerVipPlan>>>
     items: CustomerVipPlanItem[]
@@ -422,6 +660,8 @@ function PlanBoard({
     autoAllocate: () => void
     strategy: AllocationStrategy
     setStrategy: (value: AllocationStrategy) => void
+    onMakePrimary: () => void
+    isMakingPrimary: boolean
 }) {
     const progressPct = targetPoint > 0 ? Math.min(100, Math.round((projectedTotalPoint / targetPoint) * 100)) : 0
     const currentPct = targetPoint > 0 ? Math.min(100, Math.round((currentPoint / targetPoint) * 100)) : 0
@@ -440,18 +680,20 @@ function PlanBoard({
                                 <h2 className="truncate text-lg font-semibold">{data.customer_name}</h2>
                                 <Badge variant="outline" className="font-mono">{data.customer_code}</Badge>
                                 {data.group_code && <Badge variant="secondary">{data.group_code}</Badge>}
+                                {data.plan_name && <Badge variant="outline">{data.plan_name}</Badge>}
+                                {data.is_primary && <Badge>Kế hoạch chính</Badge>}
                             </div>
                             <div className="mt-1 text-sm text-muted-foreground">
                                 Dữ liệu tính đến {formatDisplayDate(data.to_date || data.as_of_date)} · Năm {data.calc_year}
                             </div>
                             <div className="mt-1 text-xs text-muted-foreground">
                                 {data.has_plan
-                                    ? `Kế hoạch lập lúc ${formatDateTime(data.plan_created_at)}${data.plan_updated_at ? ` · cập nhật ${formatDateTime(data.plan_updated_at)}` : ""}`
+                                    ? `Mốc dữ liệu ${formatDisplayDate(data.baseline_date)} · lập lúc ${formatDateTime(data.plan_created_at)}${data.plan_updated_at ? ` · cập nhật ${formatDateTime(data.plan_updated_at)}` : ""}`
                                     : "Chưa có kế hoạch đã lưu. Các cột thực hiện thêm sẽ có ý nghĩa sau khi lưu kế hoạch."}
                             </div>
                         </div>
 
-                        <div className="flex min-w-[340px] items-end gap-2">
+                        <div className="flex min-w-[420px] items-end gap-2">
                             <div className="min-w-0 flex-1">
                                 <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Hạng mục tiêu năm nay</div>
                                 <Select value={targetTierCode} onValueChange={setTargetTierCode}>
@@ -467,6 +709,11 @@ function PlanBoard({
                                     </SelectContent>
                                 </Select>
                             </div>
+                            {data.has_plan && !data.is_primary ? (
+                                <Button type="button" variant="outline" className="h-10 shrink-0" onClick={onMakePrimary} disabled={isMakingPrimary}>
+                                    <Pin className="mr-2 h-4 w-4" />Chọn làm chính
+                                </Button>
+                            ) : null}
                             <Button type="button" className="h-10 shrink-0" onClick={onSave} disabled={!canSave}>
                                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                 Lưu

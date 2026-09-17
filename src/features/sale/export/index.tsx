@@ -1,10 +1,11 @@
 import { PageSection } from '@/components/page-section'
 import { usePaginatedList } from '@/hooks/use-paginated-list'
-import { listExports } from '@/api/sale/export'
+import { getExportSummary, listExports } from '@/api/sale/export'
 import { ExportTable } from './components/export-table'
 import { Route } from '@/routes/_authenticated/sales/exports'
 import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
+import { useQuery } from '@tanstack/react-query'
 
 export default function ExportPage() {
 
@@ -27,6 +28,25 @@ export default function ExportPage() {
         ['order_id', 'customer_id', 'delivery_id', 'warehouse_id', 'from_date', 'to_date']
     )
 
+    const listFilters = {
+        keyword,
+        status: requestFilters.status,
+        order_id: requestFilters.order_id
+            ? Number(requestFilters.order_id)
+            : undefined,
+        customer_id: requestFilters.customer_id
+            ? Number(requestFilters.customer_id)
+            : undefined,
+        delivery_id: requestFilters.delivery_id
+            ? Number(requestFilters.delivery_id)
+            : undefined,
+        warehouse_id: requestFilters.warehouse_id
+            ? Number(requestFilters.warehouse_id)
+            : undefined,
+        from_date: requestFilters.from_date,
+        to_date: requestFilters.to_date,
+    }
+
     const { data, isLoading, error } = usePaginatedList(
         [
             'exports',
@@ -45,24 +65,14 @@ export default function ExportPage() {
         {
             page: search.page,
             size: search.size,
-            keyword,
-            status: requestFilters.status,
-            order_id: requestFilters.order_id
-                ? Number(requestFilters.order_id)
-                : undefined,
-            customer_id: requestFilters.customer_id
-                ? Number(requestFilters.customer_id)
-                : undefined,
-            delivery_id: requestFilters.delivery_id
-                ? Number(requestFilters.delivery_id)
-                : undefined,
-            warehouse_id: requestFilters.warehouse_id
-                ? Number(requestFilters.warehouse_id)
-                : undefined,
-            from_date: requestFilters.from_date,
-            to_date: requestFilters.to_date,
+            ...listFilters,
         },
     )
+
+    const summaryQuery = useQuery({
+        queryKey: ['exports-summary', listFilters],
+        queryFn: () => getExportSummary(listFilters),
+    })
 
     return (
         <PageSection
@@ -74,6 +84,7 @@ export default function ExportPage() {
             {(data) => (
                 <ExportTable
                     data={data.items}
+                    summary={summaryQuery.data}
                     pagination={pagination}
                     onPaginationChange={setPagination}
                     pageCount={data.total_page}
