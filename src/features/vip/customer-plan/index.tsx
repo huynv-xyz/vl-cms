@@ -21,7 +21,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { createCustomerVipPlan, getCustomerVipPlan, listCustomerVips, listPlannedVipCustomers, makeCustomerVipPlanPrimary, saveCustomerVipPlan, type PlannedVipCustomer } from "@/api/customer-vip"
+import { createCustomerVipPlan, getCustomerVipPlan, listCustomerVipPlans, listCustomerVips, listPlannedVipCustomers, makeCustomerVipPlanPrimary, saveCustomerVipPlan, type PlannedVipCustomer } from "@/api/customer-vip"
 import { listVipTiers } from "@/api/vip-tier"
 import type { CustomerVip, CustomerVipPlan, CustomerVipPlanItem, CustomerVipPlanOption } from "@/features/vip/customer/data/schema"
 import type { VipTier } from "@/features/vip/tier/data/schema"
@@ -342,7 +342,6 @@ export default function VipCustomerPlanPage() {
             actions={
                 <ExportCustomerPlanButton
                     selectedYear={selectedYear}
-                    customerListYear={customerListYear}
                     customerId={customerId}
                     currentPlan={data}
                     currentItems={items}
@@ -982,6 +981,8 @@ type PlanExportColumn = {
 type PlanExportRow = {
     customer_code: string
     customer_name: string
+    plan_name: string
+    is_primary: boolean
     customer_type?: string | null
     current_point: number
     tier_name: string
@@ -997,12 +998,12 @@ type PlanExportGroupValue = {
     projected_point: number
 }
 
-const PLAN_EXPORT_PAGE_SIZE = 200
-
 const PLAN_EXPORT_COLUMNS: PlanExportColumn[] = [
     { label: "STT", width: 8, type: "number", value: (_row, index) => index + 1 },
     { label: "Mã khách hàng", width: 20, value: (row) => row.customer_code },
     { label: "Tên khách hàng", width: 36, value: (row) => row.customer_name },
+    { label: "Tên kế hoạch", width: 28, value: (row) => row.plan_name },
+    { label: "Kế hoạch chính", width: 18, type: "number", value: (row) => row.is_primary ? 1 : "" },
     { label: "Điểm hiện tại", width: 18, type: "number", value: (row) => numberOrBlank(row.current_point) },
     { label: "Bậc hiện tại", width: 18, value: (row) => row.tier_name },
     { label: "Hạng dự kiến", width: 18, value: (row) => row.projected_tier_name },
@@ -1011,13 +1012,11 @@ const PLAN_EXPORT_COLUMNS: PlanExportColumn[] = [
 
 function ExportCustomerPlanButton({
     selectedYear,
-    customerListYear,
     customerId,
     currentPlan,
     currentItems,
 }: {
     selectedYear: number
-    customerListYear: number
     customerId?: string
     currentPlan?: CustomerVipPlan
     currentItems: CustomerVipPlanItem[]
@@ -1029,7 +1028,7 @@ function ExportCustomerPlanButton({
             setIsExporting(true)
             const rows = customerId
                 ? await buildSelectedCustomerPlanRows(customerId, selectedYear, currentPlan, currentItems)
-                : await fetchAllCustomerPlanRows(selectedYear, customerListYear)
+                : await fetchAllCustomerPlanRows(selectedYear)
 
             if (!rows.length) {
                 toast.warning("Không có dữ liệu để xuất")
@@ -1065,37 +1064,28 @@ async function buildSelectedCustomerPlanRows(
     currentPlan?: CustomerVipPlan,
     currentItems?: CustomerVipPlanItem[],
 ): Promise<PlanExportRow[]> {
-    const plan = currentPlan ?? await getCustomerVipPlan(customerId, { calc_year: selectedYear })
-    const items = currentPlan ? currentItems ?? [] : plan.items ?? []
-    return buildPlanExportRows(plan, items)
-}
-
-async function fetchAllCustomerPlanRows(selectedYear: number, customerListYear: number): Promise<PlanExportRow[]> {
-    const customers = await fetchAllCustomerVipsForPlan(customerListYear)
+    const planOptions = await listCustomerVipPlans(customerId, selectedYear)
     const rows: PlanExportRow[] = []
 
-    for (const customer of customers) {
-        const plan = await getCustomerVipPlan(customer.id, { calc_year: selectedYear })
+    for (const option of planOptions) {
+        if (currentPlan?.target_id === option.id) {
+            rows.push(...buildPlanExportRows(currentPlan, currentItems ?? currentPlan.items ?? []))
+            continue
+        }
+
+        const plan = await getCustomerVipPlan(customerId, { calc_year: selectedYear, plan_id: option.id })
         rows.push(...buildPlanExportRows(plan, plan.items ?? []))
     }
 
     return rows
 }
 
-async function fetchAllCustomerVipsForPlan(calcYear: number): Promise<CustomerVip[]> {
-    const rows: CustomerVip[] = []
-    let page = 1
+async function fetchAllCustomerPlanRows(selectedYear: number): Promise<PlanExportRow[]> {
+    const plannedCustomers = await listPlannedVipCustomers(selectedYear)
+    const rows: PlanExportRow[] = []
 
-    for (let guard = 0; guard < 300; guard += 1) {
-        const res = await listCustomerVips({
-            page,
-            size: PLAN_EXPORT_PAGE_SIZE,
-            calc_year: calcYear,
-        })
-        const items = res.items ?? []
-        rows.push(...items)
-        if (page >= (res.total_page || 1) || items.length === 0) break
-        page += 1
+    for (const customer of plannedCustomers.items ?? []) {
+        rows.push(...await buildSelectedCustomerPlanRows(String(customer.customer_id), selectedYear))
     }
 
     return rows
@@ -1116,6 +1106,8 @@ function buildPlanExportRows(plan: CustomerVipPlan, items: CustomerVipPlanItem[]
     return [{
         customer_code: plan.customer_code || "",
         customer_name: plan.customer_name || "",
+        plan_name: plan.plan_name || "",
+        is_primary: Boolean(plan.is_primary),
         customer_type: plan.customer_type,
         current_point: Number(plan.total_vip_point || 0),
         tier_name: tierName,

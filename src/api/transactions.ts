@@ -77,11 +77,11 @@ export type TransactionUnitPriceImportPreviewRow = {
     document_no?: string | null
     customer_code?: string | null
     product_code?: string | null
-    unit?: string | null
     sale_qty?: number | null
     return_qty?: number | null
     file_unit_price?: number | null
     file_sale_revenue?: number | null
+    file_return_value?: number | null
     current_unit_price?: number | null
     old_revenue?: number | null
     new_unit_price?: number | null

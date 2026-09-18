@@ -182,7 +182,7 @@ export function UnitPriceImportUpdateButton({ onApplied }: Props) {
                                     </div>
                                     {errorRows.length > 0 ? (
                                         <div className="max-h-[320px] overflow-auto">
-                                            <table className="w-full min-w-[920px] border-collapse text-sm">
+                                            <table className="w-full min-w-[1020px] border-collapse text-sm">
                                                 <thead className="sticky top-0 bg-muted">
                                                     <tr className="border-b">
                                                         <th className="px-3 py-2 text-left">Dòng</th>
@@ -193,8 +193,9 @@ export function UnitPriceImportUpdateButton({ onApplied }: Props) {
                                                         <th className="px-3 py-2 text-right">SL bán</th>
                                                         <th className="px-3 py-2 text-right">SL trả</th>
                                                         <th className="px-3 py-2 text-right">Giá file</th>
-                                                        <th className="px-3 py-2 text-right">DS bán file</th>
-                                                        <th className="px-3 py-2 text-right">DT mới</th>
+                                                        <th className="px-3 py-2 text-right">Doanh thu file</th>
+                                                        <th className="px-3 py-2 text-right">Giá trị trả lại file</th>
+                                                        <th className="px-3 py-2 text-right">Giá trị cập nhật</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -243,8 +244,8 @@ function ImportGuideContent() {
                 </pre>
             </div>
             <div className="space-y-1 text-sm text-muted-foreground">
-                <p>Business key đối chiếu gồm ngày chứng từ, số chứng từ, mã khách hàng, mã hàng, đơn vị và số lượng tương ứng.</p>
-                <p>Cột Doanh số bán chỉ dùng để đối chiếu dòng bán. Dòng trả lại sẽ đối chiếu bằng Giá trị trả lại hoặc Doanh số trả lại nếu file có cột này.</p>
+                <p>Business key đối chiếu gồm ngày chứng từ, số chứng từ, mã khách hàng, mã hàng và số lượng tương ứng.</p>
+                <p>Dòng bán lấy cột Doanh thu; dòng trả lấy cột Giá trị trả lại. Hệ thống chỉ chia ngược giá trị tương ứng để kiểm tra đơn giá.</p>
             </div>
         </div>
     )
@@ -291,6 +292,7 @@ function PreviewRow({ row }: { row: TransactionUnitPriceImportPreviewRow }) {
             <td className="px-3 py-2 text-right tabular-nums">{formatNumber(row.return_qty)}</td>
             <td className="px-3 py-2 text-right tabular-nums">{formatMoney(row.file_unit_price)}</td>
             <td className="px-3 py-2 text-right tabular-nums">{row.file_sale_revenue == null ? "-" : formatMoney(row.file_sale_revenue)}</td>
+            <td className="px-3 py-2 text-right tabular-nums">{row.file_return_value == null ? "-" : formatMoney(row.file_return_value)}</td>
             <td className="px-3 py-2 text-right tabular-nums">{row.new_revenue == null ? "-" : formatMoney(row.new_revenue)}</td>
         </tr>
     )
@@ -324,11 +326,11 @@ const REQUIRED_FILE_COLUMNS = [
     "Số chứng từ",
     "Mã khách hàng",
     "Mã hàng",
-    "Đơn vị chính (ĐVC)",
     "Tổng SL bán theo ĐVC",
-    "Tổng SL trả lại theo ĐVC",
     "Đơn giá theo ĐVC",
-    "Doanh số bán",
+    "Doanh thu",
+    "Giá trị trả lại",
+    "SL trả lại theo ĐVC",
 ]
 
 function formatNumber(value?: number | null) {
