@@ -7,6 +7,7 @@ import { getTransactionSummary, listTransactions } from '@/api/transactions'
 import { TransactionTable } from './components/transaction-table'
 import { ImportTransactionButton } from './components/import-transaction-button'
 import { ExportTransactionButton } from './components/export-transaction-button'
+import { UnitPriceImportUpdateButton } from './components/unit-price-import-update-button'
 import { TransactionSummaryStrip } from './components/transaction-summary-strip'
 import { Route } from '@/routes/_authenticated/transactions'
 
@@ -29,7 +30,26 @@ export default function TransactionPage() {
         search,
         navigate,
         ['customer_type', 'is_gift', 'npp', 'hdn_status', 'customer_code', 'customer_name', 'product_code', 'product_name', 'product_group_name', 'sale_user_name', 'unit'],
-        ['region', 'time_sort', 'document_date_from', 'document_date_to'],
+        [
+            'region',
+            'time_sort',
+            'document_date_from',
+            'document_date_to',
+            'sale_qty_op',
+            'sale_qty_value',
+            'unit_price_op',
+            'unit_price_value',
+            'sale_revenue_op',
+            'sale_revenue_value',
+            'return_revenue_op',
+            'return_revenue_value',
+            'actual_revenue_op',
+            'actual_revenue_value',
+            'return_qty_op',
+            'return_qty_value',
+            'actual_qty_op',
+            'actual_qty_value',
+        ],
     )
     const timeSort = singleFilters.time_sort === "asc" ? "asc" : "desc"
 
@@ -54,6 +74,20 @@ export default function TransactionPage() {
             timeSort,
             singleFilters.document_date_from,
             singleFilters.document_date_to,
+            singleFilters.sale_qty_op,
+            singleFilters.sale_qty_value,
+            singleFilters.unit_price_op,
+            singleFilters.unit_price_value,
+            singleFilters.sale_revenue_op,
+            singleFilters.sale_revenue_value,
+            singleFilters.return_revenue_op,
+            singleFilters.return_revenue_value,
+            singleFilters.actual_revenue_op,
+            singleFilters.actual_revenue_value,
+            singleFilters.return_qty_op,
+            singleFilters.return_qty_value,
+            singleFilters.actual_qty_op,
+            singleFilters.actual_qty_value,
         ],
         listTransactions,
         {
@@ -75,6 +109,20 @@ export default function TransactionPage() {
             time_sort: timeSort,
             document_date_from: requestFilters.document_date_from,
             document_date_to: requestFilters.document_date_to,
+            sale_qty_op: requestFilters.sale_qty_op,
+            sale_qty_value: requestFilters.sale_qty_value,
+            unit_price_op: requestFilters.unit_price_op,
+            unit_price_value: requestFilters.unit_price_value,
+            sale_revenue_op: requestFilters.sale_revenue_op,
+            sale_revenue_value: requestFilters.sale_revenue_value,
+            return_revenue_op: requestFilters.return_revenue_op,
+            return_revenue_value: requestFilters.return_revenue_value,
+            actual_revenue_op: requestFilters.actual_revenue_op,
+            actual_revenue_value: requestFilters.actual_revenue_value,
+            return_qty_op: requestFilters.return_qty_op,
+            return_qty_value: requestFilters.return_qty_value,
+            actual_qty_op: requestFilters.actual_qty_op,
+            actual_qty_value: requestFilters.actual_qty_value,
         },
     )
 
@@ -88,11 +136,26 @@ export default function TransactionPage() {
         sale_user_name: requestFilters.sale_user_name,
         unit: requestFilters.unit,
         customer_type: requestFilters.customer_type,
+        is_gift: requestFilters.is_gift,
         npp: requestFilters.npp,
         hdn_status: requestFilters.hdn_status,
         region: requestFilters.region,
         document_date_from: requestFilters.document_date_from,
         document_date_to: requestFilters.document_date_to,
+        sale_qty_op: requestFilters.sale_qty_op,
+        sale_qty_value: requestFilters.sale_qty_value,
+        unit_price_op: requestFilters.unit_price_op,
+        unit_price_value: requestFilters.unit_price_value,
+        sale_revenue_op: requestFilters.sale_revenue_op,
+        sale_revenue_value: requestFilters.sale_revenue_value,
+        return_revenue_op: requestFilters.return_revenue_op,
+        return_revenue_value: requestFilters.return_revenue_value,
+        actual_revenue_op: requestFilters.actual_revenue_op,
+        actual_revenue_value: requestFilters.actual_revenue_value,
+        return_qty_op: requestFilters.return_qty_op,
+        return_qty_value: requestFilters.return_qty_value,
+        actual_qty_op: requestFilters.actual_qty_op,
+        actual_qty_value: requestFilters.actual_qty_value,
     }
 
     const { data: summary, isLoading: isSummaryLoading } = useQuery({
@@ -113,6 +176,20 @@ export default function TransactionPage() {
             singleFilters.region,
             singleFilters.document_date_from,
             singleFilters.document_date_to,
+            singleFilters.sale_qty_op,
+            singleFilters.sale_qty_value,
+            singleFilters.unit_price_op,
+            singleFilters.unit_price_value,
+            singleFilters.sale_revenue_op,
+            singleFilters.sale_revenue_value,
+            singleFilters.return_revenue_op,
+            singleFilters.return_revenue_value,
+            singleFilters.actual_revenue_op,
+            singleFilters.actual_revenue_value,
+            singleFilters.return_qty_op,
+            singleFilters.return_qty_value,
+            singleFilters.actual_qty_op,
+            singleFilters.actual_qty_value,
         ],
         queryFn: () => getTransactionSummary(summaryParams),
     })
@@ -125,6 +202,7 @@ export default function TransactionPage() {
             actions={
                 <div className="flex flex-wrap items-center gap-2">
                     <ImportTransactionButton
+                        disabled
                         onSuccess={(result) => {
                             alert(`Import thành công: ${result.inserted} dòng`)
                             queryClient.invalidateQueries({ queryKey: ['transactions'] })
@@ -132,6 +210,12 @@ export default function TransactionPage() {
                         }}
                         onError={(error) => {
                             alert(error.message)
+                        }}
+                    />
+                    <UnitPriceImportUpdateButton
+                        onApplied={() => {
+                            queryClient.invalidateQueries({ queryKey: ['transactions'] })
+                            queryClient.invalidateQueries({ queryKey: ['transactions-summary'] })
                         }}
                     />
                     <ExportTransactionButton
@@ -152,6 +236,20 @@ export default function TransactionPage() {
                             time_sort: timeSort,
                             document_date_from: requestFilters.document_date_from,
                             document_date_to: requestFilters.document_date_to,
+                            sale_qty_op: requestFilters.sale_qty_op,
+                            sale_qty_value: requestFilters.sale_qty_value,
+                            unit_price_op: requestFilters.unit_price_op,
+                            unit_price_value: requestFilters.unit_price_value,
+                            sale_revenue_op: requestFilters.sale_revenue_op,
+                            sale_revenue_value: requestFilters.sale_revenue_value,
+                            return_revenue_op: requestFilters.return_revenue_op,
+                            return_revenue_value: requestFilters.return_revenue_value,
+                            actual_revenue_op: requestFilters.actual_revenue_op,
+                            actual_revenue_value: requestFilters.actual_revenue_value,
+                            return_qty_op: requestFilters.return_qty_op,
+                            return_qty_value: requestFilters.return_qty_value,
+                            actual_qty_op: requestFilters.actual_qty_op,
+                            actual_qty_value: requestFilters.actual_qty_value,
                         }}
                     />
                 </div>
@@ -203,6 +301,20 @@ export default function TransactionPage() {
                             time_sort: timeSort,
                             document_date_from: singleFilters.document_date_from,
                             document_date_to: singleFilters.document_date_to,
+                            sale_qty_op: singleFilters.sale_qty_op,
+                            sale_qty_value: singleFilters.sale_qty_value,
+                            unit_price_op: singleFilters.unit_price_op,
+                            unit_price_value: singleFilters.unit_price_value,
+                            sale_revenue_op: singleFilters.sale_revenue_op,
+                            sale_revenue_value: singleFilters.sale_revenue_value,
+                            return_revenue_op: singleFilters.return_revenue_op,
+                            return_revenue_value: singleFilters.return_revenue_value,
+                            actual_revenue_op: singleFilters.actual_revenue_op,
+                            actual_revenue_value: singleFilters.actual_revenue_value,
+                            return_qty_op: singleFilters.return_qty_op,
+                            return_qty_value: singleFilters.return_qty_value,
+                            actual_qty_op: singleFilters.actual_qty_op,
+                            actual_qty_value: singleFilters.actual_qty_value,
                         }}
 
                         onFiltersChange={(next) => {
@@ -227,6 +339,20 @@ export default function TransactionPage() {
                                 time_sort: next.time_sort === "asc" ? "asc" : "desc",
                                 document_date_from: next.document_date_from,
                                 document_date_to: next.document_date_to,
+                                sale_qty_op: next.sale_qty_op,
+                                sale_qty_value: next.sale_qty_value,
+                                unit_price_op: next.unit_price_op,
+                                unit_price_value: next.unit_price_value,
+                                sale_revenue_op: next.sale_revenue_op,
+                                sale_revenue_value: next.sale_revenue_value,
+                                return_revenue_op: next.return_revenue_op,
+                                return_revenue_value: next.return_revenue_value,
+                                actual_revenue_op: next.actual_revenue_op,
+                                actual_revenue_value: next.actual_revenue_value,
+                                return_qty_op: next.return_qty_op,
+                                return_qty_value: next.return_qty_value,
+                                actual_qty_op: next.actual_qty_op,
+                                actual_qty_value: next.actual_qty_value,
                             })
                         }}
                     />

@@ -302,6 +302,10 @@ export type ProductionCostObjectImportResult = {
     changed?: number
     already_correct?: number
     alreadyCorrect?: number
+    stale_cost_periods?: number
+    staleCostPeriods?: number
+    split_inserted?: number
+    splitInserted?: number
     skipped: number
     preview?: boolean
     requires_confirm?: boolean
@@ -671,6 +675,16 @@ export type SalesReturnUnitPriceChangeResult = {
     quantity: number
     current_unit_price: number
     current_amount: number
+    manual_unit_price?: number | null
+    manual_amount?: number | null
+    applied_unit_price?: number | null
+    applied_amount?: number | null
+    applied_source?: string | null
+    original_sale_unit_price?: number | null
+    original_sale_amount?: number | null
+    original_sale_source_found?: boolean | null
+    original_sale_price_status?: string | null
+    pricing_source?: string | null
     new_unit_price: number
     new_amount: number
     errors: string[]
@@ -678,9 +692,9 @@ export type SalesReturnUnitPriceChangeResult = {
     changes: Record<string, number>
 }
 
-export function checkSalesReturnUnitPriceChange(ledgerId: number, newUnitPrice: number) {
+export function checkSalesReturnUnitPriceChange(ledgerId: number, newUnitPrice?: number | null) {
     return apiPost<SalesReturnUnitPriceChangeResult>(`/inventory/ledger/${ledgerId}/sales-return-unit-price-change/check`, {
-        newUnitPrice,
+        newUnitPrice: newUnitPrice ?? null,
     })
 }
 

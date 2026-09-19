@@ -10,12 +10,14 @@ export type CompanyListParams = {
 
 export type CreateCompanyRequest = {
     name: string
+    alias?: string
     address?: string
 }
 
 export type UpdateCompanyRequest = {
     id: number
     name?: string
+    alias?: string
     address?: string
 }
 

@@ -559,7 +559,7 @@ function DotRow({
     label,
     value,
 }: {
-    color: "sky" | "emerald" | "amber"
+    color: "sky" | "emerald" | "amber" | "slate" | "rose"
     label: string
     value: string
 }) {
@@ -568,7 +568,11 @@ function DotRow({
             ? "bg-emerald-500"
             : color === "amber"
                 ? "bg-amber-500"
-                : "bg-sky-500"
+                : color === "slate"
+                    ? "bg-slate-400"
+                    : color === "rose"
+                        ? "bg-rose-500"
+                        : "bg-sky-500"
 
     return (
         <div className="flex items-center gap-2 text-xs">

@@ -11,7 +11,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { ShadcnFieldTemplate } from "@/components/rjsf/shadcn-templates"
+import { ShadcnFieldTemplate, ShadcnGridObjectFieldTemplate } from "@/components/rjsf/shadcn-templates"
 import { rjsfValidator } from "@/components/rjsf/rjsf-validator"
 
 import { createShipment } from "@/api/purchasing/shipment"
@@ -87,6 +87,8 @@ export function CreateShipmentDialog({
             ata: "",
             warehouse_id: undefined,
             warehouse_at: "",
+            production_date: "",
+            expiry_date: "",
             container_no: "",
             destination_port_id: undefined,
             exchange_rate: 1,
@@ -109,6 +111,8 @@ export function CreateShipmentDialog({
             ata: "",
             warehouse_at: "",
             warehouse_id: undefined,
+            production_date: "",
+            expiry_date: "",
             container_no: "",
             destination_port_id: undefined,
             exchange_rate: contract?.currency?.exchange_rate ?? 1, // ✅ FIX
@@ -159,6 +163,8 @@ export function CreateShipmentDialog({
                 etd: headerFormData.etd,
                 eta: headerFormData.eta,
                 warehouse_at: warehouseAt || undefined,
+                production_date: headerFormData.production_date,
+                expiry_date: headerFormData.expiry_date,
                 warehouse_id: warehouseId,
                 container_no: headerFormData.container_no,
                 destination_port_id: headerFormData.destination_port_id,
@@ -201,7 +207,7 @@ export function CreateShipmentDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex max-h-[88vh] !w-[calc(100vw-32px)] !max-w-[820px] flex-col overflow-hidden p-0">
+            <DialogContent className="flex max-h-[90vh] !w-[calc(100vw-32px)] !max-w-[1180px] flex-col overflow-hidden p-0">
                 <DialogHeader className="border-b px-6 py-5">
                     <DialogTitle className="text-2xl font-semibold tracking-tight">Tạo lô hàng</DialogTitle>
                     <p className="text-sm text-muted-foreground">
@@ -219,6 +225,7 @@ export function CreateShipmentDialog({
                         widgets={widgets}
                         templates={{
                             FieldTemplate: ShadcnFieldTemplate,
+                            ObjectFieldTemplate: ShadcnGridObjectFieldTemplate,
                         }}
                         onChange={({ formData }) => {
                             const next = formData as ShipmentHeaderFormValues

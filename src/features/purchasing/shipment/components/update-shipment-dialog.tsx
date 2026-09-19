@@ -11,7 +11,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { ShadcnFieldTemplate } from "@/components/rjsf/shadcn-templates"
+import { ShadcnFieldTemplate, ShadcnGridObjectFieldTemplate } from "@/components/rjsf/shadcn-templates"
 import { rjsfValidator } from "@/components/rjsf/rjsf-validator"
 
 import {
@@ -42,6 +42,8 @@ const defaultHeader: ShipmentHeaderFormValues = {
     eta: "",
     ata: "",
     warehouse_at: "",
+    production_date: "",
+    expiry_date: "",
     warehouse_id: undefined,
     container_no: "",
     destination_port_id: undefined,
@@ -126,6 +128,8 @@ export function UpdateShipmentDialog({
             eta: toDateInputValue(detail.eta),
             ata: toDateInputValue(detail.ata),
             warehouse_at: toDateInputValue(detail.warehouse_at),
+            production_date: toDateInputValue(detail.production_date),
+            expiry_date: toDateInputValue(detail.expiry_date),
             warehouse_id: resolvedWarehouseId ?? defaultHeader.warehouse_id,
             container_no: detail.container_no ?? defaultHeader.container_no,
             destination_port_id: optionalPositiveNumber(detail.destination_port_id),
@@ -194,6 +198,8 @@ export function UpdateShipmentDialog({
                 ...current,
                 warehouse_id: warehouseId,
                 warehouse_at: warehouseAt || undefined,
+                production_date: current.production_date,
+                expiry_date: current.expiry_date,
                 container_no: current.container_no,
                 destination_port_id: current.destination_port_id
                     ? Number(current.destination_port_id)
@@ -232,7 +238,7 @@ export function UpdateShipmentDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex max-h-[88vh] !w-[calc(100vw-32px)] !max-w-[820px] flex-col overflow-hidden p-0">
+            <DialogContent className="flex max-h-[90vh] !w-[calc(100vw-32px)] !max-w-[1180px] flex-col overflow-hidden p-0">
                 <DialogHeader className="border-b px-6 py-5">
                     <DialogTitle className="text-2xl font-semibold tracking-tight">Cập nhật lô hàng</DialogTitle>
                     <p className="text-sm text-muted-foreground">
@@ -255,6 +261,7 @@ export function UpdateShipmentDialog({
                             widgets={widgets}
                             templates={{
                                 FieldTemplate: ShadcnFieldTemplate,
+                                ObjectFieldTemplate: ShadcnGridObjectFieldTemplate,
                             }}
                             onChange={({ formData }) => {
                                 const next = formData as ShipmentHeaderFormValues
@@ -294,9 +301,9 @@ function toDateInputValue(value?: string) {
         return value
     }
 
-    const match = value.match(/^(\d{2})-(\d{2})-(\d{4})$/)
+    const match = value.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
     if (match) {
-        return `${match[3]}-${match[2]}-${match[1]}`
+        return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`
     }
 
     return value

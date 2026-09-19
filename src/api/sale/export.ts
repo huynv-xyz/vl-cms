@@ -16,6 +16,13 @@ export type ExportListParams = {
     to_date?: string
 }
 
+export type ExportSummary = {
+    total_count: number
+    new_count: number
+    done_count: number
+    total_items: number
+}
+
 export type ExportExcelLine = {
     export_id?: number
     export_no?: string
@@ -47,6 +54,10 @@ export const deleteExport = exportApi.delete
 
 export function listExportExcelLines(params: Omit<ExportListParams, "page" | "size">) {
     return apiGet<ExportExcelLine[]>("/sales/exports/excel-lines", params)
+}
+
+export function getExportSummary(params: Omit<ExportListParams, "page" | "size">) {
+    return apiGet<ExportSummary>("/sales/exports/summary", params)
 }
 
 export function updateExportStatus(id: number, status: string, exportTime?: string) {

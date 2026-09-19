@@ -35,6 +35,8 @@
     PieChart,
     Trophy,
     Scale,
+    CalendarDays,
+    ScrollText,
 } from 'lucide-react'
 import { SidebarData } from '../types'
 import { Logo } from '@/assets/logo'
@@ -187,6 +189,21 @@ export const sidebarData: SidebarData = {
         },
 
         {
+            title: 'Hội thảo',
+            items: [
+                {
+                    title: 'Danh sách hội thảo',
+                    url: '/seminars',
+                    icon: CalendarDays,
+                },
+                {
+                    title: 'Quyết định lưu hành',
+                    url: '/seminars/circulation-decisions',
+                    icon: ScrollText,
+                },
+            ],
+        },
+        {
             title: 'Xuất nhập khẩu',
             items: [
                 {
@@ -273,6 +290,11 @@ export const sidebarData: SidebarData = {
                     title: 'Tổng hợp công nợ',
                     url: '/sales/ar-summary',
                     icon: BarChart3,
+                },
+                {
+                    title: 'Công nợ trễ hạn',
+                    url: '/sales/ar-overdue',
+                    icon: TrendingUp,
                 },
                 {
                     title: 'Chi tiết công nợ',

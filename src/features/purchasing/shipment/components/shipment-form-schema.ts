@@ -33,6 +33,16 @@ export const shipmentSchema: RJSFSchema = {
             title: "Ngày về kho",
         },
 
+        production_date: {
+            type: "string",
+            title: "Ngày sản xuất",
+        },
+
+        expiry_date: {
+            type: "string",
+            title: "Hạn sử dụng",
+        },
+
         container_no: {
             type: "string",
             title: "Số container",
@@ -63,32 +73,12 @@ export const shipmentSchema: RJSFSchema = {
 } as any
 
 export const shipmentUiSchema: UiSchema = {
-    etd: {
-        "ui:widget": "datePicker",
-        "ui:options": { placeholder: "Chọn ngày đi" },
+    code: {
+        "ui:classNames": "md:col-span-1",
     },
-    eta: {
-        "ui:widget": "datePicker",
-        "ui:options": { placeholder: "Chọn ngày đến" },
-    },
-    warehouse_at: {
-        "ui:widget": "datePicker",
-        "ui:options": { placeholder: "Chọn ngày về kho" },
-    },
-
-    exchange_rate: {
-        "ui:widget": "text",
-        "ui:options": {
-            inputType: "text",
-        },
-    },
-
-    status: {
-        "ui:widget": "select",
-    },
-
     warehouse_id: {
         "ui:widget": "asyncSelect",
+        "ui:classNames": "md:col-span-1",
         "ui:options": {
             placeholder: "Chọn kho",
             dataSource: {
@@ -105,9 +95,52 @@ export const shipmentUiSchema: UiSchema = {
         },
 
     },
+    etd: {
+        "ui:widget": "dateFilterInput",
+        "ui:classNames": "md:col-span-1",
+        "ui:options": { "aria-label": "Ngày đi" },
+    },
+    eta: {
+        "ui:widget": "dateFilterInput",
+        "ui:classNames": "md:col-span-1",
+        "ui:options": { "aria-label": "Ngày đến" },
+    },
+    warehouse_at: {
+        "ui:widget": "dateFilterInput",
+        "ui:classNames": "md:col-span-1",
+        "ui:options": { "aria-label": "Ngày về kho" },
+    },
+    production_date: {
+        "ui:widget": "dateFilterInput",
+        "ui:classNames": "md:col-span-1",
+        "ui:options": { "aria-label": "Ngày sản xuất" },
+    },
+    expiry_date: {
+        "ui:widget": "dateFilterInput",
+        "ui:classNames": "md:col-span-1",
+        "ui:options": { "aria-label": "Hạn sử dụng" },
+    },
+
+    container_no: {
+        "ui:classNames": "md:col-span-1",
+    },
+
+    exchange_rate: {
+        "ui:widget": "text",
+        "ui:classNames": "md:col-span-1",
+        "ui:options": {
+            inputType: "text",
+        },
+    },
+
+    status: {
+        "ui:widget": "select",
+        "ui:classNames": "md:col-span-1",
+    },
 
     destination_port_id: {
         "ui:widget": "asyncSelect",
+        "ui:classNames": "md:col-span-1",
         "ui:options": {
             placeholder: "Chọn cảng",
             dataSource: {
@@ -120,5 +153,9 @@ export const shipmentUiSchema: UiSchema = {
                 label: `${p.code ?? ""} - ${p.name}`,
             }),
         },
+    },
+
+    note: {
+        "ui:classNames": "md:col-span-2 xl:col-span-4",
     },
 }
