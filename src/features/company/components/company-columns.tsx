@@ -42,6 +42,16 @@ export const companyColumns: ColumnDef<Company>[] = [
     }),
 
     buildTextColumn({
+        accessorKey: "alias",
+        title: "Alias",
+        width: 180,
+        className: `w-[180px] ${centerCell}`,
+        render: (row) => (
+            <OneLineText value={row.alias} className="text-center text-sm font-medium" />
+        ),
+    }),
+
+    buildTextColumn({
         accessorKey: "address",
         title: "Địa chỉ",
         width: 520,

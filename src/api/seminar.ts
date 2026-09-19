@@ -22,6 +22,7 @@ export type CirculationDecisionListParams = {
     keyword?: string
     validity?: string
     source_type?: string
+    expired_date_sort?: "asc" | "desc"
 }
 
 export type CirculationProductListParams = {

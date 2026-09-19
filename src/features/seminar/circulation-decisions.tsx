@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { ColumnDef, PaginationState } from "@tanstack/react-table"
-import { Edit, FileDown, Loader2, Plus, Save, Search, Trash2, Upload } from "lucide-react"
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Check, Edit, FileDown, Funnel, Loader2, Plus, Save, Search, Trash2, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -26,13 +26,14 @@ import { CrudTable } from "@/components/crud/crud-table"
 import { buildIndexColumn } from "@/components/crud/build-index-column"
 import { buildTextColumn } from "@/components/crud/build-text-column"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
-import { companyOption } from "@/lib/option-mapper"
 import { cn, formatNumber } from "@/lib/utils"
 
 const emptyDecision: Partial<CirculationDecision> = {
@@ -67,6 +68,7 @@ export default function CirculationDecisionsPage() {
     const debouncedKeyword = useDebouncedValue(keyword, 300)
     const [sourceTypeFilter, setSourceTypeFilter] = useState("ALL")
     const [nearExpiryOnly, setNearExpiryOnly] = useState(false)
+    const [expiredDateSort, setExpiredDateSort] = useState<"asc" | "desc">("asc")
     const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 20 })
     const [expandedRows, setExpandedRows] = useState<number[]>([])
     const [dialogOpen, setDialogOpen] = useState(false)
@@ -82,13 +84,14 @@ export default function CirculationDecisionsPage() {
     const canUpdateDecisions = hasPermission(permissionsQuery.data ?? [], "seminars.circulation-decisions", "update")
 
     const decisionsQuery = useQuery({
-        queryKey: ["circulation-decisions", debouncedKeyword, sourceTypeFilter, nearExpiryOnly, pagination.pageIndex, pagination.pageSize],
+        queryKey: ["circulation-decisions", debouncedKeyword, sourceTypeFilter, nearExpiryOnly, expiredDateSort, pagination.pageIndex, pagination.pageSize],
         queryFn: () => listCirculationDecisions({
             page: pagination.pageIndex + 1,
             size: pagination.pageSize,
             keyword: debouncedKeyword,
             source_type: sourceTypeFilter === "ALL" ? undefined : sourceTypeFilter,
             validity: nearExpiryOnly ? "expiring_soon" : undefined,
+            expired_date_sort: expiredDateSort,
         }),
         placeholderData: keepPreviousData,
     })
@@ -110,6 +113,11 @@ export default function CirculationDecisionsPage() {
         expandedRows,
         setExpandedRows,
         canUpdate: canUpdateDecisions,
+        expiredDateSort,
+        onExpiredDateSortChange: (value) => {
+            setExpiredDateSort(value)
+            setPagination((current) => current.pageIndex === 0 ? current : { ...current, pageIndex: 0 })
+        },
         onEdit: openEditDialog,
         onDownloadPdf: (item) => downloadCirculationDecisionPdf(item.id, item.pdf_file_name),
     })
@@ -347,12 +355,16 @@ function useCirculationDecisionColumns({
     expandedRows,
     setExpandedRows,
     canUpdate,
+    expiredDateSort,
+    onExpiredDateSortChange,
     onEdit,
     onDownloadPdf,
 }: {
     expandedRows: number[]
     setExpandedRows: (rows: number[]) => void
     canUpdate: boolean
+    expiredDateSort: "asc" | "desc"
+    onExpiredDateSortChange: (value: "asc" | "desc") => void
     onEdit: (item: CirculationDecision) => void
     onDownloadPdf: (item: CirculationDecision) => void
 }) {
@@ -380,12 +392,19 @@ function useCirculationDecisionColumns({
             buildTextColumn({
                 title: "Nguồn",
                 width: 220,
-                className: `w-[220px] ${gridCell}`,
-                render: (row) => (
-                    <div className="min-w-0">
-                        <OneLineText value={sourceTypeLabel(row.source_type)} className="text-sm font-medium" />
-                        <OneLineText value={row.source_company?.name ?? row.source_company_name} className="text-xs text-muted-foreground" />
+                className: `w-[220px] ${centerCell}`,
+                render: (row) => row.source_type === "EXTERNAL_AUTHORIZED" ? (
+                    <div className="flex w-full min-w-0 items-center justify-center gap-2">
+                        <OneLineText value={row.source_company_name} className="text-center text-sm font-medium" />
+                        <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
+                            Ủy quyền
+                        </Badge>
                     </div>
+                ) : (
+                    <OneLineText
+                        value={row.source_company?.alias || row.source_company?.name || row.source_company_name}
+                        className="text-center text-sm font-medium"
+                    />
                 ),
             }),
             buildTextColumn({
@@ -395,13 +414,22 @@ function useCirculationDecisionColumns({
                 className: `w-[130px] ${centerCell}`,
                 render: (row) => <OneLineText value={formatDate(row.issued_date)} className="text-center text-sm" />,
             }),
-            buildTextColumn({
+            {
                 accessorKey: "expired_date",
-                title: "Ngày hết hạn",
-                width: 140,
-                className: `w-[140px] ${centerCell}`,
-                render: (row) => <OneLineText value={formatDate(row.expired_date)} className="text-center text-sm" />,
-            }),
+                header: () => (
+                    <ExpiredDateSortHeader
+                        value={expiredDateSort}
+                        onChange={onExpiredDateSortChange}
+                    />
+                ),
+                enableSorting: false,
+                size: 160,
+                cell: ({ row }) => <OneLineText value={formatDate(row.original.expired_date)} className="text-center text-sm" />,
+                meta: {
+                    thClassName: `w-[160px] whitespace-nowrap ${centerCell}`,
+                    tdClassName: `w-[160px] whitespace-nowrap ${centerCell}`,
+                },
+            },
             buildTextColumn({
                 title: "Thời gian còn hạn",
                 width: 170,
@@ -470,7 +498,69 @@ function useCirculationDecisionColumns({
                 },
             },
         ]
-    }, [canUpdate, expandedRows, onDownloadPdf, onEdit, setExpandedRows])
+    }, [canUpdate, expandedRows, expiredDateSort, onDownloadPdf, onEdit, onExpiredDateSortChange, setExpandedRows])
+}
+
+function ExpiredDateSortHeader({
+    value,
+    onChange,
+}: {
+    value: "asc" | "desc"
+    onChange: (value: "asc" | "desc") => void
+}) {
+    const [open, setOpen] = useState(false)
+    const options = [
+        { value: "asc" as const, label: "Tăng dần", icon: ArrowUpNarrowWide },
+        { value: "desc" as const, label: "Giảm dần", icon: ArrowDownWideNarrow },
+    ]
+
+    return (
+        <div className="flex min-w-0 items-center justify-center gap-1.5">
+            <span className="truncate">Ngày hết hạn</span>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className={cn(
+                            "inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent",
+                            value === "asc"
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                        aria-label="Sắp xếp ngày hết hạn"
+                    >
+                        <Funnel className="h-4 w-4" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-56 p-2">
+                    <div className="px-2 pb-2 font-semibold text-foreground">Sắp xếp ngày hết hạn</div>
+                    <div className="space-y-1">
+                        {options.map((option) => {
+                            const Icon = option.icon
+                            return (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    className={cn(
+                                        "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-muted",
+                                        value === option.value && "bg-primary/10 text-primary",
+                                    )}
+                                    onClick={() => {
+                                        onChange(option.value)
+                                        setOpen(false)
+                                    }}
+                                >
+                                    <Icon className="h-4 w-4" />
+                                    <span>{option.label}</span>
+                                    {value === option.value ? <Check className="ml-auto h-4 w-4" /> : null}
+                                </button>
+                            )
+                        })}
+                    </div>
+                </PopoverContent>
+            </Popover>
+        </div>
+    )
 }
 
 function DecisionProductsCell({
@@ -580,7 +670,7 @@ function DecisionDialog({
     const sourceType = form.source_type ?? "INTERNAL"
     const sourceCompanyInitialOption = useMemo(() => {
         if (!form.source_company_id) return undefined
-        return companyOption(form.source_company ?? { id: form.source_company_id, name: form.source_company_name ?? "" })
+        return circulationCompanyOption(form.source_company ?? { id: form.source_company_id, name: form.source_company_name ?? "" })
     }, [form.source_company, form.source_company_id, form.source_company_name])
 
     return (
@@ -666,7 +756,7 @@ function DecisionDialog({
                                         setErrors(withoutError(errors, "source_company_id"))
                                     }}
                                     dataSource={companyDataSource()}
-                                    mapOption={companyOption}
+                                    mapOption={circulationCompanyOption}
                                     initialOption={sourceCompanyInitialOption}
                                     placeholder="Chọn công ty"
                                     searchPlaceholder="Tìm công ty..."
@@ -1016,9 +1106,15 @@ function companyDataSource() {
     }
 }
 
-function sourceTypeLabel(value?: string) {
-    if (value === "EXTERNAL_AUTHORIZED") return "Công ty ngoài ủy quyền"
-    return "Công ty trực thuộc"
+function circulationCompanyOption(company?: any) {
+    if (!company) return null
+    const alias = company.alias?.trim()
+    const name = company.name?.trim()
+    return {
+        value: company.id,
+        label: alias ? `${alias} - ${name || "-"}` : (name || `#${company.id}`),
+        raw: company,
+    }
 }
 
 function formatDate(value?: string) {

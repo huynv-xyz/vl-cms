@@ -25,6 +25,7 @@ export function UpdateCompanyDialog({
             uiSchema={companyUiSchema}
             defaultValues={{
                 name: company.name ?? "",
+                alias: company.alias ?? "",
                 address: company.address ?? "",
             }}
             submitText="Lưu"
@@ -34,6 +35,7 @@ export function UpdateCompanyDialog({
             mapFormToRequest={(values) => ({
                 id: company.id,
                 name: values.name?.trim() ?? "",
+                alias: values.alias?.trim() ?? "",
                 address: values.address?.trim() ?? "",
             })}
         />
