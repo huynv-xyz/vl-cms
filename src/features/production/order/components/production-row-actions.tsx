@@ -1,14 +1,13 @@
-import { Row } from "@tanstack/react-table"
+import type { Row } from "@tanstack/react-table"
 import { Link } from "@tanstack/react-router"
-import { CalendarDays, Wrench } from "lucide-react"
+import { CalendarDays, Trash2, Wrench } from "lucide-react"
 import { useState } from "react"
 import { CrudRowActions } from "@/components/crud/crud-row-actions"
 import type { Production } from "../data/schema"
 import { useProductions } from "../components/productions-provider"
-import { deleteProduction } from "@/api/production/order"
-import { useCrudDelete } from "@/hooks/use-crud-delete"
 import { ChangeProductionDateDialog } from "./change-production-date-dialog"
 import { AdjustProductionDialog } from "./adjust-production-dialog"
+import { DeleteProductionDialog } from "./delete-production-dialog"
 import { useProductionPermissions } from "../hooks/use-production-permissions"
 import {
     DropdownMenuItem,
@@ -25,12 +24,12 @@ export function ProductionRowActions({ row }: Props) {
     const permissions = useProductionPermissions()
     const [changeDateOpen, setChangeDateOpen] = useState(false)
     const [adjustOpen, setAdjustOpen] = useState(false)
+    const [deleteOpen, setDeleteOpen] = useState(false)
     const canEdit = permissions.canUpdate && canEditProduction(row.original)
-    const canDelete = permissions.canDelete && canDeleteProduction(row.original)
-
-    const { deleteById } = useCrudDelete(
-        deleteProduction,
-        [["productions"], ["production-orders"]]
+    const canDelete = canDeleteProduction(
+        row.original,
+        permissions.canDelete,
+        permissions.canDeleteCompleted,
     )
 
     return (
@@ -38,7 +37,6 @@ export function ProductionRowActions({ row }: Props) {
             <CrudRowActions
                 row={row.original}
                 onEdit={canEdit ? () => openEdit(row.original) : undefined}
-                onDelete={canDelete ? (r) => deleteById(r.id) : undefined}
                 extraActions={(production) => (
                     <>
                         <DropdownMenuItem asChild>
@@ -74,11 +72,24 @@ export function ProductionRowActions({ row }: Props) {
                             </DropdownMenuItem>
                         )}
 
+                        {canDelete && (
+                            <DropdownMenuItem
+                                className="text-red-600 focus:text-red-600"
+                                onSelect={(event) => {
+                                    event.preventDefault()
+                                    setDeleteOpen(true)
+                                }}
+                            >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Xóa lệnh
+                            </DropdownMenuItem>
+                        )}
+
                         {!canEdit && (
                             <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuLabel className="whitespace-normal text-xs font-normal text-muted-foreground">
-                                    {"Ch\u1ec9 s\u1eeda l\u1ec7nh khi c\u00f2n Nh\u00e1p ho\u1eb7c K\u1ebf ho\u1ea1ch. C\u00f3 th\u1ec3 x\u00f3a l\u1ec7nh tr\u01b0\u1edbc khi ghi s\u1ed5 kho."}
+                                    Chỉ sửa lệnh khi còn Nháp hoặc Kế hoạch. Xóa lệnh đã ghi sổ cần quyền hoàn tác riêng.
                                 </DropdownMenuLabel>
                             </>
                         )}
@@ -95,6 +106,11 @@ export function ProductionRowActions({ row }: Props) {
                 open={adjustOpen}
                 onOpenChange={setAdjustOpen}
             />
+            <DeleteProductionDialog
+                production={row.original}
+                open={deleteOpen}
+                onOpenChange={setDeleteOpen}
+            />
         </>
     )
 }
@@ -103,8 +119,17 @@ function canEditProduction(production?: Pick<Production, "status">) {
     return ["DRAFT", "PLANNED"].includes(statusOf(production))
 }
 
-function canDeleteProduction(production?: Pick<Production, "status">) {
-    return ["DRAFT", "PLANNED", "MATERIAL_GENERATED", "FIFO_ALLOCATED", "CANCELLED"].includes(statusOf(production))
+function canDeleteProduction(
+    production: Pick<Production, "status"> | undefined,
+    canDelete: boolean,
+    canDeleteCompleted: boolean,
+) {
+    const status = statusOf(production)
+    if (["DELETED", "LOCKED"].includes(status)) return false
+    if (["MATERIAL_ISSUED", "OUTPUT_RECEIVED", "DONE"].includes(status)) {
+        return canDeleteCompleted
+    }
+    return canDelete || canDeleteCompleted
 }
 
 function statusOf(production?: Pick<Production, "status">) {

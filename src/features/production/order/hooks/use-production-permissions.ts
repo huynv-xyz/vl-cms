@@ -24,6 +24,8 @@ export type ProductionPermissions = {
     canUpdate: boolean
     /** Xóa lệnh sản xuất */
     canDelete: boolean
+    /** Xóa lệnh đã ghi sổ và hoàn tác tồn kho */
+    canDeleteCompleted: boolean
     /** Sửa lô, kho, số lượng kế hoạch, số lượng nhập TP */
     canEditQuantity: boolean
     /** Sửa đơn giá, giá thành, chi phí */
@@ -80,6 +82,7 @@ export function useProductionPermissions(): ProductionPermissions {
         canCreate: isAdmin || hasOrder(permissions, "create"),
         canUpdate: isAdmin || hasOrder(permissions, "update"),
         canDelete: isAdmin || hasOrder(permissions, "delete"),
+        canDeleteCompleted: isAdmin || hasOrder(permissions, "delete-completed"),
         canEditQuantity:
             isAdmin ||
             hasAny(permissions, [

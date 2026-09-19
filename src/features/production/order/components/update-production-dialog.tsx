@@ -147,7 +147,6 @@ export function UpdateProductionDialog({
             production_date: productionDate,
             production_time: productionTime || undefined,
             packing_code: packingCode || undefined,
-            status: production.status,
             note,
             items: items.map((item) => ({
                 product_id: item.product_id,

@@ -39,7 +39,6 @@ export type UpdateProductionRequest = {
     production_date?: string
     production_time?: string
     packing_code?: string
-    status?: string
     note?: string
     items?: {
         product_id?: number
@@ -65,6 +64,31 @@ export const getProduction = productionApi.detail
 export const createProduction = productionApi.create
 export const updateProduction = productionApi.update
 export const deleteProduction = productionApi.delete
+
+export type ProductionDeletionDetail = {
+    type: string
+    status: "INFO" | "ERROR" | string
+    message: string
+    reference?: string
+}
+
+export type ProductionDeletionResult = {
+    success: boolean
+    message: string
+    production_id: number
+    production_no?: string
+    status?: string
+    voucher_count: number
+    ledger_count: number
+    output_lot_count: number
+    details: ProductionDeletionDetail[]
+}
+
+export const checkProductionDeletion = (id: number) =>
+    apiGet<ProductionDeletionResult>(`/productions/${id}/delete-check`)
+
+export const softDeleteProduction = (id: number, reason: string) =>
+    apiPost<ProductionDeletionResult>(`/productions/${id}/soft-delete`, { reason })
 
 export const getProductionDetail = (id: number) =>
     apiGet<Production>(`/productions/${id}/detail`)

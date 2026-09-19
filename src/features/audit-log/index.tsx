@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils"
 
 const initialFilters: AuditLogFilters = { page: 1, size: 25 }
-const riskyActions = new Set(["DELETE", "UPDATE_PERMISSIONS", "ADJUST_PRICE", "ADJUST_QUANTITY", "LOCK", "UNLOCK"])
+const riskyActions = new Set(["DELETE", "DELETE_AND_ROLLBACK", "UPDATE_PERMISSIONS", "ADJUST_PRICE", "ADJUST_QUANTITY", "LOCK", "UNLOCK"])
 const fallbackSourceTypes = ["USER", "FALLBACK", "IMPORT", "JOB", "SYSTEM"]
 const fallbackResultStatuses = ["SUCCESS", "FAILED", "DENIED"]
 type FilterKey = Exclude<keyof AuditLogFilters, "page" | "size">
@@ -675,7 +675,7 @@ function endpointLabel(path: string) {
 function inferRecordTitle(log: AuditLog) {
     if (log.business_key?.trim()) return log.business_key.trim()
     const values = { ...parseObject(log.old_values), ...parseObject(log.new_values) }
-    const first = pickValue(values, ["export_no", "inventory_voucher_no", "voucher_no", "code", "ma", "ma_vthh", "ma_kh", "sku", "order_code", "contract_code", "invoice_no", "document_no"])
+    const first = pickValue(values, ["production_no", "export_no", "inventory_voucher_no", "voucher_no", "code", "ma", "ma_vthh", "ma_kh", "sku", "order_code", "contract_code", "invoice_no", "document_no"])
     const second = pickValue(values, ["name", "ten", "ten_vthh", "customer_name", "supplier_name", "full_name", "email", "phone"])
     if (first && second && first !== second) return `${first} · ${second}`
     return first ?? second
@@ -685,7 +685,7 @@ function inferRecordId(log: AuditLog) {
     if (/^\d+$/.test(log.entity_id)) return log.entity_id
     const entityMatch = log.entity_type.match(/_(\d+)(?:_|$)/)
     if (entityMatch?.[1]) return entityMatch[1]
-    const pathMatch = log.request_path?.match(/\/(?:sales\/exports|sales\/orders|sales\/deliveries|sales\/returns|inventory\/vouchers)\/(\d+)(?:\/|$)/)
+    const pathMatch = log.request_path?.match(/\/(?:productions|sales\/exports|sales\/orders|sales\/deliveries|sales\/returns|inventory\/vouchers)\/(\d+)(?:\/|$)/)
     return pathMatch?.[1]
 }
 
@@ -715,6 +715,15 @@ function fieldLabel(field: string) {
         inventory_posting_time: "Giờ ghi sổ kho",
         order_id: "ID đơn hàng",
         delivery_id: "ID giao hàng",
+        production_id: "ID lệnh sản xuất",
+        production_no: "Mã lệnh sản xuất",
+        production_date: "Ngày sản xuất",
+        production_time: "Giờ sản xuất",
+        delete_reason: "Lý do xóa",
+        deleted_at: "Thời điểm xóa",
+        deleted_by: "Người xóa",
+        inventory_vouchers: "Phiếu kho",
+        inventory_ledger: "Sổ kho",
     }
     return labels[field] ?? humanize(field)
 }
@@ -819,6 +828,7 @@ function businessKeyPlaceholder(entityType?: string) {
     if (normalized.includes("customer")) return "Mã/tên khách hàng"
     if (normalized.includes("product")) return "Mã/tên sản phẩm"
     if (normalized.includes("inventory")) return "Mã chứng từ, mã lot, mã hàng"
+    if (normalized.includes("production")) return "VD: SX-20260901-001"
     return "Mã phiếu, mã đơn, mã KH/SP..."
 }
 
@@ -969,6 +979,7 @@ function actionLabel(action: string) {
         CREATE: "Tạo mới",
         UPDATE: "Cập nhật",
         DELETE: "Xóa",
+        DELETE_AND_ROLLBACK: "Xóa và hoàn tác tồn kho",
         EXECUTE: "Thực thi",
         CHECK: "Kiểm tra",
         PREVIEW: "Xem trước",
@@ -1067,6 +1078,7 @@ const actionOptions = [
     "CREATE",
     "UPDATE",
     "DELETE",
+    "DELETE_AND_ROLLBACK",
     "EXECUTE",
     "CHECK",
     "PREVIEW",
