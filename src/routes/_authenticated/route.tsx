@@ -11,6 +11,7 @@ import { ConfigDrawer } from '@/components/config-drawer'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { getMyPermissions } from '@/api/auth/permission'
 import { hasViewPermissionForPath } from '@/lib/navigation-permissions'
+import { FloatingAiChat } from '@/features/ai-chat/floating-ai-chat'
 
 export const Route = createFileRoute('/_authenticated')({
     beforeLoad: async ({ location }) => {
@@ -67,6 +68,7 @@ function AuthenticatedLayout() {
                             </div>
                         </div>
                     </div>
+                    <FloatingAiChat />
                 </SidebarProvider>
             </LayoutProvider>
         </SearchProvider>

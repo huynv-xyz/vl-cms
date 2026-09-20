@@ -33,6 +33,7 @@ import { Route as AuthenticatedEmployeesIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedCustomersIndexRouteImport } from './routes/_authenticated/customers/index'
 import { Route as AuthenticatedCurrenciesIndexRouteImport } from './routes/_authenticated/currencies/index'
 import { Route as AuthenticatedCompaniesIndexRouteImport } from './routes/_authenticated/companies/index'
+import { Route as AuthenticatedAiAssistantIndexRouteImport } from './routes/_authenticated/ai-assistant/index'
 import { Route as AuthenticatedVipTiersIndexRouteImport } from './routes/_authenticated/vip/tiers/index'
 import { Route as AuthenticatedVipRecalcJobIndexRouteImport } from './routes/_authenticated/vip/recalc-job/index'
 import { Route as AuthenticatedVipProductMappingIndexRouteImport } from './routes/_authenticated/vip/product-mapping/index'
@@ -81,6 +82,7 @@ import { Route as AuthenticatedPurchasingApSummaryIndexRouteImport } from './rou
 import { Route as AuthenticatedProductionOrdersIndexRouteImport } from './routes/_authenticated/production/orders/index'
 import { Route as AuthenticatedProductionHistoryIndexRouteImport } from './routes/_authenticated/production/history/index'
 import { Route as AuthenticatedProductionBomsIndexRouteImport } from './routes/_authenticated/production/boms/index'
+import { Route as AuthenticatedInventoryVouchersIndexRouteImport } from './routes/_authenticated/inventory/vouchers/index'
 import { Route as AuthenticatedInventorySummaryIndexRouteImport } from './routes/_authenticated/inventory/summary/index'
 import { Route as AuthenticatedInventoryOutboundsIndexRouteImport } from './routes/_authenticated/inventory/outbounds/index'
 import { Route as AuthenticatedInventoryLotsIndexRouteImport } from './routes/_authenticated/inventory/lots/index'
@@ -234,6 +236,12 @@ const AuthenticatedCompaniesIndexRoute =
   AuthenticatedCompaniesIndexRouteImport.update({
     id: '/companies/',
     path: '/companies/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAiAssistantIndexRoute =
+  AuthenticatedAiAssistantIndexRouteImport.update({
+    id: '/ai-assistant/',
+    path: '/ai-assistant/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedVipTiersIndexRoute =
@@ -526,6 +534,12 @@ const AuthenticatedProductionBomsIndexRoute =
     path: '/production/boms/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedInventoryVouchersIndexRoute =
+  AuthenticatedInventoryVouchersIndexRouteImport.update({
+    id: '/inventory/vouchers/',
+    path: '/inventory/vouchers/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInventorySummaryIndexRoute =
   AuthenticatedInventorySummaryIndexRouteImport.update({
     id: '/inventory/summary/',
@@ -661,6 +675,7 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/ai-assistant/': typeof AuthenticatedAiAssistantIndexRoute
   '/companies/': typeof AuthenticatedCompaniesIndexRoute
   '/currencies/': typeof AuthenticatedCurrenciesIndexRoute
   '/customers/': typeof AuthenticatedCustomersIndexRoute
@@ -692,6 +707,7 @@ export interface FileRoutesByFullPath {
   '/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
   '/inventory/outbounds/': typeof AuthenticatedInventoryOutboundsIndexRoute
   '/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
+  '/inventory/vouchers/': typeof AuthenticatedInventoryVouchersIndexRoute
   '/production/boms/': typeof AuthenticatedProductionBomsIndexRoute
   '/production/history/': typeof AuthenticatedProductionHistoryIndexRoute
   '/production/orders/': typeof AuthenticatedProductionOrdersIndexRoute
@@ -755,6 +771,7 @@ export interface FileRoutesByTo {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/': typeof AuthenticatedIndexRoute
+  '/ai-assistant': typeof AuthenticatedAiAssistantIndexRoute
   '/companies': typeof AuthenticatedCompaniesIndexRoute
   '/currencies': typeof AuthenticatedCurrenciesIndexRoute
   '/customers': typeof AuthenticatedCustomersIndexRoute
@@ -786,6 +803,7 @@ export interface FileRoutesByTo {
   '/inventory/lots': typeof AuthenticatedInventoryLotsIndexRoute
   '/inventory/outbounds': typeof AuthenticatedInventoryOutboundsIndexRoute
   '/inventory/summary': typeof AuthenticatedInventorySummaryIndexRoute
+  '/inventory/vouchers': typeof AuthenticatedInventoryVouchersIndexRoute
   '/production/boms': typeof AuthenticatedProductionBomsIndexRoute
   '/production/history': typeof AuthenticatedProductionHistoryIndexRoute
   '/production/orders': typeof AuthenticatedProductionOrdersIndexRoute
@@ -851,6 +869,7 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/ai-assistant/': typeof AuthenticatedAiAssistantIndexRoute
   '/_authenticated/companies/': typeof AuthenticatedCompaniesIndexRoute
   '/_authenticated/currencies/': typeof AuthenticatedCurrenciesIndexRoute
   '/_authenticated/customers/': typeof AuthenticatedCustomersIndexRoute
@@ -882,6 +901,7 @@ export interface FileRoutesById {
   '/_authenticated/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
   '/_authenticated/inventory/outbounds/': typeof AuthenticatedInventoryOutboundsIndexRoute
   '/_authenticated/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
+  '/_authenticated/inventory/vouchers/': typeof AuthenticatedInventoryVouchersIndexRoute
   '/_authenticated/production/boms/': typeof AuthenticatedProductionBomsIndexRoute
   '/_authenticated/production/history/': typeof AuthenticatedProductionHistoryIndexRoute
   '/_authenticated/production/orders/': typeof AuthenticatedProductionOrdersIndexRoute
@@ -947,6 +967,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/ai-assistant/'
     | '/companies/'
     | '/currencies/'
     | '/customers/'
@@ -978,6 +999,7 @@ export interface FileRouteTypes {
     | '/inventory/lots/'
     | '/inventory/outbounds/'
     | '/inventory/summary/'
+    | '/inventory/vouchers/'
     | '/production/boms/'
     | '/production/history/'
     | '/production/orders/'
@@ -1041,6 +1063,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/'
+    | '/ai-assistant'
     | '/companies'
     | '/currencies'
     | '/customers'
@@ -1072,6 +1095,7 @@ export interface FileRouteTypes {
     | '/inventory/lots'
     | '/inventory/outbounds'
     | '/inventory/summary'
+    | '/inventory/vouchers'
     | '/production/boms'
     | '/production/history'
     | '/production/orders'
@@ -1136,6 +1160,7 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/_authenticated/'
+    | '/_authenticated/ai-assistant/'
     | '/_authenticated/companies/'
     | '/_authenticated/currencies/'
     | '/_authenticated/customers/'
@@ -1167,6 +1192,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventory/lots/'
     | '/_authenticated/inventory/outbounds/'
     | '/_authenticated/inventory/summary/'
+    | '/_authenticated/inventory/vouchers/'
     | '/_authenticated/production/boms/'
     | '/_authenticated/production/history/'
     | '/_authenticated/production/orders/'
@@ -1401,6 +1427,13 @@ declare module '@tanstack/react-router' {
       path: '/companies'
       fullPath: '/companies/'
       preLoaderRoute: typeof AuthenticatedCompaniesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ai-assistant/': {
+      id: '/_authenticated/ai-assistant/'
+      path: '/ai-assistant'
+      fullPath: '/ai-assistant/'
+      preLoaderRoute: typeof AuthenticatedAiAssistantIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/vip/tiers/': {
@@ -1739,6 +1772,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProductionBomsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/inventory/vouchers/': {
+      id: '/_authenticated/inventory/vouchers/'
+      path: '/inventory/vouchers'
+      fullPath: '/inventory/vouchers/'
+      preLoaderRoute: typeof AuthenticatedInventoryVouchersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/inventory/summary/': {
       id: '/_authenticated/inventory/summary/'
       path: '/inventory/summary'
@@ -1891,6 +1931,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAiAssistantIndexRoute: typeof AuthenticatedAiAssistantIndexRoute
   AuthenticatedCompaniesIndexRoute: typeof AuthenticatedCompaniesIndexRoute
   AuthenticatedCurrenciesIndexRoute: typeof AuthenticatedCurrenciesIndexRoute
   AuthenticatedCustomersIndexRoute: typeof AuthenticatedCustomersIndexRoute
@@ -1922,6 +1963,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInventoryLotsIndexRoute: typeof AuthenticatedInventoryLotsIndexRoute
   AuthenticatedInventoryOutboundsIndexRoute: typeof AuthenticatedInventoryOutboundsIndexRoute
   AuthenticatedInventorySummaryIndexRoute: typeof AuthenticatedInventorySummaryIndexRoute
+  AuthenticatedInventoryVouchersIndexRoute: typeof AuthenticatedInventoryVouchersIndexRoute
   AuthenticatedProductionBomsIndexRoute: typeof AuthenticatedProductionBomsIndexRoute
   AuthenticatedProductionHistoryIndexRoute: typeof AuthenticatedProductionHistoryIndexRoute
   AuthenticatedProductionOrdersIndexRoute: typeof AuthenticatedProductionOrdersIndexRoute
@@ -1980,6 +2022,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAiAssistantIndexRoute: AuthenticatedAiAssistantIndexRoute,
   AuthenticatedCompaniesIndexRoute: AuthenticatedCompaniesIndexRoute,
   AuthenticatedCurrenciesIndexRoute: AuthenticatedCurrenciesIndexRoute,
   AuthenticatedCustomersIndexRoute: AuthenticatedCustomersIndexRoute,
@@ -2022,6 +2065,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedInventoryOutboundsIndexRoute,
   AuthenticatedInventorySummaryIndexRoute:
     AuthenticatedInventorySummaryIndexRoute,
+  AuthenticatedInventoryVouchersIndexRoute:
+    AuthenticatedInventoryVouchersIndexRoute,
   AuthenticatedProductionBomsIndexRoute: AuthenticatedProductionBomsIndexRoute,
   AuthenticatedProductionHistoryIndexRoute:
     AuthenticatedProductionHistoryIndexRoute,
