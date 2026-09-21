@@ -18,6 +18,10 @@ function permissionSet(permissions: Permission[]) {
 
 const PATH_MODULE_ALIASES = [
     {
+        path: "/ai-assistant",
+        module: "ai.executive",
+    },
+    {
         path: "/tools",
         module: "admin.tools",
     },

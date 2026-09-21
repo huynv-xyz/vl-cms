@@ -21,6 +21,7 @@ import { Route as AuthenticatedWarehousesIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedUserIndexRouteImport } from './routes/_authenticated/user/index'
 import { Route as AuthenticatedTransactionsIndexRouteImport } from './routes/_authenticated/transactions/index'
 import { Route as AuthenticatedToolsIndexRouteImport } from './routes/_authenticated/tools/index'
+import { Route as AuthenticatedSeminarsIndexRouteImport } from './routes/_authenticated/seminars/index'
 import { Route as AuthenticatedRegionsIndexRouteImport } from './routes/_authenticated/regions/index'
 import { Route as AuthenticatedPurchasingIndexRouteImport } from './routes/_authenticated/purchasing/index'
 import { Route as AuthenticatedProvincesIndexRouteImport } from './routes/_authenticated/provinces/index'
@@ -33,6 +34,7 @@ import { Route as AuthenticatedEmployeesIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedCustomersIndexRouteImport } from './routes/_authenticated/customers/index'
 import { Route as AuthenticatedCurrenciesIndexRouteImport } from './routes/_authenticated/currencies/index'
 import { Route as AuthenticatedCompaniesIndexRouteImport } from './routes/_authenticated/companies/index'
+import { Route as AuthenticatedAiAssistantIndexRouteImport } from './routes/_authenticated/ai-assistant/index'
 import { Route as AuthenticatedVipTiersIndexRouteImport } from './routes/_authenticated/vip/tiers/index'
 import { Route as AuthenticatedVipRecalcJobIndexRouteImport } from './routes/_authenticated/vip/recalc-job/index'
 import { Route as AuthenticatedVipProductMappingIndexRouteImport } from './routes/_authenticated/vip/product-mapping/index'
@@ -41,12 +43,17 @@ import { Route as AuthenticatedVipPointRulesIndexRouteImport } from './routes/_a
 import { Route as AuthenticatedVipCustomerIndexRouteImport } from './routes/_authenticated/vip/customer/index'
 import { Route as AuthenticatedVipCustomerTargetIndexRouteImport } from './routes/_authenticated/vip/customer-target/index'
 import { Route as AuthenticatedVipCustomerPlanIndexRouteImport } from './routes/_authenticated/vip/customer-plan/index'
+import { Route as AuthenticatedToolsVipCustomerPlanBackfillIndexRouteImport } from './routes/_authenticated/tools/vip-customer-plan-backfill/index'
+import { Route as AuthenticatedToolsSalesTransactionsVipValidityRepairIndexRouteImport } from './routes/_authenticated/tools/sales-transactions-vip-validity-repair/index'
+import { Route as AuthenticatedToolsSalesTransactionsUnitRepairIndexRouteImport } from './routes/_authenticated/tools/sales-transactions-unit-repair/index'
+import { Route as AuthenticatedToolsSalesTransactionsProductIdRepairIndexRouteImport } from './routes/_authenticated/tools/sales-transactions-product-id-repair/index'
 import { Route as AuthenticatedToolsSalesExportInventoryRollbackIndexRouteImport } from './routes/_authenticated/tools/sales-export-inventory-rollback/index'
 import { Route as AuthenticatedToolsSalesExportArMissingRepairIndexRouteImport } from './routes/_authenticated/tools/sales-export-ar-missing-repair/index'
 import { Route as AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRouteImport } from './routes/_authenticated/tools/purchasing-shipment-contract-item-backfill/index'
 import { Route as AuthenticatedToolsProductMergeIndexRouteImport } from './routes/_authenticated/tools/product-merge/index'
 import { Route as AuthenticatedToolsInventoryCostingDbCompareIndexRouteImport } from './routes/_authenticated/tools/inventory-costing-db-compare/index'
 import { Route as AuthenticatedToolsInventoryAccountOverSyncRepairIndexRouteImport } from './routes/_authenticated/tools/inventory-account-over-sync-repair/index'
+import { Route as AuthenticatedSeminarsCirculationDecisionsIndexRouteImport } from './routes/_authenticated/seminars/circulation-decisions/index'
 import { Route as AuthenticatedSalesReturnsIndexRouteImport } from './routes/_authenticated/sales/returns/index'
 import { Route as AuthenticatedSalesReceiptsIndexRouteImport } from './routes/_authenticated/sales/receipts/index'
 import { Route as AuthenticatedSalesPriceQuotesIndexRouteImport } from './routes/_authenticated/sales/price-quotes/index'
@@ -57,6 +64,7 @@ import { Route as AuthenticatedSalesExportsIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedSalesDeliveriesIndexRouteImport } from './routes/_authenticated/sales/deliveries/index'
 import { Route as AuthenticatedSalesCashBankLedgerIndexRouteImport } from './routes/_authenticated/sales/cash-bank-ledger/index'
 import { Route as AuthenticatedSalesArSummaryIndexRouteImport } from './routes/_authenticated/sales/ar-summary/index'
+import { Route as AuthenticatedSalesArOverdueIndexRouteImport } from './routes/_authenticated/sales/ar-overdue/index'
 import { Route as AuthenticatedSalesArOpeningsIndexRouteImport } from './routes/_authenticated/sales/ar-openings/index'
 import { Route as AuthenticatedSalesArLedgersIndexRouteImport } from './routes/_authenticated/sales/ar-ledgers/index'
 import { Route as AuthenticatedSalesArAdjustmentsIndexRouteImport } from './routes/_authenticated/sales/ar-adjustments/index'
@@ -81,6 +89,7 @@ import { Route as AuthenticatedPurchasingApSummaryIndexRouteImport } from './rou
 import { Route as AuthenticatedProductionOrdersIndexRouteImport } from './routes/_authenticated/production/orders/index'
 import { Route as AuthenticatedProductionHistoryIndexRouteImport } from './routes/_authenticated/production/history/index'
 import { Route as AuthenticatedProductionBomsIndexRouteImport } from './routes/_authenticated/production/boms/index'
+import { Route as AuthenticatedInventoryVouchersIndexRouteImport } from './routes/_authenticated/inventory/vouchers/index'
 import { Route as AuthenticatedInventorySummaryIndexRouteImport } from './routes/_authenticated/inventory/summary/index'
 import { Route as AuthenticatedInventoryOutboundsIndexRouteImport } from './routes/_authenticated/inventory/outbounds/index'
 import { Route as AuthenticatedInventoryLotsIndexRouteImport } from './routes/_authenticated/inventory/lots/index'
@@ -164,6 +173,12 @@ const AuthenticatedToolsIndexRoute = AuthenticatedToolsIndexRouteImport.update({
   path: '/tools/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSeminarsIndexRoute =
+  AuthenticatedSeminarsIndexRouteImport.update({
+    id: '/seminars/',
+    path: '/seminars/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedRegionsIndexRoute =
   AuthenticatedRegionsIndexRouteImport.update({
     id: '/regions/',
@@ -236,6 +251,12 @@ const AuthenticatedCompaniesIndexRoute =
     path: '/companies/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAiAssistantIndexRoute =
+  AuthenticatedAiAssistantIndexRouteImport.update({
+    id: '/ai-assistant/',
+    path: '/ai-assistant/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedVipTiersIndexRoute =
   AuthenticatedVipTiersIndexRouteImport.update({
     id: '/vip/tiers/',
@@ -284,6 +305,30 @@ const AuthenticatedVipCustomerPlanIndexRoute =
     path: '/vip/customer-plan/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedToolsVipCustomerPlanBackfillIndexRoute =
+  AuthenticatedToolsVipCustomerPlanBackfillIndexRouteImport.update({
+    id: '/tools/vip-customer-plan-backfill/',
+    path: '/tools/vip-customer-plan-backfill/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedToolsSalesTransactionsVipValidityRepairIndexRoute =
+  AuthenticatedToolsSalesTransactionsVipValidityRepairIndexRouteImport.update({
+    id: '/tools/sales-transactions-vip-validity-repair/',
+    path: '/tools/sales-transactions-vip-validity-repair/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedToolsSalesTransactionsUnitRepairIndexRoute =
+  AuthenticatedToolsSalesTransactionsUnitRepairIndexRouteImport.update({
+    id: '/tools/sales-transactions-unit-repair/',
+    path: '/tools/sales-transactions-unit-repair/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedToolsSalesTransactionsProductIdRepairIndexRoute =
+  AuthenticatedToolsSalesTransactionsProductIdRepairIndexRouteImport.update({
+    id: '/tools/sales-transactions-product-id-repair/',
+    path: '/tools/sales-transactions-product-id-repair/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedToolsSalesExportInventoryRollbackIndexRoute =
   AuthenticatedToolsSalesExportInventoryRollbackIndexRouteImport.update({
     id: '/tools/sales-export-inventory-rollback/',
@@ -320,6 +365,12 @@ const AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute =
   AuthenticatedToolsInventoryAccountOverSyncRepairIndexRouteImport.update({
     id: '/tools/inventory-account-over-sync-repair/',
     path: '/tools/inventory-account-over-sync-repair/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSeminarsCirculationDecisionsIndexRoute =
+  AuthenticatedSeminarsCirculationDecisionsIndexRouteImport.update({
+    id: '/seminars/circulation-decisions/',
+    path: '/seminars/circulation-decisions/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSalesReturnsIndexRoute =
@@ -380,6 +431,12 @@ const AuthenticatedSalesArSummaryIndexRoute =
   AuthenticatedSalesArSummaryIndexRouteImport.update({
     id: '/sales/ar-summary/',
     path: '/sales/ar-summary/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSalesArOverdueIndexRoute =
+  AuthenticatedSalesArOverdueIndexRouteImport.update({
+    id: '/sales/ar-overdue/',
+    path: '/sales/ar-overdue/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSalesArOpeningsIndexRoute =
@@ -526,6 +583,12 @@ const AuthenticatedProductionBomsIndexRoute =
     path: '/production/boms/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedInventoryVouchersIndexRoute =
+  AuthenticatedInventoryVouchersIndexRouteImport.update({
+    id: '/inventory/vouchers/',
+    path: '/inventory/vouchers/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInventorySummaryIndexRoute =
   AuthenticatedInventorySummaryIndexRouteImport.update({
     id: '/inventory/summary/',
@@ -661,6 +724,7 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/ai-assistant/': typeof AuthenticatedAiAssistantIndexRoute
   '/companies/': typeof AuthenticatedCompaniesIndexRoute
   '/currencies/': typeof AuthenticatedCurrenciesIndexRoute
   '/customers/': typeof AuthenticatedCustomersIndexRoute
@@ -673,6 +737,7 @@ export interface FileRoutesByFullPath {
   '/provinces/': typeof AuthenticatedProvincesIndexRoute
   '/purchasing/': typeof AuthenticatedPurchasingIndexRoute
   '/regions/': typeof AuthenticatedRegionsIndexRoute
+  '/seminars/': typeof AuthenticatedSeminarsIndexRoute
   '/tools/': typeof AuthenticatedToolsIndexRoute
   '/transactions/': typeof AuthenticatedTransactionsIndexRoute
   '/user/': typeof AuthenticatedUserIndexRoute
@@ -692,6 +757,7 @@ export interface FileRoutesByFullPath {
   '/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
   '/inventory/outbounds/': typeof AuthenticatedInventoryOutboundsIndexRoute
   '/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
+  '/inventory/vouchers/': typeof AuthenticatedInventoryVouchersIndexRoute
   '/production/boms/': typeof AuthenticatedProductionBomsIndexRoute
   '/production/history/': typeof AuthenticatedProductionHistoryIndexRoute
   '/production/orders/': typeof AuthenticatedProductionOrdersIndexRoute
@@ -716,6 +782,7 @@ export interface FileRoutesByFullPath {
   '/sales/ar-adjustments/': typeof AuthenticatedSalesArAdjustmentsIndexRoute
   '/sales/ar-ledgers/': typeof AuthenticatedSalesArLedgersIndexRoute
   '/sales/ar-openings/': typeof AuthenticatedSalesArOpeningsIndexRoute
+  '/sales/ar-overdue/': typeof AuthenticatedSalesArOverdueIndexRoute
   '/sales/ar-summary/': typeof AuthenticatedSalesArSummaryIndexRoute
   '/sales/cash-bank-ledger/': typeof AuthenticatedSalesCashBankLedgerIndexRoute
   '/sales/deliveries/': typeof AuthenticatedSalesDeliveriesIndexRoute
@@ -726,12 +793,17 @@ export interface FileRoutesByFullPath {
   '/sales/price-quotes/': typeof AuthenticatedSalesPriceQuotesIndexRoute
   '/sales/receipts/': typeof AuthenticatedSalesReceiptsIndexRoute
   '/sales/returns/': typeof AuthenticatedSalesReturnsIndexRoute
+  '/seminars/circulation-decisions/': typeof AuthenticatedSeminarsCirculationDecisionsIndexRoute
   '/tools/inventory-account-over-sync-repair/': typeof AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute
   '/tools/inventory-costing-db-compare/': typeof AuthenticatedToolsInventoryCostingDbCompareIndexRoute
   '/tools/product-merge/': typeof AuthenticatedToolsProductMergeIndexRoute
   '/tools/purchasing-shipment-contract-item-backfill/': typeof AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRoute
   '/tools/sales-export-ar-missing-repair/': typeof AuthenticatedToolsSalesExportArMissingRepairIndexRoute
   '/tools/sales-export-inventory-rollback/': typeof AuthenticatedToolsSalesExportInventoryRollbackIndexRoute
+  '/tools/sales-transactions-product-id-repair/': typeof AuthenticatedToolsSalesTransactionsProductIdRepairIndexRoute
+  '/tools/sales-transactions-unit-repair/': typeof AuthenticatedToolsSalesTransactionsUnitRepairIndexRoute
+  '/tools/sales-transactions-vip-validity-repair/': typeof AuthenticatedToolsSalesTransactionsVipValidityRepairIndexRoute
+  '/tools/vip-customer-plan-backfill/': typeof AuthenticatedToolsVipCustomerPlanBackfillIndexRoute
   '/vip/customer-plan/': typeof AuthenticatedVipCustomerPlanIndexRoute
   '/vip/customer-target/': typeof AuthenticatedVipCustomerTargetIndexRoute
   '/vip/customer/': typeof AuthenticatedVipCustomerIndexRoute
@@ -755,6 +827,7 @@ export interface FileRoutesByTo {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/': typeof AuthenticatedIndexRoute
+  '/ai-assistant': typeof AuthenticatedAiAssistantIndexRoute
   '/companies': typeof AuthenticatedCompaniesIndexRoute
   '/currencies': typeof AuthenticatedCurrenciesIndexRoute
   '/customers': typeof AuthenticatedCustomersIndexRoute
@@ -767,6 +840,7 @@ export interface FileRoutesByTo {
   '/provinces': typeof AuthenticatedProvincesIndexRoute
   '/purchasing': typeof AuthenticatedPurchasingIndexRoute
   '/regions': typeof AuthenticatedRegionsIndexRoute
+  '/seminars': typeof AuthenticatedSeminarsIndexRoute
   '/tools': typeof AuthenticatedToolsIndexRoute
   '/transactions': typeof AuthenticatedTransactionsIndexRoute
   '/user': typeof AuthenticatedUserIndexRoute
@@ -786,6 +860,7 @@ export interface FileRoutesByTo {
   '/inventory/lots': typeof AuthenticatedInventoryLotsIndexRoute
   '/inventory/outbounds': typeof AuthenticatedInventoryOutboundsIndexRoute
   '/inventory/summary': typeof AuthenticatedInventorySummaryIndexRoute
+  '/inventory/vouchers': typeof AuthenticatedInventoryVouchersIndexRoute
   '/production/boms': typeof AuthenticatedProductionBomsIndexRoute
   '/production/history': typeof AuthenticatedProductionHistoryIndexRoute
   '/production/orders': typeof AuthenticatedProductionOrdersIndexRoute
@@ -810,6 +885,7 @@ export interface FileRoutesByTo {
   '/sales/ar-adjustments': typeof AuthenticatedSalesArAdjustmentsIndexRoute
   '/sales/ar-ledgers': typeof AuthenticatedSalesArLedgersIndexRoute
   '/sales/ar-openings': typeof AuthenticatedSalesArOpeningsIndexRoute
+  '/sales/ar-overdue': typeof AuthenticatedSalesArOverdueIndexRoute
   '/sales/ar-summary': typeof AuthenticatedSalesArSummaryIndexRoute
   '/sales/cash-bank-ledger': typeof AuthenticatedSalesCashBankLedgerIndexRoute
   '/sales/deliveries': typeof AuthenticatedSalesDeliveriesIndexRoute
@@ -820,12 +896,17 @@ export interface FileRoutesByTo {
   '/sales/price-quotes': typeof AuthenticatedSalesPriceQuotesIndexRoute
   '/sales/receipts': typeof AuthenticatedSalesReceiptsIndexRoute
   '/sales/returns': typeof AuthenticatedSalesReturnsIndexRoute
+  '/seminars/circulation-decisions': typeof AuthenticatedSeminarsCirculationDecisionsIndexRoute
   '/tools/inventory-account-over-sync-repair': typeof AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute
   '/tools/inventory-costing-db-compare': typeof AuthenticatedToolsInventoryCostingDbCompareIndexRoute
   '/tools/product-merge': typeof AuthenticatedToolsProductMergeIndexRoute
   '/tools/purchasing-shipment-contract-item-backfill': typeof AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRoute
   '/tools/sales-export-ar-missing-repair': typeof AuthenticatedToolsSalesExportArMissingRepairIndexRoute
   '/tools/sales-export-inventory-rollback': typeof AuthenticatedToolsSalesExportInventoryRollbackIndexRoute
+  '/tools/sales-transactions-product-id-repair': typeof AuthenticatedToolsSalesTransactionsProductIdRepairIndexRoute
+  '/tools/sales-transactions-unit-repair': typeof AuthenticatedToolsSalesTransactionsUnitRepairIndexRoute
+  '/tools/sales-transactions-vip-validity-repair': typeof AuthenticatedToolsSalesTransactionsVipValidityRepairIndexRoute
+  '/tools/vip-customer-plan-backfill': typeof AuthenticatedToolsVipCustomerPlanBackfillIndexRoute
   '/vip/customer-plan': typeof AuthenticatedVipCustomerPlanIndexRoute
   '/vip/customer-target': typeof AuthenticatedVipCustomerTargetIndexRoute
   '/vip/customer': typeof AuthenticatedVipCustomerIndexRoute
@@ -851,6 +932,7 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/ai-assistant/': typeof AuthenticatedAiAssistantIndexRoute
   '/_authenticated/companies/': typeof AuthenticatedCompaniesIndexRoute
   '/_authenticated/currencies/': typeof AuthenticatedCurrenciesIndexRoute
   '/_authenticated/customers/': typeof AuthenticatedCustomersIndexRoute
@@ -863,6 +945,7 @@ export interface FileRoutesById {
   '/_authenticated/provinces/': typeof AuthenticatedProvincesIndexRoute
   '/_authenticated/purchasing/': typeof AuthenticatedPurchasingIndexRoute
   '/_authenticated/regions/': typeof AuthenticatedRegionsIndexRoute
+  '/_authenticated/seminars/': typeof AuthenticatedSeminarsIndexRoute
   '/_authenticated/tools/': typeof AuthenticatedToolsIndexRoute
   '/_authenticated/transactions/': typeof AuthenticatedTransactionsIndexRoute
   '/_authenticated/user/': typeof AuthenticatedUserIndexRoute
@@ -882,6 +965,7 @@ export interface FileRoutesById {
   '/_authenticated/inventory/lots/': typeof AuthenticatedInventoryLotsIndexRoute
   '/_authenticated/inventory/outbounds/': typeof AuthenticatedInventoryOutboundsIndexRoute
   '/_authenticated/inventory/summary/': typeof AuthenticatedInventorySummaryIndexRoute
+  '/_authenticated/inventory/vouchers/': typeof AuthenticatedInventoryVouchersIndexRoute
   '/_authenticated/production/boms/': typeof AuthenticatedProductionBomsIndexRoute
   '/_authenticated/production/history/': typeof AuthenticatedProductionHistoryIndexRoute
   '/_authenticated/production/orders/': typeof AuthenticatedProductionOrdersIndexRoute
@@ -906,6 +990,7 @@ export interface FileRoutesById {
   '/_authenticated/sales/ar-adjustments/': typeof AuthenticatedSalesArAdjustmentsIndexRoute
   '/_authenticated/sales/ar-ledgers/': typeof AuthenticatedSalesArLedgersIndexRoute
   '/_authenticated/sales/ar-openings/': typeof AuthenticatedSalesArOpeningsIndexRoute
+  '/_authenticated/sales/ar-overdue/': typeof AuthenticatedSalesArOverdueIndexRoute
   '/_authenticated/sales/ar-summary/': typeof AuthenticatedSalesArSummaryIndexRoute
   '/_authenticated/sales/cash-bank-ledger/': typeof AuthenticatedSalesCashBankLedgerIndexRoute
   '/_authenticated/sales/deliveries/': typeof AuthenticatedSalesDeliveriesIndexRoute
@@ -916,12 +1001,17 @@ export interface FileRoutesById {
   '/_authenticated/sales/price-quotes/': typeof AuthenticatedSalesPriceQuotesIndexRoute
   '/_authenticated/sales/receipts/': typeof AuthenticatedSalesReceiptsIndexRoute
   '/_authenticated/sales/returns/': typeof AuthenticatedSalesReturnsIndexRoute
+  '/_authenticated/seminars/circulation-decisions/': typeof AuthenticatedSeminarsCirculationDecisionsIndexRoute
   '/_authenticated/tools/inventory-account-over-sync-repair/': typeof AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute
   '/_authenticated/tools/inventory-costing-db-compare/': typeof AuthenticatedToolsInventoryCostingDbCompareIndexRoute
   '/_authenticated/tools/product-merge/': typeof AuthenticatedToolsProductMergeIndexRoute
   '/_authenticated/tools/purchasing-shipment-contract-item-backfill/': typeof AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRoute
   '/_authenticated/tools/sales-export-ar-missing-repair/': typeof AuthenticatedToolsSalesExportArMissingRepairIndexRoute
   '/_authenticated/tools/sales-export-inventory-rollback/': typeof AuthenticatedToolsSalesExportInventoryRollbackIndexRoute
+  '/_authenticated/tools/sales-transactions-product-id-repair/': typeof AuthenticatedToolsSalesTransactionsProductIdRepairIndexRoute
+  '/_authenticated/tools/sales-transactions-unit-repair/': typeof AuthenticatedToolsSalesTransactionsUnitRepairIndexRoute
+  '/_authenticated/tools/sales-transactions-vip-validity-repair/': typeof AuthenticatedToolsSalesTransactionsVipValidityRepairIndexRoute
+  '/_authenticated/tools/vip-customer-plan-backfill/': typeof AuthenticatedToolsVipCustomerPlanBackfillIndexRoute
   '/_authenticated/vip/customer-plan/': typeof AuthenticatedVipCustomerPlanIndexRoute
   '/_authenticated/vip/customer-target/': typeof AuthenticatedVipCustomerTargetIndexRoute
   '/_authenticated/vip/customer/': typeof AuthenticatedVipCustomerIndexRoute
@@ -947,6 +1037,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/ai-assistant/'
     | '/companies/'
     | '/currencies/'
     | '/customers/'
@@ -959,6 +1050,7 @@ export interface FileRouteTypes {
     | '/provinces/'
     | '/purchasing/'
     | '/regions/'
+    | '/seminars/'
     | '/tools/'
     | '/transactions/'
     | '/user/'
@@ -978,6 +1070,7 @@ export interface FileRouteTypes {
     | '/inventory/lots/'
     | '/inventory/outbounds/'
     | '/inventory/summary/'
+    | '/inventory/vouchers/'
     | '/production/boms/'
     | '/production/history/'
     | '/production/orders/'
@@ -1002,6 +1095,7 @@ export interface FileRouteTypes {
     | '/sales/ar-adjustments/'
     | '/sales/ar-ledgers/'
     | '/sales/ar-openings/'
+    | '/sales/ar-overdue/'
     | '/sales/ar-summary/'
     | '/sales/cash-bank-ledger/'
     | '/sales/deliveries/'
@@ -1012,12 +1106,17 @@ export interface FileRouteTypes {
     | '/sales/price-quotes/'
     | '/sales/receipts/'
     | '/sales/returns/'
+    | '/seminars/circulation-decisions/'
     | '/tools/inventory-account-over-sync-repair/'
     | '/tools/inventory-costing-db-compare/'
     | '/tools/product-merge/'
     | '/tools/purchasing-shipment-contract-item-backfill/'
     | '/tools/sales-export-ar-missing-repair/'
     | '/tools/sales-export-inventory-rollback/'
+    | '/tools/sales-transactions-product-id-repair/'
+    | '/tools/sales-transactions-unit-repair/'
+    | '/tools/sales-transactions-vip-validity-repair/'
+    | '/tools/vip-customer-plan-backfill/'
     | '/vip/customer-plan/'
     | '/vip/customer-target/'
     | '/vip/customer/'
@@ -1041,6 +1140,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/'
+    | '/ai-assistant'
     | '/companies'
     | '/currencies'
     | '/customers'
@@ -1053,6 +1153,7 @@ export interface FileRouteTypes {
     | '/provinces'
     | '/purchasing'
     | '/regions'
+    | '/seminars'
     | '/tools'
     | '/transactions'
     | '/user'
@@ -1072,6 +1173,7 @@ export interface FileRouteTypes {
     | '/inventory/lots'
     | '/inventory/outbounds'
     | '/inventory/summary'
+    | '/inventory/vouchers'
     | '/production/boms'
     | '/production/history'
     | '/production/orders'
@@ -1096,6 +1198,7 @@ export interface FileRouteTypes {
     | '/sales/ar-adjustments'
     | '/sales/ar-ledgers'
     | '/sales/ar-openings'
+    | '/sales/ar-overdue'
     | '/sales/ar-summary'
     | '/sales/cash-bank-ledger'
     | '/sales/deliveries'
@@ -1106,12 +1209,17 @@ export interface FileRouteTypes {
     | '/sales/price-quotes'
     | '/sales/receipts'
     | '/sales/returns'
+    | '/seminars/circulation-decisions'
     | '/tools/inventory-account-over-sync-repair'
     | '/tools/inventory-costing-db-compare'
     | '/tools/product-merge'
     | '/tools/purchasing-shipment-contract-item-backfill'
     | '/tools/sales-export-ar-missing-repair'
     | '/tools/sales-export-inventory-rollback'
+    | '/tools/sales-transactions-product-id-repair'
+    | '/tools/sales-transactions-unit-repair'
+    | '/tools/sales-transactions-vip-validity-repair'
+    | '/tools/vip-customer-plan-backfill'
     | '/vip/customer-plan'
     | '/vip/customer-target'
     | '/vip/customer'
@@ -1136,6 +1244,7 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/_authenticated/'
+    | '/_authenticated/ai-assistant/'
     | '/_authenticated/companies/'
     | '/_authenticated/currencies/'
     | '/_authenticated/customers/'
@@ -1148,6 +1257,7 @@ export interface FileRouteTypes {
     | '/_authenticated/provinces/'
     | '/_authenticated/purchasing/'
     | '/_authenticated/regions/'
+    | '/_authenticated/seminars/'
     | '/_authenticated/tools/'
     | '/_authenticated/transactions/'
     | '/_authenticated/user/'
@@ -1167,6 +1277,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventory/lots/'
     | '/_authenticated/inventory/outbounds/'
     | '/_authenticated/inventory/summary/'
+    | '/_authenticated/inventory/vouchers/'
     | '/_authenticated/production/boms/'
     | '/_authenticated/production/history/'
     | '/_authenticated/production/orders/'
@@ -1191,6 +1302,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sales/ar-adjustments/'
     | '/_authenticated/sales/ar-ledgers/'
     | '/_authenticated/sales/ar-openings/'
+    | '/_authenticated/sales/ar-overdue/'
     | '/_authenticated/sales/ar-summary/'
     | '/_authenticated/sales/cash-bank-ledger/'
     | '/_authenticated/sales/deliveries/'
@@ -1201,12 +1313,17 @@ export interface FileRouteTypes {
     | '/_authenticated/sales/price-quotes/'
     | '/_authenticated/sales/receipts/'
     | '/_authenticated/sales/returns/'
+    | '/_authenticated/seminars/circulation-decisions/'
     | '/_authenticated/tools/inventory-account-over-sync-repair/'
     | '/_authenticated/tools/inventory-costing-db-compare/'
     | '/_authenticated/tools/product-merge/'
     | '/_authenticated/tools/purchasing-shipment-contract-item-backfill/'
     | '/_authenticated/tools/sales-export-ar-missing-repair/'
     | '/_authenticated/tools/sales-export-inventory-rollback/'
+    | '/_authenticated/tools/sales-transactions-product-id-repair/'
+    | '/_authenticated/tools/sales-transactions-unit-repair/'
+    | '/_authenticated/tools/sales-transactions-vip-validity-repair/'
+    | '/_authenticated/tools/vip-customer-plan-backfill/'
     | '/_authenticated/vip/customer-plan/'
     | '/_authenticated/vip/customer-target/'
     | '/_authenticated/vip/customer/'
@@ -1319,6 +1436,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedToolsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/seminars/': {
+      id: '/_authenticated/seminars/'
+      path: '/seminars'
+      fullPath: '/seminars/'
+      preLoaderRoute: typeof AuthenticatedSeminarsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/regions/': {
       id: '/_authenticated/regions/'
       path: '/regions'
@@ -1403,6 +1527,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCompaniesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/ai-assistant/': {
+      id: '/_authenticated/ai-assistant/'
+      path: '/ai-assistant'
+      fullPath: '/ai-assistant/'
+      preLoaderRoute: typeof AuthenticatedAiAssistantIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/vip/tiers/': {
       id: '/_authenticated/vip/tiers/'
       path: '/vip/tiers'
@@ -1459,6 +1590,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVipCustomerPlanIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tools/vip-customer-plan-backfill/': {
+      id: '/_authenticated/tools/vip-customer-plan-backfill/'
+      path: '/tools/vip-customer-plan-backfill'
+      fullPath: '/tools/vip-customer-plan-backfill/'
+      preLoaderRoute: typeof AuthenticatedToolsVipCustomerPlanBackfillIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tools/sales-transactions-vip-validity-repair/': {
+      id: '/_authenticated/tools/sales-transactions-vip-validity-repair/'
+      path: '/tools/sales-transactions-vip-validity-repair'
+      fullPath: '/tools/sales-transactions-vip-validity-repair/'
+      preLoaderRoute: typeof AuthenticatedToolsSalesTransactionsVipValidityRepairIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tools/sales-transactions-unit-repair/': {
+      id: '/_authenticated/tools/sales-transactions-unit-repair/'
+      path: '/tools/sales-transactions-unit-repair'
+      fullPath: '/tools/sales-transactions-unit-repair/'
+      preLoaderRoute: typeof AuthenticatedToolsSalesTransactionsUnitRepairIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tools/sales-transactions-product-id-repair/': {
+      id: '/_authenticated/tools/sales-transactions-product-id-repair/'
+      path: '/tools/sales-transactions-product-id-repair'
+      fullPath: '/tools/sales-transactions-product-id-repair/'
+      preLoaderRoute: typeof AuthenticatedToolsSalesTransactionsProductIdRepairIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tools/sales-export-inventory-rollback/': {
       id: '/_authenticated/tools/sales-export-inventory-rollback/'
       path: '/tools/sales-export-inventory-rollback'
@@ -1499,6 +1658,13 @@ declare module '@tanstack/react-router' {
       path: '/tools/inventory-account-over-sync-repair'
       fullPath: '/tools/inventory-account-over-sync-repair/'
       preLoaderRoute: typeof AuthenticatedToolsInventoryAccountOverSyncRepairIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/seminars/circulation-decisions/': {
+      id: '/_authenticated/seminars/circulation-decisions/'
+      path: '/seminars/circulation-decisions'
+      fullPath: '/seminars/circulation-decisions/'
+      preLoaderRoute: typeof AuthenticatedSeminarsCirculationDecisionsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/sales/returns/': {
@@ -1569,6 +1735,13 @@ declare module '@tanstack/react-router' {
       path: '/sales/ar-summary'
       fullPath: '/sales/ar-summary/'
       preLoaderRoute: typeof AuthenticatedSalesArSummaryIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sales/ar-overdue/': {
+      id: '/_authenticated/sales/ar-overdue/'
+      path: '/sales/ar-overdue'
+      fullPath: '/sales/ar-overdue/'
+      preLoaderRoute: typeof AuthenticatedSalesArOverdueIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/sales/ar-openings/': {
@@ -1739,6 +1912,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProductionBomsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/inventory/vouchers/': {
+      id: '/_authenticated/inventory/vouchers/'
+      path: '/inventory/vouchers'
+      fullPath: '/inventory/vouchers/'
+      preLoaderRoute: typeof AuthenticatedInventoryVouchersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/inventory/summary/': {
       id: '/_authenticated/inventory/summary/'
       path: '/inventory/summary'
@@ -1891,6 +2071,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAiAssistantIndexRoute: typeof AuthenticatedAiAssistantIndexRoute
   AuthenticatedCompaniesIndexRoute: typeof AuthenticatedCompaniesIndexRoute
   AuthenticatedCurrenciesIndexRoute: typeof AuthenticatedCurrenciesIndexRoute
   AuthenticatedCustomersIndexRoute: typeof AuthenticatedCustomersIndexRoute
@@ -1903,6 +2084,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProvincesIndexRoute: typeof AuthenticatedProvincesIndexRoute
   AuthenticatedPurchasingIndexRoute: typeof AuthenticatedPurchasingIndexRoute
   AuthenticatedRegionsIndexRoute: typeof AuthenticatedRegionsIndexRoute
+  AuthenticatedSeminarsIndexRoute: typeof AuthenticatedSeminarsIndexRoute
   AuthenticatedToolsIndexRoute: typeof AuthenticatedToolsIndexRoute
   AuthenticatedTransactionsIndexRoute: typeof AuthenticatedTransactionsIndexRoute
   AuthenticatedUserIndexRoute: typeof AuthenticatedUserIndexRoute
@@ -1922,6 +2104,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInventoryLotsIndexRoute: typeof AuthenticatedInventoryLotsIndexRoute
   AuthenticatedInventoryOutboundsIndexRoute: typeof AuthenticatedInventoryOutboundsIndexRoute
   AuthenticatedInventorySummaryIndexRoute: typeof AuthenticatedInventorySummaryIndexRoute
+  AuthenticatedInventoryVouchersIndexRoute: typeof AuthenticatedInventoryVouchersIndexRoute
   AuthenticatedProductionBomsIndexRoute: typeof AuthenticatedProductionBomsIndexRoute
   AuthenticatedProductionHistoryIndexRoute: typeof AuthenticatedProductionHistoryIndexRoute
   AuthenticatedProductionOrdersIndexRoute: typeof AuthenticatedProductionOrdersIndexRoute
@@ -1946,6 +2129,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSalesArAdjustmentsIndexRoute: typeof AuthenticatedSalesArAdjustmentsIndexRoute
   AuthenticatedSalesArLedgersIndexRoute: typeof AuthenticatedSalesArLedgersIndexRoute
   AuthenticatedSalesArOpeningsIndexRoute: typeof AuthenticatedSalesArOpeningsIndexRoute
+  AuthenticatedSalesArOverdueIndexRoute: typeof AuthenticatedSalesArOverdueIndexRoute
   AuthenticatedSalesArSummaryIndexRoute: typeof AuthenticatedSalesArSummaryIndexRoute
   AuthenticatedSalesCashBankLedgerIndexRoute: typeof AuthenticatedSalesCashBankLedgerIndexRoute
   AuthenticatedSalesDeliveriesIndexRoute: typeof AuthenticatedSalesDeliveriesIndexRoute
@@ -1956,12 +2140,17 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSalesPriceQuotesIndexRoute: typeof AuthenticatedSalesPriceQuotesIndexRoute
   AuthenticatedSalesReceiptsIndexRoute: typeof AuthenticatedSalesReceiptsIndexRoute
   AuthenticatedSalesReturnsIndexRoute: typeof AuthenticatedSalesReturnsIndexRoute
+  AuthenticatedSeminarsCirculationDecisionsIndexRoute: typeof AuthenticatedSeminarsCirculationDecisionsIndexRoute
   AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute: typeof AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute
   AuthenticatedToolsInventoryCostingDbCompareIndexRoute: typeof AuthenticatedToolsInventoryCostingDbCompareIndexRoute
   AuthenticatedToolsProductMergeIndexRoute: typeof AuthenticatedToolsProductMergeIndexRoute
   AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRoute: typeof AuthenticatedToolsPurchasingShipmentContractItemBackfillIndexRoute
   AuthenticatedToolsSalesExportArMissingRepairIndexRoute: typeof AuthenticatedToolsSalesExportArMissingRepairIndexRoute
   AuthenticatedToolsSalesExportInventoryRollbackIndexRoute: typeof AuthenticatedToolsSalesExportInventoryRollbackIndexRoute
+  AuthenticatedToolsSalesTransactionsProductIdRepairIndexRoute: typeof AuthenticatedToolsSalesTransactionsProductIdRepairIndexRoute
+  AuthenticatedToolsSalesTransactionsUnitRepairIndexRoute: typeof AuthenticatedToolsSalesTransactionsUnitRepairIndexRoute
+  AuthenticatedToolsSalesTransactionsVipValidityRepairIndexRoute: typeof AuthenticatedToolsSalesTransactionsVipValidityRepairIndexRoute
+  AuthenticatedToolsVipCustomerPlanBackfillIndexRoute: typeof AuthenticatedToolsVipCustomerPlanBackfillIndexRoute
   AuthenticatedVipCustomerPlanIndexRoute: typeof AuthenticatedVipCustomerPlanIndexRoute
   AuthenticatedVipCustomerTargetIndexRoute: typeof AuthenticatedVipCustomerTargetIndexRoute
   AuthenticatedVipCustomerIndexRoute: typeof AuthenticatedVipCustomerIndexRoute
@@ -1980,6 +2169,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAiAssistantIndexRoute: AuthenticatedAiAssistantIndexRoute,
   AuthenticatedCompaniesIndexRoute: AuthenticatedCompaniesIndexRoute,
   AuthenticatedCurrenciesIndexRoute: AuthenticatedCurrenciesIndexRoute,
   AuthenticatedCustomersIndexRoute: AuthenticatedCustomersIndexRoute,
@@ -1993,6 +2183,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProvincesIndexRoute: AuthenticatedProvincesIndexRoute,
   AuthenticatedPurchasingIndexRoute: AuthenticatedPurchasingIndexRoute,
   AuthenticatedRegionsIndexRoute: AuthenticatedRegionsIndexRoute,
+  AuthenticatedSeminarsIndexRoute: AuthenticatedSeminarsIndexRoute,
   AuthenticatedToolsIndexRoute: AuthenticatedToolsIndexRoute,
   AuthenticatedTransactionsIndexRoute: AuthenticatedTransactionsIndexRoute,
   AuthenticatedUserIndexRoute: AuthenticatedUserIndexRoute,
@@ -2022,6 +2213,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedInventoryOutboundsIndexRoute,
   AuthenticatedInventorySummaryIndexRoute:
     AuthenticatedInventorySummaryIndexRoute,
+  AuthenticatedInventoryVouchersIndexRoute:
+    AuthenticatedInventoryVouchersIndexRoute,
   AuthenticatedProductionBomsIndexRoute: AuthenticatedProductionBomsIndexRoute,
   AuthenticatedProductionHistoryIndexRoute:
     AuthenticatedProductionHistoryIndexRoute,
@@ -2064,6 +2257,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSalesArLedgersIndexRoute: AuthenticatedSalesArLedgersIndexRoute,
   AuthenticatedSalesArOpeningsIndexRoute:
     AuthenticatedSalesArOpeningsIndexRoute,
+  AuthenticatedSalesArOverdueIndexRoute: AuthenticatedSalesArOverdueIndexRoute,
   AuthenticatedSalesArSummaryIndexRoute: AuthenticatedSalesArSummaryIndexRoute,
   AuthenticatedSalesCashBankLedgerIndexRoute:
     AuthenticatedSalesCashBankLedgerIndexRoute,
@@ -2079,6 +2273,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedSalesPriceQuotesIndexRoute,
   AuthenticatedSalesReceiptsIndexRoute: AuthenticatedSalesReceiptsIndexRoute,
   AuthenticatedSalesReturnsIndexRoute: AuthenticatedSalesReturnsIndexRoute,
+  AuthenticatedSeminarsCirculationDecisionsIndexRoute:
+    AuthenticatedSeminarsCirculationDecisionsIndexRoute,
   AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute:
     AuthenticatedToolsInventoryAccountOverSyncRepairIndexRoute,
   AuthenticatedToolsInventoryCostingDbCompareIndexRoute:
@@ -2091,6 +2287,14 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedToolsSalesExportArMissingRepairIndexRoute,
   AuthenticatedToolsSalesExportInventoryRollbackIndexRoute:
     AuthenticatedToolsSalesExportInventoryRollbackIndexRoute,
+  AuthenticatedToolsSalesTransactionsProductIdRepairIndexRoute:
+    AuthenticatedToolsSalesTransactionsProductIdRepairIndexRoute,
+  AuthenticatedToolsSalesTransactionsUnitRepairIndexRoute:
+    AuthenticatedToolsSalesTransactionsUnitRepairIndexRoute,
+  AuthenticatedToolsSalesTransactionsVipValidityRepairIndexRoute:
+    AuthenticatedToolsSalesTransactionsVipValidityRepairIndexRoute,
+  AuthenticatedToolsVipCustomerPlanBackfillIndexRoute:
+    AuthenticatedToolsVipCustomerPlanBackfillIndexRoute,
   AuthenticatedVipCustomerPlanIndexRoute:
     AuthenticatedVipCustomerPlanIndexRoute,
   AuthenticatedVipCustomerTargetIndexRoute:

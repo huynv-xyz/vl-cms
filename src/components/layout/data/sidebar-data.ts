@@ -37,6 +37,7 @@
     Scale,
     CalendarDays,
     ScrollText,
+    Sparkles,
 } from 'lucide-react'
 import { SidebarData } from '../types'
 import { Logo } from '@/assets/logo'
@@ -50,6 +51,16 @@ export const sidebarData: SidebarData = {
         }
     ],
     navGroups: [
+        {
+            title: 'Trợ lý AI',
+            items: [
+                {
+                    title: 'Trợ lý điều hành',
+                    url: '/ai-assistant',
+                    icon: Sparkles,
+                },
+            ],
+        },
         {
             title: 'Dữ liệu',
             items: [
