@@ -123,7 +123,7 @@ export function ContractTable({
                     <SearchOnBlurInput
                         value={keyword}
                         onChange={onKeywordChange}
-                        placeholder="Tìm theo mã HĐ, mã SP, tên SP..."
+                        placeholder="Tìm theo mã HĐ, mã SP, tên SP, nhà cung cấp..."
                         wrapperClassName="relative h-10 min-w-[280px] flex-[1.2_1_0]"
                         className="h-10 rounded-md border-slate-300 bg-white pl-10 shadow-xs"
                     />

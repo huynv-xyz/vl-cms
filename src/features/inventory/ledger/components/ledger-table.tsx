@@ -33,6 +33,7 @@ import {
     checkDocumentPostingTimeChange,
     checkInboundWarehouseChange,
     checkLedgerAmountChange,
+    clearLedgerAmountOverride,
     checkLegacyPostingTimeNormalization,
     checkOtherExportLineDelete,
     checkOtherInboundLineDelete,
@@ -2340,10 +2341,11 @@ function LedgerRow({
     const quantityOut = Number(item.quantity_out || 0)
     const openingBalance = Number(item.balance_quantity || 0) - quantityIn + quantityOut
     const rowUnitPrice = Number(item.unit_price || 0)
+    const rowAmount = Math.abs(Number(item.amount || 0))
     const closingBalance = Number(item.balance_quantity || 0)
     const openingValue = openingBalance * rowUnitPrice
-    const inboundValue = quantityIn * rowUnitPrice
-    const outboundValue = quantityOut * rowUnitPrice
+    const inboundValue = quantityIn ? rowAmount : 0
+    const outboundValue = quantityOut ? rowAmount : 0
     const closingValue = closingBalance * rowUnitPrice
     const centerVoucherFields = Boolean(direction)
 
@@ -4696,7 +4698,8 @@ function SalesReturnUnitPriceChangeDialog({
     const pricingSourcePreview = Number.isFinite(newUnitPrice) && newUnitPrice > 0
         ? "Theo giá nhập tay/import"
         : contextResult?.pricing_source || (originalSaleUnitPrice > 0 ? "Theo chứng từ xuất bán gốc" : "Chưa có giá nguồn")
-    const appliedSourceLabel = contextResult?.applied_source === "SALES_RETURN_MANUAL"
+    const appliedSourceLabel = ["SALES_RETURN_MANUAL", "COST_OVERRIDE_MANUAL_UI", "COST_OVERRIDE_FILE_IMPORT"]
+        .includes(String(contextResult?.applied_source || ""))
         ? "Theo giá nhập tay/import"
         : contextResult?.applied_source === "SALES_RETURN_ORIGINAL"
         ? "Theo chứng từ xuất bán gốc"
@@ -4728,7 +4731,19 @@ function SalesReturnUnitPriceChangeDialog({
         },
     })
 
-    const busy = checkMutation.isPending || applyMutation.isPending
+    const clearMutation = useMutation({
+        mutationFn: () => applySalesReturnUnitPriceChange(Number(row?.id), 0),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            onChanged()
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không bỏ được giá vốn cố định.")
+        },
+    })
+
+    const busy = checkMutation.isPending || applyMutation.isPending || clearMutation.isPending
     const canCheck = Boolean(row && Number.isFinite(newUnitPrice) && newUnitPrice >= 0 && !unchanged && !busy)
     const canApply = Boolean(result?.valid && !result.applied && !unchanged && !busy)
 
@@ -4810,6 +4825,12 @@ function SalesReturnUnitPriceChangeDialog({
                 ) : null}
 
                 <div className="flex justify-end gap-2 border-t pt-3">
+                    {contextResult?.can_clear_override ? (
+                        <Button type="button" variant="outline" disabled={busy} onClick={() => clearMutation.mutate()}>
+                            {clearMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                            Dùng lại giá xuất bán gốc
+                        </Button>
+                    ) : null}
                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                         Đóng
                     </Button>
@@ -4893,9 +4914,13 @@ function LedgerAmountChangeDialog({
 
     useEffect(() => {
         if (open && row) {
-            setAmountText(String(Math.abs(Number(row.amount || 0))))
+            const currentAmount = Math.abs(Number(row.amount || 0))
+            setAmountText(String(currentAmount))
             setResult(null)
             setErrorMessage("")
+            checkLedgerAmountChange(Number(row.id), currentAmount)
+                .then(setResult)
+                .catch(() => undefined)
         }
     }, [open, row])
 
@@ -4929,10 +4954,24 @@ function LedgerAmountChangeDialog({
         },
     })
 
-    const busy = checkMutation.isPending || applyMutation.isPending
+    const clearMutation = useMutation({
+        mutationFn: () => clearLedgerAmountOverride(Number(row?.id)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            onChanged()
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không bỏ được giá vốn cố định.")
+        },
+    })
+
+    const busy = checkMutation.isPending || applyMutation.isPending || clearMutation.isPending
     const canCheck = Boolean(row && Number.isFinite(newTotalAmount) && newTotalAmount >= 0 && !unchanged && !busy)
     const canApply = Boolean(result?.valid && !result.applied && !unchanged && !busy)
     const directionLabel = String(row?.doc_type || "").toUpperCase() === "OTHER_EXPORT" ? "xuất" : "nhập"
+    const usesCostOverride = ["PURCHASE_RETURN", "OTHER_INBOUND", "TRANSFER_EXPORT", "OTHER_EXPORT"]
+        .includes(String(row?.doc_type || "").toUpperCase())
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -4941,9 +4980,11 @@ function LedgerAmountChangeDialog({
                 style={{ width: "min(980px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
             >
                 <DialogHeader>
-                    <DialogTitle>Sửa tổng giá trị</DialogTitle>
+                    <DialogTitle>{usesCostOverride ? "Sửa giá vốn cố định" : "Sửa tổng giá trị"}</DialogTitle>
                     <DialogDescription>
-                        Nhập tổng giá trị dương theo chứng từ cũ. Hệ thống giữ dấu sổ kho hiện tại và tính ngược đơn giá với 3 chữ số thập phân.
+                        {usesCostOverride
+                            ? "Giá này được giữ nguyên khi tính lại kỳ. Với chuyển kho, hệ thống cập nhật đồng thời cả dòng xuất và dòng nhập."
+                            : "Nhập tổng giá trị dương theo chứng từ cũ. Hệ thống giữ dấu sổ kho hiện tại và tính ngược đơn giá."}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -5000,6 +5041,12 @@ function LedgerAmountChangeDialog({
                 ) : null}
 
                 <div className="flex justify-end gap-2 border-t pt-3">
+                    {result?.can_clear_override ? (
+                        <Button type="button" variant="outline" disabled={busy} onClick={() => clearMutation.mutate()}>
+                            {clearMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                            Dùng lại giá hệ thống
+                        </Button>
+                    ) : null}
                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                         Đóng
                     </Button>
@@ -7143,7 +7190,8 @@ function ScopedVoucherCorrectionActions({
         actions.push({ label: "Đổi kho nhập", icon: <WarehouseIcon className="h-3.5 w-3.5" />, onClick: () => onChangeInboundWarehouse(row), isNew: true })
     }
     if (isLedgerAmountCorrectionLedger(row) && onChangeLedgerAmount) {
-        actions.push({ label: "Sửa tổng giá trị", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangeLedgerAmount(row), isNew: true })
+        const overridePrice = ["PURCHASE_RETURN", "OTHER_INBOUND", "TRANSFER_EXPORT", "OTHER_EXPORT"].includes(docType)
+        actions.push({ label: overridePrice ? "Sửa giá vốn cố định" : "Sửa tổng giá trị", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangeLedgerAmount(row), isNew: true })
     }
     if (isSalesReturnUnitPriceCorrectionLedger(row) && onChangeSalesReturnUnitPrice) {
         actions.push({ label: "Sửa đơn giá nhập trả", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangeSalesReturnUnitPrice(row) })
@@ -7624,8 +7672,12 @@ function isLedgerAmountCorrectionLedger(item: InventoryLedgerReportRow) {
     if (["IMPORT_PURCHASE", "DOMESTIC_PURCHASE", "OTHER_INBOUND"].includes(docType)) {
         return Number(item.quantity_in || 0) > 0 && Boolean(item.lot_code)
     }
-    if (docType === "OTHER_EXPORT") {
+    if (["OTHER_EXPORT", "PURCHASE_RETURN"].includes(docType)) {
         return Number(item.quantity_out || 0) > 0 && Boolean(item.lot_code)
+    }
+    if (docType === "TRANSFER_EXPORT") {
+        return (Number(item.quantity_out || 0) > 0 || Number(item.quantity_in || 0) > 0)
+            && Boolean(item.lot_code)
     }
     return false
 }

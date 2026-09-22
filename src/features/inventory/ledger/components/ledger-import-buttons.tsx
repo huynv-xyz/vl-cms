@@ -638,7 +638,7 @@ export function LedgerImportButtons() {
                                     đã đúng sẵn {normalized.alreadyCorrect} dòng, bỏ qua {normalized.skipped} dòng,
                                     lỗi {normalized.failed} dòng
                                     {normalized.splitInserted > 0 ? `, tách thêm ${normalized.splitInserted} dòng DB theo file` : ""}
-                                    {normalized.staleCostPeriods > 0 ? `, đánh dấu tính lại ${normalized.staleCostPeriods} kỳ costing` : ""}.
+                                    {normalized.staleCostPeriods > 0 ? `, đánh dấu tính lại ${normalized.staleCostPeriods} kỳ tính giá` : ""}.
                                 </>
                             ) : (
                                 <>
@@ -1471,15 +1471,17 @@ function productionCostObjectGuide(inputRef: RefObject<HTMLInputElement | null>)
 function ledgerPriceGuide(inputRef: RefObject<HTMLInputElement | null>): ImportGuide {
     return {
         title: "Import giá nhập/xuất khác",
-        description: "File này chỉ cập nhật Tổng giá trị và đơn giá tính ngược cho các dòng Sổ kho đã có, không tạo giao dịch mới.",
+        description: "File này ghi nhận giá vốn cố định cho các dòng Sổ kho đã có. Giá đã import được giữ nguyên khi tính lại kỳ.",
         columns: LEDGER_PRICE_IMPORT_REQUIRED_COLUMNS,
         notes: [
             "Chỉ xử lý các loại chứng từ: Hàng mua trả lại - Giảm trừ công nợ, Nhập kho khác, Nhập kho từ hàng bán trả lại, Xuất chuyển kho nội bộ, Xuất kho khác.",
             "Dòng nhập lấy số lượng ở cột Nhập; dòng xuất lấy số lượng ở cột Xuất. Riêng Xuất chuyển kho nội bộ có thể có cả dòng Nhập và dòng Xuất tương ứng.",
+            "Xuất chuyển kho nội bộ bắt buộc có đủ dòng nhập và dòng xuất trong cùng file; Tổng giá trị hai phía phải bằng nhau và được cập nhật trong một transaction.",
             "Cột Tổng giá trị trong file nhập là số dương. Với dòng xuất, hệ thống vẫn lưu amount âm trong DB nhưng trị tuyệt đối sẽ khớp đúng Tổng giá trị file.",
             "Ngày chứng từ bắt buộc nhập theo định dạng dd/MM/yyyy hoặc dd-MM-yyyy.",
             "Hệ thống tính unit_price = Tổng giá trị / Số lượng với phần thập phân cao và được phép ghi đè giá cũ khi dòng sổ kho match rõ ràng.",
-            "Không cập nhật giá trong Tồn theo lô; chỉ cập nhật inventory_ledger và chi tiết phiếu nếu dòng sổ kho có liên kết phiếu. Nếu có lỗi ở bất kỳ dòng nào, toàn bộ file rollback.",
+            "Sau khi cập nhật, hệ thống tính lại số lượng và đơn giá gốc của lô trong Tồn theo lô với precision 10 chữ số thập phân.",
+            "Kỳ chứa dòng được sửa và các kỳ đã tính sau đó sẽ được đánh dấu cần tính lại. Nếu có lỗi ở bất kỳ dòng nào, toàn bộ file rollback.",
         ],
         inputRef,
     }

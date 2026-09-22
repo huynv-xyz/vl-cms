@@ -677,6 +677,10 @@ export type SalesReturnUnitPriceChangeResult = {
     current_amount: number
     manual_unit_price?: number | null
     manual_amount?: number | null
+    override_unit_price?: number | null
+    override_amount?: number | null
+    override_source?: string | null
+    can_clear_override?: boolean
     applied_unit_price?: number | null
     applied_amount?: number | null
     applied_source?: string | null
@@ -996,6 +1000,11 @@ export type LedgerAmountChangeResult = {
     new_ledger_amount: number
     new_voucher_item_amount: number
     delta_amount: number
+    override_unit_price?: number | null
+    override_amount?: number | null
+    override_source?: string | null
+    can_clear_override?: boolean
+    cleared?: boolean
     errors: string[]
     warnings: string[]
     changes: Record<string, number>
@@ -1011,6 +1020,10 @@ export function applyLedgerAmountChange(ledgerId: number, newTotalAmount: number
     return apiPost<LedgerAmountChangeResult>(`/inventory/ledger/${ledgerId}/amount-change/apply`, {
         newTotalAmount,
     })
+}
+
+export function clearLedgerAmountOverride(ledgerId: number) {
+    return apiPost<LedgerAmountChangeResult>(`/inventory/ledger/${ledgerId}/amount-change/clear-override`, {})
 }
 
 export type OtherExportLineDeleteResult = {
