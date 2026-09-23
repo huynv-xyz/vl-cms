@@ -8,6 +8,8 @@ import {
   Bot,
   Boxes,
   Check,
+  ClipboardCheck,
+  TrendingDown,
   Clock3,
   Copy,
   Database,
@@ -182,6 +184,64 @@ export default function AiChatPage({
     );
     const values: Suggestion[] = [];
     if (permissions.has("ai.sales.view")) {
+      values.push(
+        {
+          title: "Doanh thu theo khách hàng",
+          prompt:
+            "Tổng hợp doanh thu theo khách hàng tháng này, sắp xếp từ cao xuống thấp và kèm tỷ suất lợi nhuận",
+          description: "Doanh thu, lợi nhuận và tỷ suất",
+          icon: User,
+          tone: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
+        },
+        {
+          title: "Doanh thu theo nhóm hàng",
+          prompt:
+            "Tổng hợp doanh thu theo nhóm hàng tháng này, sắp xếp từ cao xuống thấp",
+          description: "So sánh các nhóm sản phẩm",
+          icon: Boxes,
+          tone: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+        },
+        {
+          title: "Doanh thu theo nhân viên",
+          prompt:
+            "Tổng hợp doanh thu theo nhân viên sale tháng này, sắp xếp từ cao xuống thấp",
+          description: "Xếp hạng đội ngũ bán hàng",
+          icon: User,
+          tone: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
+        },
+        {
+          title: "Doanh thu theo vùng",
+          prompt:
+            "Tổng hợp doanh thu theo vùng tháng này, sắp xếp từ cao xuống thấp",
+          description: "So sánh hiệu quả từng vùng",
+          icon: BarChart3,
+          tone: "bg-teal-500/10 text-teal-700 dark:text-teal-300",
+        },
+        {
+          title: "Dữ liệu cần sửa",
+          prompt:
+            "Liệt kê chứng từ tháng này thiếu hoặc không khớp giá vốn, ưu tiên doanh thu lớn và chỉ rõ nhân viên cần đối chiếu gì",
+          description: "Chứng từ, vấn đề và cách xử lý",
+          icon: ClipboardCheck,
+          tone: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+        },
+        {
+          title: "Biên lợi nhuận thấp",
+          prompt:
+            "Những mặt hàng nào có chênh lệch doanh thu so giá vốn dưới 10% trong tháng trước? Ưu tiên mặt hàng doanh thu lớn và đề xuất việc cần kiểm tra",
+          description: "Phát hiện sớm, đối chiếu đúng",
+          icon: BarChart3,
+          tone: "bg-teal-500/10 text-teal-700 dark:text-teal-300",
+        },
+        {
+          title: "Khách hàng giảm mua",
+          prompt:
+            "Khách hàng nào giảm doanh thu ít nhất 20% trong tháng trước so với kỳ liền trước cùng số ngày? Ưu tiên số tiền giảm và đề xuất chăm sóc",
+          description: "So sánh hai kỳ, ưu tiên chăm sóc",
+          icon: TrendingDown,
+          tone: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
+        },
+      );
       values.push({
         title: "Phân tích doanh thu",
         prompt:
@@ -242,7 +302,19 @@ export default function AiChatPage({
         (item) => `${item.module}.${item.action}`,
       ),
     );
-    const items: PromptSuggestion[] = [];
+    const items: PromptSuggestion[] = suggestions
+      .filter((item) =>
+        [
+          "Dữ liệu cần sửa",
+          "Biên lợi nhuận thấp",
+          "Khách hàng giảm mua",
+        ].includes(item.title),
+      )
+      .map((item) => ({
+        ...item,
+        category: "sales",
+        keywords: `${item.title} ${item.prompt} gia von loi nhuan du lieu thieu khach giam mua`,
+      }));
     const add = (
       category: PromptCategory,
       title: string,
@@ -621,7 +693,7 @@ export default function AiChatPage({
     return Array.from(
       new Map(items.map((item) => [item.prompt, item])).values(),
     );
-  }, [permissionsQuery.data]);
+  }, [permissionsQuery.data, suggestions]);
 
   const lastUserQuestion = useMemo(
     () =>
@@ -783,7 +855,7 @@ export default function AiChatPage({
     >
       <div
         className={cn(
-          "items-start justify-between gap-4",
+          "items-start justify-between gap-4 border-b px-6 py-5",
           embedded ? "hidden" : "flex",
         )}
       >
@@ -796,7 +868,7 @@ export default function AiChatPage({
               </h1>
             </div>
             <p className="text-muted-foreground mt-1 text-sm">
-              Hỏi nhanh về doanh thu và công nợ từ dữ liệu VLife.
+              Từ dữ liệu kinh doanh đến việc cần làm tiếp.
             </p>
           </div>
         )}
@@ -813,7 +885,7 @@ export default function AiChatPage({
       </div>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-72 shrink-0 flex-col border-r bg-background lg:flex">
+        <aside className="hidden w-60 shrink-0 flex-col border-r border-border/60 bg-muted/20 lg:flex">
           <div className="space-y-2 border-b p-4">
             <Button className="w-full justify-start" onClick={newConversation}>
               <MessageSquarePlus className="size-4" /> Hội thoại mới
@@ -890,6 +962,7 @@ export default function AiChatPage({
             <Button
               variant="outline"
               size="icon"
+              aria-label="Tổng quan trợ lý"
               onClick={() => {
                 setShowOverview(true);
                 setShowGuide(false);
@@ -910,6 +983,7 @@ export default function AiChatPage({
             </Button>
             <select
               className="h-9 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm"
+              aria-label="Chọn hội thoại"
               value={
                 showOverview
                   ? "overview"
@@ -937,7 +1011,11 @@ export default function AiChatPage({
                 </option>
               ))}
             </select>
-            <Button size="icon" onClick={newConversation}>
+            <Button
+              size="icon"
+              aria-label="Hội thoại mới"
+              onClick={newConversation}
+            >
               <MessageSquarePlus className="size-4" />
             </Button>
           </div>
@@ -945,28 +1023,33 @@ export default function AiChatPage({
             className="min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto bg-muted/20 scroll-smooth"
             aria-live="polite"
           >
-            <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+            <div
+              className={cn(
+                "mx-auto w-full space-y-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-10",
+                (showOverview || showGuide) && "max-w-4xl",
+              )}
+            >
               {showOverview && (
-                <div className="flex min-h-[calc(100vh-15rem)] flex-col justify-center py-8">
-                  <div className="mx-auto mb-8 max-w-2xl text-center">
+                <div className="flex flex-col justify-center py-4 sm:py-8">
+                  <div className="mb-8 max-w-2xl text-left">
                     <span className="from-primary/15 to-primary/5 text-primary mb-5 inline-flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br ring-1 ring-primary/15">
                       <Sparkles className="size-8" />
                     </span>
                     <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                      Hôm nay tôi có thể hỗ trợ gì?
+                      Điều gì cần chú ý hôm nay?
                     </h2>
-                    <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-sm leading-6">
-                      Phân tích dữ liệu điều hành VLife, phát hiện điểm bất
-                      thường và mở nhanh báo cáo chi tiết.
+                    <p className="text-muted-foreground mt-3 max-w-xl text-sm leading-6">
+                      Nắm tình hình kinh doanh, tìm dữ liệu cần bổ sung và xác
+                      định việc nên làm tiếp — từ số liệu của doanh nghiệp.
                     </p>
                   </div>
                   {suggestions.length > 0 ? (
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {suggestions.map((suggestion) => (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {suggestions.slice(0, 6).map((suggestion) => (
                         <Button
                           key={suggestion.prompt}
                           variant="outline"
-                          className="group h-auto min-h-28 justify-start whitespace-normal rounded-xl border-border/70 bg-background p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+                          className="group h-auto min-h-24 justify-start whitespace-normal rounded-2xl border-border/60 bg-background p-5 text-left shadow-none transition-colors hover:border-primary/40 hover:bg-primary/[0.03]"
                           onClick={() => submit(suggestion.prompt)}
                           disabled={mutation.isPending}
                         >
@@ -1039,7 +1122,7 @@ export default function AiChatPage({
                         key={message.id}
                         className="flex justify-end gap-3 py-1"
                       >
-                        <div className="from-primary to-primary/85 text-primary-foreground max-w-[75%] rounded-2xl rounded-tr-md bg-gradient-to-br px-5 py-3 text-sm leading-6 shadow-sm">
+                        <div className="bg-primary/10 text-foreground max-w-[88%] rounded-2xl rounded-tr-md px-5 py-3 text-sm leading-6 sm:max-w-[75%]">
                           {message.content}
                         </div>
                         <User className="bg-background size-9 shrink-0 rounded-xl border p-2 shadow-sm" />
@@ -1124,14 +1207,14 @@ export default function AiChatPage({
             </div>
           </div>
 
-          {!showOverview && !showGuide && (
+          {!showGuide && (
             <div
               className={cn(
                 "bg-background/95 shrink-0 border-t px-3 py-3 backdrop-blur sm:px-6 sm:py-4",
                 !embedded && "sticky bottom-0",
               )}
             >
-              <div className="relative mx-auto w-full max-w-5xl min-w-0">
+              <div className="relative mx-auto w-full max-w-4xl min-w-0">
                 {showPromptSuggestions && (
                   <div className="absolute right-0 bottom-[calc(100%+0.6rem)] left-0 z-30 overflow-hidden rounded-xl border bg-popover shadow-xl">
                     <div className="flex items-center justify-between border-b px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1190,7 +1273,7 @@ export default function AiChatPage({
                     validationError && "border-destructive/70",
                   )}
                 >
-                  <div className="flex items-center justify-between border-b border-border/60 bg-muted/20 px-4 py-2.5">
+                  <div className="flex items-center justify-between px-4 pt-3 pb-1">
                     <div className="flex min-w-0 items-center gap-2.5">
                       <span className="bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-lg">
                         <Sparkles className="size-3.5" />
@@ -1206,11 +1289,12 @@ export default function AiChatPage({
                     </div>
                     <span className="text-muted-foreground hidden items-center gap-1.5 text-[10px] sm:flex">
                       <span className="size-1.5 rounded-full bg-emerald-500" />{" "}
-                      Dữ liệu trực tiếp
+                      Theo quyền truy cập
                     </span>
                   </div>
                   <div className="relative">
                     <Textarea
+                      aria-label="Câu hỏi cho trợ lý điều hành"
                       value={draft}
                       maxLength={MAX_MESSAGE_LENGTH}
                       placeholder="Đặt câu hỏi hoặc yêu cầu phân tích, ví dụ: So sánh doanh thu tháng này với kỳ trước…"
@@ -1251,7 +1335,11 @@ export default function AiChatPage({
                           setActiveSuggestionIndex(-1);
                           return;
                         }
-                        if (event.key === "Enter" && !event.shiftKey) {
+                        if (
+                          event.key === "Enter" &&
+                          !event.shiftKey &&
+                          !event.nativeEvent.isComposing
+                        ) {
                           event.preventDefault();
                           if (
                             showPromptSuggestions &&
@@ -1335,6 +1423,24 @@ const guideCapabilities = [
     prompts: [
       "Tổng quan tình hình kinh doanh tháng này và các vấn đề cần chú ý",
       "Phân tích doanh thu tháng này theo tuần và so sánh kỳ trước",
+      "Tổng hợp doanh thu theo khách hàng tháng này, sắp xếp từ cao xuống thấp và kèm tỷ suất lợi nhuận",
+      "Tổng hợp doanh thu theo nhóm hàng tháng này, sắp xếp từ cao xuống thấp",
+      "Tổng hợp doanh thu theo nhân viên sale tháng này, sắp xếp từ cao xuống thấp",
+      "Tổng hợp doanh thu theo vùng tháng này, sắp xếp từ cao xuống thấp",
+      "So sánh doanh thu tháng này với tháng trước và cùng kỳ năm trước",
+      "Top 10 khách hàng có doanh thu cao nhất tháng này",
+      "Top 10 sản phẩm có doanh thu cao nhất tháng này",
+      "Những khách hàng có doanh thu giảm mạnh so với tháng trước",
+      "Nhân viên sale nào chưa đạt doanh thu kỳ vọng trong tháng này?",
+      "Vùng nào có doanh thu tăng trưởng tốt nhất trong 3 tháng gần đây?",
+      "Nhóm hàng nào đang đóng góp nhiều doanh thu nhất?",
+      "Phân tích doanh thu, giá vốn, lợi nhuận và tỷ suất lợi nhuận tháng này",
+      "Sản phẩm nào có chênh lệch giá bán so với giá vốn dưới 10% tháng này?",
+      "Khách hàng nào có tỷ suất lợi nhuận dưới 10% tháng này?",
+      "Doanh thu trả lại tháng này là bao nhiêu và tập trung ở sản phẩm nào?",
+      "Ngày nào có doanh thu cao nhất và thấp nhất trong tháng này?",
+      "Dự báo xu hướng doanh thu cuối tháng dựa trên số liệu hiện tại",
+      "Nêu 5 cơ hội và rủi ro kinh doanh đáng chú ý nhất hiện nay",
     ],
   },
   {
@@ -1347,6 +1453,24 @@ const guideCapabilities = [
     prompts: [
       "Có những đơn hàng nào chưa giao hoặc đang quá hạn?",
       "Phân tích tỷ lệ giao hàng đúng hạn tháng này theo sale",
+      "Tổng hợp số đơn hàng theo trạng thái trong tháng này",
+      "Đơn hàng nào cần ưu tiên xử lý hôm nay?",
+      "Top 20 đơn hàng có giá trị lớn nhất chưa hoàn tất",
+      "Những đơn hàng nào đã xác nhận nhưng chưa giao?",
+      "Những đơn hàng nào giao thiếu so với số lượng đặt?",
+      "Những đơn hàng nào giao trễ trên 7 ngày?",
+      "Khách hàng nào có nhiều đơn giao trễ nhất tháng này?",
+      "Nhân viên sale nào có nhiều đơn chưa hoàn tất nhất?",
+      "Phân tích giá trị đơn hàng theo trạng thái trong tháng này",
+      "So sánh số đơn và giá trị đơn hàng tháng này với tháng trước",
+      "Tỷ lệ hoàn thành đơn hàng theo từng nhân viên sale",
+      "Tỷ lệ giao hàng đúng hạn theo từng vùng",
+      "Đơn hàng nào có ngày giao dự kiến trong 7 ngày tới?",
+      "Đơn hàng nào chưa có ngày giao dự kiến?",
+      "Đơn hàng nào bị hủy trong tháng này và tổng giá trị bao nhiêu?",
+      "Khách hàng nào đặt nhiều đơn nhất trong tháng này?",
+      "Sản phẩm nào xuất hiện nhiều nhất trong các đơn chưa giao?",
+      "Tóm tắt các vấn đề đơn hàng cần xử lý trước trong hôm nay",
     ],
   },
   {
@@ -1361,6 +1485,23 @@ const guideCapabilities = [
       "Mỗi sale đang phụ trách bao nhiêu khách hàng?",
       "Sale Hà Duy Phú đang phụ trách những khách hàng nào?",
       "Khách hàng nào đã hơn 90 ngày chưa mua hàng?",
+      "Khách hàng nào cần chăm sóc lại?",
+      "Khách hàng nào chưa được phân công nhân viên phụ trách?",
+      "Top 20 khách hàng có doanh thu cao nhất tháng này",
+      "Khách hàng nào có doanh thu giảm so với tháng trước?",
+      "Khách hàng mới phát sinh giao dịch trong tháng này là ai?",
+      "Khách hàng nào ngừng mua hàng trong 60 ngày gần đây?",
+      "Khách hàng nào mua hàng thường xuyên nhất trong 6 tháng gần đây?",
+      "Khách hàng nào có giá trị đơn hàng trung bình cao nhất?",
+      "Khách hàng nào có tỷ suất lợi nhuận thấp hơn 10%?",
+      "Phân nhóm khách hàng theo doanh thu trong năm nay",
+      "Tổng hợp doanh thu và lợi nhuận của từng khách hàng tháng này",
+      "Khách hàng nào vừa có doanh thu cao vừa có công nợ lớn?",
+      "Khách hàng nào có nhiều lần trả hàng nhất trong năm nay?",
+      "Top khách hàng tăng trưởng doanh thu tốt nhất trong 3 tháng gần đây",
+      "Mỗi vùng hiện có bao nhiêu khách hàng đang hoạt động?",
+      "Mỗi nhân viên sale có bao nhiêu khách hàng đã mua trong tháng này?",
+      "Đề xuất danh sách khách hàng nên ưu tiên chăm sóc tuần này",
     ],
   },
   {
@@ -1373,6 +1514,24 @@ const guideCapabilities = [
     prompts: [
       "Phân tích công nợ tháng này theo tuần",
       "Top 10 khách hàng có dư công nợ lớn nhất đến hôm nay",
+      "Top 10 khách hàng có dư công nợ lớn nhất và nhận định rủi ro, kèm tỷ suất lợi nhuận",
+      "Tổng dư công nợ phải thu hiện tại là bao nhiêu?",
+      "Khách hàng nào có công nợ quá hạn lớn nhất?",
+      "Phân loại công nợ theo thời gian quá hạn",
+      "Công nợ phát sinh và đã thu trong tháng này là bao nhiêu?",
+      "So sánh dư công nợ hiện tại với cuối tháng trước",
+      "Nhân viên sale nào đang quản lý nhiều công nợ nhất?",
+      "Tổng hợp công nợ theo vùng từ cao xuống thấp",
+      "Khách hàng nào vừa nợ lớn vừa lâu không mua hàng?",
+      "Khách hàng nào có dư nợ tăng mạnh trong tháng này?",
+      "Khách hàng nào đã giảm công nợ nhiều nhất trong tháng này?",
+      "Liệt kê các khoản phải thu đến hạn trong 7 ngày tới",
+      "Liệt kê các khoản phải thu đã quá hạn trên 30 ngày",
+      "Top khách hàng có tỷ lệ công nợ trên doanh thu cao nhất",
+      "Công nợ của từng khách hàng do sale Hà Duy Phú phụ trách",
+      "Ước tính số tiền có thể thu trong tháng này từ các khoản đến hạn",
+      "Khách hàng nào cần liên hệ thu hồi công nợ trước?",
+      "Nêu các rủi ro công nợ và đề xuất việc cần làm ngay",
     ],
   },
   {
@@ -1385,6 +1544,24 @@ const guideCapabilities = [
     prompts: [
       "Top sản phẩm có lượng tồn kho lớn nhất hiện nay",
       "Có lô hàng nào sắp hết hạn trong 30 ngày tới không?",
+      "Tổng giá trị tồn kho hiện tại là bao nhiêu?",
+      "Có sản phẩm nào đang tồn kho âm không?",
+      "Sản phẩm nào đã hết hàng?",
+      "Sản phẩm nào đang dưới mức tồn kho an toàn?",
+      "Top 20 sản phẩm tồn kho lâu nhất hiện nay",
+      "Sản phẩm nào tồn kho nhiều nhưng bán chậm trong 90 ngày gần đây?",
+      "Sản phẩm nào có nguy cơ thiếu hàng dựa trên tốc độ bán gần đây?",
+      "Tổng hợp tồn kho theo nhóm hàng",
+      "Tổng hợp tồn kho theo từng kho",
+      "Lô hàng nào đã hết hạn nhưng vẫn còn tồn?",
+      "Lô hàng nào sẽ hết hạn trong 60 ngày tới?",
+      "Giá trị hàng sắp hết hạn trong 30 ngày tới là bao nhiêu?",
+      "Sản phẩm nào có chênh lệch tồn kho bất thường?",
+      "So sánh tồn kho hiện tại với cuối tháng trước",
+      "Những sản phẩm nào không phát sinh bán trong 6 tháng nhưng vẫn còn tồn?",
+      "Top sản phẩm có tốc độ luân chuyển kho nhanh nhất",
+      "Top sản phẩm có tốc độ luân chuyển kho chậm nhất",
+      "Đề xuất danh sách hàng cần nhập thêm hoặc xử lý tồn kho",
     ],
   },
   {
@@ -1397,6 +1574,24 @@ const guideCapabilities = [
     prompts: [
       "Trong 30 ngày tới có những lô hàng nào dự kiến về?",
       "Tuần này đã thực nhập những mặt hàng nào?",
+      "Hôm nay có lô hàng nào dự kiến về không?",
+      "Trong 7 ngày tới có những lô hàng nào dự kiến về?",
+      "Lô hàng nào đang vận chuyển nhưng đã trễ ngày dự kiến?",
+      "Tổng giá trị hàng đang vận chuyển là bao nhiêu?",
+      "Tổng hợp hàng đang về theo nhà cung cấp",
+      "Tổng hợp hàng đang về theo nhóm sản phẩm",
+      "Nhà cung cấp nào có nhiều lô đang vận chuyển nhất?",
+      "Nhà cung cấp nào thường xuyên giao trễ?",
+      "Lô hàng nào chưa có ngày dự kiến về?",
+      "Lô hàng nào đã về nhưng chưa nhập kho đầy đủ?",
+      "So sánh số lượng dự kiến và số lượng thực nhập trong tháng này",
+      "Những sản phẩm nào sẽ được bổ sung trong 14 ngày tới?",
+      "Sản phẩm sắp hết hàng nào đang có lô trên đường về?",
+      "Có lô hàng nào bị lỗi hoặc bị từ chối nhập không?",
+      "Tháng này đã nhập kho bao nhiêu lô hàng và tổng giá trị bao nhiêu?",
+      "Tổng hợp tiến độ các shipment đang mở",
+      "Lô hàng nào cần làm việc ngay với nhà cung cấp?",
+      "Đề xuất thứ tự ưu tiên theo dõi các lô hàng đang về",
     ],
   },
   {
@@ -1409,6 +1604,24 @@ const guideCapabilities = [
     prompts: [
       "Khách hàng nào còn thiếu ít điểm nhất để lên hạng VIP?",
       "Thống kê số lượng khách hàng theo từng hạng VIP năm nay",
+      "Danh sách khách hàng VIP hiện tại theo từng hạng",
+      "Khách hàng nào mới lên hạng VIP trong tháng này?",
+      "Khách hàng nào bị giảm hạng VIP trong năm nay?",
+      "Doanh thu theo từng hạng khách hàng VIP tháng này",
+      "Lợi nhuận và tỷ suất lợi nhuận theo từng hạng VIP",
+      "Top 20 khách hàng VIP có doanh thu cao nhất năm nay",
+      "Khách hàng VIP nào lâu chưa mua hàng?",
+      "Khách hàng VIP nào có doanh thu giảm mạnh trong 3 tháng gần đây?",
+      "Khách hàng VIP nào đang có công nợ lớn?",
+      "Khách hàng VIP nào có công nợ quá hạn?",
+      "Mỗi nhân viên sale đang phụ trách bao nhiêu khách VIP?",
+      "Khách hàng nào sắp đủ điểm lên hạng tiếp theo?",
+      "Khách hàng nào còn dưới 10% số điểm để lên hạng?",
+      "Tổng số điểm VIP đã phát sinh trong tháng này",
+      "So sánh doanh thu khách VIP với khách thường tháng này",
+      "Những khách VIP nào cần chăm sóc lại tuần này?",
+      "Khách VIP nào có nhiều lần mua nhất trong năm nay?",
+      "Đề xuất chương trình chăm sóc cho từng nhóm khách VIP",
     ],
   },
   {
@@ -1422,6 +1635,24 @@ const guideCapabilities = [
     prompts: [
       "Lệnh sản xuất nào đang thiếu nguyên liệu?",
       "Nhà cung cấp nào có shipment giao trễ hoặc hàng lỗi?",
+      "Tổng hợp lệnh sản xuất theo trạng thái hiện tại",
+      "Lệnh sản xuất nào đang trễ tiến độ?",
+      "Lệnh sản xuất nào cần ưu tiên hoàn thành trước?",
+      "Kế hoạch sản xuất trong 7 ngày tới gồm những gì?",
+      "Sản lượng kế hoạch và thực tế tháng này chênh lệch bao nhiêu?",
+      "Sản phẩm nào có tỷ lệ hoàn thành kế hoạch thấp nhất?",
+      "Nguyên liệu nào đang thiếu cho các lệnh sản xuất mở?",
+      "Nguyên liệu nào sắp hết và cần đặt thêm?",
+      "Tổng nhu cầu nguyên liệu cho kế hoạch sản xuất tháng này",
+      "Lệnh sản xuất nào chưa được cấp đủ nguyên liệu?",
+      "Tổng hợp sản lượng theo từng xưởng hoặc bộ phận sản xuất",
+      "Tỷ lệ hàng lỗi trong sản xuất tháng này là bao nhiêu?",
+      "Sản phẩm nào có tỷ lệ hàng lỗi cao nhất?",
+      "Nhà cung cấp nào cung cấp nguyên liệu lỗi nhiều nhất?",
+      "So sánh tiến độ sản xuất tháng này với tháng trước",
+      "Các lệnh sản xuất hoàn thành trong tuần này",
+      "Các lệnh sản xuất dự kiến hoàn thành trong 7 ngày tới",
+      "Nêu các rủi ro sản xuất và việc cần xử lý ngay",
     ],
   },
 ];
@@ -1570,7 +1801,7 @@ function GuideCapability({
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider">
             Bấm câu hỏi để sử dụng ngay
           </p>
-          <div className="space-y-2">
+          <div className="grid gap-2 lg:grid-cols-2">
             {capability.prompts.map((prompt) => (
               <GuidePrompt key={prompt} prompt={prompt} onAsk={onAsk} />
             ))}
@@ -1658,16 +1889,36 @@ function EffectiveQuestionGuide({
   );
 }
 
+function splitActionSection(content: string) {
+  const heading = /(?:^|\n)#{1,6}\s+Việc nên làm tiếp\s*\n/i.exec(content);
+  if (!heading || heading.index === undefined)
+    return { answer: content, actions: "" };
+  const tail = content.slice(heading.index + heading[0].length);
+  const next = tail.search(/\n#{1,6}\s/);
+  return {
+    answer:
+      content.slice(0, heading.index) + (next >= 0 ? tail.slice(next) : ""),
+    actions: next >= 0 ? tail.slice(0, next) : tail,
+  };
+}
+
 function AssistantBubble({ message }: { message: AssistantMessage }) {
   const warnings = message.result.warnings ?? [];
   const charts = message.result.charts ?? [];
   const sources = message.result.sources ?? [];
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
+  const { answer, actions } = splitActionSection(message.content);
 
   async function copyAnswer() {
-    await navigator.clipboard.writeText(message.content);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopyError(false);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopyError(true);
+    }
   }
 
   return (
@@ -1675,7 +1926,7 @@ function AssistantBubble({ message }: { message: AssistantMessage }) {
       <span className="from-primary to-primary/75 text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-sm">
         <Bot className="size-4" />
       </span>
-      <div className="min-w-0 w-full max-w-[calc(100%-3rem)] space-y-4">
+      <div className="min-w-0 w-full max-w-6xl space-y-4">
         <div className="overflow-hidden rounded-2xl rounded-tl-md border border-border/70 bg-background shadow-sm">
           <div className="flex items-center justify-between border-b bg-muted/30 px-5 py-3">
             <div className="flex items-center gap-2 text-xs font-semibold">
@@ -1696,18 +1947,57 @@ function AssistantBubble({ message }: { message: AssistantMessage }) {
             </Button>
           </div>
           <div className="px-5 py-5 text-sm leading-7 sm:px-6">
-            {renderAssistantText(message.content)}
+            {renderAssistantText(answer)}
           </div>
         </div>
 
+        {copyError && (
+          <p role="status" className="text-xs text-muted-foreground">
+            Không thể sao chép tự động. Bạn có thể chọn và sao chép nội dung
+            trực tiếp.
+          </p>
+        )}
+        {actions && (
+          <section
+            className="rounded-2xl border border-emerald-600/20 bg-emerald-500/[0.04] p-5 sm:p-6"
+            aria-label="Việc nên làm tiếp"
+          >
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+              <ClipboardCheck className="size-4 text-emerald-600" />
+              Việc nên làm tiếp
+            </h3>
+            <div className="text-sm leading-7">
+              {renderAssistantText(actions)}
+            </div>
+          </section>
+        )}
         {warnings.length > 0 && (
           <Alert className="border-amber-300 bg-amber-50 text-amber-950 dark:bg-amber-950/20 dark:text-amber-100">
             <AlertCircle />
-            <AlertTitle>Lưu ý</AlertTitle>
+            <AlertTitle>
+              Cần lưu ý về dữ liệu{" "}
+              <span className="ml-1 font-normal">({warnings.length})</span>
+            </AlertTitle>
             <AlertDescription>
-              {warnings.map((warning) => (
-                <p key={warning}>{warning}</p>
+              {warnings.slice(0, 2).map((warning) => (
+                <p key={warning} className="leading-6">
+                  {warning}
+                </p>
               ))}
+              {warnings.length > 2 && (
+                <details className="mt-2 w-full">
+                  <summary className="cursor-pointer text-xs font-medium underline underline-offset-4">
+                    Xem thêm {warnings.length - 2} lưu ý
+                  </summary>
+                  <div className="mt-3 space-y-2">
+                    {warnings.slice(2).map((warning) => (
+                      <p key={warning} className="leading-6">
+                        {warning}
+                      </p>
+                    ))}
+                  </div>
+                </details>
+              )}
             </AlertDescription>
           </Alert>
         )}
@@ -1729,7 +2019,7 @@ function AssistantBubble({ message }: { message: AssistantMessage }) {
                 </Badge>
               </span>
               <span className="text-muted-foreground font-normal">
-                Xem chi tiết truy vấn
+                Xem nguồn báo cáo
               </span>
             </summary>
             <div className="grid gap-3 border-t bg-muted/10 p-3 sm:grid-cols-2">
@@ -1741,12 +2031,6 @@ function AssistantBubble({ message }: { message: AssistantMessage }) {
                   <CardContent className="space-y-2 p-4 text-xs">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium">{source.label}</span>
-                      <Badge
-                        variant="outline"
-                        className="max-w-48 truncate font-mono text-[10px]"
-                      >
-                        {source.report_id}
-                      </Badge>
                     </div>
                     <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
                       <span>
@@ -1797,7 +2081,10 @@ function ExecutiveChart({
   chart: AiChatResponse["charts"][number];
 }) {
   const isReceivable = chart.id === "receivables-weekly-trend";
-  const isRanking = chart.id.startsWith("sales-breakdown-");
+  const isCustomerPerformance = chart.id === "sales-customer-performance";
+  const isRanking =
+    chart.id.startsWith("sales-breakdown-") || isCustomerPerformance;
+  const rankingChartHeight = Math.max(260, chart.points.length * 34);
   const labels: Record<string, string> = isReceivable
     ? {
         debit_amount: "Phát sinh Nợ",
@@ -1805,7 +2092,12 @@ function ExecutiveChart({
         net_amount: "Chênh lệch",
       }
     : isRanking
-      ? { value: "Doanh thu thuần", secondary_value: "Hàng trả lại" }
+      ? {
+          value: "Doanh thu thuần",
+          secondary_value: isCustomerPerformance
+            ? "Lợi nhuận gộp tạm tính"
+            : "Hàng trả lại",
+        }
       : { net_revenue: "Doanh thu thuần", return_revenue: "Hàng trả lại" };
 
   return (
@@ -1823,10 +2115,13 @@ function ExecutiveChart({
           </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent className="h-72 min-h-72 min-w-0 px-2 pt-4 sm:px-4">
+      <CardContent
+        className="min-w-0 px-2 pt-4 sm:px-4"
+        style={{ height: isRanking ? rankingChartHeight + 28 : 288 }}
+      >
         <ResponsiveContainer
           width="100%"
-          height={260}
+          height={isRanking ? rankingChartHeight : 260}
           minWidth={0}
           minHeight={260}
           debounce={50}
@@ -1853,6 +2148,7 @@ function ExecutiveChart({
                 type="category"
                 dataKey="label"
                 width={150}
+                interval={0}
                 tick={{ fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
@@ -1867,9 +2163,19 @@ function ExecutiveChart({
               <Legend
                 formatter={(value) => labels[String(value)] ?? String(value)}
               />
-              <Bar dataKey="value" fill="#14b8a6" radius={[0, 5, 5, 0]} />
+              <Bar
+                dataKey="value"
+                name="Doanh thu thuần"
+                fill="#14b8a6"
+                radius={[0, 5, 5, 0]}
+              />
               <Bar
                 dataKey="secondary_value"
+                name={
+                  isCustomerPerformance
+                    ? "Lợi nhuận gộp tạm tính"
+                    : "Hàng trả lại"
+                }
                 fill="#f59e0b"
                 radius={[0, 5, 5, 0]}
               />
@@ -1910,16 +2216,19 @@ function ExecutiveChart({
                 <>
                   <Bar
                     dataKey="debit_amount"
+                    name="Phát sinh Nợ"
                     fill="#ef4444"
                     radius={[4, 4, 0, 0]}
                   />
                   <Bar
                     dataKey="credit_amount"
+                    name="Phát sinh Có"
                     fill="#10b981"
                     radius={[4, 4, 0, 0]}
                   />
                   <Bar
                     dataKey="net_amount"
+                    name="Chênh lệch"
                     fill="#6366f1"
                     radius={[4, 4, 0, 0]}
                   />
@@ -1928,11 +2237,13 @@ function ExecutiveChart({
                 <>
                   <Bar
                     dataKey="net_revenue"
+                    name="Doanh thu thuần"
                     fill="#14b8a6"
                     radius={[4, 4, 0, 0]}
                   />
                   <Bar
                     dataKey="return_revenue"
+                    name="Hàng trả lại"
                     fill="#f59e0b"
                     radius={[4, 4, 0, 0]}
                   />
@@ -2079,7 +2390,11 @@ function truncateLabel(value: string, max: number) {
 }
 
 function renderAssistantText(content: string) {
-  const lines = content.split("\n");
+  const normalizedContent = content.replace(
+    /(\d+),(\d{3})(?=\s*tỷ(?:\s+đồng)?)/gi,
+    "$1.$2",
+  );
+  const lines = normalizedContent.split("\n");
   const blocks: ReactNode[] = [];
   for (let index = 0; index < lines.length; ) {
     const line = lines[index];
@@ -2096,7 +2411,7 @@ function renderAssistantText(content: string) {
         >
           <table
             className="w-full table-fixed border-collapse text-sm"
-            style={{ minWidth: `${Math.max(760, headers.length * 145)}px` }}
+            style={{ minWidth: `${Math.max(900, headers.length * 180)}px` }}
           >
             <colgroup>
               {headers.map((header, columnIndex) => (
@@ -2133,7 +2448,7 @@ function renderAssistantText(content: string) {
                       className={cn(
                         "px-4 py-3.5 align-middle leading-5",
                         isNumericTableColumn(headers[c])
-                          ? "text-right font-medium tabular-nums whitespace-nowrap"
+                          ? "break-words text-right font-medium tabular-nums whitespace-normal"
                           : "text-left whitespace-normal",
                         isNameTableColumn(headers[c]) && "font-medium",
                       )}
@@ -2241,9 +2556,12 @@ function isNumericTableColumn(header = "") {
 
 function tableColumnWidth(header: string, columnCount: number) {
   const normalized = normalizedTableHeader(header);
-  if (isRankTableColumn(header)) return "7%";
+  if (isRankTableColumn(header)) return columnCount <= 4 ? "8%" : "7%";
   if (/^(ma|ma so|code)$/.test(normalized)) return "11%";
   if (isNameTableColumn(header)) return columnCount >= 6 ? "22%" : "28%";
+  if (columnCount <= 4 && /(doanh thu|cong no|du no|gia tri|tong)/.test(normalized))
+    return "38%";
+  if (columnCount <= 4 && /(ty trong|ty le|%)/.test(normalized)) return "16%";
   if (isNumericTableColumn(header)) return columnCount >= 6 ? "17%" : "20%";
   return columnCount >= 6 ? "14%" : "18%";
 }

@@ -44,7 +44,7 @@ export function FloatingAiChat() {
         <Sparkles className="size-4 text-amber-300 transition-transform group-hover:rotate-12" />
       </Button>
 
-      <SheetContent className="w-full gap-0 overflow-hidden border-l-border/70 bg-background p-0 sm:w-[92vw] sm:max-w-[1440px]">
+      <SheetContent className="w-full gap-0 overflow-hidden border-l-border/70 bg-background p-0 sm:w-[90vw] sm:max-w-[1200px]">
         <SheetHeader className="relative border-b bg-background/95 px-6 py-4 pr-14 backdrop-blur">
           <div className="flex items-center gap-3">
             <span className="from-primary to-primary/70 text-primary-foreground flex size-10 items-center justify-center rounded-xl bg-gradient-to-br shadow-sm">
@@ -54,8 +54,7 @@ export function FloatingAiChat() {
               <SheetTitle className="flex items-center gap-2 text-base">
                 Trợ lý điều hành VLife
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-                  <span className="size-1.5 rounded-full bg-emerald-500" /> Trực
-                  tuyến
+                  Dữ liệu nội bộ
                 </span>
               </SheetTitle>
               <SheetDescription className="mt-0.5 flex items-center gap-1.5 text-xs">
