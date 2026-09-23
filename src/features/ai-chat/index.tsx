@@ -93,6 +93,28 @@ type PromptSuggestion = Suggestion & {
 };
 
 const MAX_MESSAGE_LENGTH = 2000;
+const overviewCategoryOrder: PromptCategory[] = [
+  "executive",
+  "sales",
+  "receivables",
+  "orders",
+  "inventory",
+  "shipments",
+  "vip",
+  "production",
+  "purchasing",
+];
+const promptCategoryLabels: Record<PromptCategory, string> = {
+  executive: "Điều hành",
+  sales: "Doanh thu",
+  orders: "Đơn hàng",
+  receivables: "Công nợ",
+  inventory: "Tồn kho",
+  shipments: "Hàng về",
+  production: "Sản xuất",
+  purchasing: "Nhà cung cấp",
+  vip: "Khách VIP",
+};
 
 function createChatMessageId() {
   const browserCrypto = globalThis.crypto;
@@ -695,6 +717,29 @@ export default function AiChatPage({
     );
   }, [permissionsQuery.data, suggestions]);
 
+  const overviewSuggestions = useMemo(() => {
+    const byCategory = new Map<PromptCategory, PromptSuggestion[]>();
+    promptCatalog.forEach((suggestion) => {
+      const items = byCategory.get(suggestion.category) ?? [];
+      items.push(suggestion);
+      byCategory.set(suggestion.category, items);
+    });
+
+    const selected: PromptSuggestion[] = [];
+    for (let round = 0; selected.length < 12; round += 1) {
+      let foundSuggestion = false;
+      overviewCategoryOrder.forEach((category) => {
+        const suggestion = byCategory.get(category)?.[round];
+        if (suggestion && selected.length < 12) {
+          selected.push(suggestion);
+          foundSuggestion = true;
+        }
+      });
+      if (!foundSuggestion) break;
+    }
+    return selected;
+  }, [promptCatalog]);
+
   const lastUserQuestion = useMemo(
     () =>
       [...displayMessages].reverse().find((message) => message.role === "user")
@@ -1031,10 +1076,7 @@ export default function AiChatPage({
             >
               {showOverview && (
                 <div className="flex flex-col justify-center py-4 sm:py-8">
-                  <div className="mb-8 max-w-2xl text-left">
-                    <span className="from-primary/15 to-primary/5 text-primary mb-5 inline-flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br ring-1 ring-primary/15">
-                      <Sparkles className="size-8" />
-                    </span>
+                  <div className="mb-6 max-w-2xl text-left">
                     <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
                       Điều gì cần chú ý hôm nay?
                     </h2>
@@ -1043,33 +1085,33 @@ export default function AiChatPage({
                       định việc nên làm tiếp — từ số liệu của doanh nghiệp.
                     </p>
                   </div>
-                  {suggestions.length > 0 ? (
+                  {overviewSuggestions.length > 0 ? (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      {suggestions.slice(0, 6).map((suggestion) => (
+                      {overviewSuggestions.map((suggestion) => (
                         <Button
                           key={suggestion.prompt}
                           variant="outline"
-                          className="group h-auto min-h-24 justify-start whitespace-normal rounded-2xl border-border/60 bg-background p-5 text-left shadow-none transition-colors hover:border-primary/40 hover:bg-primary/[0.03]"
+                          className="group h-auto min-h-20 justify-start whitespace-normal rounded-xl border-border/60 bg-background p-4 text-left shadow-none transition-colors hover:border-primary/40 hover:bg-primary/[0.03]"
                           onClick={() => submit(suggestion.prompt)}
                           disabled={mutation.isPending}
                         >
-                          <span
-                            className={cn(
-                              "mr-3 flex size-10 shrink-0 items-center justify-center rounded-lg",
-                              suggestion.tone,
-                            )}
-                          >
-                            <suggestion.icon className="size-5" />
-                          </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block font-semibold">
-                              {suggestion.title}
+                            <span className="mb-1.5 flex items-center gap-2">
+                              <span className="font-semibold">
+                                {suggestion.title}
+                              </span>
+                              <Badge
+                                variant="secondary"
+                                className="rounded-full px-2 py-0 text-[10px] font-medium"
+                              >
+                                {promptCategoryLabels[suggestion.category]}
+                              </Badge>
                             </span>
                             <span className="text-muted-foreground mt-1 block text-xs font-normal leading-5">
                               {suggestion.description}
                             </span>
                           </span>
-                          <ArrowUpRight className="text-muted-foreground size-4 self-start opacity-0 transition-opacity group-hover:opacity-100" />
+                          <ArrowUpRight className="text-muted-foreground size-4 self-start opacity-50 transition-opacity group-hover:opacity-100" />
                         </Button>
                       ))}
                     </div>
@@ -1420,6 +1462,7 @@ const guideCapabilities = [
     result: "Bản tóm tắt, số liệu chính, cảnh báo và biểu đồ khi phù hợp.",
     icon: BarChart3,
     tone: "bg-teal-500/10 text-teal-700",
+    featuredPromptIndexes: [0, 2, 13, 18],
     prompts: [
       "Tổng quan tình hình kinh doanh tháng này và các vấn đề cần chú ý",
       "Phân tích doanh thu tháng này theo tuần và so sánh kỳ trước",
@@ -1450,6 +1493,7 @@ const guideCapabilities = [
     result: "Số lượng theo trạng thái và danh sách đơn cần xử lý trước.",
     icon: Truck,
     tone: "bg-cyan-500/10 text-cyan-700",
+    featuredPromptIndexes: [0, 3],
     prompts: [
       "Có những đơn hàng nào chưa giao hoặc đang quá hạn?",
       "Phân tích tỷ lệ giao hàng đúng hạn tháng này theo sale",
@@ -1481,6 +1525,7 @@ const guideCapabilities = [
       "Tên nhân viên, danh sách khách hàng và các trường hợp phân công sai hoặc thiếu.",
     icon: User,
     tone: "bg-indigo-500/10 text-indigo-700",
+    featuredPromptIndexes: [3, 7, 19],
     prompts: [
       "Mỗi sale đang phụ trách bao nhiêu khách hàng?",
       "Sale Hà Duy Phú đang phụ trách những khách hàng nào?",
@@ -1511,6 +1556,7 @@ const guideCapabilities = [
     result: "Tổng công nợ, thay đổi theo tuần và danh sách khách cần theo dõi.",
     icon: WalletCards,
     tone: "bg-rose-500/10 text-rose-700",
+    featuredPromptIndexes: [2, 18, 19],
     prompts: [
       "Phân tích công nợ tháng này theo tuần",
       "Top 10 khách hàng có dư công nợ lớn nhất đến hôm nay",
@@ -1541,6 +1587,7 @@ const guideCapabilities = [
     result: "Số lượng theo sản phẩm/kho và danh sách rủi ro cần xử lý.",
     icon: Boxes,
     tone: "bg-amber-500/10 text-amber-700",
+    featuredPromptIndexes: [1, 7],
     prompts: [
       "Top sản phẩm có lượng tồn kho lớn nhất hiện nay",
       "Có lô hàng nào sắp hết hạn trong 30 ngày tới không?",
@@ -1571,6 +1618,7 @@ const guideCapabilities = [
     result: "Mã lô, nhà cung cấp, ngày dự kiến về, trạng thái và số lượng.",
     icon: Truck,
     tone: "bg-sky-500/10 text-sky-700",
+    featuredPromptIndexes: [0, 4],
     prompts: [
       "Trong 30 ngày tới có những lô hàng nào dự kiến về?",
       "Tuần này đã thực nhập những mặt hàng nào?",
@@ -1601,6 +1649,7 @@ const guideCapabilities = [
     result: "Hạng hiện tại, tổng điểm, hạng tiếp theo và số điểm còn thiếu.",
     icon: Sparkles,
     tone: "bg-violet-500/10 text-violet-700",
+    featuredPromptIndexes: [11, 17],
     prompts: [
       "Khách hàng nào còn thiếu ít điểm nhất để lên hạng VIP?",
       "Thống kê số lượng khách hàng theo từng hạng VIP năm nay",
@@ -1632,6 +1681,7 @@ const guideCapabilities = [
       "Tiến độ thực hiện và danh sách vấn đề cần làm việc với bộ phận liên quan.",
     icon: PackageCheck,
     tone: "bg-emerald-500/10 text-emerald-700",
+    featuredPromptIndexes: [0, 1],
     prompts: [
       "Lệnh sản xuất nào đang thiếu nguyên liệu?",
       "Nhà cung cấp nào có shipment giao trễ hoặc hàng lỗi?",
@@ -1726,6 +1776,11 @@ function AssistantGuide({ onAsk }: { onAsk: (prompt: string) => void }) {
 }
 
 function GuideStart({ onAsk }: { onAsk: (prompt: string) => void }) {
+  const featuredCount = guideCapabilities.reduce(
+    (total, capability) => total + capability.featuredPromptIndexes.length,
+    0,
+  );
+
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
@@ -1750,19 +1805,44 @@ function GuideStart({ onAsk }: { onAsk: (prompt: string) => void }) {
           </div>
         ))}
       </div>
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-sm">
-            Bạn có thể bắt đầu bằng câu này
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <GuidePrompt
-            prompt="Tổng quan tình hình kinh doanh tháng này và các vấn đề cần chú ý"
-            onAsk={onAsk}
-          />
-        </CardContent>
-      </Card>
+      <div className="flex items-end justify-between gap-4 pt-2">
+        <div>
+          <h3 className="text-base font-semibold">Câu hỏi nổi bật</h3>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Chọn nhanh những câu hỏi hữu ích nhất từ các nhóm phân tích.
+          </p>
+        </div>
+        <Badge variant="secondary" className="shrink-0 rounded-full">
+          {featuredCount} câu hỏi
+        </Badge>
+      </div>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        {guideCapabilities.map((capability) => (
+          <Card key={capability.title} className="gap-0 overflow-hidden py-0 shadow-sm">
+            <CardHeader className="border-b bg-muted/20 p-4">
+              <CardTitle className="flex items-center gap-2.5 text-sm">
+                <span
+                  className={cn(
+                    "flex size-8 shrink-0 items-center justify-center rounded-lg",
+                    capability.tone,
+                  )}
+                >
+                  <capability.icon className="size-4" />
+                </span>
+                {capability.title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-2 p-4">
+              {capability.featuredPromptIndexes.map((promptIndex) => {
+                const prompt = capability.prompts[promptIndex];
+                return prompt ? (
+                  <GuidePrompt key={prompt} prompt={prompt} onAsk={onAsk} />
+                ) : null;
+              })}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
