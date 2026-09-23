@@ -1,16 +1,21 @@
 ﻿import { useEffect, useMemo, useState } from "react"
 import type React from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import {
     AlertTriangle,
     CircleCheck,
     CircleMinus,
+    Columns3,
     Download,
     Funnel,
+    GripVertical,
     Loader2,
+    MoreHorizontal,
     Package,
+    Pin,
+    RotateCcw,
     TrendingDown,
     TrendingUp,
     Warehouse,
@@ -24,6 +29,7 @@ import {
     listInventorySummarys,
     type SummaryListParams,
 } from "@/api/inventory/summary"
+import { getTablePreference, saveTablePreference } from "@/api/ui-preference"
 import { listPhysicalWarehouses } from "@/api/physical-warehouse"
 import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { AsyncSelect } from "@/components/rjsf/async-select"
@@ -36,9 +42,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import type { InventorySummary, InventorySummaryTotals } from "../data/schema"
 
@@ -98,6 +106,43 @@ type NumberFilterField =
     | "closing_quantity"
     | "closing_value"
 
+type SummaryColumnKey =
+    | "product_code"
+    | "product_name"
+    | "unit"
+    | "warehouse_code"
+    | "warehouse_name"
+    | "opening_quantity"
+    | "opening_value"
+    | "inbound_quantity"
+    | "inbound_value"
+    | "outbound_quantity"
+    | "avg_issue_unit_cost"
+    | "outbound_value"
+    | "closing_quantity"
+    | "closing_value"
+    | "quote_name"
+    | "nature"
+    | "summary_status"
+    | "product_type"
+
+type SummaryColumnDefinition = {
+    key: SummaryColumnKey
+    label: string
+    width: number
+    valueColumn?: boolean
+}
+
+type SummaryTableColumnPreference = {
+    key: SummaryColumnKey
+    visible: boolean
+}
+
+type SummaryTablePreference = {
+    columns?: SummaryTableColumnPreference[]
+    pinnedColumnKey?: SummaryColumnKey | null
+}
+
 type Props = {
     data: InventorySummary[]
     totals?: InventorySummaryTotals
@@ -110,6 +155,7 @@ type Props = {
     onFiltersChange: (f: SummaryFilters) => void
     showValues?: boolean
     salesInventoryVisibleOnly?: boolean
+    enableColumnPreferences?: boolean
 }
 
 type ExportColumn = {
@@ -127,6 +173,7 @@ type ExportColumnGroup = {
 
 const EXPORT_PAGE_SIZE = 200
 const controlClass = "h-10 min-h-10 rounded-md border-slate-300 bg-white shadow-xs"
+const SUMMARY_TABLE_PREFERENCE_KEY = "inventory.summary.table"
 
 const TEXT_FILTER_OPERATORS: Array<{ value: TextFilterOp; label: string }> = [
     { value: "contains", label: "Chứa" },
@@ -151,6 +198,71 @@ const SUMMARY_STATUS_OPTIONS = [
     { value: "INCREASE", label: "Tăng tồn" },
     { value: "STABLE", label: "Ổn định" },
 ]
+
+const SUMMARY_COLUMN_DEFINITIONS: SummaryColumnDefinition[] = [
+    { key: "product_code", label: "Mã hàng", width: 150 },
+    { key: "product_name", label: "Tên hàng", width: 320 },
+    { key: "unit", label: "ĐVT", width: 90 },
+    { key: "warehouse_code", label: "Mã kho", width: 150 },
+    { key: "warehouse_name", label: "Tên kho", width: 220 },
+    { key: "opening_quantity", label: "Tồn đầu SL", width: 130 },
+    { key: "opening_value", label: "Tồn đầu giá trị", width: 140, valueColumn: true },
+    { key: "inbound_quantity", label: "Nhập SL", width: 130 },
+    { key: "inbound_value", label: "Nhập giá trị", width: 140, valueColumn: true },
+    { key: "outbound_quantity", label: "Xuất SL", width: 130 },
+    { key: "avg_issue_unit_cost", label: "Giá xuất BQ", width: 130, valueColumn: true },
+    { key: "outbound_value", label: "Xuất giá trị", width: 140, valueColumn: true },
+    { key: "closing_quantity", label: "Tồn cuối SL", width: 130 },
+    { key: "closing_value", label: "Tồn cuối giá trị", width: 140, valueColumn: true },
+    { key: "quote_name", label: "Nhóm hàng", width: 180 },
+    { key: "nature", label: "Tính chất", width: 120 },
+    { key: "summary_status", label: "Tình trạng", width: 150 },
+    { key: "product_type", label: "Dạng hàng", width: 120 },
+]
+
+const SUMMARY_COLUMN_MAP = new Map(SUMMARY_COLUMN_DEFINITIONS.map((column) => [column.key, column]))
+const SUMMARY_QUANTITY_GROUPS: Partial<Record<SummaryColumnKey, { group: "opening" | "inbound" | "outbound" | "closing"; groupLabel: string; subLabel: string }>> = {
+    opening_quantity: { group: "opening", groupLabel: "Tồn đầu kỳ", subLabel: "Số lượng" },
+    opening_value: { group: "opening", groupLabel: "Tồn đầu kỳ", subLabel: "Giá trị" },
+    inbound_quantity: { group: "inbound", groupLabel: "Nhập kho", subLabel: "Số lượng" },
+    inbound_value: { group: "inbound", groupLabel: "Nhập kho", subLabel: "Giá trị" },
+    outbound_quantity: { group: "outbound", groupLabel: "Xuất kho", subLabel: "Số lượng" },
+    avg_issue_unit_cost: { group: "outbound", groupLabel: "Xuất kho", subLabel: "Giá xuất BQ" },
+    outbound_value: { group: "outbound", groupLabel: "Xuất kho", subLabel: "Giá trị" },
+    closing_quantity: { group: "closing", groupLabel: "Tồn cuối kỳ", subLabel: "Số lượng" },
+    closing_value: { group: "closing", groupLabel: "Tồn cuối kỳ", subLabel: "Giá trị" },
+}
+
+function resolveSummaryColumnPreference(preference?: SummaryTablePreference | null): SummaryTableColumnPreference[] {
+    const seen = new Set<SummaryColumnKey>()
+    const saved = (preference?.columns || [])
+        .filter((column): column is SummaryTableColumnPreference => Boolean(column?.key && SUMMARY_COLUMN_MAP.has(column.key)))
+        .map((column) => {
+            seen.add(column.key)
+            return { key: column.key, visible: column.visible !== false }
+        })
+    const missing = SUMMARY_COLUMN_DEFINITIONS
+        .filter((column) => !seen.has(column.key))
+        .map((column) => ({ key: column.key, visible: true }))
+    return [...saved, ...missing]
+}
+
+function activeSummaryColumns(preference?: SummaryTablePreference | null, showValues = true) {
+    return resolveSummaryColumnPreference(preference)
+        .filter((column) => column.visible)
+        .map((column) => SUMMARY_COLUMN_MAP.get(column.key))
+        .filter((column): column is SummaryColumnDefinition => Boolean(column))
+        .filter((column) => showValues || !column.valueColumn)
+}
+
+function resolveSummaryPinnedColumnKey(preference?: SummaryTablePreference | null) {
+    const key = preference?.pinnedColumnKey
+    return key && SUMMARY_COLUMN_MAP.has(key) ? key : "product_name"
+}
+
+function summaryQuantityGroup(column: SummaryColumnDefinition) {
+    return SUMMARY_QUANTITY_GROUPS[column.key]
+}
 
 const EXPORT_COLUMN_GROUPS: ExportColumnGroup[] = [
     { label: "STT", columns: [{ label: "STT", value: (_row, index) => index + 1, width: 8, type: "number", numberFormat: "integer" }] },
@@ -244,7 +356,13 @@ export function SummaryTable({
     onFiltersChange,
     showValues = true,
     salesInventoryVisibleOnly = false,
+    enableColumnPreferences = false,
 }: Props) {
+    const { data: tablePreference } = useQuery({
+        queryKey: ["table-preference", SUMMARY_TABLE_PREFERENCE_KEY],
+        queryFn: () => getTablePreference<SummaryTablePreference>(SUMMARY_TABLE_PREFERENCE_KEY),
+        enabled: enableColumnPreferences,
+    })
     const { data: natureLookupPage } = useQuery({
         queryKey: ["inventory-summary-product-nature-lookups"],
         queryFn: () => listProductNatureLookups({ page: 1, size: 200 }),
@@ -291,6 +409,10 @@ export function SummaryTable({
 
     const summaryTotals = normalizeTotals(totals)
     const today = todayYmd()
+    const visibleColumns = useMemo(
+        () => activeSummaryColumns(enableColumnPreferences ? tablePreference : null, showValues),
+        [enableColumnPreferences, tablePreference, showValues],
+    )
 
     const setFilter = <K extends keyof SummaryFilters>(key: K, value: SummaryFilters[K] | undefined) => {
         onFiltersChange({
@@ -555,6 +677,154 @@ export function SummaryTable({
         })
     }
 
+    const renderSummaryColumnHeader = (column: SummaryColumnDefinition) => {
+        switch (column.key) {
+            case "product_code":
+                return (
+                    <ColumnTextFilter
+                        label="Mã hàng"
+                        value={filters.product_code_text}
+                        op={filters.product_code_text_op}
+                        onApply={(value, op) => setTextFilter("product_code_text", "product_code_text_op", value, op)}
+                        onClear={() => clearTextFilter("product_code_text", "product_code_text_op")}
+                    />
+                )
+            case "product_name":
+                return (
+                    <ColumnTextFilter
+                        label="Tên hàng"
+                        value={filters.product_name_text}
+                        op={filters.product_name_text_op}
+                        onApply={(value, op) => setTextFilter("product_name_text", "product_name_text_op", value, op)}
+                        onClear={() => clearTextFilter("product_name_text", "product_name_text_op")}
+                    />
+                )
+            case "unit":
+                return (
+                    <ColumnMultiSelectFilter
+                        label="ĐVT"
+                        value={filters.unit}
+                        options={unitOptions}
+                        onApply={(value) => setFilter("unit", value)}
+                    />
+                )
+            case "warehouse_code":
+                return (
+                    <ColumnTextFilter
+                        label="Mã kho"
+                        value={filters.warehouse_code_text}
+                        op={filters.warehouse_code_text_op}
+                        onApply={(value, op) => setTextFilter("warehouse_code_text", "warehouse_code_text_op", value, op)}
+                        onClear={() => clearTextFilter("warehouse_code_text", "warehouse_code_text_op")}
+                    />
+                )
+            case "warehouse_name":
+                return (
+                    <ColumnTextFilter
+                        label="Tên kho"
+                        value={filters.warehouse_name_text}
+                        op={filters.warehouse_name_text_op}
+                        onApply={(value, op) => setTextFilter("warehouse_name_text", "warehouse_name_text_op", value, op)}
+                        onClear={() => clearTextFilter("warehouse_name_text", "warehouse_name_text_op")}
+                    />
+                )
+            case "quote_name":
+                return (
+                    <ColumnSearchMultiSelectFilter
+                        label="Nhóm hàng"
+                        value={filters.quote_text}
+                        options={quoteOptions}
+                        onApply={(value) =>
+                            onFiltersChange({
+                                ...filters,
+                                quote_text: value,
+                                quote_text_op: value ? "equals" : undefined,
+                            })
+                        }
+                    />
+                )
+            case "nature":
+                return (
+                    <ColumnMultiSelectFilter
+                        label="Tính chất"
+                        value={filters.nature}
+                        options={natureOptions}
+                        onApply={(value) => setFilter("nature", value)}
+                    />
+                )
+            case "summary_status":
+                return (
+                    <ColumnMultiSelectFilter
+                        label="Tình trạng"
+                        value={filters.summary_status}
+                        options={SUMMARY_STATUS_OPTIONS}
+                        onApply={(value) => setFilter("summary_status", value)}
+                    />
+                )
+            default:
+                return column.label
+        }
+    }
+
+    const renderSummaryHeaderRows = () => {
+        const hasGroupedHeader = visibleColumns.some((column) => summaryQuantityGroup(column))
+        const firstRow: React.ReactNode[] = [
+            <Th key="stt" rowSpan={hasGroupedHeader ? 2 : 1} className="min-w-[56px] text-center">STT</Th>,
+        ]
+        const secondRow: React.ReactNode[] = []
+
+        for (let index = 0; index < visibleColumns.length; index++) {
+            const column = visibleColumns[index]
+            const group = summaryQuantityGroup(column)
+            if (!group) {
+                firstRow.push(
+                    <Th key={column.key} rowSpan={hasGroupedHeader ? 2 : 1} className="text-center">
+                        {renderSummaryColumnHeader(column)}
+                    </Th>,
+                )
+                continue
+            }
+
+            let colSpan = 1
+            while (
+                index + colSpan < visibleColumns.length
+                && summaryQuantityGroup(visibleColumns[index + colSpan])?.group === group.group
+            ) {
+                colSpan++
+            }
+            firstRow.push(
+                <Th key={`group-${group.group}-${index}`} colSpan={colSpan} className="text-center">
+                    {group.groupLabel}
+                </Th>,
+            )
+            for (let offset = 0; offset < colSpan; offset++) {
+                const groupedColumn = visibleColumns[index + offset]
+                const groupedField = groupedColumn.key as NumberFilterField
+                secondRow.push(
+                    <Th key={groupedColumn.key} className="text-center">
+                        <ColumnNumberFilter
+                            label={summaryQuantityGroup(groupedColumn)?.subLabel || groupedColumn.label}
+                            value={getFilterValue(groupedField)}
+                            op={getFilterOp(groupedField)}
+                            onApply={(value, op) => setNumberFilter(groupedField, value, op)}
+                            onClear={() => clearNumberFilter(groupedField)}
+                        />
+                    </Th>,
+                )
+            }
+            index += colSpan - 1
+        }
+
+        return (
+            <>
+                <tr>{firstRow}</tr>
+                {hasGroupedHeader ? <tr>{secondRow}</tr> : null}
+            </>
+        )
+    }
+
+    const pinnedUntil = Math.max(0, visibleColumns.findIndex((column) => column.key === resolveSummaryPinnedColumnKey(enableColumnPreferences ? tablePreference : null)) + 1)
+
     return (
         <div className="space-y-3">
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -674,229 +944,9 @@ export function SummaryTable({
                         </div>
                     ) : null}
                     <StickyReportTable
-                        columnWidths={showValues
-                            ? [64, 150, 320, 90, 150, 220, 130, 140, 130, 140, 130, 130, 140, 130, 140, 180, 120, 150, 120]
-                            : [64, 150, 320, 90, 150, 220, 130, 130, 130, 130, 180, 120, 150, 120]}
-                        defaultPinnedUntil={2}
-                        renderHeader={() => (
-                            <>
-                                <tr>
-                                    <Th rowSpan={showValues ? 2 : 1} className="text-center">STT</Th>
-                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[150px]">
-                                        <ColumnTextFilter
-                                            label="Mã hàng"
-                                            value={filters.product_code_text}
-                                            op={filters.product_code_text_op}
-                                            onApply={(value, op) => setTextFilter("product_code_text", "product_code_text_op", value, op)}
-                                            onClear={() => clearTextFilter("product_code_text", "product_code_text_op")}
-                                        />
-                                    </Th>
-                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[300px]">
-                                        <ColumnTextFilter
-                                            label="Tên hàng"
-                                            value={filters.product_name_text}
-                                            op={filters.product_name_text_op}
-                                            onApply={(value, op) => setTextFilter("product_name_text", "product_name_text_op", value, op)}
-                                            onClear={() => clearTextFilter("product_name_text", "product_name_text_op")}
-                                        />
-                                    </Th>
-                                    <Th rowSpan={showValues ? 2 : 1}>
-                                        <ColumnMultiSelectFilter
-                                            label="ĐVT"
-                                            value={filters.unit}
-                                            options={unitOptions}
-                                            onApply={(value) => setFilter("unit", value)}
-                                        />
-                                    </Th>
-                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[150px]">
-                                        <ColumnTextFilter
-                                            label="Mã kho"
-                                            value={filters.warehouse_code_text}
-                                            op={filters.warehouse_code_text_op}
-                                            onApply={(value, op) => setTextFilter("warehouse_code_text", "warehouse_code_text_op", value, op)}
-                                            onClear={() => clearTextFilter("warehouse_code_text", "warehouse_code_text_op")}
-                                        />
-                                    </Th>
-                                    <Th rowSpan={showValues ? 2 : 1} className="min-w-[220px]">
-                                        <ColumnTextFilter
-                                            label="Tên kho"
-                                            value={filters.warehouse_name_text}
-                                            op={filters.warehouse_name_text_op}
-                                            onApply={(value, op) => setTextFilter("warehouse_name_text", "warehouse_name_text_op", value, op)}
-                                            onClear={() => clearTextFilter("warehouse_name_text", "warehouse_name_text_op")}
-                                        />
-                                    </Th>
-                                    <Th colSpan={showValues ? 2 : 1} className="text-center">
-                                        {showValues ? (
-                                            "Tồn đầu kỳ"
-                                        ) : (
-                                            <ColumnNumberFilter
-                                                label="Tồn đầu kỳ"
-                                                value={getFilterValue("opening_quantity")}
-                                                op={getFilterOp("opening_quantity")}
-                                                onApply={(value, op) => setNumberFilter("opening_quantity", value, op)}
-                                                onClear={() => clearNumberFilter("opening_quantity")}
-                                            />
-                                        )}
-                                    </Th>
-                                    <Th colSpan={showValues ? 2 : 1} className="text-center">
-                                        {showValues ? (
-                                            "Nhập kho"
-                                        ) : (
-                                            <ColumnNumberFilter
-                                                label="Nhập kho"
-                                                value={getFilterValue("inbound_quantity")}
-                                                op={getFilterOp("inbound_quantity")}
-                                                onApply={(value, op) => setNumberFilter("inbound_quantity", value, op)}
-                                                onClear={() => clearNumberFilter("inbound_quantity")}
-                                            />
-                                        )}
-                                    </Th>
-                                    <Th colSpan={showValues ? 3 : 1} className="text-center">
-                                        {showValues ? (
-                                            "Xuất kho"
-                                        ) : (
-                                            <ColumnNumberFilter
-                                                label="Xuất kho"
-                                                value={getFilterValue("outbound_quantity")}
-                                                op={getFilterOp("outbound_quantity")}
-                                                onApply={(value, op) => setNumberFilter("outbound_quantity", value, op)}
-                                                onClear={() => clearNumberFilter("outbound_quantity")}
-                                            />
-                                        )}
-                                    </Th>
-                                    <Th colSpan={showValues ? 2 : 1} className="text-center">
-                                        {showValues ? (
-                                            "Tồn cuối kỳ"
-                                        ) : (
-                                            <ColumnNumberFilter
-                                                label="Tồn cuối kỳ"
-                                                value={getFilterValue("closing_quantity")}
-                                                op={getFilterOp("closing_quantity")}
-                                                onApply={(value, op) => setNumberFilter("closing_quantity", value, op)}
-                                                onClear={() => clearNumberFilter("closing_quantity")}
-                                            />
-                                        )}
-                                    </Th>
-                                    <Th rowSpan={showValues ? 2 : 1}>
-                                        <ColumnSearchMultiSelectFilter
-                                            label="Nhóm hàng"
-                                            value={filters.quote_text}
-                                            options={quoteOptions}
-                                            onApply={(value) =>
-                                                onFiltersChange({
-                                                    ...filters,
-                                                    quote_text: value,
-                                                    quote_text_op: value ? "equals" : undefined,
-                                                })
-                                            }
-                                        />
-                                    </Th>
-                                    <Th rowSpan={showValues ? 2 : 1}>
-                                        <ColumnMultiSelectFilter
-                                            label="Tính chất"
-                                            value={filters.nature}
-                                            options={natureOptions}
-                                            onApply={(value) => setFilter("nature", value)}
-                                        />
-                                    </Th>
-                                    <Th rowSpan={showValues ? 2 : 1}>
-                                        <ColumnMultiSelectFilter
-                                            label="Tình trạng"
-                                            value={filters.summary_status}
-                                            options={SUMMARY_STATUS_OPTIONS}
-                                            onApply={(value) => setFilter("summary_status", value)}
-                                        />
-                                    </Th>
-                                    <Th rowSpan={showValues ? 2 : 1}>Dạng hàng</Th>
-                                </tr>
-                                {showValues ? (
-                                <tr>
-                                    <Th>
-                                        <ColumnNumberFilter
-                                            label="Số lượng"
-                                            value={getFilterValue("opening_quantity")}
-                                            op={getFilterOp("opening_quantity")}
-                                            onApply={(value, op) => setNumberFilter("opening_quantity", value, op)}
-                                            onClear={() => clearNumberFilter("opening_quantity")}
-                                        />
-                                    </Th>
-                                    <Th>
-                                        <ColumnNumberFilter
-                                            label="Giá trị"
-                                            value={getFilterValue("opening_value")}
-                                            op={getFilterOp("opening_value")}
-                                            onApply={(value, op) => setNumberFilter("opening_value", value, op)}
-                                            onClear={() => clearNumberFilter("opening_value")}
-                                        />
-                                    </Th>
-                                    <Th>
-                                        <ColumnNumberFilter
-                                            label="Số lượng"
-                                            value={getFilterValue("inbound_quantity")}
-                                            op={getFilterOp("inbound_quantity")}
-                                            onApply={(value, op) => setNumberFilter("inbound_quantity", value, op)}
-                                            onClear={() => clearNumberFilter("inbound_quantity")}
-                                        />
-                                    </Th>
-                                    <Th>
-                                        <ColumnNumberFilter
-                                            label="Giá trị"
-                                            value={getFilterValue("inbound_value")}
-                                            op={getFilterOp("inbound_value")}
-                                            onApply={(value, op) => setNumberFilter("inbound_value", value, op)}
-                                            onClear={() => clearNumberFilter("inbound_value")}
-                                        />
-                                    </Th>
-                                    <Th>
-                                        <ColumnNumberFilter
-                                            label="Số lượng"
-                                            value={getFilterValue("outbound_quantity")}
-                                            op={getFilterOp("outbound_quantity")}
-                                            onApply={(value, op) => setNumberFilter("outbound_quantity", value, op)}
-                                            onClear={() => clearNumberFilter("outbound_quantity")}
-                                        />
-                                    </Th>
-                                    <Th>
-                                        <ColumnNumberFilter
-                                            label="Giá xuất BQ"
-                                            value={getFilterValue("avg_issue_unit_cost")}
-                                            op={getFilterOp("avg_issue_unit_cost")}
-                                            onApply={(value, op) => setNumberFilter("avg_issue_unit_cost", value, op)}
-                                            onClear={() => clearNumberFilter("avg_issue_unit_cost")}
-                                        />
-                                    </Th>
-                                    <Th>
-                                        <ColumnNumberFilter
-                                            label="Giá trị"
-                                            value={getFilterValue("outbound_value")}
-                                            op={getFilterOp("outbound_value")}
-                                            onApply={(value, op) => setNumberFilter("outbound_value", value, op)}
-                                            onClear={() => clearNumberFilter("outbound_value")}
-                                        />
-                                    </Th>
-                                    <Th>
-                                        <ColumnNumberFilter
-                                            label="Số lượng"
-                                            value={getFilterValue("closing_quantity")}
-                                            op={getFilterOp("closing_quantity")}
-                                            onApply={(value, op) => setNumberFilter("closing_quantity", value, op)}
-                                            onClear={() => clearNumberFilter("closing_quantity")}
-                                        />
-                                    </Th>
-                                    <Th>
-                                        <ColumnNumberFilter
-                                            label="Giá trị"
-                                            value={getFilterValue("closing_value")}
-                                            op={getFilterOp("closing_value")}
-                                            onApply={(value, op) => setNumberFilter("closing_value", value, op)}
-                                            onClear={() => clearNumberFilter("closing_value")}
-                                        />
-                                    </Th>
-                                </tr>
-                                ) : null}
-                            </>
-                        )}
+                        columnWidths={[64, ...visibleColumns.map((column) => column.width)]}
+                        defaultPinnedUntil={pinnedUntil}
+                        renderHeader={renderSummaryHeaderRows}
                         renderBody={() => (
                             <>
                                 {data.map((item, index) => (
@@ -904,7 +954,7 @@ export function SummaryTable({
                                         key={`${item.product_id}-${item.warehouse_id ?? "warehouse"}-${index}`}
                                         index={pagination.pageIndex * pagination.pageSize + index + 1}
                                         item={item}
-                                        showValues={showValues}
+                                        columns={visibleColumns}
                                         natureLabelMap={natureLabelMap}
                                     />
                                 ))}
@@ -913,30 +963,10 @@ export function SummaryTable({
                         renderFooter={() => (
                             <>
                                 <tr>
-                                    <Td colSpan={3}>Tổng cộng theo bộ lọc</Td>
-                                    <Td />
-                                    <Td />
-                                    <Td />
-                                    <NumberTd>{summaryTotals.opening_quantity}</NumberTd>
-                                    {showValues ? (
-                                    <MoneyTd>{summaryTotals.opening_value}</MoneyTd>
-                                    ) : null}
-                                    <NumberTd>{summaryTotals.inbound_quantity}</NumberTd>
-                                    {showValues ? (
-                                    <MoneyTd>{summaryTotals.inbound_value}</MoneyTd>
-                                    ) : null}
-                                    <NumberTd>{summaryTotals.outbound_quantity}</NumberTd>
-                                    {showValues ? (
-                                    <MoneyTd>-</MoneyTd>
-                                    ) : null}
-                                    {showValues ? (
-                                    <MoneyTd>{summaryTotals.outbound_value}</MoneyTd>
-                                    ) : null}
-                                    <NumberTd>{summaryTotals.closing_quantity}</NumberTd>
-                                    {showValues ? (
-                                    <MoneyTd>{summaryTotals.closing_value}</MoneyTd>
-                                    ) : null}
-                                    <Td colSpan={4} />
+                                    <Td className="font-semibold">Tổng cộng theo bộ lọc</Td>
+                                    {visibleColumns.map((column) => (
+                                        <SummaryFooterCell key={column.key} column={column} totals={summaryTotals} />
+                                    ))}
                                 </tr>
                             </>
                         )}
@@ -965,12 +995,12 @@ export function SummaryTable({
 function SummaryRow({
     index,
     item,
-    showValues,
+    columns,
     natureLabelMap,
 }: {
     index: number
     item: InventorySummary
-    showValues: boolean
+    columns: SummaryColumnDefinition[]
     natureLabelMap: Map<string, string>
 }) {
     const status = getInventoryStatus(item)
@@ -984,81 +1014,320 @@ function SummaryRow({
     return (
         <tr className="hover:bg-muted/30 border-b">
             <Td className="text-muted-foreground text-center font-mono">{formatNumber(index)}</Td>
-            <Td className="text-muted-foreground text-center font-mono text-xs">
-                {item.product_id ? (
-                    <Link
-                        to="/inventory/ledgers"
-                        search={ledgerSearch}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary underline-offset-2 hover:underline"
-                    >
-                        {item.product_code || "-"}
-                    </Link>
-                ) : (
-                    item.product_code || "-"
-                )}
-            </Td>
-            <Td className="font-semibold text-foreground">
-                {item.product_id ? (
-                    <Link
-                        to="/inventory/ledgers"
-                        search={ledgerSearch}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary underline-offset-2 hover:underline"
-                    >
-                        {item.product_name || "-"}
-                    </Link>
-                ) : (
-                    item.product_name || "-"
-                )}
-            </Td>
-            <Td className="text-muted-foreground text-center">{item.unit || "-"}</Td>
-            <Td className="text-muted-foreground text-center font-mono text-xs">
-                {item.warehouse_code || "-"}
-            </Td>
-            <Td className="text-center text-xs">
-                {item.warehouse_name || "-"}
-            </Td>
-            <NumberTd>{item.opening_quantity}</NumberTd>
-            {showValues ? (
-            <MoneyTd>{item.opening_value}</MoneyTd>
-            ) : null}
-            <NumberTd>{item.inbound_quantity}</NumberTd>
-            {showValues ? (
-            <MoneyTd>{item.inbound_value}</MoneyTd>
-            ) : null}
-            <NumberTd>{item.outbound_quantity}</NumberTd>
-            {showValues ? (
-            <Td className="tabular-nums">
-                    <div className="flex items-center gap-1.5">
-                        <CostPeriodIcon label={item.cost_period_label} />
-                        <span className="ml-auto text-right">{formatCurrency(Number(item.avg_issue_unit_cost ?? 0))}</span>
-                    </div>
-                </Td>
-            ) : null}
-            {showValues ? (
-            <MoneyTd>{item.outbound_value}</MoneyTd>
-            ) : null}
-            <NumberTd className={Number(item.closing_quantity || 0) < 0 ? "text-destructive font-bold" : ""}>
-                {item.closing_quantity}
-            </NumberTd>
-            {showValues ? (
-            <MoneyTd>{item.closing_value}</MoneyTd>
-            ) : null}
-            <Td className="text-center text-xs">
-                {item.quote_name || "-"}
-            </Td>
-            <Td className="text-center text-xs">{natureLabelMap.get(item.nature || "") || item.nature || "-"}</Td>
-            <Td className="text-center">
-                <Badge variant={status.variant} className={cn("inline-flex items-center gap-1.5 whitespace-nowrap", status.className)}>
-                    <status.icon className="h-3.5 w-3.5 shrink-0" />
-                    {status.label}
-                </Badge>
-            </Td>
-            <Td className="text-center text-muted-foreground">-</Td>
+            {columns.map((column) => {
+                switch (column.key) {
+                    case "product_code":
+                        return (
+                            <Td key={column.key} className="text-muted-foreground text-center font-mono text-xs">
+                                {item.product_id ? (
+                                    <Link
+                                        to="/inventory/ledgers"
+                                        search={ledgerSearch}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary underline-offset-2 hover:underline"
+                                    >
+                                        {item.product_code || "-"}
+                                    </Link>
+                                ) : (
+                                    item.product_code || "-"
+                                )}
+                            </Td>
+                        )
+                    case "product_name":
+                        return (
+                            <Td key={column.key} className="font-semibold text-foreground">
+                                {item.product_id ? (
+                                    <Link
+                                        to="/inventory/ledgers"
+                                        search={ledgerSearch}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary underline-offset-2 hover:underline"
+                                    >
+                                        {item.product_name || "-"}
+                                    </Link>
+                                ) : (
+                                    item.product_name || "-"
+                                )}
+                            </Td>
+                        )
+                    case "unit":
+                        return <Td key={column.key} className="text-muted-foreground text-center">{item.unit || "-"}</Td>
+                    case "warehouse_code":
+                        return <Td key={column.key} className="text-muted-foreground text-center font-mono text-xs">{item.warehouse_code || "-"}</Td>
+                    case "warehouse_name":
+                        return <Td key={column.key} className="text-center text-xs">{item.warehouse_name || "-"}</Td>
+                    case "opening_quantity":
+                        return <NumberTd key={column.key}>{item.opening_quantity}</NumberTd>
+                    case "opening_value":
+                        return <MoneyTd key={column.key}>{item.opening_value}</MoneyTd>
+                    case "inbound_quantity":
+                        return <NumberTd key={column.key}>{item.inbound_quantity}</NumberTd>
+                    case "inbound_value":
+                        return <MoneyTd key={column.key}>{item.inbound_value}</MoneyTd>
+                    case "outbound_quantity":
+                        return <NumberTd key={column.key}>{item.outbound_quantity}</NumberTd>
+                    case "avg_issue_unit_cost":
+                        return (
+                            <Td key={column.key} className="tabular-nums">
+                                <div className="flex items-center gap-1.5">
+                                    <CostPeriodIcon label={item.cost_period_label} />
+                                    <span className="ml-auto text-right">{formatCurrency(Number(item.avg_issue_unit_cost ?? 0))}</span>
+                                </div>
+                            </Td>
+                        )
+                    case "outbound_value":
+                        return <MoneyTd key={column.key}>{item.outbound_value}</MoneyTd>
+                    case "closing_quantity":
+                        return (
+                            <NumberTd key={column.key} className={Number(item.closing_quantity || 0) < 0 ? "text-destructive font-bold" : ""}>
+                                {item.closing_quantity}
+                            </NumberTd>
+                        )
+                    case "closing_value":
+                        return <MoneyTd key={column.key}>{item.closing_value}</MoneyTd>
+                    case "quote_name":
+                        return <Td key={column.key} className="text-center text-xs">{item.quote_name || "-"}</Td>
+                    case "nature":
+                        return <Td key={column.key} className="text-center text-xs">{natureLabelMap.get(item.nature || "") || item.nature || "-"}</Td>
+                    case "summary_status":
+                        return (
+                            <Td key={column.key} className="text-center">
+                                <Badge variant={status.variant} className={cn("inline-flex items-center gap-1.5 whitespace-nowrap", status.className)}>
+                                    <status.icon className="h-3.5 w-3.5 shrink-0" />
+                                    {status.label}
+                                </Badge>
+                            </Td>
+                        )
+                    case "product_type":
+                        return <Td key={column.key} className="text-center text-muted-foreground">-</Td>
+                    default:
+                        return null
+                }
+            })}
         </tr>
+    )
+}
+
+function SummaryFooterCell({
+    column,
+    totals,
+}: {
+    column: SummaryColumnDefinition
+    totals: Required<InventorySummaryTotals>
+}) {
+    switch (column.key) {
+        case "opening_quantity":
+            return <NumberTd>{totals.opening_quantity}</NumberTd>
+        case "opening_value":
+            return <MoneyTd>{totals.opening_value}</MoneyTd>
+        case "inbound_quantity":
+            return <NumberTd>{totals.inbound_quantity}</NumberTd>
+        case "inbound_value":
+            return <MoneyTd>{totals.inbound_value}</MoneyTd>
+        case "outbound_quantity":
+            return <NumberTd>{totals.outbound_quantity}</NumberTd>
+        case "avg_issue_unit_cost":
+            return <Td className="text-right text-muted-foreground">-</Td>
+        case "outbound_value":
+            return <MoneyTd>{totals.outbound_value}</MoneyTd>
+        case "closing_quantity":
+            return <NumberTd>{totals.closing_quantity}</NumberTd>
+        case "closing_value":
+            return <MoneyTd>{totals.closing_value}</MoneyTd>
+        default:
+            return <Td />
+    }
+}
+
+export function SummaryColumnPreferencesControl({ showValues }: { showValues: boolean }) {
+    const queryClient = useQueryClient()
+    const [menuOpen, setMenuOpen] = useState(false)
+    const [panelOpen, setPanelOpen] = useState(false)
+    const { data: preference } = useQuery({
+        queryKey: ["table-preference", SUMMARY_TABLE_PREFERENCE_KEY],
+        queryFn: () => getTablePreference<SummaryTablePreference>(SUMMARY_TABLE_PREFERENCE_KEY),
+    })
+    const saveMutation = useMutation({
+        mutationFn: (nextPreference: SummaryTablePreference) => saveTablePreference(SUMMARY_TABLE_PREFERENCE_KEY, nextPreference),
+        onSuccess: (nextPreference) => {
+            queryClient.setQueryData(["table-preference", SUMMARY_TABLE_PREFERENCE_KEY], nextPreference)
+            toast.success("Đã lưu tùy chỉnh bảng.")
+            setPanelOpen(false)
+        },
+        onError: (error: any) => {
+            toast.error(error?.message || "Không lưu được tùy chỉnh bảng.")
+        },
+    })
+    const [draftColumns, setDraftColumns] = useState<SummaryTableColumnPreference[]>(() =>
+        resolveSummaryColumnPreference(preference),
+    )
+    const [draftPinnedColumnKey, setDraftPinnedColumnKey] = useState<SummaryColumnKey | null>(() =>
+        resolveSummaryPinnedColumnKey(preference),
+    )
+    const [draggingKey, setDraggingKey] = useState<SummaryColumnKey | null>(null)
+    const configurableDraftColumns = useMemo(
+        () => draftColumns.filter((columnPreference) => {
+            const column = SUMMARY_COLUMN_MAP.get(columnPreference.key)
+            return Boolean(column && (showValues || !column.valueColumn))
+        }),
+        [draftColumns, showValues],
+    )
+
+    useEffect(() => {
+        if (panelOpen) {
+            setDraftColumns(resolveSummaryColumnPreference(preference))
+            setDraftPinnedColumnKey(resolveSummaryPinnedColumnKey(preference))
+        }
+    }, [panelOpen, preference])
+
+    const moveColumn = (sourceKey: SummaryColumnKey, targetKey: SummaryColumnKey) => {
+        if (sourceKey === targetKey) return
+        setDraftColumns((current) => {
+            const sourceIndex = current.findIndex((column) => column.key === sourceKey)
+            const targetIndex = current.findIndex((column) => column.key === targetKey)
+            if (sourceIndex < 0 || targetIndex < 0) return current
+            const next = [...current]
+            const [moved] = next.splice(sourceIndex, 1)
+            next.splice(targetIndex, 0, moved)
+            return next
+        })
+    }
+
+    const toggleColumn = (key: SummaryColumnKey, visible: boolean) => {
+        setDraftColumns((current) =>
+            current.map((column) => column.key === key ? { ...column, visible } : column),
+        )
+        if (!visible && draftPinnedColumnKey === key) {
+            setDraftPinnedColumnKey(null)
+        }
+    }
+
+    const resetDefault = () => {
+        setDraftColumns(SUMMARY_COLUMN_DEFINITIONS.map((column) => ({ key: column.key, visible: true })))
+        setDraftPinnedColumnKey("product_name")
+    }
+
+    return (
+        <div className="relative">
+            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen} modal={false}>
+                <DropdownMenuTrigger asChild>
+                    <Button type="button" variant="outline" size="icon" className="h-9 w-9">
+                        <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem
+                        onSelect={(event) => {
+                            event.preventDefault()
+                            setMenuOpen(false)
+                            setPanelOpen(true)
+                        }}
+                    >
+                        <Columns3 className="mr-2 h-4 w-4" />
+                        Tùy chỉnh mẫu báo cáo
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
+                <SheetContent className="w-[min(96vw,560px)] gap-0 p-0 sm:max-w-none">
+                    <SheetHeader className="border-b px-6 py-5">
+                        <SheetTitle className="text-lg">Tùy chỉnh mẫu báo cáo</SheetTitle>
+                        <SheetDescription>
+                            Kéo thả để đổi vị trí, chọn cột muốn hiển thị và cột pin mặc định.
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="min-h-0 flex-1 overflow-y-auto">
+                        <div className="grid grid-cols-[32px_minmax(0,1fr)_72px_64px] border-b bg-slate-50 px-3 py-2 text-xs font-semibold text-muted-foreground">
+                            <div />
+                            <div>Cột</div>
+                            <div className="text-center">Hiện</div>
+                            <div className="text-center">Pin</div>
+                        </div>
+                        {configurableDraftColumns.map((columnPreference, index) => {
+                            const column = SUMMARY_COLUMN_MAP.get(columnPreference.key)
+                            if (!column) return null
+                            return (
+                                <div
+                                    key={column.key}
+                                    draggable
+                                    onDragStart={(event) => {
+                                        event.dataTransfer.effectAllowed = "move"
+                                        event.dataTransfer.setData("text/plain", column.key)
+                                        setDraggingKey(column.key)
+                                    }}
+                                    onDragOver={(event) => {
+                                        event.preventDefault()
+                                        event.dataTransfer.dropEffect = "move"
+                                    }}
+                                    onDrop={(event) => {
+                                        event.preventDefault()
+                                        const sourceKey = (event.dataTransfer.getData("text/plain") || draggingKey) as SummaryColumnKey | null
+                                        if (sourceKey) moveColumn(sourceKey, column.key)
+                                        setDraggingKey(null)
+                                    }}
+                                    onDragEnd={() => setDraggingKey(null)}
+                                    className={cn(
+                                        "grid cursor-move grid-cols-[32px_minmax(0,1fr)_72px_64px] items-center border-b px-3 py-2 last:border-b-0",
+                                        draggingKey === column.key && "bg-primary/5 opacity-60",
+                                        index % 2 === 1 && "bg-slate-50/40",
+                                    )}
+                                >
+                                    <div className="flex justify-center text-muted-foreground">
+                                        <GripVertical className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="truncate text-sm font-medium">{column.label}</div>
+                                    </div>
+                                    <div className="flex justify-center">
+                                        <Checkbox
+                                            checked={columnPreference.visible}
+                                            onCheckedChange={(checked) => toggleColumn(column.key, checked === true)}
+                                        />
+                                    </div>
+                                    <div className="flex justify-center">
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            disabled={!columnPreference.visible}
+                                            onClick={() => setDraftPinnedColumnKey(draftPinnedColumnKey === column.key ? null : column.key)}
+                                            title={draftPinnedColumnKey === column.key ? "Bỏ pin mặc định" : "Pin mặc định đến cột này"}
+                                        >
+                                            <Pin className={cn("h-4 w-4", draftPinnedColumnKey === column.key ? "fill-primary text-primary" : "text-muted-foreground")} />
+                                        </Button>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+
+                    <SheetFooter className="flex-row items-center justify-between border-t px-6 py-4 sm:flex-row">
+                        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={resetDefault} disabled={saveMutation.isPending}>
+                            <RotateCcw className="h-4 w-4" />
+                            Mặc định
+                        </Button>
+                        <div className="flex gap-2">
+                            <Button type="button" variant="outline" size="sm" onClick={() => setPanelOpen(false)} disabled={saveMutation.isPending}>
+                                Đóng
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => saveMutation.mutate({ columns: draftColumns, pinnedColumnKey: draftPinnedColumnKey })}
+                                disabled={saveMutation.isPending}
+                            >
+                                {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Lưu
+                            </Button>
+                        </div>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
+        </div>
     )
 }
 

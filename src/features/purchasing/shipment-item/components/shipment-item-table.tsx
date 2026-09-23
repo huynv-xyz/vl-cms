@@ -148,6 +148,8 @@ function ShipmentItemCard({ item, index }: { item: ShipmentItem; index: number }
                     <DetailRow label="Ngày đi" value={shipment?.etd || ''} />
                     <DetailRow label="Ngày đến" value={shipment?.eta || ''} />
                     <DetailRow label="Về kho" value={shipment?.warehouse_at || ''} />
+                    <DetailRow label="Ngày sản xuất" value={shipment?.production_date || "—"} />
+                    <DetailRow label="Hạn sử dụng" value={shipment?.expiry_date || "—"} />
                 </DetailBox>
 
                 {/* KHO/CẢNG */}

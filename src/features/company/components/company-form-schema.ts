@@ -12,6 +12,10 @@ export const companySchema: RJSFSchema = {
                 minLength: "Tên công ty không được để trống",
             },
         },
+        alias: {
+            type: "string",
+            title: "Alias",
+        },
         address: {
             type: "string",
             title: "Địa chỉ",

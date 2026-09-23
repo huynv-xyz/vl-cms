@@ -33,6 +33,7 @@ import {
     checkDocumentPostingTimeChange,
     checkInboundWarehouseChange,
     checkLedgerAmountChange,
+    clearLedgerAmountOverride,
     checkLegacyPostingTimeNormalization,
     checkOtherExportLineDelete,
     checkOtherInboundLineDelete,
@@ -435,13 +436,35 @@ export function InventoryLedgerTable({
         }))
         return uniqueOptions([...selected, ...fromLookup])
     }, [filters.unit, unitLookupPage])
+    const { data: permissions = [] } = useQuery({
+        queryKey: ["my-permissions"],
+        queryFn: getMyPermissions,
+    })
+    const canViewInventoryLedger = useMemo(
+        () => hasPermission(permissions, "inventory.ledgers", "view"),
+        [permissions],
+    )
+    const canUseLedgerCorrections = useMemo(
+        () => hasPermission(permissions, "inventory.ledgers", "correction.change"),
+        [permissions],
+    )
+    const canUseScopedLedgerCorrections = useMemo(
+        () => hasPermission(permissions, "inventory.ledgers", "scoped-correction.change"),
+        [permissions],
+    )
+    const canUseLedgerPriceCorrections = useMemo(
+        () => canUseLedgerCorrections || hasPermission(permissions, "inventory.ledgers", "price-correction.change"),
+        [canUseLedgerCorrections, permissions],
+    )
     const { data: tkNoLookup = [] } = useQuery({
         queryKey: ["inventory-ledger-static-account-options", "tk_no"],
         queryFn: () => listInventoryLedgerStaticAccountOptions("tk_no"),
+        enabled: canViewInventoryLedger,
     })
     const { data: tkCoLookup = [] } = useQuery({
         queryKey: ["inventory-ledger-static-account-options", "tk_co"],
         queryFn: () => listInventoryLedgerStaticAccountOptions("tk_co"),
+        enabled: canViewInventoryLedger,
     })
     const tkNoOptions = useMemo(
         () => uniqueOptions([
@@ -458,22 +481,6 @@ export function InventoryLedgerTable({
             ...tkCoLookup,
         ]),
         [filters.tk_co, tkCoLookup],
-    )
-    const { data: permissions = [] } = useQuery({
-        queryKey: ["my-permissions"],
-        queryFn: getMyPermissions,
-    })
-    const canUseLedgerCorrections = useMemo(
-        () => hasPermission(permissions, "inventory.ledgers", "correction.change"),
-        [permissions],
-    )
-    const canUseScopedLedgerCorrections = useMemo(
-        () => hasPermission(permissions, "inventory.ledgers", "scoped-correction.change"),
-        [permissions],
-    )
-    const canUseLedgerPriceCorrections = useMemo(
-        () => canUseLedgerCorrections || hasPermission(permissions, "inventory.ledgers", "price-correction.change"),
-        [canUseLedgerCorrections, permissions],
     )
     const staticAccountMutation = useMutation({
         mutationFn: ({ ids, field, value }: { ids: number[]; field: InventoryLedgerStaticAccountField; value: string }) =>
@@ -2334,10 +2341,11 @@ function LedgerRow({
     const quantityOut = Number(item.quantity_out || 0)
     const openingBalance = Number(item.balance_quantity || 0) - quantityIn + quantityOut
     const rowUnitPrice = Number(item.unit_price || 0)
+    const rowAmount = Math.abs(Number(item.amount || 0))
     const closingBalance = Number(item.balance_quantity || 0)
     const openingValue = openingBalance * rowUnitPrice
-    const inboundValue = quantityIn * rowUnitPrice
-    const outboundValue = quantityOut * rowUnitPrice
+    const inboundValue = quantityIn ? rowAmount : 0
+    const outboundValue = quantityOut ? rowAmount : 0
     const closingValue = closingBalance * rowUnitPrice
     const centerVoucherFields = Boolean(direction)
 
@@ -4650,22 +4658,54 @@ function SalesReturnUnitPriceChangeDialog({
 }) {
     const [unitPriceText, setUnitPriceText] = useState("")
     const [result, setResult] = useState<SalesReturnUnitPriceChangeResult | null>(null)
+    const [contextResult, setContextResult] = useState<SalesReturnUnitPriceChangeResult | null>(null)
     const [errorMessage, setErrorMessage] = useState("")
 
     useEffect(() => {
         if (open && row) {
-            setUnitPriceText(String(row.unit_price ?? ""))
+            const initialUnitPrice = Number(row.unit_price || 0)
+            setUnitPriceText(initialUnitPrice > 0 ? String(initialUnitPrice) : "")
             setResult(null)
+            setContextResult(null)
             setErrorMessage("")
+            checkSalesReturnUnitPriceChange(Number(row.id), null)
+                .then((data) => {
+                    setContextResult(data)
+                    setResult(null)
+                    const currentUnitPrice = Number(data?.current_unit_price || 0)
+                    setUnitPriceText(currentUnitPrice > 0 ? String(currentUnitPrice) : "")
+                })
+                .catch((error: any) => {
+                    setErrorMessage(error?.message || "Không tải được giá hiện tại của dòng nhập trả hàng.")
+                })
         }
     }, [open, row])
 
-    const newUnitPrice = parseDecimalInput(unitPriceText)
+    const inputIsBlank = !unitPriceText.trim()
+    const newUnitPrice = inputIsBlank ? 0 : parseDecimalInput(unitPriceText)
     const quantity = Number(row?.quantity_in || 0)
-    const currentUnitPrice = Number(row?.unit_price || 0)
-    const currentAmount = Number(row?.amount || 0)
+    const currentUnitPrice = Number(contextResult?.current_unit_price ?? row?.unit_price ?? 0)
+    const currentAmount = Number(contextResult?.current_amount ?? row?.amount ?? 0)
+    const originalSaleUnitPrice = Number(contextResult?.original_sale_unit_price || 0)
+    const originalSaleAmount = Number(contextResult?.original_sale_amount || 0)
+    const originalSalePriceStatus = contextResult?.original_sale_price_status || (
+        originalSaleUnitPrice > 0 ? "Đã có giá vốn từ chứng từ xuất bán gốc" : "Chưa có giá vốn đã tính"
+    )
+    const appliedUnitPrice = Number(contextResult?.applied_unit_price || 0)
+    const appliedAmount = Number(contextResult?.applied_amount || 0)
     const previewAmount = Number.isFinite(newUnitPrice) ? quantity * newUnitPrice : 0
     const unchanged = Number.isFinite(newUnitPrice) && Math.abs(newUnitPrice - currentUnitPrice) < 0.000001
+    const pricingSourcePreview = Number.isFinite(newUnitPrice) && newUnitPrice > 0
+        ? "Theo giá nhập tay/import"
+        : contextResult?.pricing_source || (originalSaleUnitPrice > 0 ? "Theo chứng từ xuất bán gốc" : "Chưa có giá nguồn")
+    const appliedSourceLabel = ["SALES_RETURN_MANUAL", "COST_OVERRIDE_MANUAL_UI", "COST_OVERRIDE_FILE_IMPORT"]
+        .includes(String(contextResult?.applied_source || ""))
+        ? "Theo giá nhập tay/import"
+        : contextResult?.applied_source === "SALES_RETURN_ORIGINAL"
+        ? "Theo chứng từ xuất bán gốc"
+        : appliedUnitPrice > 0
+        ? contextResult?.applied_source || "Đã tính"
+        : "Chưa tính giá"
 
     const checkMutation = useMutation({
         mutationFn: () => checkSalesReturnUnitPriceChange(Number(row?.id), newUnitPrice),
@@ -4691,7 +4731,19 @@ function SalesReturnUnitPriceChangeDialog({
         },
     })
 
-    const busy = checkMutation.isPending || applyMutation.isPending
+    const clearMutation = useMutation({
+        mutationFn: () => applySalesReturnUnitPriceChange(Number(row?.id), 0),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            onChanged()
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không bỏ được giá vốn cố định.")
+        },
+    })
+
+    const busy = checkMutation.isPending || applyMutation.isPending || clearMutation.isPending
     const canCheck = Boolean(row && Number.isFinite(newUnitPrice) && newUnitPrice >= 0 && !unchanged && !busy)
     const canApply = Boolean(result?.valid && !result.applied && !unchanged && !busy)
 
@@ -4719,15 +4771,27 @@ function SalesReturnUnitPriceChangeDialog({
                             <InfoItem label="Số lượng nhập trả" value={formatNumber(quantity)} />
                         </div>
 
-                        <div className="grid gap-3 rounded-md border p-3 text-sm md:grid-cols-2">
-                            <InfoItem label="Đơn giá hiện tại" value={formatNumber(currentUnitPrice)} />
-                            <InfoItem label="Giá trị hiện tại" value={formatNumber(currentAmount)} />
-                            <InfoItem label="Đơn giá mới" value={Number.isFinite(newUnitPrice) ? formatNumber(newUnitPrice) : "-"} />
-                            <InfoItem label="Giá trị mới" value={Number.isFinite(newUnitPrice) ? formatNumber(previewAmount) : "-"} />
+                        <div className="grid gap-3 md:grid-cols-3">
+                            <PriceInfoGroup title="Giá nhập tay/import">
+                                <InfoItem label="Đơn giá hiện tại" value={formatNumber(currentUnitPrice)} />
+                                <InfoItem label="Giá trị hiện tại" value={formatNumber(currentAmount)} />
+                                <InfoItem label="Giá trị mới" value={Number.isFinite(newUnitPrice) ? formatNumber(previewAmount) : "-"} />
+                            </PriceInfoGroup>
+                            <PriceInfoGroup title="Giá từ xuất bán gốc">
+                                <InfoItem label="Trạng thái" value={originalSalePriceStatus} />
+                                <InfoItem label="Đơn giá" value={originalSaleUnitPrice > 0 ? formatNumber(originalSaleUnitPrice) : "-"} />
+                                <InfoItem label="Giá trị" value={originalSaleAmount > 0 ? formatNumber(originalSaleAmount) : "-"} />
+                            </PriceInfoGroup>
+                            <PriceInfoGroup title="Giá đang áp dụng">
+                                <InfoItem label="Nguồn hiện tại" value={appliedSourceLabel} />
+                                <InfoItem label="Đơn giá" value={appliedUnitPrice > 0 ? formatNumber(appliedUnitPrice) : "-"} />
+                                <InfoItem label="Giá trị" value={appliedAmount ? formatNumber(appliedAmount) : "-"} />
+                                <InfoItem label="Khi tính lại" value={pricingSourcePreview} />
+                            </PriceInfoGroup>
                         </div>
 
                         <div className="grid gap-2">
-                            <label className="text-sm font-medium">Đơn giá mới</label>
+                            <label className="text-sm font-medium">Đơn giá nhập tay/import mới</label>
                             <Input
                                 value={unitPriceText}
                                 onChange={(event) => {
@@ -4735,10 +4799,10 @@ function SalesReturnUnitPriceChangeDialog({
                                     setResult(null)
                                     setErrorMessage("")
                                 }}
-                                placeholder="Nhập đơn giá vốn mới"
+                                placeholder="Nhập đơn giá vốn mới, bỏ trống hoặc nhập 0 để lấy theo chứng từ xuất bán"
                                 className="h-10 font-mono"
                             />
-                            {!Number.isFinite(newUnitPrice) ? (
+                            {unitPriceText.trim() && !Number.isFinite(newUnitPrice) ? (
                                 <div className="text-sm text-destructive">Đơn giá mới không hợp lệ.</div>
                             ) : null}
                             {unchanged ? (
@@ -4761,6 +4825,12 @@ function SalesReturnUnitPriceChangeDialog({
                 ) : null}
 
                 <div className="flex justify-end gap-2 border-t pt-3">
+                    {contextResult?.can_clear_override ? (
+                        <Button type="button" variant="outline" disabled={busy} onClick={() => clearMutation.mutate()}>
+                            {clearMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                            Dùng lại giá xuất bán gốc
+                        </Button>
+                    ) : null}
                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                         Đóng
                     </Button>
@@ -4797,9 +4867,12 @@ function SalesReturnUnitPriceChangeResultPanel({ result }: { result: SalesReturn
             <div className="mt-1 pl-6">{result.message}</div>
 
             <div className="mt-3 grid gap-2 md:grid-cols-3">
-                <ResultInfo label="Đơn giá cũ" value={formatNumber(Number(result.current_unit_price || 0))} />
-                <ResultInfo label="Đơn giá mới" value={formatNumber(Number(result.new_unit_price || 0))} />
-                <ResultInfo label="Giá trị mới" value={formatNumber(Number(result.new_amount || 0))} />
+                <ResultInfo label="Đơn giá nhập tay cũ" value={formatNumber(Number(result.manual_unit_price ?? result.current_unit_price ?? 0))} />
+                <ResultInfo label="Đơn giá nhập tay mới" value={formatNumber(Number(result.new_unit_price || 0))} />
+                <ResultInfo label="Nguồn giá khi tính lại" value={result.pricing_source || "-"} />
+                <ResultInfo label="Đơn giá truy từ xuất bán" value={Number(result.original_sale_unit_price || 0) > 0 ? formatNumber(Number(result.original_sale_unit_price || 0)) : "-"} />
+                <ResultInfo label="Giá đang áp dụng" value={Number(result.applied_unit_price || 0) > 0 ? formatNumber(Number(result.applied_unit_price || 0)) : "-"} />
+                <ResultInfo label="Giá trị nhập tay mới" value={formatNumber(Number(result.new_amount || 0))} />
                 <ResultInfo label="Dòng sổ kho" value={applied ? formatNumber(Number(changes.updated_ledger_rows || 0)) : "Sẽ cập nhật 1 dòng"} />
                 <ResultInfo label="Dòng phiếu kho" value={applied ? formatNumber(Number(changes.updated_voucher_items || 0)) : result.voucher_item_id ? "Sẽ đồng bộ" : "Không có"} />
                 {applied ? <ResultInfo label="Kỳ cần tính lại" value={formatNumber(Number(changes.stale_cost_periods || 0))} /> : null}
@@ -4841,9 +4914,13 @@ function LedgerAmountChangeDialog({
 
     useEffect(() => {
         if (open && row) {
-            setAmountText(String(Math.abs(Number(row.amount || 0))))
+            const currentAmount = Math.abs(Number(row.amount || 0))
+            setAmountText(String(currentAmount))
             setResult(null)
             setErrorMessage("")
+            checkLedgerAmountChange(Number(row.id), currentAmount)
+                .then(setResult)
+                .catch(() => undefined)
         }
     }, [open, row])
 
@@ -4877,10 +4954,24 @@ function LedgerAmountChangeDialog({
         },
     })
 
-    const busy = checkMutation.isPending || applyMutation.isPending
+    const clearMutation = useMutation({
+        mutationFn: () => clearLedgerAmountOverride(Number(row?.id)),
+        onSuccess: (data) => {
+            setResult(data)
+            setErrorMessage("")
+            onChanged()
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message || "Không bỏ được giá vốn cố định.")
+        },
+    })
+
+    const busy = checkMutation.isPending || applyMutation.isPending || clearMutation.isPending
     const canCheck = Boolean(row && Number.isFinite(newTotalAmount) && newTotalAmount >= 0 && !unchanged && !busy)
     const canApply = Boolean(result?.valid && !result.applied && !unchanged && !busy)
     const directionLabel = String(row?.doc_type || "").toUpperCase() === "OTHER_EXPORT" ? "xuất" : "nhập"
+    const usesCostOverride = ["PURCHASE_RETURN", "OTHER_INBOUND", "TRANSFER_EXPORT", "OTHER_EXPORT"]
+        .includes(String(row?.doc_type || "").toUpperCase())
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -4889,9 +4980,11 @@ function LedgerAmountChangeDialog({
                 style={{ width: "min(980px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
             >
                 <DialogHeader>
-                    <DialogTitle>Sửa tổng giá trị</DialogTitle>
+                    <DialogTitle>{usesCostOverride ? "Sửa giá vốn cố định" : "Sửa tổng giá trị"}</DialogTitle>
                     <DialogDescription>
-                        Nhập tổng giá trị dương theo chứng từ cũ. Hệ thống giữ dấu sổ kho hiện tại và tính ngược đơn giá với 3 chữ số thập phân.
+                        {usesCostOverride
+                            ? "Giá này được giữ nguyên khi tính lại kỳ. Với chuyển kho, hệ thống cập nhật đồng thời cả dòng xuất và dòng nhập."
+                            : "Nhập tổng giá trị dương theo chứng từ cũ. Hệ thống giữ dấu sổ kho hiện tại và tính ngược đơn giá."}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -4948,6 +5041,12 @@ function LedgerAmountChangeDialog({
                 ) : null}
 
                 <div className="flex justify-end gap-2 border-t pt-3">
+                    {result?.can_clear_override ? (
+                        <Button type="button" variant="outline" disabled={busy} onClick={() => clearMutation.mutate()}>
+                            {clearMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                            Dùng lại giá hệ thống
+                        </Button>
+                    ) : null}
                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                         Đóng
                     </Button>
@@ -6481,7 +6580,7 @@ function LegacyPostingTimeNormalizationDialog({
                 <DialogHeader>
                     <DialogTitle>Chuẩn hóa giờ dữ liệu cũ</DialogTitle>
                     <DialogDescription>
-                        Chỉ lấy các dòng sổ kho cùng ngày/cùng lô với dòng đang chọn, có giờ trống hoặc 00:00:00. Hệ thống gán nhập trước, xuất sau và kiểm tra âm tồn trước khi cập nhật.
+                        Chỉ lấy các dòng sổ kho cùng ngày/cùng lô với dòng đang chọn, có giờ trống hoặc 00:00:00. Hệ thống gán nhập trước, xuất sau, cách nhau 10 giây và kiểm tra âm tồn trước khi cập nhật.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -6944,6 +7043,16 @@ function VoucherDetailDialog({
         </Dialog>
     )
 }
+
+function PriceInfoGroup({ title, children }: { title: string; children: React.ReactNode }) {
+    return (
+        <div className="rounded-md border bg-muted/10 p-3">
+            <div className="mb-3 text-sm font-semibold">{title}</div>
+            <div className="space-y-2 text-sm">{children}</div>
+        </div>
+    )
+}
+
 function InfoItem({
     label,
     value,
@@ -7081,7 +7190,8 @@ function ScopedVoucherCorrectionActions({
         actions.push({ label: "Đổi kho nhập", icon: <WarehouseIcon className="h-3.5 w-3.5" />, onClick: () => onChangeInboundWarehouse(row), isNew: true })
     }
     if (isLedgerAmountCorrectionLedger(row) && onChangeLedgerAmount) {
-        actions.push({ label: "Sửa tổng giá trị", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangeLedgerAmount(row), isNew: true })
+        const overridePrice = ["PURCHASE_RETURN", "OTHER_INBOUND", "TRANSFER_EXPORT", "OTHER_EXPORT"].includes(docType)
+        actions.push({ label: overridePrice ? "Sửa giá vốn cố định" : "Sửa tổng giá trị", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangeLedgerAmount(row), isNew: true })
     }
     if (isSalesReturnUnitPriceCorrectionLedger(row) && onChangeSalesReturnUnitPrice) {
         actions.push({ label: "Sửa đơn giá nhập trả", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangeSalesReturnUnitPrice(row) })
@@ -7562,8 +7672,12 @@ function isLedgerAmountCorrectionLedger(item: InventoryLedgerReportRow) {
     if (["IMPORT_PURCHASE", "DOMESTIC_PURCHASE", "OTHER_INBOUND"].includes(docType)) {
         return Number(item.quantity_in || 0) > 0 && Boolean(item.lot_code)
     }
-    if (docType === "OTHER_EXPORT") {
+    if (["OTHER_EXPORT", "PURCHASE_RETURN"].includes(docType)) {
         return Number(item.quantity_out || 0) > 0 && Boolean(item.lot_code)
+    }
+    if (docType === "TRANSFER_EXPORT") {
+        return (Number(item.quantity_out || 0) > 0 || Number(item.quantity_in || 0) > 0)
+            && Boolean(item.lot_code)
     }
     return false
 }

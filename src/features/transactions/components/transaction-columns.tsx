@@ -21,12 +21,21 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
+import { Input } from "@/components/ui/input"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { cn, formatCurrency } from "@/lib/utils"
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Check, Funnel, MoreHorizontal, Pencil, X } from "lucide-react"
 import { listTransactionOptions } from "@/api/transactions"
 import type { Transaction } from "../data/schema"
 
 type TextColumnKey = keyof Transaction
+type NumberFilterOp = "eq" | "ne" | "lt" | "lte" | "gt" | "gte"
 
 export type TransactionColumnFilters = {
     customer_code?: string[]
@@ -44,6 +53,20 @@ export type TransactionColumnFilters = {
     time_sort?: "asc" | "desc" | string
     document_date_from?: string
     document_date_to?: string
+    sale_qty_op?: NumberFilterOp | string
+    sale_qty_value?: string
+    unit_price_op?: NumberFilterOp | string
+    unit_price_value?: string
+    sale_revenue_op?: NumberFilterOp | string
+    sale_revenue_value?: string
+    return_revenue_op?: NumberFilterOp | string
+    return_revenue_value?: string
+    actual_revenue_op?: NumberFilterOp | string
+    actual_revenue_value?: string
+    return_qty_op?: NumberFilterOp | string
+    return_qty_value?: string
+    actual_qty_op?: NumberFilterOp | string
+    actual_qty_value?: string
 }
 
 type FilterableColumnKey =
@@ -57,6 +80,23 @@ type FilterableColumnKey =
     | "is_gift"
     | "npp"
 type ColumnMultiFilterKey = FilterableColumnKey | "unit"
+type NumberFilterField =
+    | "sale_qty"
+    | "unit_price"
+    | "sale_revenue"
+    | "return_revenue"
+    | "actual_revenue"
+    | "return_qty"
+    | "actual_qty"
+
+const NUMBER_FILTER_OPERATORS: Array<{ value: NumberFilterOp; label: string; chipLabel: string }> = [
+    { value: "eq", label: "Bằng", chipLabel: "=" },
+    { value: "ne", label: "Khác", chipLabel: "!=" },
+    { value: "gt", label: "Lớn hơn", chipLabel: ">" },
+    { value: "gte", label: "Lớn hơn hoặc bằng", chipLabel: ">=" },
+    { value: "lt", label: "Nhỏ hơn", chipLabel: "<" },
+    { value: "lte", label: "Nhỏ hơn hoặc bằng", chipLabel: "<=" },
+]
 
 function textColumn(
     accessorKey: TextColumnKey,
@@ -93,6 +133,10 @@ function numberColumn(
     footer?: React.ReactNode,
     minWidth = 100,
     header?: ColumnDef<Transaction>["header"],
+    filterField?: NumberFilterField,
+    filters?: TransactionColumnFilters,
+    onNumberFilter?: (field: NumberFilterField, value: string, op: NumberFilterOp) => void,
+    onClearNumberFilter?: (field: NumberFilterField) => void,
 ): ColumnDef<Transaction> {
     return {
         accessorKey: accessorKey as string,
@@ -100,7 +144,17 @@ function numberColumn(
         minSize: Math.min(width, minWidth),
         header: header ?? (({ column }) => (
             <div className="text-right">
-                <DataTableColumnHeader column={column} title={title} />
+                {filterField ? (
+                    <ColumnNumberFilter
+                        label={title}
+                        value={getNumberFilterValue(filters, filterField)}
+                        op={getNumberFilterOp(filters, filterField)}
+                        onApply={(value, op) => onNumberFilter?.(filterField, value, op)}
+                        onClear={() => onClearNumberFilter?.(filterField)}
+                    />
+                ) : (
+                    <DataTableColumnHeader column={column} title={title} />
+                )}
             </div>
         )),
         cell: ({ row }) => {
@@ -120,14 +174,25 @@ function numberColumn(
     }
 }
 
-function actualQuantityColumn(totalActualQty = 0): ColumnDef<Transaction> {
+function actualQuantityColumn(
+    totalActualQty = 0,
+    filters?: TransactionColumnFilters,
+    onNumberFilter?: (field: NumberFilterField, value: string, op: NumberFilterOp) => void,
+    onClearNumberFilter?: (field: NumberFilterField) => void,
+): ColumnDef<Transaction> {
     return {
         id: "actual_qty",
         accessorFn: (row) => Number(row.sale_qty || 0) - Number(row.return_qty || 0),
         enableSorting: false,
-        header: ({ column }) => (
+        header: () => (
             <div className="text-right">
-                <DataTableColumnHeader column={column} title="SL bán thực tế theo ĐVC" />
+                <ColumnNumberFilter
+                    label="SL bán thực tế theo ĐVC"
+                    value={getNumberFilterValue(filters, "actual_qty")}
+                    op={getNumberFilterOp(filters, "actual_qty")}
+                    onApply={(value, op) => onNumberFilter?.("actual_qty", value, op)}
+                    onClear={() => onClearNumberFilter?.("actual_qty")}
+                />
             </div>
         ),
         cell: ({ row }) => {
@@ -158,6 +223,10 @@ function moneyColumn(
     width = 150,
     footer?: React.ReactNode,
     minWidth = 110,
+    filterField?: NumberFilterField,
+    filters?: TransactionColumnFilters,
+    onNumberFilter?: (field: NumberFilterField, value: string, op: NumberFilterOp) => void,
+    onClearNumberFilter?: (field: NumberFilterField) => void,
 ): ColumnDef<Transaction> {
     return {
         accessorKey: accessorKey as string,
@@ -165,7 +234,17 @@ function moneyColumn(
         minSize: Math.min(width, minWidth),
         header: ({ column }) => (
             <div className="text-right">
-                <DataTableColumnHeader column={column} title={title} />
+                {filterField ? (
+                    <ColumnNumberFilter
+                        label={title}
+                        value={getNumberFilterValue(filters, filterField)}
+                        op={getNumberFilterOp(filters, filterField)}
+                        onApply={(value, op) => onNumberFilter?.(filterField, value, op)}
+                        onClear={() => onClearNumberFilter?.(filterField)}
+                    />
+                ) : (
+                    <DataTableColumnHeader column={column} title={title} />
+                )}
             </div>
         ),
         cell: ({ row }) => {
@@ -199,12 +278,20 @@ function computedMoneyColumn({
     width = 170,
     footer,
     value,
+    filterField,
+    filters,
+    onNumberFilter,
+    onClearNumberFilter,
 }: {
     id: string
     title: string
     width?: number
     footer?: React.ReactNode
     value: (row: Transaction) => number
+    filterField?: NumberFilterField
+    filters?: TransactionColumnFilters
+    onNumberFilter?: (field: NumberFilterField, value: string, op: NumberFilterOp) => void
+    onClearNumberFilter?: (field: NumberFilterField) => void
 }): ColumnDef<Transaction> {
     return {
         id,
@@ -213,7 +300,17 @@ function computedMoneyColumn({
         minSize: 120,
         header: ({ column }) => (
             <div className="text-right">
-                <DataTableColumnHeader column={column} title={title} />
+                {filterField ? (
+                    <ColumnNumberFilter
+                        label={title}
+                        value={getNumberFilterValue(filters, filterField)}
+                        op={getNumberFilterOp(filters, filterField)}
+                        onApply={(value, op) => onNumberFilter?.(filterField, value, op)}
+                        onClear={() => onClearNumberFilter?.(filterField)}
+                    />
+                ) : (
+                    <DataTableColumnHeader column={column} title={title} />
+                )}
             </div>
         ),
         cell: ({ row }) => {
@@ -401,6 +498,20 @@ export function buildTransactionColumns(
             time_sort: value,
         })
     }
+    const setNumberFilter = (field: NumberFilterField, value: string, op: NumberFilterOp) => {
+        onFiltersChange({
+            ...filters,
+            [`${field}_op`]: op,
+            [`${field}_value`]: value,
+        })
+    }
+    const clearNumberFilter = (field: NumberFilterField) => {
+        onFiltersChange({
+            ...filters,
+            [`${field}_op`]: undefined,
+            [`${field}_value`]: undefined,
+        })
+    }
 
     return [
         ...(options.canUseCorrections ? [
@@ -471,13 +582,23 @@ export function buildTransactionColumns(
             <span className="block text-right tabular-nums whitespace-nowrap">
                 {formatNumber(totals.saleQty)}
             </span>,
+            100,
+            undefined,
+            "sale_qty",
+            filters,
+            setNumberFilter,
+            clearNumberFilter,
         ),
-        moneyColumn("unit_price", "Đơn giá theo ĐVC", 150),
+        moneyColumn("unit_price", "Đơn giá theo ĐVC", 150, undefined, 110, "unit_price", filters, setNumberFilter, clearNumberFilter),
         computedMoneyColumn({
             id: "sale_revenue",
             title: "Doanh thu",
             width: 170,
             value: saleRevenue,
+            filterField: "sale_revenue",
+            filters,
+            onNumberFilter: setNumberFilter,
+            onClearNumberFilter: clearNumberFilter,
             footer: (
                 <span className="block text-right tabular-nums whitespace-nowrap">
                     {formatCurrency(totals.revenue)}
@@ -489,6 +610,10 @@ export function buildTransactionColumns(
             title: "Giá trị trả lại",
             width: 180,
             value: returnRevenue,
+            filterField: "return_revenue",
+            filters,
+            onNumberFilter: setNumberFilter,
+            onClearNumberFilter: clearNumberFilter,
             footer: (
                 <span className="block text-right tabular-nums whitespace-nowrap">
                     {formatCurrency(totals.returnRevenue)}
@@ -500,6 +625,10 @@ export function buildTransactionColumns(
             title: "Doanh thu thuần",
             width: 190,
             value: (row) => saleRevenue(row) - returnRevenue(row),
+            filterField: "actual_revenue",
+            filters,
+            onNumberFilter: setNumberFilter,
+            onClearNumberFilter: clearNumberFilter,
             footer: (
                 <span className="block text-right tabular-nums whitespace-nowrap">
                     {formatCurrency(totals.actualRevenue)}
@@ -513,8 +642,14 @@ export function buildTransactionColumns(
             <span className="block text-right tabular-nums whitespace-nowrap">
                 {formatNumber(totals.returnQty)}
             </span>,
+            100,
+            undefined,
+            "return_qty",
+            filters,
+            setNumberFilter,
+            clearNumberFilter,
         ),
-        actualQuantityColumn(totals.actualQty),
+        actualQuantityColumn(totals.actualQty, filters, setNumberFilter, clearNumberFilter),
         textColumn("sale_user_code", "Mã nhân viên bán hàng", 180),
         textColumn("sale_user_name", "Tên nhân viên bán hàng", 220, () => filterHeader("sale_user_name", "Tên nhân viên bán hàng")),
         textColumn("warehouse_code", "Mã kho", 120),
@@ -595,6 +730,111 @@ function TransactionCorrectionActions({
             </PopoverContent>
         </Popover>
     )
+}
+
+function ColumnNumberFilter({
+    label,
+    value,
+    op,
+    onApply,
+    onClear,
+}: {
+    label: string
+    value?: string
+    op?: NumberFilterOp
+    onApply: (value: string, op: NumberFilterOp) => void
+    onClear: () => void
+}) {
+    const [open, setOpen] = useState(false)
+    const [draftValue, setDraftValue] = useState(value || "0")
+    const [draftOp, setDraftOp] = useState<NumberFilterOp>(op || "gt")
+    const active = value !== undefined && value !== ""
+
+    const apply = () => {
+        onApply(draftValue, draftOp)
+        setOpen(false)
+    }
+
+    const clear = () => {
+        setDraftValue("0")
+        setDraftOp("gt")
+        onClear()
+        setOpen(false)
+    }
+
+    return (
+        <div className="flex items-center justify-center gap-1">
+            <span>{label}</span>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-6 w-6", active && "bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800")}
+                        onClick={() => {
+                            setDraftValue(value || "0")
+                            setDraftOp(op || "gt")
+                        }}
+                    >
+                        <Funnel className="h-3.5 w-3.5" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-72 space-y-3 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-semibold">Lọc {label.toLowerCase()}</div>
+                        <Select value={draftOp} onValueChange={(next) => setDraftOp(next as NumberFilterOp)}>
+                            <SelectTrigger className="h-7 w-auto border-0 bg-transparent px-1 text-xs font-semibold shadow-none focus:ring-0">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent align="end">
+                                {NUMBER_FILTER_OPERATORS.map((item) => (
+                                    <SelectItem key={item.value} value={item.value}>
+                                        {item.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Input
+                        value={draftValue}
+                        onChange={(event) => setDraftValue(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") apply()
+                        }}
+                        inputMode="decimal"
+                        placeholder="Nhập giá trị"
+                    />
+                    <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={clear}>
+                            Xóa
+                        </Button>
+                        <Button type="button" size="sm" onClick={apply}>
+                            Áp dụng
+                        </Button>
+                    </div>
+                </PopoverContent>
+            </Popover>
+        </div>
+    )
+}
+
+function getNumberFilterValue(filters: TransactionColumnFilters | undefined, field: NumberFilterField) {
+    return filters?.[`${field}_value` as keyof TransactionColumnFilters] as string | undefined
+}
+
+function getNumberFilterOp(filters: TransactionColumnFilters | undefined, field: NumberFilterField): NumberFilterOp | undefined {
+    const value = filters?.[`${field}_op` as keyof TransactionColumnFilters]
+    return isNumberFilterOp(value) ? value : undefined
+}
+
+export function numberFilterDescription(label: string, op: string | undefined, value?: string) {
+    const operator = NUMBER_FILTER_OPERATORS.find((item) => item.value === (op || "eq"))?.chipLabel || "="
+    return `${label} ${operator} ${value || 0}`
+}
+
+function isNumberFilterOp(value: unknown): value is NumberFilterOp {
+    return typeof value === "string" && NUMBER_FILTER_OPERATORS.some((item) => item.value === value)
 }
 
 type Option = {

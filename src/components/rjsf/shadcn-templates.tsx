@@ -1,4 +1,4 @@
-import type { FieldTemplateProps } from "@rjsf/utils"
+import type { FieldTemplateProps, ObjectFieldTemplateProps } from "@rjsf/utils"
 import { Label } from "@/components/ui/label"
 
 export function ShadcnFieldTemplate(props: FieldTemplateProps) {
@@ -42,6 +42,21 @@ export function ShadcnFieldTemplate(props: FieldTemplateProps) {
             )}
 
             {help}
+        </div>
+    )
+}
+
+export function ShadcnGridObjectFieldTemplate(props: ObjectFieldTemplateProps) {
+    return (
+        <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-4">
+            {props.properties.map((element) => (
+                <div
+                    key={element.name}
+                    className={element.hidden ? "hidden" : "contents"}
+                >
+                    {element.content}
+                </div>
+            ))}
         </div>
     )
 }

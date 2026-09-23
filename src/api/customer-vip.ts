@@ -1,6 +1,6 @@
 import { createCrudApi } from "@/api/crud"
 import { apiGet, apiPost } from "@/api/client"
-import type { CustomerVip, CustomerVipAudit, CustomerVipDetail, CustomerVipPlan } from "@/features/vip/customer/data/schema"
+import type { CustomerVip, CustomerVipAudit, CustomerVipDetail, CustomerVipPlan, CustomerVipPlanOption } from "@/features/vip/customer/data/schema"
 
 export type CustomerVipListParams = {
     page: number
@@ -31,6 +31,7 @@ export type CustomerVipDateRangeParams = {
     to_date?: string
     as_of_date?: string
     calc_year?: number
+    plan_id?: number
 }
 
 export async function getCustomerVipDetail(id: number | string, dateRange?: CustomerVipDateRangeParams) {
@@ -42,6 +43,8 @@ export async function getCustomerVipAudit(id: number | string, dateRange?: Custo
 }
 
 export type SaveCustomerVipPlanRequest = {
+    plan_id?: number
+    plan_name?: string
     calc_year?: number
     target_tier_code: string
     target_tier_name?: string | null
@@ -65,6 +68,48 @@ export async function getCustomerVipPlan(id: number | string, dateRange?: Custom
 
 export async function saveCustomerVipPlan(id: number | string, body: SaveCustomerVipPlanRequest) {
     return apiPost<CustomerVipPlan>(`/vip/customers/${id}/plan`, body)
+}
+
+export type CreateCustomerVipPlanRequest = {
+    calc_year: number
+    plan_name: string
+    source_plan_id?: number
+    baseline_mode: "COPY_PRIMARY" | "CURRENT"
+}
+
+export type PlannedVipCustomer = {
+    customer_id: number
+    customer_code: string
+    customer_name: string
+    calc_year: number
+    plan_count: number
+    primary_plan_id?: number | null
+    primary_plan_name?: string | null
+    target_tier_name?: string | null
+    plan_status?: string | null
+    latest_updated_at?: string | null
+}
+
+export type PlannedVipCustomerList = {
+    items: PlannedVipCustomer[]
+    total: number
+    calc_year: number
+}
+
+export async function listPlannedVipCustomers(calcYear: number) {
+    return apiGet<PlannedVipCustomerList>("/vip/customers/planned", { calc_year: calcYear })
+}
+
+export async function listCustomerVipPlans(id: number | string, calcYear: number) {
+    return apiGet<CustomerVipPlanOption[]>(`/vip/customers/${id}/plans`, { calc_year: calcYear })
+}
+
+export async function createCustomerVipPlan(id: number | string, body: CreateCustomerVipPlanRequest) {
+    return apiPost<CustomerVipPlan>(`/vip/customers/${id}/plans`, body)
+}
+
+export async function makeCustomerVipPlanPrimary(id: number | string, planId: number, calcYear: number) {
+    return apiPost<CustomerVipPlan>(`/vip/customers/${id}/plans/${planId}/primary?calc_year=${calcYear}`, {})
 }
 
 export async function triggerVipRecalc(year?: number) {

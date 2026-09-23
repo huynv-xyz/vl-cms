@@ -87,6 +87,27 @@ export const Route = createFileRoute("/_authenticated/transactions/")({
             typeof search.document_date_to === "string"
                 ? search.document_date_to
                 : undefined,
+
+        sale_qty_op: normalizeNumberOp(search.sale_qty_op),
+        sale_qty_value: typeof search.sale_qty_value === "string" ? search.sale_qty_value : undefined,
+        unit_price_op: normalizeNumberOp(search.unit_price_op),
+        unit_price_value: typeof search.unit_price_value === "string" ? search.unit_price_value : undefined,
+        sale_revenue_op: normalizeNumberOp(search.sale_revenue_op),
+        sale_revenue_value: typeof search.sale_revenue_value === "string" ? search.sale_revenue_value : undefined,
+        return_revenue_op: normalizeNumberOp(search.return_revenue_op),
+        return_revenue_value: typeof search.return_revenue_value === "string" ? search.return_revenue_value : undefined,
+        actual_revenue_op: normalizeNumberOp(search.actual_revenue_op),
+        actual_revenue_value: typeof search.actual_revenue_value === "string" ? search.actual_revenue_value : undefined,
+        return_qty_op: normalizeNumberOp(search.return_qty_op),
+        return_qty_value: typeof search.return_qty_value === "string" ? search.return_qty_value : undefined,
+        actual_qty_op: normalizeNumberOp(search.actual_qty_op),
+        actual_qty_value: typeof search.actual_qty_value === "string" ? search.actual_qty_value : undefined,
     }),
     component: TransactionPage,
 })
+
+function normalizeNumberOp(value: unknown) {
+    return typeof value === "string" && ["eq", "ne", "lt", "lte", "gt", "gte"].includes(value)
+        ? value
+        : undefined
+}

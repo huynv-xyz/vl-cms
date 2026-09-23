@@ -59,10 +59,14 @@ export function PageSection<T>({
     }
 
     if (error || !data) {
+        const message = error instanceof Error ? error.message : ""
         return (
             <Main>
                 <div className="p-4 text-sm text-red-500">
-                    Lỗi tải dữ liệu.
+                    <div>Lỗi tải dữ liệu.</div>
+                    {message ? (
+                        <div className="mt-1 text-xs text-red-500/80">{message}</div>
+                    ) : null}
                 </div>
             </Main>
         )

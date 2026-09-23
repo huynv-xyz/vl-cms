@@ -19,6 +19,7 @@ export function CreateCompanyDialog({ open, onOpenChange }: Props) {
             uiSchema={companyUiSchema}
             defaultValues={{
                 name: "",
+                alias: "",
                 address: "",
             }}
             submitText="Tạo"
@@ -27,6 +28,7 @@ export function CreateCompanyDialog({ open, onOpenChange }: Props) {
             mutationFn={createCompany}
             mapFormToRequest={(values) => ({
                 name: values.name?.trim() ?? "",
+                alias: values.alias?.trim() ?? "",
                 address: values.address?.trim() ?? "",
             })}
         />

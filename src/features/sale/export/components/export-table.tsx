@@ -1,4 +1,5 @@
 import { CrudTable } from "@/components/crud/crud-table"
+import type { ExportSummary } from "@/api/sale/export"
 import type { Export } from "../data/schema"
 import { useExportColumns } from "./export-columns"
 import { EXPORT_STATUSES } from "./export-status"
@@ -41,18 +42,20 @@ export function ExportTable({
     pageCount,
     keyword,
     onKeywordChange,
+    summary,
     filters = {},
     onFiltersChange,
 }: any) {
 
-    const { columns } = useExportColumns()
-    const doneCount = data.filter((item: Export) => item.status === "DONE").length
-    const newCount = data.filter((item: Export) => item.status === "NEW").length
-    const totalItems = data.reduce(
-        (sum: number, item: Export) => sum + (item.items?.length ?? 0),
-        0
-    )
-    const totalCount = data.length
+    const rowIndexOffset =
+        Math.max(0, Number(pagination?.pageIndex ?? 0)) *
+        Math.max(0, Number(pagination?.pageSize ?? 0))
+    const { columns } = useExportColumns(rowIndexOffset)
+    const summaryData = summary as ExportSummary | undefined
+    const doneCount = Number(summaryData?.done_count ?? 0)
+    const newCount = Number(summaryData?.new_count ?? 0)
+    const totalItems = Number(summaryData?.total_items ?? 0)
+    const totalCount = Number(summaryData?.total_count ?? 0)
     const donePct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
 
     const setFilter = (key: string, value: any) => {
