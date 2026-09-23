@@ -1707,7 +1707,24 @@ const guideCapabilities = [
   },
 ];
 
+const guideTabs = [
+  ["overview", "Bắt đầu"],
+  ["revenue", "Doanh thu"],
+  ["orders", "Đơn hàng"],
+  ["customers", "Khách hàng"],
+  ["receivables", "Công nợ"],
+  ["inventory", "Tồn kho"],
+  ["shipments", "Hàng về"],
+  ["vip", "Khách VIP"],
+  ["production", "Sản xuất"],
+  ["asking", "Cách hỏi hiệu quả"],
+] as const;
+
 function AssistantGuide({ onAsk }: { onAsk: (prompt: string) => void }) {
+  const [activeTab, setActiveTab] = useState<(typeof guideTabs)[number][0]>(
+    "overview",
+  );
+
   return (
     <div className="space-y-5 pb-8">
       <div className="overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-background to-background p-6 shadow-sm sm:p-8">
@@ -1724,19 +1741,24 @@ function AssistantGuide({ onAsk }: { onAsk: (prompt: string) => void }) {
         </p>
       </div>
 
-      <Tabs defaultValue="overview" className="gap-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) =>
+          setActiveTab(value as (typeof guideTabs)[number][0])
+        }
+        className="gap-4"
+      >
         <div className="overflow-x-auto pb-1">
-          <TabsList className="h-10 min-w-max justify-start rounded-xl p-1">
-            <TabsTrigger value="overview">Bắt đầu</TabsTrigger>
-            <TabsTrigger value="revenue">Doanh thu</TabsTrigger>
-            <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
-            <TabsTrigger value="customers">Khách hàng</TabsTrigger>
-            <TabsTrigger value="receivables">Công nợ</TabsTrigger>
-            <TabsTrigger value="inventory">Tồn kho</TabsTrigger>
-            <TabsTrigger value="shipments">Hàng về</TabsTrigger>
-            <TabsTrigger value="vip">Khách VIP</TabsTrigger>
-            <TabsTrigger value="production">Sản xuất</TabsTrigger>
-            <TabsTrigger value="asking">Cách hỏi hiệu quả</TabsTrigger>
+          <TabsList className="h-11 min-w-max justify-start rounded-xl p-1">
+            {guideTabs.map(([value, label]) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className="h-9 rounded-lg px-3 transition-colors data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm dark:data-[state=active]:bg-primary dark:data-[state=active]:text-primary-foreground"
+              >
+                {label}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </div>
 
