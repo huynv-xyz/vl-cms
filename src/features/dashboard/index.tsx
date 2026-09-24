@@ -692,6 +692,8 @@ function inventoryRiskLabel(
   daysToExpiry?: number | null,
 ) {
   if (riskType === "NEGATIVE_STOCK") return "Tồn kho âm";
+  if (daysToExpiry == null || Math.abs(daysToExpiry) > 3_650)
+    return "Ngày hết hạn không hợp lệ · cần sửa dữ liệu";
   if (riskType === "EXPIRED")
     return `Đã hết hạn ${Math.abs(daysToExpiry || 0)} ngày`;
   return `Còn ${daysToExpiry ?? 0} ngày đến hạn`;
