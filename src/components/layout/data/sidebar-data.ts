@@ -1,4 +1,4 @@
-﻿import {
+import {
     Crown,
     Users,
     Calculator,
@@ -127,6 +127,17 @@ export const sidebarData: SidebarData = {
             ],
         },
 
+        {
+            title: 'Hồ sơ pháp lý',
+            items: [
+                {
+                    title: 'Quyết định lưu hành',
+                    url: '/regulatory/circulation-decisions',
+                    icon: ScrollText,
+                },
+            ],
+        },
+
 
         {
             title: 'Lương sale',
@@ -206,11 +217,6 @@ export const sidebarData: SidebarData = {
                     title: 'Danh sách hội thảo',
                     url: '/seminars',
                     icon: CalendarDays,
-                },
-                {
-                    title: 'Quyết định lưu hành',
-                    url: '/seminars/circulation-decisions',
-                    icon: ScrollText,
                 },
             ],
         },
