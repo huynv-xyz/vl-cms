@@ -103,6 +103,15 @@ export type GrowthTask = {
   status: "OPEN" | "IN_PROGRESS" | "DONE";
 };
 
+export type GrowthRankingItem = {
+  code: string;
+  name: string;
+  netRevenue: number;
+  saleQuantity: number;
+  returnRevenue: number;
+  returnRatePercent: number;
+};
+
 export type GrowthDashboard = {
   asOfDate: string;
   currentFrom: string;
@@ -119,6 +128,31 @@ export type GrowthDashboard = {
     completedTasks: number;
     realizedRevenue: number;
   };
+  operations: {
+    fromDate: string;
+    toDate: string;
+    netRevenue: number;
+    returnRevenue: number;
+    totalOrders: number;
+    openOrders: number;
+    overdueOrders: number;
+    receivableBalance: number;
+    shipmentsInTransit: number;
+    expiringLots: number;
+    salesDataThrough: string;
+    orderDataThrough: string;
+    receivableDataThrough: string;
+  };
+  salesTrend: Array<{
+    fromDate: string;
+    toDate: string;
+    grossRevenue: number;
+    returnRevenue: number;
+    netRevenue: number;
+  }>;
+  topRegions: GrowthRankingItem[];
+  topEmployees: GrowthRankingItem[];
+  topProductGroups: GrowthRankingItem[];
   opportunities: GrowthOpportunity[];
   tasks: GrowthTask[];
   employees: Array<{ id: number; code: string; name: string }>;
