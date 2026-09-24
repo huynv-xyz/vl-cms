@@ -11,6 +11,10 @@ export function getMyPermissions() {
     return apiGet<Permission[]>("/auth/me/permissions")
 }
 
+export function getMyAdminStatus() {
+    return apiGet<{ admin: boolean }>("/auth/me/admin")
+}
+
 // CRUD permission
 
 export type PermissionItem = {

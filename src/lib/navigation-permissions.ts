@@ -64,6 +64,25 @@ export function filterSidebarByPermissions(data: SidebarData, permissions: Permi
     }
 }
 
+export function getFirstPermittedPath(permissions: Permission[], data: SidebarData = sidebarData) {
+    for (const group of data.navGroups) {
+        for (const item of group.items) {
+            if ("url" in item && item.url && hasViewPermissionForUrl(String(item.url), permissions)) {
+                return String(item.url)
+            }
+
+            if ("items" in item && item.items) {
+                const child = item.items.find((entry) =>
+                    hasViewPermissionForUrl(String(entry.url), permissions)
+                )
+                if (child) return String(child.url)
+            }
+        }
+    }
+
+    return "/403"
+}
+
 function collectUrls(data: SidebarData) {
     const urls: string[] = []
 
