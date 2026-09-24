@@ -27,7 +27,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getGrowthDashboard, type GrowthRankingItem } from "@/api/ai/chat";
+import {
+  getGrowthDashboard,
+  type GrowthDashboard,
+  type GrowthRankingItem,
+} from "@/api/ai/chat";
 import { Main } from "@/components/layout/main";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -113,6 +117,7 @@ export function Dashboard() {
     ...point,
     label: `${date(point.fromDate)}–${date(point.toDate)}`,
   }));
+  const ideas = buildBusinessIdeas(data);
   const alerts = [
     {
       label: "Đơn quá hạn",
@@ -296,6 +301,60 @@ export function Dashboard() {
             ))}
           </CardContent>
         </Card>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">
+              Ý tưởng phát triển kinh doanh
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Đề xuất hành động được ưu tiên theo dữ liệu hiện tại
+            </p>
+          </div>
+          <Badge variant="secondary">{ideas.length} đề xuất</Badge>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {ideas.map((idea, index) => (
+            <Card
+              key={idea.key}
+              className="gap-4 overflow-hidden py-0 shadow-none"
+            >
+              <div className={`h-1 ${idea.tone}`} />
+              <CardHeader className="gap-3 px-5 pt-1">
+                <div className="flex items-center justify-between gap-3">
+                  <Badge variant="outline">{idea.category}</Badge>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Đề xuất {index + 1}
+                  </span>
+                </div>
+                <CardTitle className="text-base leading-snug">
+                  {idea.title}
+                </CardTitle>
+                <CardDescription className="leading-relaxed">
+                  {idea.evidence}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-5 pb-5">
+                <div className="rounded-lg bg-muted/60 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Nên làm ngay
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed">{idea.action}</p>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3">
+                  <span className="text-xs text-muted-foreground">
+                    {idea.impactLabel}
+                  </span>
+                  <strong className="text-sm text-primary">
+                    {idea.impactValue}
+                  </strong>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -636,4 +695,155 @@ function inventoryRiskLabel(
   if (riskType === "EXPIRED")
     return `Đã hết hạn ${Math.abs(daysToExpiry || 0)} ngày`;
   return `Còn ${daysToExpiry ?? 0} ngày đến hạn`;
+}
+
+type BusinessIdea = {
+  key: string;
+  category: string;
+  title: string;
+  evidence: string;
+  action: string;
+  impactLabel: string;
+  impactValue: string;
+  score: number;
+  tone: string;
+};
+
+function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
+  const ideas: BusinessIdea[] = [];
+  const sumOpportunities = (
+    types: GrowthDashboard["opportunities"][number]["type"][],
+  ) =>
+    data.opportunities
+      .filter((item) => types.includes(item.type))
+      .reduce((total, item) => total + item.estimatedRevenue, 0);
+  const countOpportunities = (
+    types: GrowthDashboard["opportunities"][number]["type"][],
+  ) => data.opportunities.filter((item) => types.includes(item.type)).length;
+
+  const recoveryTypes: GrowthDashboard["opportunities"][number]["type"][] = [
+    "REACTIVATE",
+    "RECOVER_DECLINE",
+  ];
+  const recoveryCount = countOpportunities(recoveryTypes);
+  const recoveryValue = sumOpportunities(recoveryTypes);
+  if (recoveryCount > 0) {
+    ideas.push({
+      key: "customer-recovery",
+      category: "Đại lý",
+      title: `Chiến dịch 14 ngày kéo lại ${recoveryCount} đại lý giảm mua`,
+      evidence: `Nhóm này đang tạo ra khoảng trống doanh thu ước tính ${compactMoney(recoveryValue)} đồng so với nhịp mua trước.`,
+      action:
+        "Chia danh sách cho từng sale, gọi xác nhận tồn kho và nguyên nhân giảm mua; đề xuất đơn nhập lại theo nhu cầu thực tế, theo dõi tỷ lệ liên hệ và đơn chốt mỗi ngày.",
+      impactLabel: "Doanh thu có thể phục hồi",
+      impactValue: `${compactMoney(recoveryValue)} đồng`,
+      score: recoveryValue,
+      tone: "bg-emerald-500",
+    });
+  }
+
+  const crossSell = data.opportunities.filter(
+    (item) => item.type === "CROSS_SELL",
+  );
+  const crossSellValue = sumOpportunities(["CROSS_SELL"]);
+  if (crossSell.length > 0) {
+    const productGroups = crossSell.reduce<Record<string, number>>(
+      (result, item) => {
+        const group = String(item.evidence.productGroup || "Sản phẩm bổ trợ");
+        result[group] = (result[group] || 0) + 1;
+        return result;
+      },
+      {},
+    );
+    const leadingGroup = Object.entries(productGroups).sort(
+      (left, right) => right[1] - left[1],
+    )[0]?.[0];
+    ideas.push({
+      key: "cross-sell",
+      category: "Bán chéo",
+      title: `Đẩy gói sản phẩm ${leadingGroup || "bổ trợ"} cho ${crossSell.length} đại lý phù hợp`,
+      evidence: `Các đại lý này đang mua tốt trong khu vực nhưng chưa mua nhóm sản phẩm đề xuất trong 180 ngày gần nhất.`,
+      action:
+        "Tạo gói thử nhỏ gồm sản phẩm chủ lực và sản phẩm bổ trợ, kèm hướng dẫn sử dụng theo cây trồng; sale thu phản hồi sau 7 ngày trước khi đề xuất đơn lớn.",
+      impactLabel: "Doanh thu bán chéo ước tính",
+      impactValue: `${compactMoney(crossSellValue)} đồng`,
+      score: crossSellValue,
+      tone: "bg-blue-500",
+    });
+  }
+
+  const reorderCount = countOpportunities(["REORDER_DUE"]);
+  const reorderValue = sumOpportunities(["REORDER_DUE"]);
+  if (reorderCount > 0) {
+    ideas.push({
+      key: "reorder-cycle",
+      category: "Mua lại",
+      title: `Chốt đơn theo chu kỳ với ${reorderCount} đại lý sắp đến hạn nhập`,
+      evidence: `Lịch sử mua cho thấy nhóm này đã đến hoặc vượt chu kỳ nhập hàng thông thường.`,
+      action:
+        "Nhắc sale trước chu kỳ 5–7 ngày, gửi đề xuất số lượng theo tốc độ mua cũ và gom giao theo tuyến để tăng tỷ lệ chốt mà không cần giảm giá rộng.",
+      impactLabel: "Doanh thu mua lại ước tính",
+      impactValue: `${compactMoney(reorderValue)} đồng`,
+      score: reorderValue,
+      tone: "bg-violet-500",
+    });
+  }
+
+  const newCustomerRevenue = data.newCustomers.reduce(
+    (total, item) => total + Number(item.net_revenue || 0),
+    0,
+  );
+  if (data.newCustomers.length > 0) {
+    ideas.push({
+      key: "new-customer-second-order",
+      category: "Khách mới",
+      title: `Biến ${data.newCustomers.length} khách mới thành khách mua lặp lại`,
+      evidence: `Nhóm khách mới đã tạo ${compactMoney(newCustomerRevenue)} đồng doanh thu trong kỳ nhưng chưa hình thành thói quen nhập hàng.`,
+      action:
+        "Áp dụng lịch chăm sóc 3–7–21 ngày: xác nhận sử dụng, xử lý vướng mắc và đề xuất đơn thứ hai dựa trên sản phẩm đã mua cùng mùa vụ địa phương.",
+      impactLabel: "Doanh thu khách mới hiện tại",
+      impactValue: `${compactMoney(newCustomerRevenue)} đồng`,
+      score: newCustomerRevenue * 0.5,
+      tone: "bg-cyan-500",
+    });
+  }
+
+  const expiring = data.inventoryRisks.filter(
+    (item) => item.riskType === "EXPIRING_SOON",
+  );
+  if (expiring.length > 0) {
+    ideas.push({
+      key: "expiring-stock",
+      category: "Tồn kho",
+      title: `Tạo chương trình bán theo mùa vụ cho ${expiring.length} lô cận hạn`,
+      evidence: `Các lô này còn dưới 60 ngày đến hạn và cần được ưu tiên theo đúng khu vực có nhu cầu thực tế.`,
+      action:
+        "Ghép lô cận hạn vào gói sản phẩm đang bán tốt, phân bổ chỉ tiêu theo vùng và kiểm soát giá sàn; ưu tiên hội thảo kỹ thuật hoặc đơn dùng ngay thay vì giảm giá đại trà.",
+      impactLabel: "Số lô cần luân chuyển",
+      impactValue: `${expiring.length} lô`,
+      score: expiring.length * 10_000_000,
+      tone: "bg-orange-500",
+    });
+  }
+
+  const receivableValue = data.topReceivables.reduce(
+    (total, item) => total + Math.max(0, Number(item.balance || 0)),
+    0,
+  );
+  if (receivableValue > 0) {
+    ideas.push({
+      key: "credit-growth",
+      category: "Dòng tiền",
+      title: "Tăng doanh số theo hạn mức công nợ của từng đại lý",
+      evidence: `5 khách có công nợ cao nhất đang chiếm ${compactMoney(receivableValue)} đồng, cần kiểm soát trước khi mở rộng đơn mới.`,
+      action:
+        "Chia khách theo lịch sử thanh toán, đặt hạn mức và điều kiện đơn mới; khách trả tốt được ưu tiên hàng và chương trình bán, khách rủi ro gắn đơn mới với cam kết thu nợ.",
+      impactLabel: "Công nợ cần kiểm soát",
+      impactValue: `${compactMoney(receivableValue)} đồng`,
+      score: receivableValue * 0.08,
+      tone: "bg-rose-500",
+    });
+  }
+
+  return ideas.sort((left, right) => right.score - left.score).slice(0, 6);
 }
