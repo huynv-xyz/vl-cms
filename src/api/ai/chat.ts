@@ -70,3 +70,75 @@ export const renameAiConversation = (id: number, title: string) =>
   apiPut<{ id: number }>(`/ai/conversations/${id}`, { title });
 export const deleteAiConversation = (id: number) =>
   apiDelete<{ id: number }>(`/ai/conversations/${id}`);
+
+export type GrowthOpportunity = {
+  key: string;
+  type: "REACTIVATE" | "RECOVER_DECLINE" | "REORDER_DUE" | "CROSS_SELL";
+  entityCode: string;
+  entityName: string;
+  title: string;
+  description: string;
+  estimatedRevenue: number;
+  saleCode?: string | null;
+  saleName?: string | null;
+  lastPurchaseDate?: string | null;
+  suggestedAction: string;
+  priority: "HIGH" | "MEDIUM";
+  evidence: Record<string, string | number | null>;
+};
+
+export type GrowthTask = {
+  id: number;
+  opportunity_key: string;
+  opportunity_type: string;
+  entity_code?: string | null;
+  title: string;
+  description?: string | null;
+  assignee_employee_id?: number | null;
+  assignee_code?: string | null;
+  assignee_name?: string | null;
+  due_date?: string | null;
+  estimated_revenue: number;
+  actual_revenue?: number | null;
+  status: "OPEN" | "IN_PROGRESS" | "DONE";
+};
+
+export type GrowthDashboard = {
+  asOfDate: string;
+  currentFrom: string;
+  previousFrom: string;
+  previousTo: string;
+  dataLagDays: number;
+  tokenUsage: number;
+  summary: {
+    monthRevenue: number;
+    previousComparableRevenue: number;
+    growthPercent: number;
+    estimatedOpportunityRevenue: number;
+    activeTasks: number;
+    completedTasks: number;
+    realizedRevenue: number;
+  };
+  opportunities: GrowthOpportunity[];
+  tasks: GrowthTask[];
+  employees: Array<{ id: number; code: string; name: string }>;
+};
+
+export const getGrowthDashboard = () =>
+  apiGet<GrowthDashboard>("/ai/growth/dashboard");
+
+export const createGrowthTask = (input: {
+  opportunityKey: string;
+  opportunityType: string;
+  entityCode: string;
+  title: string;
+  description: string;
+  assigneeEmployeeId?: number;
+  dueDate?: string;
+  estimatedRevenue: number;
+}) => apiPost<{ id: number }>("/ai/growth/tasks", input);
+
+export const updateGrowthTask = (
+  id: number,
+  input: { status: GrowthTask["status"]; actualRevenue?: number },
+) => apiPut<{ id: number }>(`/ai/growth/tasks/${id}`, input);

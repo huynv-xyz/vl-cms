@@ -52,6 +52,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { GrowthAdvisor } from "./growth-advisor";
 
 type UserMessage = {
   id: string;
@@ -1071,57 +1072,46 @@ export default function AiChatPage({
             <div
               className={cn(
                 "mx-auto w-full space-y-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-10",
-                (showOverview || showGuide) && "max-w-4xl",
+                showOverview && "max-w-6xl",
+                showGuide && "max-w-4xl",
               )}
             >
               {showOverview && (
-                <div className="flex flex-col justify-center py-4 sm:py-8">
-                  <div className="mb-6 max-w-2xl text-left">
-                    <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                      Điều gì cần chú ý hôm nay?
-                    </h2>
-                    <p className="text-muted-foreground mt-3 max-w-xl text-sm leading-6">
-                      Nắm tình hình kinh doanh, tìm dữ liệu cần bổ sung và xác
-                      định việc nên làm tiếp — từ số liệu của doanh nghiệp.
-                    </p>
-                  </div>
-                  {overviewSuggestions.length > 0 ? (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {overviewSuggestions.map((suggestion) => (
-                        <Button
-                          key={suggestion.prompt}
-                          variant="outline"
-                          className="group h-auto min-h-20 justify-start whitespace-normal rounded-xl border-border/60 bg-background p-4 text-left shadow-none transition-colors hover:border-primary/40 hover:bg-primary/[0.03]"
-                          onClick={() => submit(suggestion.prompt)}
-                          disabled={mutation.isPending}
-                        >
-                          <span className="min-w-0 flex-1">
-                            <span className="mb-1.5 flex items-center gap-2">
+                <div className="py-2 sm:py-4">
+                  <GrowthAdvisor onAnalyze={(prompt) => submit(prompt)} />
+                  {overviewSuggestions.length > 0 && (
+                    <div className="mt-10 border-t pt-6">
+                      <h3 className="text-base font-semibold">
+                        Các phân tích khác
+                      </h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Chỉ các nút dưới đây mới sử dụng AI khi sếp chủ động
+                        chọn.
+                      </p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {overviewSuggestions.slice(0, 6).map((suggestion) => (
+                          <Button
+                            key={suggestion.prompt}
+                            variant="outline"
+                            className="group h-auto min-h-20 justify-start whitespace-normal rounded-xl border-border/60 bg-background p-4 text-left shadow-none"
+                            onClick={() => submit(suggestion.prompt)}
+                            disabled={mutation.isPending}
+                          >
+                            <span className="min-w-0 flex-1">
                               <span className="font-semibold">
                                 {suggestion.title}
                               </span>
-                              <Badge
-                                variant="secondary"
-                                className="rounded-full px-2 py-0 text-[10px] font-medium"
-                              >
-                                {promptCategoryLabels[suggestion.category]}
-                              </Badge>
+                              <span className="mt-1 block text-xs font-normal leading-5 text-muted-foreground">
+                                {suggestion.description}
+                              </span>
                             </span>
-                            <span className="text-muted-foreground mt-1 block text-xs font-normal leading-5">
-                              {suggestion.description}
-                            </span>
-                          </span>
-                          <ArrowUpRight className="text-muted-foreground size-4 self-start opacity-50 transition-opacity group-hover:opacity-100" />
-                        </Button>
-                      ))}
+                            <ArrowUpRight className="size-4 self-start text-muted-foreground" />
+                          </Button>
+                        ))}
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">
-                      Tài khoản chưa được cấp quyền xem báo cáo doanh thu hoặc
-                      công nợ.
-                    </p>
                   )}
-                  <div className="text-muted-foreground mt-8 flex items-center justify-center gap-2 text-xs">
+                  <div className="mt-8 flex items-center justify-center gap-2 text-xs text-muted-foreground">
                     <ShieldCheck className="size-3.5" /> Chỉ truy cập dữ liệu
                     theo quyền của tài khoản
                   </div>
@@ -1721,9 +1711,8 @@ const guideTabs = [
 ] as const;
 
 function AssistantGuide({ onAsk }: { onAsk: (prompt: string) => void }) {
-  const [activeTab, setActiveTab] = useState<(typeof guideTabs)[number][0]>(
-    "overview",
-  );
+  const [activeTab, setActiveTab] =
+    useState<(typeof guideTabs)[number][0]>("overview");
 
   return (
     <div className="space-y-5 pb-8">
@@ -1840,7 +1829,10 @@ function GuideStart({ onAsk }: { onAsk: (prompt: string) => void }) {
       </div>
       <div className="grid items-start gap-4 lg:grid-cols-2">
         {guideCapabilities.map((capability) => (
-          <Card key={capability.title} className="gap-0 overflow-hidden py-0 shadow-sm">
+          <Card
+            key={capability.title}
+            className="gap-0 overflow-hidden py-0 shadow-sm"
+          >
             <CardHeader className="border-b bg-muted/20 p-4">
               <CardTitle className="flex items-center gap-2.5 text-sm">
                 <span
@@ -2661,7 +2653,10 @@ function tableColumnWidth(header: string, columnCount: number) {
   if (isRankTableColumn(header)) return columnCount <= 4 ? "8%" : "7%";
   if (/^(ma|ma so|code)$/.test(normalized)) return "11%";
   if (isNameTableColumn(header)) return columnCount >= 6 ? "22%" : "28%";
-  if (columnCount <= 4 && /(doanh thu|cong no|du no|gia tri|tong)/.test(normalized))
+  if (
+    columnCount <= 4 &&
+    /(doanh thu|cong no|du no|gia tri|tong)/.test(normalized)
+  )
     return "38%";
   if (columnCount <= 4 && /(ty trong|ty le|%)/.test(normalized)) return "16%";
   if (isNumericTableColumn(header)) return columnCount >= 6 ? "17%" : "20%";
