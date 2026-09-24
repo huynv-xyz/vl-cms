@@ -14,6 +14,8 @@ import {
   TrendingDown,
   TrendingUp,
   Truck,
+  UserPlus,
+  UserRoundX,
   Users,
 } from "lucide-react";
 import {
@@ -315,6 +317,139 @@ export function Dashboard() {
         />
       </section>
 
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Điểm cần điều hành</h2>
+          <p className="text-sm text-muted-foreground">
+            Công nợ, tồn kho và giao hàng cần được theo dõi sát
+          </p>
+        </div>
+        <div className="grid gap-4 xl:grid-cols-3">
+          <Card className="gap-4 shadow-none">
+            <CardHeader className="flex-row items-center gap-2 pb-0">
+              <CircleDollarSign className="size-5 text-red-500" />
+              <CardTitle className="text-base">
+                Công nợ khách hàng cao
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {data.topReceivables.map((item, index) => (
+                <DataRow
+                  key={item.customerCode}
+                  index={index}
+                  title={item.customerName}
+                  subtitle={item.customerCode}
+                  value={compactMoney(item.balance)}
+                  negative
+                />
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="gap-4 shadow-none">
+            <CardHeader className="flex-row items-center gap-2 pb-0">
+              <PackageSearch className="size-5 text-orange-500" />
+              <CardTitle className="text-base">Rủi ro tồn kho</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {data.inventoryRisks.map((item, index) => (
+                <DataRow
+                  key={`${item.riskType}-${item.productCode}-${item.lotCode || index}`}
+                  index={index}
+                  title={item.productName}
+                  subtitle={inventoryRiskLabel(
+                    item.riskType,
+                    item.daysToExpiry,
+                  )}
+                  value={`${money(item.quantity)} ${item.unit || ""}`}
+                  negative={item.riskType !== "EXPIRING_SOON"}
+                />
+              ))}
+              {data.inventoryRisks.length === 0 && (
+                <EmptyState text="Không có rủi ro tồn kho" />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="gap-4 shadow-none">
+            <CardHeader className="flex-row items-center gap-2 pb-0">
+              <Truck className="size-5 text-blue-500" />
+              <CardTitle className="text-base">Hiệu suất giao hàng</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {data.deliveryPerformance.map((item, index) => (
+                <DataRow
+                  key={item.employee_code}
+                  index={index}
+                  title={item.employee_name}
+                  subtitle={`${item.late_orders} trễ · ${item.pending_orders} đang giao`}
+                  value={
+                    item.on_time_percent == null
+                      ? "Chưa đủ dữ liệu"
+                      : `${item.on_time_percent.toLocaleString("vi-VN")}% đúng hạn`
+                  }
+                  negative={(item.late_orders || 0) > 0}
+                />
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <Card className="gap-4 shadow-none">
+          <CardHeader className="flex-row items-center gap-2 pb-0">
+            <UserPlus className="size-5 text-emerald-600" />
+            <div>
+              <CardTitle className="text-base">
+                Khách hàng mới trong tháng
+              </CardTitle>
+              <CardDescription>Doanh thu phát sinh lần đầu</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {data.newCustomers.map((item, index) => (
+              <DataRow
+                key={item.customer_code}
+                index={index}
+                title={item.customer_name}
+                subtitle={`${item.assigned_employee_name || "Chưa phân sale"} · ${date(item.first_purchase_date)}`}
+                value={compactMoney(item.net_revenue)}
+              />
+            ))}
+            {data.newCustomers.length === 0 && (
+              <EmptyState text="Chưa có khách hàng mới trong kỳ" />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="gap-4 shadow-none">
+          <CardHeader className="flex-row items-center gap-2 pb-0">
+            <UserRoundX className="size-5 text-amber-600" />
+            <div>
+              <CardTitle className="text-base">
+                Khách hàng cần chăm sóc lại
+              </CardTitle>
+              <CardDescription>
+                Không mua hàng từ 60 ngày trở lên
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {data.inactiveCustomers.map((item, index) => (
+              <DataRow
+                key={item.customer_code}
+                index={index}
+                title={item.customer_name}
+                subtitle={`${item.employee_name || "Chưa phân sale"} · ${item.inactive_days == null ? "Chưa từng mua" : `${item.inactive_days} ngày`}`}
+                value={compactMoney(item.revenue_last_12_months)}
+                negative
+              />
+            ))}
+          </CardContent>
+        </Card>
+      </section>
+
       <Card className="shadow-none">
         <CardHeader>
           <div>
@@ -450,4 +585,55 @@ function Ranking({
       </CardContent>
     </Card>
   );
+}
+
+function DataRow({
+  index,
+  title,
+  subtitle,
+  value,
+  negative,
+}: {
+  index: number;
+  title: string;
+  subtitle: string;
+  value: string;
+  negative?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-muted/60">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+        {index + 1}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium" title={title}>
+          {title}
+        </p>
+        <p className="truncate text-xs text-muted-foreground" title={subtitle}>
+          {subtitle}
+        </p>
+      </div>
+      <span
+        className={`shrink-0 text-xs font-semibold ${negative ? "text-red-600" : "text-foreground"}`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <p className="py-8 text-center text-sm text-muted-foreground">{text}</p>
+  );
+}
+
+function inventoryRiskLabel(
+  riskType: "NEGATIVE_STOCK" | "EXPIRED" | "EXPIRING_SOON",
+  daysToExpiry?: number | null,
+) {
+  if (riskType === "NEGATIVE_STOCK") return "Tồn kho âm";
+  if (riskType === "EXPIRED")
+    return `Đã hết hạn ${Math.abs(daysToExpiry || 0)} ngày`;
+  return `Còn ${daysToExpiry ?? 0} ngày đến hạn`;
 }

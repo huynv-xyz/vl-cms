@@ -154,6 +154,51 @@ export type GrowthDashboard = {
   topEmployees: GrowthRankingItem[];
   topProductGroups: GrowthRankingItem[];
   topCustomers: GrowthRankingItem[];
+  topReceivables: Array<{
+    customerCode: string;
+    customerName: string;
+    debitAmount: number;
+    creditAmount: number;
+    balance: number;
+  }>;
+  inventoryRisks: Array<{
+    riskType: "NEGATIVE_STOCK" | "EXPIRED" | "EXPIRING_SOON";
+    productCode: string;
+    productName: string;
+    warehouseName?: string | null;
+    lotCode?: string | null;
+    quantity: number;
+    unit?: string | null;
+    expiryDate?: string | null;
+    daysToExpiry?: number | null;
+  }>;
+  newCustomers: Array<{
+    customer_code: string;
+    customer_name: string;
+    region?: string | null;
+    assigned_employee_name?: string | null;
+    first_purchase_date: string;
+    net_revenue: number;
+  }>;
+  inactiveCustomers: Array<{
+    customer_code: string;
+    customer_name: string;
+    region?: string | null;
+    employee_name?: string | null;
+    last_purchase_date?: string | null;
+    inactive_days?: number | null;
+    revenue_last_12_months: number;
+  }>;
+  deliveryPerformance: Array<{
+    employee_code: string;
+    employee_name: string;
+    total_orders: number;
+    delivered_orders: number;
+    on_time_orders: number;
+    late_orders: number;
+    pending_orders: number;
+    on_time_percent?: number | null;
+  }>;
   opportunities: GrowthOpportunity[];
   tasks: GrowthTask[];
   employees: Array<{ id: number; code: string; name: string }>;
