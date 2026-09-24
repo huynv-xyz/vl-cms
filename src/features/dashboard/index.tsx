@@ -143,23 +143,22 @@ export function Dashboard() {
   ];
 
   return (
-    <Main fluid className="space-y-6 bg-muted/20 pb-12">
-      <section className="flex flex-col gap-4 rounded-2xl border bg-gradient-to-br from-teal-600 to-emerald-700 p-6 text-white shadow-sm md:flex-row md:items-center md:justify-between">
+    <Main className="space-y-6 pb-12">
+      <section className="flex flex-col gap-4 border-b pb-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-medium text-teal-50">
-            Bảng điều hành tổng quan
+          <p className="text-sm font-medium text-primary">
+            Tổng quan điều hành
           </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight md:text-3xl">
-            Tình hình kinh doanh VLife
+          <h1 className="mt-1 text-2xl font-bold tracking-tight">
+            Tình hình kinh doanh
           </h1>
-          <p className="mt-2 text-sm text-teal-50">
-            Từ {date(data.currentFrom)} đến {date(data.asOfDate)} · cập nhật
-            theo dữ liệu bán hàng mới nhất
+          <p className="mt-1 text-sm text-muted-foreground">
+            {date(data.currentFrom)} – {date(data.asOfDate)} · Dữ liệu mới nhất
           </p>
         </div>
-        <Button asChild variant="secondary" className="self-start md:self-auto">
+        <Button asChild className="self-start shadow-none md:self-auto">
           <Link to="/ai-assistant">
-            <Sparkles /> Phân tích và tìm cơ hội <ArrowRight />
+            <Sparkles /> Trợ lý điều hành <ArrowRight />
           </Link>
         </Button>
       </section>
@@ -172,7 +171,7 @@ export function Dashboard() {
         </div>
       )}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <MetricCard
           title="Doanh thu thuần trong kỳ"
           value={`${compactMoney(operations.netRevenue)} đồng`}
@@ -199,17 +198,30 @@ export function Dashboard() {
           icon={Sparkles}
           accent="positive"
         />
+        <MetricCard
+          title="Hàng trả lại"
+          value={`${compactMoney(operations.returnRevenue)} đồng`}
+          detail={`${((operations.returnRevenue / (operations.netRevenue + operations.returnRevenue || 1)) * 100).toLocaleString("vi-VN", { maximumFractionDigits: 2 })}% doanh thu gộp`}
+          icon={PackageSearch}
+          accent={operations.returnRevenue > 0 ? "negative" : undefined}
+        />
+        <MetricCard
+          title="Giá trị đơn trung bình"
+          value={`${compactMoney(operations.netRevenue / (operations.totalOrders || 1))} đồng`}
+          detail={`${money(operations.totalOrders)} đơn trong kỳ`}
+          icon={ShoppingCart}
+        />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
-        <Card>
+        <Card className="shadow-none">
           <CardHeader>
             <CardTitle>Doanh thu thuần theo tuần</CardTitle>
             <CardDescription>
               Xu hướng doanh thu trong kỳ hiện tại
             </CardDescription>
           </CardHeader>
-          <CardContent className="h-[330px] pl-2">
+          <CardContent className="h-[300px] pl-2">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={trend}
@@ -251,7 +263,7 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-none">
           <CardHeader>
             <CardTitle>Cảnh báo vận hành</CardTitle>
             <CardDescription>
@@ -284,7 +296,7 @@ export function Dashboard() {
         </Card>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
+      <section className="grid gap-4 lg:grid-cols-2">
         <Ranking
           title="Top nhân viên sale"
           icon={Users}
@@ -292,29 +304,52 @@ export function Dashboard() {
         />
         <Ranking title="Top khu vực" icon={Boxes} items={data.topRegions} />
         <Ranking
+          title="Top khách hàng"
+          icon={Users}
+          items={data.topCustomers}
+        />
+        <Ranking
           title="Top nhóm sản phẩm"
           icon={PackageSearch}
           items={data.topProductGroups}
         />
       </section>
 
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
+      <Card className="shadow-none">
+        <CardHeader>
           <div>
             <CardTitle>Cơ hội tăng trưởng ưu tiên</CardTitle>
             <CardDescription>
-              Gợi ý từ dữ liệu giao dịch, không tiêu tốn token AI
+              Khách hàng cần sale ưu tiên chăm sóc
             </CardDescription>
           </div>
-          <Badge variant="outline">0 token</Badge>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <CardContent className="divide-y rounded-xl border p-0">
           {data.opportunities.slice(0, 6).map((opportunity) => (
-            <div key={opportunity.key} className="rounded-xl border p-4">
-              <div className="flex items-start justify-between gap-3">
-                <p className="font-semibold leading-snug">
+            <div
+              key={opportunity.key}
+              className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_140px_130px] sm:items-center"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium" title={opportunity.title}>
                   {opportunity.title}
                 </p>
+                <p className="mt-1 truncate text-sm text-muted-foreground">
+                  {opportunity.description}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  Doanh thu ước tính
+                </p>
+                <p className="font-semibold text-emerald-700 dark:text-emerald-400">
+                  {compactMoney(opportunity.estimatedRevenue)} đồng
+                </p>
+              </div>
+              <div className="flex items-center justify-between gap-2 sm:justify-end">
+                <span className="truncate text-xs text-muted-foreground">
+                  {opportunity.saleName || "Chưa phân công"}
+                </span>
                 <Badge
                   variant={
                     opportunity.priority === "HIGH"
@@ -324,22 +359,6 @@ export function Dashboard() {
                 >
                   {opportunity.priority === "HIGH" ? "Ưu tiên" : "Theo dõi"}
                 </Badge>
-              </div>
-              <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                {opportunity.description}
-              </p>
-              <div className="mt-4 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    Doanh thu ước tính
-                  </p>
-                  <p className="font-semibold text-emerald-700 dark:text-emerald-400">
-                    {compactMoney(opportunity.estimatedRevenue)} đồng
-                  </p>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {opportunity.saleName || "Chưa phân công"}
-                </span>
               </div>
             </div>
           ))}
@@ -363,25 +382,25 @@ function MetricCard({
   accent?: "positive" | "negative";
 }) {
   return (
-    <Card className="gap-3">
-      <CardHeader className="flex-row items-center justify-between space-y-0 pb-0">
-        <CardDescription>{title}</CardDescription>
-        <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Icon className="size-4" />
+    <Card className="gap-0 py-0 shadow-none">
+      <CardContent className="flex items-center gap-4 p-5">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/8 text-primary">
+          <Icon className="size-5" />
         </span>
-      </CardHeader>
-      <CardContent>
-        <p
-          className={`text-2xl font-bold tracking-tight ${accent === "positive" ? "text-emerald-600" : accent === "negative" ? "text-red-600" : ""}`}
-        >
-          {value}
-        </p>
-        <p
-          className="mt-1 truncate text-xs text-muted-foreground"
-          title={detail}
-        >
-          {detail}
-        </p>
+        <div className="min-w-0">
+          <CardDescription>{title}</CardDescription>
+          <p
+            className={`mt-1 truncate text-xl font-bold tracking-tight ${accent === "positive" ? "text-emerald-600" : accent === "negative" ? "text-red-600" : ""}`}
+          >
+            {value}
+          </p>
+          <p
+            className="mt-0.5 truncate text-xs text-muted-foreground"
+            title={detail}
+          >
+            {detail}
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
@@ -397,7 +416,7 @@ function Ranking({
   items: GrowthRankingItem[];
 }) {
   return (
-    <Card className="gap-4">
+    <Card className="gap-4 shadow-none">
       <CardHeader className="flex-row items-center gap-2 pb-0">
         <Icon className="size-5 text-primary" />
         <CardTitle className="text-base">{title}</CardTitle>
@@ -416,7 +435,11 @@ function Ranking({
                 {item.name || item.code}
               </p>
               <p className="text-xs text-muted-foreground">
-                Trả hàng {item.returnRatePercent.toLocaleString("vi-VN")} %
+                Trả hàng{" "}
+                {item.returnRatePercent.toLocaleString("vi-VN", {
+                  maximumFractionDigits: 2,
+                })}
+                % · SL {money(item.saleQuantity)}
               </p>
             </div>
             <span className="shrink-0 text-sm font-semibold">

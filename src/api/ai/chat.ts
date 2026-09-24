@@ -153,6 +153,7 @@ export type GrowthDashboard = {
   topRegions: GrowthRankingItem[];
   topEmployees: GrowthRankingItem[];
   topProductGroups: GrowthRankingItem[];
+  topCustomers: GrowthRankingItem[];
   opportunities: GrowthOpportunity[];
   tasks: GrowthTask[];
   employees: Array<{ id: number; code: string; name: string }>;
