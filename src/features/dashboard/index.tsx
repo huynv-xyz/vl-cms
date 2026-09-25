@@ -371,9 +371,9 @@ export function Dashboard() {
                           >
                             {target.name}
                           </p>
-                          {target.owner && (
+                          {target.meta && (
                             <p className="truncate text-xs text-muted-foreground">
-                              Phụ trách: {target.owner}
+                              {target.meta}
                             </p>
                           )}
                         </div>
@@ -414,23 +414,31 @@ export function Dashboard() {
         </div>
       </section>
 
-      <section className="grid items-start gap-4 lg:grid-cols-2">
-        <Ranking
-          title="Top nhân viên sale"
-          icon={Users}
-          items={data.topEmployees}
-        />
-        <Ranking title="Top khu vực" icon={Boxes} items={data.topRegions} />
-        <Ranking
-          title="Top khách hàng"
-          icon={Users}
-          items={data.topCustomers}
-        />
-        <Ranking
-          title="Top nhóm sản phẩm"
-          icon={PackageSearch}
-          items={data.topProductGroups}
-        />
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Xếp hạng kinh doanh</h2>
+          <p className="text-sm text-muted-foreground">
+            So sánh doanh thu, tỷ trọng và mức trả hàng theo từng chiều
+          </p>
+        </div>
+        <div className="grid items-start gap-4 lg:grid-cols-2">
+          <Ranking
+            title="Top nhân viên sale"
+            icon={Users}
+            items={data.topEmployees}
+          />
+          <Ranking title="Top khu vực" icon={Boxes} items={data.topRegions} />
+          <Ranking
+            title="Top khách hàng"
+            icon={Users}
+            items={data.topCustomers}
+          />
+          <Ranking
+            title="Top nhóm sản phẩm"
+            icon={PackageSearch}
+            items={data.topProductGroups}
+          />
+        </div>
       </section>
 
       <section className="space-y-3">
@@ -441,14 +449,19 @@ export function Dashboard() {
           </p>
         </div>
         <div className="grid gap-4 xl:grid-cols-3">
-          <Card className="gap-4 shadow-none">
-            <CardHeader className="flex flex-row items-center gap-3 pb-0">
+          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
+            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
               <span className="flex size-9 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-950/30">
                 <CircleDollarSign className="size-5" />
               </span>
-              <CardTitle className="text-base">
-                Công nợ khách hàng cao
-              </CardTitle>
+              <div>
+                <CardTitle className="text-base">
+                  Công nợ khách hàng cao
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  5 khách có dư nợ lớn nhất
+                </CardDescription>
+              </div>
             </CardHeader>
             <CardContent className="space-y-1">
               {data.topReceivables.map((item, index) => (
@@ -464,12 +477,17 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="gap-4 shadow-none">
-            <CardHeader className="flex flex-row items-center gap-3 pb-0">
+          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
+            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
               <span className="flex size-9 items-center justify-center rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-950/30">
                 <PackageSearch className="size-5" />
               </span>
-              <CardTitle className="text-base">Rủi ro tồn kho</CardTitle>
+              <div>
+                <CardTitle className="text-base">Rủi ro tồn kho</CardTitle>
+                <CardDescription className="mt-1">
+                  Lô cần kiểm tra và xử lý sớm
+                </CardDescription>
+              </div>
             </CardHeader>
             <CardContent className="space-y-1">
               {data.inventoryRisks.map((item, index) => (
@@ -491,12 +509,17 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="gap-4 shadow-none">
-            <CardHeader className="flex flex-row items-center gap-3 pb-0">
+          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
+            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
               <span className="flex size-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/30">
                 <Truck className="size-5" />
               </span>
-              <CardTitle className="text-base">Hiệu suất giao hàng</CardTitle>
+              <div>
+                <CardTitle className="text-base">Hiệu suất giao hàng</CardTitle>
+                <CardDescription className="mt-1">
+                  Đơn trễ và đơn đang giao theo sale
+                </CardDescription>
+              </div>
             </CardHeader>
             <CardContent className="space-y-1">
               {data.deliveryPerformance.map((item, index) => (
@@ -518,66 +541,74 @@ export function Dashboard() {
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <Card className="gap-4 shadow-none">
-          <CardHeader className="flex flex-row items-center gap-3 pb-0">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30">
-              <UserPlus className="size-5" />
-            </span>
-            <div>
-              <CardTitle className="text-base">
-                Khách hàng mới trong tháng
-              </CardTitle>
-              <CardDescription>Doanh thu phát sinh lần đầu</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            {data.newCustomers.map((item, index) => (
-              <DataRow
-                key={item.customer_code}
-                index={index}
-                title={item.customer_name}
-                subtitle={`${item.assigned_employee_name || "Chưa phân sale"} · ${date(item.first_purchase_date)}`}
-                value={compactMoney(item.net_revenue)}
-              />
-            ))}
-            {data.newCustomers.length === 0 && (
-              <EmptyState text="Chưa có khách hàng mới trong kỳ" />
-            )}
-          </CardContent>
-        </Card>
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Khách hàng cần theo dõi</h2>
+          <p className="text-sm text-muted-foreground">
+            Ưu tiên tạo đơn mua lại và phân công sale chăm sóc
+          </p>
+        </div>
+        <div className="grid items-start gap-4 lg:grid-cols-2">
+          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
+            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30">
+                <UserPlus className="size-5" />
+              </span>
+              <div>
+                <CardTitle className="text-base">
+                  Khách hàng mới trong tháng
+                </CardTitle>
+                <CardDescription>Doanh thu phát sinh lần đầu</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {data.newCustomers.map((item, index) => (
+                <DataRow
+                  key={item.customer_code}
+                  index={index}
+                  title={item.customer_name}
+                  subtitle={`${item.assigned_employee_name || "Chưa phân sale"} · ${date(item.first_purchase_date)}`}
+                  value={compactMoney(item.net_revenue)}
+                />
+              ))}
+              {data.newCustomers.length === 0 && (
+                <EmptyState text="Chưa có khách hàng mới trong kỳ" />
+              )}
+            </CardContent>
+          </Card>
 
-        <Card className="gap-4 shadow-none">
-          <CardHeader className="flex flex-row items-center gap-3 pb-0">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/30">
-              <UserRoundX className="size-5" />
-            </span>
-            <div>
-              <CardTitle className="text-base">
-                Khách hàng cần chăm sóc lại
-              </CardTitle>
-              <CardDescription>
-                Không mua hàng từ 60 ngày trở lên
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            {data.inactiveCustomers.map((item, index) => (
-              <DataRow
-                key={item.customer_code}
-                index={index}
-                title={item.customer_name}
-                subtitle={`${item.employee_name || "Chưa phân sale"} · ${item.inactive_days == null ? "Chưa từng mua" : `${item.inactive_days} ngày`}`}
-                value={compactMoney(item.revenue_last_12_months)}
-                negative
-              />
-            ))}
-          </CardContent>
-        </Card>
+          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
+            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/30">
+                <UserRoundX className="size-5" />
+              </span>
+              <div>
+                <CardTitle className="text-base">
+                  Khách hàng cần chăm sóc lại
+                </CardTitle>
+                <CardDescription>
+                  Không mua hàng từ 60 ngày trở lên
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {data.inactiveCustomers.map((item, index) => (
+                <DataRow
+                  key={item.customer_code}
+                  index={index}
+                  title={item.customer_name}
+                  subtitle={`${item.employee_name || "Chưa phân sale"} · ${item.inactive_days == null ? "Chưa từng mua" : `${item.inactive_days} ngày`}`}
+                  value={compactMoney(item.revenue_last_12_months)}
+                  negative
+                />
+              ))}
+            </CardContent>
+          </Card>
+        </div>
       </section>
 
-      <Card className="shadow-none">
-        <CardHeader>
+      <Card className="overflow-hidden border-border/70 shadow-sm">
+        <CardHeader className="border-b border-border/60 bg-muted/20 pb-4">
           <div>
             <CardTitle>Cơ hội tăng trưởng ưu tiên</CardTitle>
             <CardDescription>
@@ -841,7 +872,7 @@ type BusinessIdea = {
   successMetric: string;
   targets: Array<{
     name: string;
-    owner?: string;
+    meta?: string;
     value?: string;
   }>;
   score: number;
@@ -884,7 +915,7 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
       successMetric: "đơn chốt / khách đã liên hệ",
       targets: recoveryTargets.map((item) => ({
         name: item.entityName,
-        owner: item.saleName || "Chưa phân sale",
+        meta: `Phụ trách: ${item.saleName || "Chưa phân sale"}`,
         value: compactMoney(item.estimatedRevenue),
       })),
       score: recoveryValue,
@@ -924,7 +955,7 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
         .slice(0, 3)
         .map((item) => ({
           name: item.entityName,
-          owner: item.saleName || "Chưa phân sale",
+          meta: `Phụ trách: ${item.saleName || "Chưa phân sale"}`,
           value: compactMoney(item.estimatedRevenue),
         })),
       score: crossSellValue,
@@ -952,7 +983,7 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
       successMetric: "đơn tái mua đúng chu kỳ",
       targets: reorderTargets.map((item) => ({
         name: item.entityName,
-        owner: item.saleName || "Chưa phân sale",
+        meta: `Phụ trách: ${item.saleName || "Chưa phân sale"}`,
         value: compactMoney(item.estimatedRevenue),
       })),
       score: reorderValue,
@@ -977,11 +1008,12 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
       timeframe: "21 ngày",
       successMetric: "khách phát sinh đơn thứ hai",
       targets: [...data.newCustomers]
+        .filter((item) => item.net_revenue > 0)
         .sort((left, right) => right.net_revenue - left.net_revenue)
         .slice(0, 3)
         .map((item) => ({
           name: item.customer_name,
-          owner: item.assigned_employee_name || "Chưa phân sale",
+          meta: `Phụ trách: ${item.assigned_employee_name || "Chưa phân sale"}`,
           value: compactMoney(item.net_revenue),
         })),
       score: newCustomerRevenue * 0.5,
@@ -1006,7 +1038,7 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
       successMetric: "tỷ lệ tồn cận hạn đã bán",
       targets: expiring.slice(0, 3).map((item) => ({
         name: item.productName,
-        owner: item.warehouseName || "Chưa xác định kho",
+        meta: `Kho: ${item.warehouseName || "Chưa xác định"}`,
         value: `${money(item.quantity)} ${item.unit || ""}`.trim(),
       })),
       score: expiring.length * 10_000_000,
@@ -1032,7 +1064,7 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
       successMetric: "tiền thu về và công nợ cam kết",
       targets: data.topReceivables.slice(0, 3).map((item) => ({
         name: item.customerName,
-        owner: item.customerCode,
+        meta: `Mã KH: ${item.customerCode}`,
         value: compactMoney(item.balance),
       })),
       score: receivableValue * 0.08,
@@ -1040,5 +1072,165 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
     });
   }
 
-  return ideas.sort((left, right) => right.score - left.score).slice(0, 6);
+  const leadingEmployees = [...data.topEmployees]
+    .sort((left, right) => right.netRevenue - left.netRevenue)
+    .slice(0, 3);
+  const leadingEmployeeRevenue = leadingEmployees.reduce(
+    (total, item) => total + item.netRevenue,
+    0,
+  );
+  if (leadingEmployees.length > 0) {
+    ideas.push({
+      key: "replicate-sales-playbook",
+      category: "Đội sale",
+      title: `Nhân rộng cách bán của ${leadingEmployees[0].name} cho toàn đội`,
+      evidence: `${leadingEmployees.length} sale dẫn đầu đang tạo ${compactMoney(leadingEmployeeRevenue)} đồng doanh thu, là nguồn dữ liệu tốt nhất để chuẩn hóa cách bán hiệu quả.`,
+      action:
+        "Rà lại nhóm khách, nhóm sản phẩm và nhịp chăm sóc tạo doanh thu của sale dẫn đầu; chọn 2 cách làm có thể lặp lại, ghép cặp hướng dẫn cho sale còn lại và theo dõi doanh thu tăng thêm hàng tuần.",
+      impactLabel: "Doanh thu top sale để học từ",
+      impactValue: `${compactMoney(leadingEmployeeRevenue)} đồng`,
+      timeframe: "30 ngày",
+      successMetric: "doanh thu tăng thêm của nhóm áp dụng",
+      targets: leadingEmployees.map((item) => ({
+        name: item.name,
+        meta: `Tỷ lệ trả hàng: ${item.returnRatePercent.toLocaleString("vi-VN", { maximumFractionDigits: 2 })}%`,
+        value: compactMoney(item.netRevenue),
+      })),
+      score: leadingEmployeeRevenue * 0.04,
+      tone: "bg-indigo-500",
+    });
+  }
+
+  const rankedRegions = [...data.topRegions].sort(
+    (left, right) => right.netRevenue - left.netRevenue,
+  );
+  const regionRevenue = rankedRegions.reduce(
+    (total, item) => total + item.netRevenue,
+    0,
+  );
+  if (rankedRegions.length > 1) {
+    const weakestRegion = rankedRegions[rankedRegions.length - 1];
+    const leaderShare =
+      (rankedRegions[0].netRevenue / Math.max(regionRevenue, 1)) * 100;
+    ideas.push({
+      key: "regional-expansion",
+      category: "Thị trường",
+      title: `Mở rộng doanh số tại vùng ${weakestRegion.name}`,
+      evidence: `Vùng dẫn đầu đang chiếm ${leaderShare.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}% doanh thu trong top vùng, trong khi ${weakestRegion.name} mới đạt ${compactMoney(weakestRegion.netRevenue)} đồng.`,
+      action:
+        "Lập danh sách đại lý mục tiêu tại vùng doanh thu thấp, chọn sản phẩm đã bán tốt ở vùng dẫn đầu nhưng phù hợp mùa vụ địa phương; giao chỉ tiêu mở mới và đơn thử theo từng sale thay vì áp một chương trình chung.",
+      impactLabel: `Doanh thu hiện tại vùng ${weakestRegion.name}`,
+      impactValue: `${compactMoney(weakestRegion.netRevenue)} đồng`,
+      timeframe: "60 ngày",
+      successMetric: "đại lý mới và doanh thu vùng",
+      targets: rankedRegions.slice(0, 3).map((item) => ({
+        name: item.name,
+        meta: `Tỷ trọng: ${((item.netRevenue / Math.max(regionRevenue, 1)) * 100).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%`,
+        value: compactMoney(item.netRevenue),
+      })),
+      score: Math.max(weakestRegion.netRevenue, regionRevenue * 0.02),
+      tone: "bg-sky-500",
+    });
+  }
+
+  const returnRiskGroups = [...data.topProductGroups]
+    .filter((item) => item.returnRatePercent > 0)
+    .sort((left, right) => right.returnRatePercent - left.returnRatePercent)
+    .slice(0, 3);
+  if (data.operations.returnRevenue > 0 && returnRiskGroups.length > 0) {
+    ideas.push({
+      key: "reduce-returns",
+      category: "Chất lượng bán",
+      title: "Giảm trả hàng ở các nhóm sản phẩm rủi ro cao",
+      evidence: `Hàng trả lại trong kỳ là ${compactMoney(data.operations.returnRevenue)} đồng; một số nhóm sản phẩm đang có tỷ lệ trả hàng cao hơn mặt bằng chung.`,
+      action:
+        "Đối chiếu lý do trả theo sản phẩm, sale và đại lý; khóa nguyên nhân do tư vấn sai hoặc giao sai, bổ sung bước xác nhận nhu cầu trước xuất kho và theo dõi tỷ lệ trả hàng hàng tuần.",
+      impactLabel: "Doanh thu trả lại cần giảm",
+      impactValue: `${compactMoney(data.operations.returnRevenue)} đồng`,
+      timeframe: "30 ngày",
+      successMetric: "tỷ lệ và giá trị hàng trả lại",
+      targets: returnRiskGroups.map((item) => ({
+        name: item.name,
+        meta: `Doanh thu: ${compactMoney(item.netRevenue)}`,
+        value: `${item.returnRatePercent.toLocaleString("vi-VN", { maximumFractionDigits: 2 })}% trả`,
+      })),
+      score: data.operations.returnRevenue * 1.5,
+      tone: "bg-red-500",
+    });
+  }
+
+  const pendingDelivery = [...data.deliveryPerformance]
+    .filter((item) => item.pending_orders > 0 || item.late_orders > 0)
+    .sort(
+      (left, right) =>
+        right.late_orders +
+        right.pending_orders -
+        (left.late_orders + left.pending_orders),
+    )
+    .slice(0, 3);
+  if (data.operations.openOrders > 0) {
+    ideas.push({
+      key: "accelerate-open-orders",
+      category: "Chốt giao hàng",
+      title: `Đẩy nhanh ${data.operations.openOrders} đơn đang mở để ghi nhận doanh thu`,
+      evidence: `Có ${data.operations.openOrders} đơn chưa hoàn tất trên tổng ${data.operations.totalOrders} đơn trong kỳ; xử lý sớm giúp giảm dồn đơn và giữ trải nghiệm đại lý.`,
+      action:
+        "Chia đơn đang mở theo tuổi đơn, tồn kho và người phụ trách; chốt lịch giao cho đơn đủ hàng, báo lại ngay cho khách nếu thiếu hàng và họp nhanh 15 phút mỗi ngày đến khi hết nhóm tồn đọng.",
+      impactLabel: "Đơn đang chờ hoàn tất",
+      impactValue: `${money(data.operations.openOrders)} đơn`,
+      timeframe: "7 ngày",
+      successMetric: "đơn hoàn tất và thời gian xử lý",
+      targets: pendingDelivery.length
+        ? pendingDelivery.map((item) => ({
+            name: item.employee_name,
+            meta: `${item.late_orders} trễ · ${item.pending_orders} đang giao`,
+            value: `${item.late_orders + item.pending_orders} đơn`,
+          }))
+        : [
+            {
+              name: "Toàn bộ đơn đang mở",
+              meta: "Cần phân người phụ trách từ dữ liệu đơn hàng",
+              value: `${data.operations.openOrders} đơn`,
+            },
+          ],
+      score:
+        data.operations.openOrders *
+        (data.operations.netRevenue / Math.max(data.operations.totalOrders, 1)),
+      tone: "bg-amber-500",
+    });
+  }
+
+  const productLeaders = [...data.topProductGroups]
+    .sort((left, right) => right.netRevenue - left.netRevenue)
+    .slice(0, 3);
+  const productLeaderRevenue = productLeaders.reduce(
+    (total, item) => total + item.netRevenue,
+    0,
+  );
+  if (productLeaders.length > 0) {
+    const topTwoRevenue = productLeaders
+      .slice(0, 2)
+      .reduce((total, item) => total + item.netRevenue, 0);
+    ideas.push({
+      key: "product-portfolio",
+      category: "Danh mục",
+      title: "Dùng sản phẩm chủ lực để kéo doanh số nhóm bổ trợ",
+      evidence: `Hai nhóm dẫn đầu tạo ${compactMoney(topTwoRevenue)} đồng, tương đương ${((topTwoRevenue / Math.max(data.operations.netRevenue, 1)) * 100).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}% doanh thu kỳ này.`,
+      action:
+        "Thiết kế gói theo nhu cầu canh tác gồm một sản phẩm chủ lực và một sản phẩm bổ trợ; thử trên đại lý mua đều, đo tỷ lệ mua kèm và biên lợi nhuận trước khi nhân rộng.",
+      impactLabel: "Doanh thu 3 nhóm dẫn đầu",
+      impactValue: `${compactMoney(productLeaderRevenue)} đồng`,
+      timeframe: "30 ngày",
+      successMetric: "tỷ lệ mua kèm và doanh thu bổ trợ",
+      targets: productLeaders.map((item) => ({
+        name: item.name,
+        meta: `Tỷ lệ trả hàng: ${item.returnRatePercent.toLocaleString("vi-VN", { maximumFractionDigits: 2 })}%`,
+        value: compactMoney(item.netRevenue),
+      })),
+      score: productLeaderRevenue * 0.03,
+      tone: "bg-fuchsia-500",
+    });
+  }
+
+  return ideas.sort((left, right) => right.score - left.score).slice(0, 10);
 }
