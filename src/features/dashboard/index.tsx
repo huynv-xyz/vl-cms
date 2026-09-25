@@ -321,100 +321,6 @@ export function Dashboard() {
       </section>
 
       <section className="space-y-3">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold">
-              Ý tưởng phát triển kinh doanh
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Đề xuất hành động được ưu tiên theo dữ liệu hiện tại
-            </p>
-          </div>
-          <Badge variant="secondary">{ideas.length} đề xuất</Badge>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {ideas.map((idea, index) => (
-            <Card
-              key={idea.key}
-              className="group gap-4 overflow-hidden border-border/70 py-0 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div className={`h-1.5 ${idea.tone}`} />
-              <CardHeader className="gap-3 px-5 pt-1 md:px-6">
-                <div className="flex items-center justify-between gap-3">
-                  <Badge variant="outline">{idea.category}</Badge>
-                  <span className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                </div>
-                <CardTitle className="text-lg leading-snug">
-                  {idea.title}
-                </CardTitle>
-                <CardDescription className="leading-relaxed">
-                  {idea.evidence}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="px-5 pb-5 md:px-6 md:pb-6">
-                <div className="mb-4">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Ưu tiên thực hiện
-                  </p>
-                  <div className="space-y-1.5">
-                    {idea.targets.map((target) => (
-                      <div
-                        key={`${idea.key}-${target.name}`}
-                        className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2"
-                      >
-                        <div className="min-w-0">
-                          <p
-                            className="truncate text-sm font-medium"
-                            title={target.name}
-                          >
-                            {target.name}
-                          </p>
-                          {target.meta && (
-                            <p className="truncate text-xs text-muted-foreground">
-                              {target.meta}
-                            </p>
-                          )}
-                        </div>
-                        {target.value && (
-                          <strong className="shrink-0 text-xs text-primary">
-                            {target.value}
-                          </strong>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border/60 bg-muted/40 p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Nên làm ngay
-                  </p>
-                  <p className="mt-1 text-sm leading-relaxed">{idea.action}</p>
-                </div>
-                <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3">
-                  <div>
-                    <span className="block text-xs text-muted-foreground">
-                      {idea.impactLabel}
-                    </span>
-                    <strong className="text-sm text-primary">
-                      {idea.impactValue}
-                    </strong>
-                  </div>
-                  <div className="text-right">
-                    <Badge variant="secondary">{idea.timeframe}</Badge>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      Đo bằng: {idea.successMetric}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-3">
         <div>
           <h2 className="text-lg font-semibold">Xếp hạng kinh doanh</h2>
           <p className="text-sm text-muted-foreground">
@@ -656,6 +562,99 @@ export function Dashboard() {
           ))}
         </CardContent>
       </Card>
+      <section className="space-y-3">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">
+              Ý tưởng phát triển kinh doanh
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Đề xuất hành động được ưu tiên theo dữ liệu hiện tại
+            </p>
+          </div>
+          <Badge variant="secondary">{ideas.length} đề xuất</Badge>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {ideas.map((idea, index) => (
+            <Card
+              key={idea.key}
+              className="group gap-4 overflow-hidden border-border/70 py-0 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <div className={`h-1.5 ${idea.tone}`} />
+              <CardHeader className="gap-3 px-5 pt-1 md:px-6">
+                <div className="flex items-center justify-between gap-3">
+                  <Badge variant="outline">{idea.category}</Badge>
+                  <span className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                </div>
+                <CardTitle className="text-lg leading-snug">
+                  {idea.title}
+                </CardTitle>
+                <CardDescription className="leading-relaxed">
+                  {idea.evidence}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-5 pb-5 md:px-6 md:pb-6">
+                <div className="mb-4">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Ưu tiên thực hiện
+                  </p>
+                  <div className="space-y-1.5">
+                    {idea.targets.map((target) => (
+                      <div
+                        key={`${idea.key}-${target.name}`}
+                        className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p
+                            className="truncate text-sm font-medium"
+                            title={target.name}
+                          >
+                            {target.name}
+                          </p>
+                          {target.meta && (
+                            <p className="truncate text-xs text-muted-foreground">
+                              {target.meta}
+                            </p>
+                          )}
+                        </div>
+                        {target.value && (
+                          <strong className="shrink-0 text-xs text-primary">
+                            {target.value}
+                          </strong>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/40 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Nên làm ngay
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed">{idea.action}</p>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3">
+                  <div>
+                    <span className="block text-xs text-muted-foreground">
+                      {idea.impactLabel}
+                    </span>
+                    <strong className="text-sm text-primary">
+                      {idea.impactValue}
+                    </strong>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant="secondary">{idea.timeframe}</Badge>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Đo bằng: {idea.successMetric}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
     </Main>
   );
 }
