@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Banknote,
   Boxes,
+  CalendarDays,
   CircleDollarSign,
   Clock3,
   PackageSearch,
@@ -150,24 +151,37 @@ export function Dashboard() {
   ];
 
   return (
-    <Main className="space-y-6 pb-12">
-      <section className="flex flex-col gap-4 border-b pb-5 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-sm font-medium text-primary">
-            Tổng quan điều hành
-          </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">
-            Tình hình kinh doanh
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {date(data.currentFrom)} – {date(data.asOfDate)} · Dữ liệu mới nhất
-          </p>
+    <Main className="space-y-8 pb-28">
+      <section className="relative overflow-hidden rounded-3xl border border-teal-800/15 bg-gradient-to-br from-slate-950 via-slate-900 to-teal-900 px-6 py-7 text-white shadow-lg shadow-slate-950/10 md:px-8 md:py-9">
+        <div className="pointer-events-none absolute -right-16 -top-24 size-72 rounded-full bg-teal-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 left-1/3 size-64 rounded-full bg-cyan-300/10 blur-3xl" />
+        <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-teal-100">
+              <span className="size-1.5 rounded-full bg-emerald-400" />
+              Tổng quan điều hành
+            </p>
+            <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-4xl">
+              Tình hình kinh doanh
+            </h1>
+            <p className="mt-3 flex items-center gap-2 text-sm text-slate-300">
+              <CalendarDays className="size-4 text-teal-300" />
+              {date(data.currentFrom)} – {date(data.asOfDate)}
+              <span className="hidden text-slate-500 sm:inline">•</span>
+              <span className="hidden sm:inline">Dữ liệu mới nhất</span>
+            </p>
+          </div>
+          <Button
+            asChild
+            variant="secondary"
+            className="h-11 self-start border border-white/15 bg-white text-slate-950 shadow-lg shadow-black/15 hover:bg-teal-50 md:self-auto"
+          >
+            <Link to="/ai-assistant">
+              <Sparkles className="text-teal-600" /> Trợ lý điều hành
+              <ArrowRight />
+            </Link>
+          </Button>
         </div>
-        <Button asChild className="self-start shadow-none md:self-auto">
-          <Link to="/ai-assistant">
-            <Sparkles /> Trợ lý điều hành <ArrowRight />
-          </Link>
-        </Button>
       </section>
 
       {data.dataLagDays > 1 && (
@@ -184,6 +198,7 @@ export function Dashboard() {
           value={`${compactMoney(operations.netRevenue)} đồng`}
           detail={`${money(operations.netRevenue)} đồng`}
           icon={Banknote}
+          accent="primary"
         />
         <MetricCard
           title="Tăng trưởng cùng kỳ so sánh"
@@ -197,6 +212,7 @@ export function Dashboard() {
           value={`${compactMoney(operations.receivableBalance)} đồng`}
           detail={`Cập nhật đến ${date(operations.receivableDataThrough)}`}
           icon={CircleDollarSign}
+          accent="warning"
         />
         <MetricCard
           title="Cơ hội doanh thu"
@@ -217,11 +233,12 @@ export function Dashboard() {
           value={`${compactMoney(operations.netRevenue / (operations.totalOrders || 1))} đồng`}
           detail={`${money(operations.totalOrders)} đơn trong kỳ`}
           icon={ShoppingCart}
+          accent="primary"
         />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
-        <Card className="shadow-none">
+        <Card className="border-border/70 shadow-sm">
           <CardHeader>
             <CardTitle>Doanh thu thuần theo tuần</CardTitle>
             <CardDescription>
@@ -270,7 +287,7 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-none">
+        <Card className="border-border/70 shadow-sm">
           <CardHeader>
             <CardTitle>Cảnh báo vận hành</CardTitle>
             <CardDescription>
@@ -315,41 +332,81 @@ export function Dashboard() {
           </div>
           <Badge variant="secondary">{ideas.length} đề xuất</Badge>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-2">
           {ideas.map((idea, index) => (
             <Card
               key={idea.key}
-              className="gap-4 overflow-hidden py-0 shadow-none"
+              className="group gap-4 overflow-hidden border-border/70 py-0 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
-              <div className={`h-1 ${idea.tone}`} />
-              <CardHeader className="gap-3 px-5 pt-1">
+              <div className={`h-1.5 ${idea.tone}`} />
+              <CardHeader className="gap-3 px-5 pt-1 md:px-6">
                 <div className="flex items-center justify-between gap-3">
                   <Badge variant="outline">{idea.category}</Badge>
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Đề xuất {index + 1}
+                  <span className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                    {String(index + 1).padStart(2, "0")}
                   </span>
                 </div>
-                <CardTitle className="text-base leading-snug">
+                <CardTitle className="text-lg leading-snug">
                   {idea.title}
                 </CardTitle>
                 <CardDescription className="leading-relaxed">
                   {idea.evidence}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="px-5 pb-5">
-                <div className="rounded-lg bg-muted/60 p-3">
+              <CardContent className="px-5 pb-5 md:px-6 md:pb-6">
+                <div className="mb-4">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Ưu tiên thực hiện
+                  </p>
+                  <div className="space-y-1.5">
+                    {idea.targets.map((target) => (
+                      <div
+                        key={`${idea.key}-${target.name}`}
+                        className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p
+                            className="truncate text-sm font-medium"
+                            title={target.name}
+                          >
+                            {target.name}
+                          </p>
+                          {target.owner && (
+                            <p className="truncate text-xs text-muted-foreground">
+                              Phụ trách: {target.owner}
+                            </p>
+                          )}
+                        </div>
+                        {target.value && (
+                          <strong className="shrink-0 text-xs text-primary">
+                            {target.value}
+                          </strong>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/40 p-4">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Nên làm ngay
                   </p>
                   <p className="mt-1 text-sm leading-relaxed">{idea.action}</p>
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3">
-                  <span className="text-xs text-muted-foreground">
-                    {idea.impactLabel}
-                  </span>
-                  <strong className="text-sm text-primary">
-                    {idea.impactValue}
-                  </strong>
+                  <div>
+                    <span className="block text-xs text-muted-foreground">
+                      {idea.impactLabel}
+                    </span>
+                    <strong className="text-sm text-primary">
+                      {idea.impactValue}
+                    </strong>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant="secondary">{idea.timeframe}</Badge>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Đo bằng: {idea.successMetric}
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -357,7 +414,7 @@ export function Dashboard() {
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid items-start gap-4 lg:grid-cols-2">
         <Ranking
           title="Top nhân viên sale"
           icon={Users}
@@ -385,8 +442,10 @@ export function Dashboard() {
         </div>
         <div className="grid gap-4 xl:grid-cols-3">
           <Card className="gap-4 shadow-none">
-            <CardHeader className="flex-row items-center gap-2 pb-0">
-              <CircleDollarSign className="size-5 text-red-500" />
+            <CardHeader className="flex flex-row items-center gap-3 pb-0">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-950/30">
+                <CircleDollarSign className="size-5" />
+              </span>
               <CardTitle className="text-base">
                 Công nợ khách hàng cao
               </CardTitle>
@@ -406,8 +465,10 @@ export function Dashboard() {
           </Card>
 
           <Card className="gap-4 shadow-none">
-            <CardHeader className="flex-row items-center gap-2 pb-0">
-              <PackageSearch className="size-5 text-orange-500" />
+            <CardHeader className="flex flex-row items-center gap-3 pb-0">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-950/30">
+                <PackageSearch className="size-5" />
+              </span>
               <CardTitle className="text-base">Rủi ro tồn kho</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1">
@@ -431,8 +492,10 @@ export function Dashboard() {
           </Card>
 
           <Card className="gap-4 shadow-none">
-            <CardHeader className="flex-row items-center gap-2 pb-0">
-              <Truck className="size-5 text-blue-500" />
+            <CardHeader className="flex flex-row items-center gap-3 pb-0">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/30">
+                <Truck className="size-5" />
+              </span>
               <CardTitle className="text-base">Hiệu suất giao hàng</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1">
@@ -457,8 +520,10 @@ export function Dashboard() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         <Card className="gap-4 shadow-none">
-          <CardHeader className="flex-row items-center gap-2 pb-0">
-            <UserPlus className="size-5 text-emerald-600" />
+          <CardHeader className="flex flex-row items-center gap-3 pb-0">
+            <span className="flex size-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30">
+              <UserPlus className="size-5" />
+            </span>
             <div>
               <CardTitle className="text-base">
                 Khách hàng mới trong tháng
@@ -483,8 +548,10 @@ export function Dashboard() {
         </Card>
 
         <Card className="gap-4 shadow-none">
-          <CardHeader className="flex-row items-center gap-2 pb-0">
-            <UserRoundX className="size-5 text-amber-600" />
+          <CardHeader className="flex flex-row items-center gap-3 pb-0">
+            <span className="flex size-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/30">
+              <UserRoundX className="size-5" />
+            </span>
             <div>
               <CardTitle className="text-base">
                 Khách hàng cần chăm sóc lại
@@ -573,18 +640,44 @@ function MetricCard({
   value: string;
   detail: string;
   icon: typeof Banknote;
-  accent?: "positive" | "negative";
+  accent?: "primary" | "positive" | "warning" | "negative";
 }) {
+  const styles = {
+    primary: {
+      line: "bg-primary",
+      icon: "bg-primary/10 text-primary",
+      value: "text-foreground",
+    },
+    positive: {
+      line: "bg-emerald-500",
+      icon: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30",
+      value: "text-emerald-600",
+    },
+    warning: {
+      line: "bg-amber-500",
+      icon: "bg-amber-50 text-amber-600 dark:bg-amber-950/30",
+      value: "text-foreground",
+    },
+    negative: {
+      line: "bg-red-500",
+      icon: "bg-red-50 text-red-600 dark:bg-red-950/30",
+      value: "text-red-600",
+    },
+  }[accent || "primary"];
+
   return (
-    <Card className="gap-0 py-0 shadow-none">
-      <CardContent className="flex items-center gap-4 p-5">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/8 text-primary">
+    <Card className="group relative gap-0 overflow-hidden border-border/70 py-0 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+      <span className={`absolute inset-x-0 top-0 h-1 ${styles.line}`} />
+      <CardContent className="flex items-center gap-4 p-5 pt-6">
+        <span
+          className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${styles.icon}`}
+        >
           <Icon className="size-5" />
         </span>
         <div className="min-w-0">
           <CardDescription>{title}</CardDescription>
           <p
-            className={`mt-1 truncate text-xl font-bold tracking-tight ${accent === "positive" ? "text-emerald-600" : accent === "negative" ? "text-red-600" : ""}`}
+            className={`mt-1 truncate text-2xl font-bold tracking-tight ${styles.value}`}
           >
             {value}
           </p>
@@ -609,36 +702,73 @@ function Ranking({
   icon: typeof Users;
   items: GrowthRankingItem[];
 }) {
+  const maxRevenue = Math.max(...items.map((item) => item.netRevenue), 1);
+  const totalRevenue = items.reduce((sum, item) => sum + item.netRevenue, 0);
+
   return (
-    <Card className="gap-4 shadow-none">
-      <CardHeader className="flex-row items-center gap-2 pb-0">
-        <Icon className="size-5 text-primary" />
-        <CardTitle className="text-base">{title}</CardTitle>
+    <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/60 bg-muted/20 pb-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Icon className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <CardTitle className="text-base">{title}</CardTitle>
+            <CardDescription className="mt-1">
+              So sánh theo doanh thu thuần
+            </CardDescription>
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            Tổng top
+          </p>
+          <strong className="text-sm">{compactMoney(totalRevenue)}</strong>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-1">
+      <CardContent className="space-y-2">
         {items.map((item, index) => (
           <div
             key={`${item.code}-${index}`}
-            className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-muted/60"
+            className="relative overflow-hidden rounded-xl border border-transparent px-3 py-3 transition-colors hover:border-border hover:bg-muted/40"
           >
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-              {index + 1}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium" title={item.name}>
-                {item.name || item.code}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Trả hàng{" "}
-                {item.returnRatePercent.toLocaleString("vi-VN", {
-                  maximumFractionDigits: 2,
-                })}
-                % · SL {money(item.saleQuantity)}
+            <div
+              className="pointer-events-none absolute inset-y-0 left-0 bg-primary/[0.055]"
+              style={{
+                width: `${Math.max(5, (item.netRevenue / maxRevenue) * 100)}%`,
+              }}
+            />
+            <div className="relative flex items-center gap-3">
+              <span
+                className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${index === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+              >
+                {index + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold" title={item.name}>
+                  {item.name || item.code}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Trả hàng{" "}
+                  {item.returnRatePercent.toLocaleString("vi-VN", {
+                    maximumFractionDigits: 2,
+                  })}
+                  % · SL {money(item.saleQuantity)}
+                </p>
+              </div>
+              <p className="shrink-0 text-right">
+                <strong className="block text-sm">
+                  {compactMoney(item.netRevenue)}
+                </strong>
+                <span className="text-[11px] text-muted-foreground">
+                  {(
+                    (item.netRevenue / (totalRevenue || 1)) *
+                    100
+                  ).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}
+                  % top
+                </span>
               </p>
             </div>
-            <span className="shrink-0 text-sm font-semibold">
-              {compactMoney(item.netRevenue)}
-            </span>
           </div>
         ))}
       </CardContent>
@@ -707,6 +837,13 @@ type BusinessIdea = {
   action: string;
   impactLabel: string;
   impactValue: string;
+  timeframe: string;
+  successMetric: string;
+  targets: Array<{
+    name: string;
+    owner?: string;
+    value?: string;
+  }>;
   score: number;
   tone: string;
 };
@@ -729,6 +866,10 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
   ];
   const recoveryCount = countOpportunities(recoveryTypes);
   const recoveryValue = sumOpportunities(recoveryTypes);
+  const recoveryTargets = data.opportunities
+    .filter((item) => recoveryTypes.includes(item.type))
+    .sort((left, right) => right.estimatedRevenue - left.estimatedRevenue)
+    .slice(0, 3);
   if (recoveryCount > 0) {
     ideas.push({
       key: "customer-recovery",
@@ -739,6 +880,13 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
         "Chia danh sách cho từng sale, gọi xác nhận tồn kho và nguyên nhân giảm mua; đề xuất đơn nhập lại theo nhu cầu thực tế, theo dõi tỷ lệ liên hệ và đơn chốt mỗi ngày.",
       impactLabel: "Doanh thu có thể phục hồi",
       impactValue: `${compactMoney(recoveryValue)} đồng`,
+      timeframe: "14 ngày",
+      successMetric: "đơn chốt / khách đã liên hệ",
+      targets: recoveryTargets.map((item) => ({
+        name: item.entityName,
+        owner: item.saleName || "Chưa phân sale",
+        value: compactMoney(item.estimatedRevenue),
+      })),
       score: recoveryValue,
       tone: "bg-emerald-500",
     });
@@ -769,6 +917,16 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
         "Tạo gói thử nhỏ gồm sản phẩm chủ lực và sản phẩm bổ trợ, kèm hướng dẫn sử dụng theo cây trồng; sale thu phản hồi sau 7 ngày trước khi đề xuất đơn lớn.",
       impactLabel: "Doanh thu bán chéo ước tính",
       impactValue: `${compactMoney(crossSellValue)} đồng`,
+      timeframe: "21 ngày",
+      successMetric: "khách mua thử / khách được chào",
+      targets: crossSell
+        .sort((left, right) => right.estimatedRevenue - left.estimatedRevenue)
+        .slice(0, 3)
+        .map((item) => ({
+          name: item.entityName,
+          owner: item.saleName || "Chưa phân sale",
+          value: compactMoney(item.estimatedRevenue),
+        })),
       score: crossSellValue,
       tone: "bg-blue-500",
     });
@@ -776,6 +934,10 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
 
   const reorderCount = countOpportunities(["REORDER_DUE"]);
   const reorderValue = sumOpportunities(["REORDER_DUE"]);
+  const reorderTargets = data.opportunities
+    .filter((item) => item.type === "REORDER_DUE")
+    .sort((left, right) => right.estimatedRevenue - left.estimatedRevenue)
+    .slice(0, 3);
   if (reorderCount > 0) {
     ideas.push({
       key: "reorder-cycle",
@@ -786,6 +948,13 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
         "Nhắc sale trước chu kỳ 5–7 ngày, gửi đề xuất số lượng theo tốc độ mua cũ và gom giao theo tuyến để tăng tỷ lệ chốt mà không cần giảm giá rộng.",
       impactLabel: "Doanh thu mua lại ước tính",
       impactValue: `${compactMoney(reorderValue)} đồng`,
+      timeframe: "7 ngày",
+      successMetric: "đơn tái mua đúng chu kỳ",
+      targets: reorderTargets.map((item) => ({
+        name: item.entityName,
+        owner: item.saleName || "Chưa phân sale",
+        value: compactMoney(item.estimatedRevenue),
+      })),
       score: reorderValue,
       tone: "bg-violet-500",
     });
@@ -805,6 +974,16 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
         "Áp dụng lịch chăm sóc 3–7–21 ngày: xác nhận sử dụng, xử lý vướng mắc và đề xuất đơn thứ hai dựa trên sản phẩm đã mua cùng mùa vụ địa phương.",
       impactLabel: "Doanh thu khách mới hiện tại",
       impactValue: `${compactMoney(newCustomerRevenue)} đồng`,
+      timeframe: "21 ngày",
+      successMetric: "khách phát sinh đơn thứ hai",
+      targets: [...data.newCustomers]
+        .sort((left, right) => right.net_revenue - left.net_revenue)
+        .slice(0, 3)
+        .map((item) => ({
+          name: item.customer_name,
+          owner: item.assigned_employee_name || "Chưa phân sale",
+          value: compactMoney(item.net_revenue),
+        })),
       score: newCustomerRevenue * 0.5,
       tone: "bg-cyan-500",
     });
@@ -823,6 +1002,13 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
         "Ghép lô cận hạn vào gói sản phẩm đang bán tốt, phân bổ chỉ tiêu theo vùng và kiểm soát giá sàn; ưu tiên hội thảo kỹ thuật hoặc đơn dùng ngay thay vì giảm giá đại trà.",
       impactLabel: "Số lô cần luân chuyển",
       impactValue: `${expiring.length} lô`,
+      timeframe: "30 ngày",
+      successMetric: "tỷ lệ tồn cận hạn đã bán",
+      targets: expiring.slice(0, 3).map((item) => ({
+        name: item.productName,
+        owner: item.warehouseName || "Chưa xác định kho",
+        value: `${money(item.quantity)} ${item.unit || ""}`.trim(),
+      })),
       score: expiring.length * 10_000_000,
       tone: "bg-orange-500",
     });
@@ -842,6 +1028,13 @@ function buildBusinessIdeas(data: GrowthDashboard): BusinessIdea[] {
         "Chia khách theo lịch sử thanh toán, đặt hạn mức và điều kiện đơn mới; khách trả tốt được ưu tiên hàng và chương trình bán, khách rủi ro gắn đơn mới với cam kết thu nợ.",
       impactLabel: "Công nợ cần kiểm soát",
       impactValue: `${compactMoney(receivableValue)} đồng`,
+      timeframe: "7 ngày",
+      successMetric: "tiền thu về và công nợ cam kết",
+      targets: data.topReceivables.slice(0, 3).map((item) => ({
+        name: item.customerName,
+        owner: item.customerCode,
+        value: compactMoney(item.balance),
+      })),
       score: receivableValue * 0.08,
       tone: "bg-rose-500",
     });

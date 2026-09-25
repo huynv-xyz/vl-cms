@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "@tanstack/react-router";
 import {
   Bot,
   ChevronsLeft,
@@ -20,6 +21,7 @@ import {
 import AiChatPage from "@/features/ai-chat";
 
 export function FloatingAiChat() {
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(
     () =>
@@ -36,7 +38,7 @@ export function FloatingAiChat() {
       permission.module === "ai.executive" && permission.action === "view",
   );
 
-  if (!canUseAssistant) return null;
+  if (!canUseAssistant || location.pathname === "/") return null;
 
   function setAssistantMinimized(value: boolean) {
     setMinimized(value);
