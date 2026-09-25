@@ -11,6 +11,8 @@ import {
   Bot,
   BrainCircuit,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   Coins,
   DatabaseZap,
@@ -39,9 +41,11 @@ import {
 } from "recharts";
 import {
   getAiAdminAnalytics,
+  getAiAdminRequests,
   updateAiModelPricing,
   type AiAdminAnalytics,
   type AiRecentRequest,
+  type AiRequestPage,
 } from "@/api/ai/admin";
 import { Main } from "@/components/layout/main";
 import { Badge } from "@/components/ui/badge";
@@ -103,11 +107,20 @@ export default function AiAdminPage() {
   const queryClient = useQueryClient();
   const [fromDate, setFromDate] = useState(localDate(6));
   const [toDate, setToDate] = useState(localDate());
+  const [requestPage, setRequestPage] = useState(1);
+  const [requestPageSize, setRequestPageSize] = useState(20);
   const analytics = useQuery({
     queryKey: ["ai-admin-analytics", fromDate, toDate],
     queryFn: () => getAiAdminAnalytics(fromDate, toDate),
     staleTime: 30_000,
     retry: 1,
+  });
+  const requests = useQuery({
+    queryKey: ["ai-admin-requests", fromDate, toDate, requestPage, requestPageSize],
+    queryFn: () => getAiAdminRequests(fromDate, toDate, requestPage, requestPageSize),
+    staleTime: 30_000,
+    retry: 1,
+    placeholderData: (previous) => previous,
   });
   const pricingMutation = useMutation({
     mutationFn: ({ model, values }: { model: string; values: PricingDraft }) =>
@@ -119,11 +132,15 @@ export default function AiAdminPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai-admin-analytics"] }),
   });
 
+  const changeFromDate = (value: string) => { setFromDate(value); setRequestPage(1); };
+  const changeToDate = (value: string) => { setToDate(value); setRequestPage(1); };
+  const refresh = () => { void analytics.refetch(); void requests.refetch(); };
+
   if (analytics.isLoading) return <Loading />;
   if (!analytics.data || analytics.isError) {
     return (
       <Main className="space-y-5">
-        <Header fromDate={fromDate} toDate={toDate} setFromDate={setFromDate} setToDate={setToDate} refreshing={analytics.isFetching} refresh={() => analytics.refetch()} />
+        <Header fromDate={fromDate} toDate={toDate} setFromDate={changeFromDate} setToDate={changeToDate} refreshing={analytics.isFetching || requests.isFetching} refresh={refresh} />
         <Card className="mx-auto mt-12 max-w-xl border-red-200">
           <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
             <AlertTriangle className="size-10 text-red-500" />
@@ -148,7 +165,7 @@ export default function AiAdminPage() {
 
   return (
     <Main className="min-w-0 space-y-6 bg-gradient-to-b from-teal-50/40 via-background to-background pb-12 dark:from-teal-950/10">
-      <Header fromDate={fromDate} toDate={toDate} setFromDate={setFromDate} setToDate={setToDate} refreshing={analytics.isFetching} refresh={() => analytics.refetch()} />
+      <Header fromDate={fromDate} toDate={toDate} setFromDate={changeFromDate} setToDate={changeToDate} refreshing={analytics.isFetching || requests.isFetching} refresh={refresh} />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric icon={Activity} title="Tổng request" value={integer.format(summary.requests)} detail={`${integer.format(summary.successful)} thành công · ${integer.format(summary.failed)} lỗi`} tone="teal" />
@@ -210,7 +227,13 @@ export default function AiAdminPage() {
         <PricingPanel data={data} mutation={pricingMutation} />
       </section>
 
-      <RecentRequests items={data.recent} />
+      <RequestHistory
+        data={requests.data}
+        loading={requests.isLoading || requests.isFetching}
+        error={requests.isError}
+        onPageChange={setRequestPage}
+        onPageSizeChange={(size) => { setRequestPageSize(size); setRequestPage(1); }}
+      />
     </Main>
   );
 }
@@ -275,8 +298,27 @@ function PricingPanel({ data, mutation }: { data: AiAdminAnalytics; mutation: Us
 
 function MiniStat({ icon: Icon, label, value, tone }: { icon: typeof Activity; label: string; value: number; tone: string }) { return <div className="rounded-xl bg-muted/35 p-3 text-center"><Icon className={cn("mx-auto size-4", tone)} /><p className="mt-2 text-xl font-bold tabular-nums">{integer.format(value)}</p><p className="text-[10px] text-muted-foreground">{label}</p></div>; }
 
-function RecentRequests({ items }: { items: AiRecentRequest[] }) {
-  return <Card className="overflow-hidden border-border/70 shadow-sm"><CardHeader className="border-b bg-muted/20"><div className="flex items-center justify-between"><CardTitle className="flex items-center gap-2 text-base"><Zap className="size-5 text-cyan-600" /> 100 request gần nhất</CardTitle><span className="text-xs text-muted-foreground">Bấm vào dòng để xem câu hỏi và output</span></div></CardHeader><CardContent className="p-0"><div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-left text-xs"><thead className="bg-muted/30 text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Thời gian / người hỏi</th><th className="px-3 py-3 font-medium">Trạng thái</th><th className="px-3 py-3 text-right font-medium">Input</th><th className="px-3 py-3 text-right font-medium">Cached</th><th className="px-3 py-3 text-right font-medium">Output</th><th className="px-3 py-3 text-right font-medium">Thời gian</th><th className="px-3 py-3 font-medium">Tool</th><th className="px-4 py-3 font-medium">Đánh giá</th></tr></thead><tbody className="divide-y">{items.map((item) => <RequestRow key={item.request_id} item={item} />)}</tbody></table></div>{items.length === 0 && <div className="p-10"><Empty text="Chưa có request trong kỳ." /></div>}</CardContent></Card>;
+function RequestHistory({ data, loading, error, onPageChange, onPageSizeChange }: {
+  data?: AiRequestPage;
+  loading: boolean;
+  error: boolean;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+}) {
+  const items = data?.items ?? [];
+  return <Card className="overflow-hidden border-border/70 shadow-sm">
+    <CardHeader className="border-b bg-muted/20"><div className="flex flex-wrap items-center justify-between gap-2"><div><CardTitle className="flex items-center gap-2 text-base"><Zap className="size-5 text-cyan-600" /> Tất cả request</CardTitle><p className="mt-1 text-[11px] text-muted-foreground">{data ? `${integer.format(data.total)} request trong khoảng ngày đã chọn` : "Đang tải lịch sử request"}</p></div><span className="text-xs text-muted-foreground">Bấm vào dòng để xem câu hỏi và output</span></div></CardHeader>
+    <CardContent className="p-0">
+      {error ? <div className="p-10"><Empty text="Chưa tải được lịch sử request." /></div> : <>
+        <div className={cn("overflow-x-auto transition-opacity", loading && "opacity-60")}><table className="w-full min-w-[1050px] text-left text-xs"><thead className="bg-muted/30 text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Thời gian / người hỏi</th><th className="px-3 py-3 font-medium">Trạng thái</th><th className="px-3 py-3 text-right font-medium">Input</th><th className="px-3 py-3 text-right font-medium">Cached</th><th className="px-3 py-3 text-right font-medium">Output</th><th className="px-3 py-3 text-right font-medium">Thời gian</th><th className="px-3 py-3 font-medium">Tool</th><th className="px-4 py-3 font-medium">Đánh giá</th></tr></thead><tbody className="divide-y">{items.map((item) => <RequestRow key={item.request_id} item={item} />)}</tbody></table></div>
+        {!loading && items.length === 0 && <div className="p-10"><Empty text="Chưa có request trong kỳ." /></div>}
+        {data && data.total > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted/10 px-4 py-3">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">Hiển thị<select value={data.size} onChange={(event) => onPageSizeChange(Number(event.target.value))} className="h-8 rounded-md border bg-background px-2 text-xs text-foreground">{[20, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}</select>dòng/trang</label>
+          <div className="flex items-center gap-2"><span className="mr-1 text-xs text-muted-foreground">Trang {data.page} / {Math.max(1, data.total_pages)}</span><Button type="button" size="icon" variant="outline" className="size-8" disabled={loading || data.page <= 1} onClick={() => onPageChange(data.page - 1)} title="Trang trước"><ChevronLeft className="size-4" /></Button><Button type="button" size="icon" variant="outline" className="size-8" disabled={loading || data.page >= data.total_pages} onClick={() => onPageChange(data.page + 1)} title="Trang sau"><ChevronRight className="size-4" /></Button></div>
+        </div>}
+      </>}
+    </CardContent>
+  </Card>;
 }
 
 function RequestRow({ item }: { item: AiRecentRequest }) {

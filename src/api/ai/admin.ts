@@ -91,13 +91,29 @@ export type AiAdminAnalytics = {
   errors: Array<{ error_code: string; count: number }>;
   feedback_reasons: Array<{ reason_code: string; count: number }>;
   pricing: AiPricing[];
-  recent: AiRecentRequest[];
+};
+
+export type AiRequestPage = {
+  items: AiRecentRequest[];
+  total: number;
+  page: number;
+  size: number;
+  total_pages: number;
 };
 
 export function getAiAdminAnalytics(fromDate: string, toDate: string) {
   return apiGet<AiAdminAnalytics>("/ai/admin/analytics", {
     from_date: fromDate,
     to_date: toDate,
+  });
+}
+
+export function getAiAdminRequests(fromDate: string, toDate: string, page: number, size: number) {
+  return apiGet<AiRequestPage>("/ai/admin/requests", {
+    from_date: fromDate,
+    to_date: toDate,
+    page,
+    size,
   });
 }
 

@@ -2221,7 +2221,7 @@ function AssistantBubble({ message }: { message: AssistantMessage }) {
             </div>
           )}
           {feedbackMutation.isError && (
-            <p className="mt-2 text-xs text-destructive">Chưa lưu được đánh giá. Vui lòng thử lại.</p>
+            <p className="mt-2 text-xs text-destructive">{feedbackMutation.error instanceof Error && feedbackMutation.error.message !== "Failed to fetch" ? feedbackMutation.error.message : "Chưa lưu được đánh giá. Vui lòng thử lại."}</p>
           )}
         </div>
       </div>
