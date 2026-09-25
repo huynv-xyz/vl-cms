@@ -887,7 +887,7 @@ export default function AiChatPage({
         "flex w-full flex-col gap-0",
         embedded
           ? "h-full min-h-0 max-w-none overflow-hidden p-0"
-          : "min-h-[calc(100vh-4rem)] max-w-none overflow-hidden p-0",
+          : "h-[calc(100dvh-4rem)] min-h-0 max-w-none overflow-hidden p-0",
       )}
     >
       <div
@@ -921,8 +921,8 @@ export default function AiChatPage({
         )}
       </div>
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-60 shrink-0 flex-col border-r border-border/60 bg-muted/20 lg:flex">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <aside className="hidden min-h-0 w-60 shrink-0 flex-col overflow-hidden border-r border-border/60 bg-muted/20 lg:flex">
           <div className="space-y-2 border-b p-4">
             <Button className="w-full justify-start" onClick={newConversation}>
               <MessageSquarePlus className="size-4" /> Hội thoại mới
@@ -994,7 +994,7 @@ export default function AiChatPage({
             </div>
           )}
         </aside>
-        <section className="flex min-w-0 flex-1 flex-col">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div className="flex items-center gap-2 border-b bg-background px-3 py-2 lg:hidden">
             <Button
               variant="outline"
@@ -1232,10 +1232,7 @@ export default function AiChatPage({
 
           {!showGuide && (
             <div
-              className={cn(
-                "bg-background/95 shrink-0 border-t px-3 py-3 backdrop-blur sm:px-6 sm:py-4",
-                !embedded && "sticky bottom-0",
-              )}
+              className="shrink-0 border-t bg-background/95 px-3 py-3 backdrop-blur sm:px-6 sm:py-4"
             >
               <div className="relative mx-auto w-full max-w-4xl min-w-0">
                 {showPromptSuggestions && (
