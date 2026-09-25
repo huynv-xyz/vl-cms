@@ -31,8 +31,17 @@ const PATH_MODULE_ALIASES = [
     },
 ]
 
+function moduleForUrl(url: string) {
+    const pathname = normalizePath(url)
+    const alias = PATH_MODULE_ALIASES.find((item) => {
+        const aliasPath = normalizePath(item.path)
+        return pathname === aliasPath || pathname.startsWith(`${aliasPath}/`)
+    })
+    return alias?.module ?? urlToPermissionModule(pathname)
+}
+
 export function hasViewPermissionForUrl(url: string, permissions: Permission[]) {
-    const module = urlToPermissionModule(url)
+    const module = moduleForUrl(url)
     if (!module) return true
     return permissionSet(permissions).has(`${module}.view`)
 }
@@ -112,13 +121,8 @@ export function getRequiredViewModuleForPath(path: string, data: SidebarData = s
     const pathname = normalizePath(path)
     if (pathname === "/") return null
 
-    const alias = PATH_MODULE_ALIASES.find((item) => {
-        const aliasPath = normalizePath(item.path)
-        return pathname === aliasPath || pathname.startsWith(`${aliasPath}/`)
-    })
-    if (alias) {
-        return alias.module
-    }
+    const aliasModule = moduleForUrl(pathname)
+    if (aliasModule !== urlToPermissionModule(pathname)) return aliasModule
 
     const matchedUrl = collectUrls(data)
         .filter((url) => pathname === url || pathname.startsWith(`${url}/`))
