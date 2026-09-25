@@ -1,8 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowUpRight,
-  BadgeDollarSign,
   CalendarClock,
   CheckCircle2,
   CircleDollarSign,
@@ -11,6 +9,7 @@ import {
   Sparkles,
   Target,
   UserRoundCheck,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -141,9 +140,6 @@ export function GrowthAdvisor({
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <Badge className="rounded-full">Điều hành tăng trưởng</Badge>
-            <Badge variant="outline" className="rounded-full">
-              0 token AI
-            </Badge>
           </div>
           <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Việc nào giúp bán thêm ngay?
@@ -463,7 +459,7 @@ function Metric({
   value,
   note,
 }: {
-  icon: typeof BadgeDollarSign;
+  icon: LucideIcon;
   label: string;
   value: string;
   note: string;

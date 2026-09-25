@@ -221,16 +221,20 @@ function Header({ fromDate, toDate, setFromDate, setToDate, refreshing, refresh 
   const preset = (days: number) => { setFromDate(localDate(days - 1)); setToDate(localDate()); };
   return (
     <header className="rounded-2xl border border-teal-200/70 bg-background/90 p-5 shadow-sm backdrop-blur dark:border-teal-900/60 sm:p-6">
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+      <div className="grid gap-5 xl:grid-cols-[minmax(360px,1fr)_auto] xl:items-center">
         <div className="flex items-start gap-4">
           <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 text-white shadow-lg shadow-teal-500/20"><Bot className="size-6" /></span>
-          <div><div className="mb-1 flex flex-wrap items-center gap-2"><h1 className="text-2xl font-bold tracking-tight">Quản trị Trợ lý AI</h1><Badge className="bg-teal-50 text-teal-700 hover:bg-teal-50 dark:bg-teal-950 dark:text-teal-300">Chỉ ADMIN</Badge></div><p className="max-w-2xl text-sm text-muted-foreground">Theo dõi chi phí, token, hiệu năng và chất lượng câu trả lời trên cùng một màn hình.</p></div>
+          <div><h1 className="mb-1 text-2xl font-bold tracking-tight">Quản trị Trợ lý AI</h1><p className="max-w-2xl text-sm text-muted-foreground">Theo dõi chi phí, token, hiệu năng và chất lượng câu trả lời trên cùng một màn hình.</p></div>
         </div>
-        <div className="flex flex-wrap items-end gap-2">
-          {[1, 7, 30].map((days) => <Button key={days} type="button" size="sm" variant={fromDate === localDate(days - 1) && toDate === localDate() ? "secondary" : "ghost"} onClick={() => preset(days)}>{days === 1 ? "Hôm nay" : `${days} ngày`}</Button>)}
-          <label className="space-y-1 text-[11px] font-medium text-muted-foreground">Từ ngày<Input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} className="h-9 w-[145px] bg-background text-xs" /></label>
-          <label className="space-y-1 text-[11px] font-medium text-muted-foreground">Đến ngày<Input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} className="h-9 w-[145px] bg-background text-xs" /></label>
-          <Button size="icon" variant="outline" className="size-9" onClick={refresh} disabled={refreshing} title="Làm mới"><RefreshCw className={cn("size-4", refreshing && "animate-spin")} /></Button>
+        <div className="flex flex-wrap items-end justify-start gap-3 xl:justify-end">
+          <div className="flex shrink-0 items-center gap-1 rounded-xl bg-muted/45 p-1">
+            {[1, 7, 30].map((days) => <Button key={days} type="button" size="sm" variant={fromDate === localDate(days - 1) && toDate === localDate() ? "secondary" : "ghost"} onClick={() => preset(days)}>{days === 1 ? "Hôm nay" : `${days} ngày`}</Button>)}
+          </div>
+          <div className="flex shrink-0 items-end gap-2">
+            <label className="space-y-1 text-[11px] font-medium text-muted-foreground">Từ ngày<Input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} className="h-9 w-[145px] bg-background text-xs" /></label>
+            <label className="space-y-1 text-[11px] font-medium text-muted-foreground">Đến ngày<Input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} className="h-9 w-[145px] bg-background text-xs" /></label>
+            <Button size="icon" variant="outline" className="mb-px size-9 shrink-0" onClick={refresh} disabled={refreshing} title="Làm mới"><RefreshCw className={cn("size-4", refreshing && "animate-spin")} /></Button>
+          </div>
         </div>
       </div>
     </header>
