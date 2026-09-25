@@ -44,6 +44,17 @@ export function sendAiMessage(input: AiChatRequest) {
   return apiPost<AiChatResponse>("/ai/chat", input);
 }
 
+export type AiFeedbackRating = "USEFUL" | "NOT_USEFUL";
+
+export function sendAiFeedback(input: {
+  request_id: string;
+  rating: AiFeedbackRating;
+  reason_code?: string;
+  comment?: string;
+}) {
+  return apiPost<{ request_id: string }>("/ai/feedback", input);
+}
+
 export type AiConversation = {
   id: number;
   title: string;

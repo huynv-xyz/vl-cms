@@ -22,6 +22,10 @@ const PATH_MODULE_ALIASES = [
         module: "ai.executive",
     },
     {
+        path: "/ai-management",
+        module: "ai.admin",
+    },
+    {
         path: "/tools",
         module: "admin.tools",
     },

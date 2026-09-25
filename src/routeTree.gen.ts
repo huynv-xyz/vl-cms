@@ -34,6 +34,7 @@ import { Route as AuthenticatedEmployeesIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedCustomersIndexRouteImport } from './routes/_authenticated/customers/index'
 import { Route as AuthenticatedCurrenciesIndexRouteImport } from './routes/_authenticated/currencies/index'
 import { Route as AuthenticatedCompaniesIndexRouteImport } from './routes/_authenticated/companies/index'
+import { Route as AuthenticatedAiManagementIndexRouteImport } from './routes/_authenticated/ai-management/index'
 import { Route as AuthenticatedAiAssistantIndexRouteImport } from './routes/_authenticated/ai-assistant/index'
 import { Route as AuthenticatedVipTiersIndexRouteImport } from './routes/_authenticated/vip/tiers/index'
 import { Route as AuthenticatedVipRecalcJobIndexRouteImport } from './routes/_authenticated/vip/recalc-job/index'
@@ -249,6 +250,12 @@ const AuthenticatedCompaniesIndexRoute =
   AuthenticatedCompaniesIndexRouteImport.update({
     id: '/companies/',
     path: '/companies/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAiManagementIndexRoute =
+  AuthenticatedAiManagementIndexRouteImport.update({
+    id: '/ai-management/',
+    path: '/ai-management/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAiAssistantIndexRoute =
@@ -725,6 +732,7 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/ai-assistant/': typeof AuthenticatedAiAssistantIndexRoute
+  '/ai-management/': typeof AuthenticatedAiManagementIndexRoute
   '/companies/': typeof AuthenticatedCompaniesIndexRoute
   '/currencies/': typeof AuthenticatedCurrenciesIndexRoute
   '/customers/': typeof AuthenticatedCustomersIndexRoute
@@ -828,6 +836,7 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/': typeof AuthenticatedIndexRoute
   '/ai-assistant': typeof AuthenticatedAiAssistantIndexRoute
+  '/ai-management': typeof AuthenticatedAiManagementIndexRoute
   '/companies': typeof AuthenticatedCompaniesIndexRoute
   '/currencies': typeof AuthenticatedCurrenciesIndexRoute
   '/customers': typeof AuthenticatedCustomersIndexRoute
@@ -933,6 +942,7 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/ai-assistant/': typeof AuthenticatedAiAssistantIndexRoute
+  '/_authenticated/ai-management/': typeof AuthenticatedAiManagementIndexRoute
   '/_authenticated/companies/': typeof AuthenticatedCompaniesIndexRoute
   '/_authenticated/currencies/': typeof AuthenticatedCurrenciesIndexRoute
   '/_authenticated/customers/': typeof AuthenticatedCustomersIndexRoute
@@ -1038,6 +1048,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/ai-assistant/'
+    | '/ai-management/'
     | '/companies/'
     | '/currencies/'
     | '/customers/'
@@ -1141,6 +1152,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/'
     | '/ai-assistant'
+    | '/ai-management'
     | '/companies'
     | '/currencies'
     | '/customers'
@@ -1245,6 +1257,7 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/'
     | '/_authenticated/ai-assistant/'
+    | '/_authenticated/ai-management/'
     | '/_authenticated/companies/'
     | '/_authenticated/currencies/'
     | '/_authenticated/customers/'
@@ -1525,6 +1538,13 @@ declare module '@tanstack/react-router' {
       path: '/companies'
       fullPath: '/companies/'
       preLoaderRoute: typeof AuthenticatedCompaniesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ai-management/': {
+      id: '/_authenticated/ai-management/'
+      path: '/ai-management'
+      fullPath: '/ai-management/'
+      preLoaderRoute: typeof AuthenticatedAiManagementIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/ai-assistant/': {
@@ -2072,6 +2092,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAiAssistantIndexRoute: typeof AuthenticatedAiAssistantIndexRoute
+  AuthenticatedAiManagementIndexRoute: typeof AuthenticatedAiManagementIndexRoute
   AuthenticatedCompaniesIndexRoute: typeof AuthenticatedCompaniesIndexRoute
   AuthenticatedCurrenciesIndexRoute: typeof AuthenticatedCurrenciesIndexRoute
   AuthenticatedCustomersIndexRoute: typeof AuthenticatedCustomersIndexRoute
@@ -2170,6 +2191,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAiAssistantIndexRoute: AuthenticatedAiAssistantIndexRoute,
+  AuthenticatedAiManagementIndexRoute: AuthenticatedAiManagementIndexRoute,
   AuthenticatedCompaniesIndexRoute: AuthenticatedCompaniesIndexRoute,
   AuthenticatedCurrenciesIndexRoute: AuthenticatedCurrenciesIndexRoute,
   AuthenticatedCustomersIndexRoute: AuthenticatedCustomersIndexRoute,
