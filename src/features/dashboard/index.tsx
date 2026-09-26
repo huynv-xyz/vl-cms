@@ -638,29 +638,36 @@ export function Dashboard() {
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold">Xếp hạng kinh doanh</h2>
-          <p className="text-sm text-muted-foreground">
-            So sánh doanh thu, tỷ trọng và mức trả hàng theo từng chiều
-          </p>
+      <section className="space-y-5 rounded-3xl border border-slate-200/80 bg-gradient-to-br from-slate-100/80 via-white to-teal-50/40 p-5 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-teal-950/20 md:p-7">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Hiệu suất thị trường</p>
+            <h2 className="mt-1 text-xl font-bold tracking-tight">Xếp hạng kinh doanh</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Doanh thu, tỷ trọng và mức trả hàng theo từng chiều
+            </p>
+          </div>
+          <Badge variant="outline" className="w-fit bg-background/80">Doanh thu thuần</Badge>
         </div>
         <div className="grid items-start gap-4 lg:grid-cols-2">
           <Ranking
             title="Top nhân viên sale"
             icon={Users}
             items={data.topEmployees}
+            tone="indigo"
           />
           <MarketCoverage items={data.marketCoverage} />
           <Ranking
             title="Top khách hàng"
             icon={Users}
             items={data.topCustomers}
+            tone="teal"
           />
           <Ranking
             title="Top nhóm sản phẩm"
             icon={PackageSearch}
             items={data.topProductGroups}
+            tone="amber"
           />
         </div>
       </section>
@@ -1019,23 +1026,45 @@ function Ranking({
   title,
   icon: Icon,
   items,
+  tone,
 }: {
   title: string;
   icon: typeof Users;
   items: GrowthRankingItem[];
+  tone: "teal" | "indigo" | "amber";
 }) {
   const totalRevenue = items.reduce((sum, item) => sum + item.netRevenue, 0);
-  const chartData = items.map((item, index) => ({
-    ...item,
-    rank: index + 1,
-    displayName: item.name || item.code,
-  }));
+  const maxRevenue = Math.max(...items.map((item) => item.netRevenue), 1);
+  const highestReturn = Math.max(
+    ...items.map((item) => item.returnRatePercent),
+    0,
+  );
+  const styles = {
+    teal: {
+      icon: "bg-teal-50 text-teal-600 dark:bg-teal-950/30",
+      bar: "bg-gradient-to-r from-teal-400 to-emerald-500",
+      rank: "bg-teal-600 text-white shadow-teal-600/25",
+      value: "text-teal-700 dark:text-teal-300",
+    },
+    indigo: {
+      icon: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30",
+      bar: "bg-gradient-to-r from-indigo-400 to-violet-500",
+      rank: "bg-indigo-600 text-white shadow-indigo-600/25",
+      value: "text-indigo-700 dark:text-indigo-300",
+    },
+    amber: {
+      icon: "bg-amber-50 text-amber-600 dark:bg-amber-950/30",
+      bar: "bg-gradient-to-r from-amber-400 to-orange-500",
+      rank: "bg-amber-500 text-white shadow-amber-500/25",
+      value: "text-amber-700 dark:text-amber-300",
+    },
+  }[tone];
 
   return (
-    <Card className="gap-3 overflow-hidden border-border/70 shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/60 bg-muted/20 pb-4">
+    <Card className="gap-0 overflow-hidden border-0 bg-background/95 py-0 shadow-lg shadow-slate-900/5">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/60 px-5 py-5">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${styles.icon}`}>
             <Icon className="size-5" />
           </span>
           <div className="min-w-0">
@@ -1047,60 +1076,44 @@ function Ranking({
         </div>
         <div className="shrink-0 text-right">
           <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-            Tổng top
+            Tổng doanh thu
           </p>
-          <strong className="text-sm">{compactMoney(totalRevenue)}</strong>
+          <strong className={`text-base ${styles.value}`}>{compactMoney(totalRevenue)}</strong>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="h-[270px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartData}
-              layout="vertical"
-              margin={{ top: 2, right: 88, bottom: 2, left: 12 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.3} />
-              <XAxis type="number" hide domain={[0, "dataMax"]} />
-              <YAxis
-                type="category"
-                dataKey="displayName"
-                width={128}
-                tick={{ fontSize: 11, fill: "currentColor" }}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(value) =>
-                  String(value).length > 20
-                    ? `${String(value).slice(0, 18)}…`
-                    : String(value)
-                }
-              />
-              <Tooltip
-                formatter={(value, name) => {
-                  if (name === "netRevenue")
-                    return [`${money(Number(value))} đồng`, "Doanh thu thuần"];
-                  return [value, name];
-                }}
-                labelFormatter={(_, payload) => {
-                  const item = payload?.[0]?.payload as GrowthRankingItem | undefined;
-                  return item?.name || item?.code || "";
-                }}
-                contentStyle={{ borderRadius: 12, borderColor: "#e2e8f0" }}
-              />
-              <Bar dataKey="netRevenue" fill="#14b8a6" radius={[0, 6, 6, 0]} maxBarSize={28}>
-                <LabelList
-                  dataKey="netRevenue"
-                  position="right"
-                  formatter={(value) => compactMoney(Number(value ?? 0))}
-                  className="fill-foreground text-[11px] font-semibold"
-                />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+      <CardContent className="space-y-2.5 p-4">
+        <div className="space-y-2.5">
+          {items.map((item, index) => {
+            const share = totalRevenue > 0 ? (item.netRevenue / totalRevenue) * 100 : 0;
+            const relativeWidth = (item.netRevenue / maxRevenue) * 100;
+            return (
+              <div
+                key={`${item.code}-${index}`}
+                className={`relative overflow-hidden rounded-xl border p-3.5 ${index === 0 ? "border-primary/20 bg-primary/[0.035]" : "border-border/60 bg-card"}`}
+              >
+                <div className="absolute inset-x-0 bottom-0 h-1 bg-muted/60">
+                  <div className={`h-full rounded-r-full ${styles.bar}`} style={{ width: `${relativeWidth}%` }} />
+                </div>
+                <div className="relative flex items-center gap-3">
+                  <span className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${index === 0 ? `${styles.rank} shadow-lg` : "bg-muted text-muted-foreground"}`}>
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold" title={item.name || item.code}>{item.name || item.code}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Tỷ trọng {share.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%
+                      {item.returnRatePercent > 0 && ` · Trả hàng ${item.returnRatePercent.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%`}
+                    </p>
+                  </div>
+                  <strong className={`shrink-0 text-sm ${styles.value}`}>{compactMoney(item.netRevenue)}</strong>
+                </div>
+              </div>
+            );
+          })}
         </div>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 border-t pt-3 text-xs text-muted-foreground">
-          <span>Doanh thu top: <strong className="text-foreground">{compactMoney(totalRevenue)}</strong></span>
-          <span>Trả hàng cao nhất: <strong className="text-foreground">{Math.max(...items.map((item) => item.returnRatePercent), 0).toLocaleString("vi-VN", { maximumFractionDigits: 2 })}%</strong></span>
+        <div className="flex items-center justify-between gap-3 px-1 pt-1 text-xs text-muted-foreground">
+          <span>{items.length} vị trí dẫn đầu</span>
+          <span>Trả hàng cao nhất <strong className="text-foreground">{highestReturn.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%</strong></span>
         </div>
       </CardContent>
     </Card>
@@ -1125,10 +1138,10 @@ function MarketCoverage({
   }));
 
   return (
-    <Card className="gap-3 overflow-hidden border-border/70 shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/60 bg-muted/20 pb-4">
+    <Card className="gap-0 overflow-hidden border-0 bg-background/95 py-0 shadow-lg shadow-slate-900/5">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/60 px-5 py-5">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600 dark:bg-cyan-950/30">
             <MapPinned className="size-5" />
           </span>
           <div>
@@ -1137,31 +1150,41 @@ function MarketCoverage({
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="h-[270px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 36, bottom: 8, left: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.3} />
-              <XAxis type="number" allowDecimals={false} />
-              <YAxis type="category" dataKey="region" width={92} axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-              <Tooltip
-                formatter={(value, name) => [
-                  money(Number(value)),
-                  name === "active_customers" ? "Có mua trong 90 ngày" : "Chưa mua trong 90 ngày",
-                ]}
-                labelFormatter={(_, payload) => {
-                  const item = payload?.[0]?.payload as (typeof chartData)[number] | undefined;
-                  return item ? `${item.region} · hoạt động ${item.activeRate.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%` : "";
-                }}
-              />
-              <Legend formatter={(value) => value === "active_customers" ? "Đang hoạt động" : "Chưa hoạt động"} />
-              <Bar dataKey="active_customers" stackId="customers" fill="#14b8a6" radius={[5, 0, 0, 5]} />
-              <Bar dataKey="inactive_customers" stackId="customers" fill="#e2e8f0" radius={[0, 5, 5, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      <CardContent className="space-y-3 p-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {chartData.map((item) => (
+            <div key={item.region} className="rounded-2xl border border-border/60 bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-cyan-600">Khu vực</span>
+                  <h3 className="mt-1 text-2xl font-bold">{item.region}</h3>
+                </div>
+                <div className="text-right">
+                  <strong className="text-xl text-cyan-700 dark:text-cyan-300">{item.activeRate.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%</strong>
+                  <p className="text-[11px] text-muted-foreground">đang hoạt động</p>
+                </div>
+              </div>
+              <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-teal-500" style={{ width: `${Math.max(1, item.activeRate)}%` }} />
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-3 text-xs">
+                <div>
+                  <p className="text-muted-foreground">Có mua 90 ngày</p>
+                  <strong className="mt-1 block text-base">{money(item.active_customers)}</strong>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Tổng khách</p>
+                  <strong className="mt-1 block text-base">{money(item.total_customers)}</strong>
+                </div>
+              </div>
+              <p className="mt-3 truncate rounded-lg bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground" title={`${money(item.revenue_90_days)} đồng`}>
+                Doanh thu 90 ngày · <strong className="text-foreground">{compactMoney(item.revenue_90_days)}</strong>
+              </p>
+            </div>
+          ))}
         </div>
-        <p className="mt-2 border-t pt-3 text-xs text-muted-foreground">
-          Vùng có tỷ lệ hoạt động thấp là nơi cần tái kích hoạt khách hoặc mở thêm đại lý.
+        <p className="rounded-xl bg-cyan-50/70 px-4 py-3 text-xs leading-5 text-cyan-900 dark:bg-cyan-950/20 dark:text-cyan-200">
+          Ưu tiên vùng có tỷ lệ hoạt động thấp: tái kích hoạt khách cũ trước, sau đó mới mở thêm đại lý.
         </p>
       </CardContent>
     </Card>
