@@ -165,6 +165,44 @@ export type GrowthDashboard = {
   topEmployees: GrowthRankingItem[];
   topProductGroups: GrowthRankingItem[];
   topCustomers: GrowthRankingItem[];
+  profitability: {
+    summary: {
+      totalRows: number;
+      coveredRows: number;
+      returnRows: number;
+      netRevenue: number;
+      coveredNetRevenue: number;
+      estimatedCost: number;
+      estimatedProfitOnCoveredRows: number;
+      incompleteMonths: string[];
+    };
+    totalGroups: number;
+    incompleteGroups: number;
+    items: Array<{
+      code: string;
+      name: string;
+      netRevenue: number;
+      coveredNetRevenue: number;
+      estimatedProfit?: number | null;
+      estimatedPercent?: number | null;
+      assessment: string;
+    }>;
+  };
+  salesTargets: Array<{
+    employee_code: string;
+    employee_name: string;
+    target_amount: number;
+    actual_amount: number;
+    variance_amount: number;
+    completion_percent?: number | null;
+  }>;
+  marketCoverage: Array<{
+    region: string;
+    total_customers: number;
+    active_customers: number;
+    assigned_customers: number;
+    revenue_90_days: number;
+  }>;
   topReceivables: Array<{
     customerCode: string;
     customerName: string;
@@ -199,6 +237,16 @@ export type GrowthDashboard = {
     last_purchase_date?: string | null;
     inactive_days?: number | null;
     revenue_last_12_months: number;
+  }>;
+  vipInactiveCustomers: Array<{
+    customer_code: string;
+    customer_name: string;
+    vip_tier: string;
+    region?: string | null;
+    employee_name?: string | null;
+    last_purchase_date?: string | null;
+    inactive_days?: number | null;
+    net_revenue_last_12_months: number;
   }>;
   deliveryPerformance: Array<{
     employee_code: string;

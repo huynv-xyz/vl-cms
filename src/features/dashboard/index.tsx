@@ -5,11 +5,13 @@ import {
   ArrowRight,
   ArrowUpRight,
   Banknote,
-  Boxes,
   CalendarDays,
+  ChartNoAxesCombined,
   CircleDollarSign,
+  Crown,
   Clock3,
   ListChecks,
+  MapPinned,
   PackageSearch,
   RefreshCw,
   ShoppingCart,
@@ -18,7 +20,6 @@ import {
   TrendingUp,
   Truck,
   UserPlus,
-  UserRoundX,
   Users,
 } from "lucide-react";
 import {
@@ -179,6 +180,35 @@ export function Dashboard() {
   const topEmployeeShare = topEmployee
     ? (topEmployee.netRevenue / Math.max(operations.netRevenue, 1)) * 100
     : 0;
+  const profitSummary = data.profitability.summary;
+  const costCoverage =
+    profitSummary.totalRows > 0
+      ? (profitSummary.coveredRows / profitSummary.totalRows) * 100
+      : 0;
+  const grossMargin =
+    profitSummary.coveredNetRevenue > 0
+      ? (profitSummary.estimatedProfitOnCoveredRows /
+          profitSummary.coveredNetRevenue) *
+        100
+      : 0;
+  const lowMarginGroups = [...data.profitability.items]
+    .filter((item) => item.estimatedPercent != null)
+    .sort(
+      (left, right) =>
+        Number(left.estimatedPercent) - Number(right.estimatedPercent),
+    )
+    .slice(0, 5);
+  const targetPerformance = [...data.salesTargets]
+    .filter((item) => item.target_amount > 0)
+    .sort(
+      (left, right) =>
+        Number(left.completion_percent ?? 0) -
+        Number(right.completion_percent ?? 0),
+    )
+    .slice(0, 6);
+  const activeNewCustomers = data.newCustomers.filter(
+    (item) => Number(item.net_revenue) > 0,
+  );
   const alerts = [
     {
       label: "Đơn quá hạn",
@@ -595,7 +625,7 @@ export function Dashboard() {
             icon={Users}
             items={data.topEmployees}
           />
-          <Ranking title="Top khu vực" icon={Boxes} items={data.topRegions} />
+          <MarketCoverage items={data.marketCoverage} />
           <Ranking
             title="Top khách hàng"
             icon={Users}
@@ -611,24 +641,181 @@ export function Dashboard() {
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-semibold">Điểm cần điều hành</h2>
+          <h2 className="text-lg font-semibold">Lợi nhuận và tiến độ mục tiêu</h2>
           <p className="text-sm text-muted-foreground">
-            Công nợ, tồn kho và giao hàng cần được theo dõi sát
+            Đánh giá chất lượng doanh thu, dữ liệu giá vốn và sale đang hụt kế hoạch
           </p>
         </div>
-        <div className="grid gap-4 xl:grid-cols-3">
+        <div className="grid items-stretch gap-4 xl:grid-cols-3">
+          <Card className="border-border/70 shadow-sm">
+            <CardHeader className="flex flex-row items-center gap-3">
+              <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30">
+                <ChartNoAxesCombined className="size-5" />
+              </span>
+              <div>
+                <CardTitle className="text-base">Sức khỏe lợi nhuận gộp</CardTitle>
+                <CardDescription>Chỉ tính trên giao dịch đã có giá vốn</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-emerald-50 p-4 dark:bg-emerald-950/20">
+                  <p className="text-xs text-muted-foreground">Lợi nhuận tạm tính</p>
+                  <strong className="mt-1 block text-xl text-emerald-700 dark:text-emerald-400">
+                    {compactMoney(profitSummary.estimatedProfitOnCoveredRows)}
+                  </strong>
+                </div>
+                <div className="rounded-xl bg-muted/50 p-4">
+                  <p className="text-xs text-muted-foreground">Tỷ suất tạm tính</p>
+                  <strong className="mt-1 block text-xl">
+                    {grossMargin.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%
+                  </strong>
+                </div>
+              </div>
+              <div>
+                <div className="mb-2 flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Độ phủ dữ liệu giá vốn</span>
+                  <strong>{costCoverage.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%</strong>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, costCoverage)}%` }} />
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {data.profitability.incompleteGroups > 0
+                    ? `${data.profitability.incompleteGroups} nhóm chưa đủ giá vốn; cần bổ sung trước khi chốt biên lợi nhuận.`
+                    : "Các nhóm sản phẩm trong kỳ đã đủ dữ liệu giá vốn."}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/70 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base">Nhóm có biên thấp nhất</CardTitle>
+              <CardDescription>Ưu tiên kiểm tra giá bán và chiết khấu</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {lowMarginGroups.map((item) => (
+                <div key={item.code}>
+                  <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
+                    <span className="truncate font-medium" title={item.name}>{item.name || item.code}</span>
+                    <strong className={Number(item.estimatedPercent) < 10 ? "text-red-600" : "text-foreground"}>
+                      {Number(item.estimatedPercent).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%
+                    </strong>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={Number(item.estimatedPercent) < 10 ? "h-full rounded-full bg-red-500" : "h-full rounded-full bg-teal-500"}
+                      style={{ width: `${Math.max(2, Math.min(100, Number(item.estimatedPercent)))}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Doanh thu {compactMoney(item.netRevenue)} đồng</p>
+                </div>
+              ))}
+              {lowMarginGroups.length === 0 && <EmptyState text="Chưa đủ dữ liệu xác định biên lợi nhuận" />}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/70 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base">Sale cần bám mục tiêu</CardTitle>
+              <CardDescription>Xếp theo tỷ lệ hoàn thành thấp nhất</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {targetPerformance.map((item) => {
+                const completion = Number(item.completion_percent ?? 0);
+                return (
+                  <div key={item.employee_code}>
+                    <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
+                      <span className="truncate font-medium">{item.employee_name}</span>
+                      <strong className={completion < 80 ? "text-amber-600" : "text-emerald-600"}>
+                        {completion.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%
+                      </strong>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div className={completion < 80 ? "h-full rounded-full bg-amber-500" : "h-full rounded-full bg-emerald-500"} style={{ width: `${Math.min(100, completion)}%` }} />
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Thực hiện {compactMoney(item.actual_amount)} / {compactMoney(item.target_amount)}
+                    </p>
+                  </div>
+                );
+              })}
+              {targetPerformance.length === 0 && <EmptyState text="Chưa có dữ liệu chỉ tiêu năm nay" />}
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Khách hàng cần hành động</h2>
+          <p className="text-sm text-muted-foreground">
+            Giữ khách VIP, tạo đơn thứ hai cho khách mới và kiểm soát công nợ lớn
+          </p>
+        </div>
+        <div className="grid items-start gap-4 xl:grid-cols-3">
+          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
+            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/30">
+                <Crown className="size-5" />
+              </span>
+              <div>
+                <CardTitle className="text-base">VIP có nguy cơ mất</CardTitle>
+                <CardDescription>Từ 30 ngày chưa mua trở lên</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {data.vipInactiveCustomers.slice(0, 5).map((item, index) => (
+                <DataRow
+                  key={item.customer_code}
+                  index={index}
+                  title={item.customer_name}
+                  subtitle={`${item.vip_tier} · ${item.employee_name || "Chưa phân sale"}`}
+                  value={item.inactive_days == null ? "Chưa từng mua" : `${item.inactive_days} ngày`}
+                  negative
+                />
+              ))}
+              {data.vipInactiveCustomers.length === 0 && <EmptyState text="Không có VIP cần cảnh báo" />}
+            </CardContent>
+          </Card>
+
+          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
+            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30">
+                <UserPlus className="size-5" />
+              </span>
+              <div>
+                <CardTitle className="text-base">
+                  Khách hàng mới trong tháng
+                </CardTitle>
+                <CardDescription>Doanh thu phát sinh lần đầu</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {activeNewCustomers.map((item, index) => (
+                <DataRow
+                  key={item.customer_code}
+                  index={index}
+                  title={item.customer_name}
+                  subtitle={`${item.assigned_employee_name || "Chưa phân sale"} · ${date(item.first_purchase_date)}`}
+                  value={compactMoney(item.net_revenue)}
+                />
+              ))}
+              {activeNewCustomers.length === 0 && (
+                <EmptyState text="Chưa có khách mới phát sinh doanh thu" />
+              )}
+            </CardContent>
+          </Card>
+
           <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
             <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
               <span className="flex size-9 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-950/30">
                 <CircleDollarSign className="size-5" />
               </span>
               <div>
-                <CardTitle className="text-base">
-                  Công nợ khách hàng cao
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  5 khách có dư nợ lớn nhất
-                </CardDescription>
+                <CardTitle className="text-base">Công nợ cần kiểm soát</CardTitle>
+                <CardDescription>5 khách có dư nợ lớn nhất</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="space-y-1">
@@ -644,210 +831,45 @@ export function Dashboard() {
               ))}
             </CardContent>
           </Card>
-
-          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
-            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-950/30">
-                <PackageSearch className="size-5" />
-              </span>
-              <div>
-                <CardTitle className="text-base">Rủi ro tồn kho</CardTitle>
-                <CardDescription className="mt-1">
-                  Lô cần kiểm tra và xử lý sớm
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {data.inventoryRisks.map((item, index) => (
-                <DataRow
-                  key={`${item.riskType}-${item.productCode}-${item.lotCode || index}`}
-                  index={index}
-                  title={item.productName}
-                  subtitle={inventoryRiskLabel(
-                    item.riskType,
-                    item.daysToExpiry,
-                  )}
-                  value={`${money(item.quantity)} ${item.unit || ""}`}
-                  negative={item.riskType !== "EXPIRING_SOON"}
-                />
-              ))}
-              {data.inventoryRisks.length === 0 && (
-                <EmptyState text="Không có rủi ro tồn kho" />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
-            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/30">
-                <Truck className="size-5" />
-              </span>
-              <div>
-                <CardTitle className="text-base">Hiệu suất giao hàng</CardTitle>
-                <CardDescription className="mt-1">
-                  Đơn trễ và đơn đang giao theo sale
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {data.deliveryPerformance.map((item, index) => (
-                <DataRow
-                  key={item.employee_code}
-                  index={index}
-                  title={item.employee_name}
-                  subtitle={`${item.late_orders} trễ · ${item.pending_orders} đang giao`}
-                  value={
-                    item.on_time_percent == null
-                      ? "Chưa đủ dữ liệu"
-                      : `${item.on_time_percent.toLocaleString("vi-VN")}% đúng hạn`
-                  }
-                  negative={(item.late_orders || 0) > 0}
-                />
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold">Khách hàng cần theo dõi</h2>
-          <p className="text-sm text-muted-foreground">
-            Ưu tiên tạo đơn mua lại và phân công sale chăm sóc
-          </p>
-        </div>
-        <div className="grid items-start gap-4 lg:grid-cols-2">
-          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
-            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30">
-                <UserPlus className="size-5" />
-              </span>
-              <div>
-                <CardTitle className="text-base">
-                  Khách hàng mới trong tháng
-                </CardTitle>
-                <CardDescription>Doanh thu phát sinh lần đầu</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {data.newCustomers.map((item, index) => (
-                <DataRow
-                  key={item.customer_code}
-                  index={index}
-                  title={item.customer_name}
-                  subtitle={`${item.assigned_employee_name || "Chưa phân sale"} · ${date(item.first_purchase_date)}`}
-                  value={compactMoney(item.net_revenue)}
-                />
-              ))}
-              {data.newCustomers.length === 0 && (
-                <EmptyState text="Chưa có khách hàng mới trong kỳ" />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
-            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/30">
-                <UserRoundX className="size-5" />
-              </span>
-              <div>
-                <CardTitle className="text-base">
-                  Khách hàng cần chăm sóc lại
-                </CardTitle>
-                <CardDescription>
-                  Không mua hàng từ 60 ngày trở lên
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {data.inactiveCustomers.map((item, index) => (
-                <DataRow
-                  key={item.customer_code}
-                  index={index}
-                  title={item.customer_name}
-                  subtitle={`${item.employee_name || "Chưa phân sale"} · ${item.inactive_days == null ? "Chưa từng mua" : `${item.inactive_days} ngày`}`}
-                  value={compactMoney(item.revenue_last_12_months)}
-                  negative
-                />
-              ))}
-            </CardContent>
-          </Card>
         </div>
       </section>
 
       <section className="space-y-3">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">
-              Ý tưởng phát triển kinh doanh
-            </h2>
+            <h2 className="text-lg font-semibold">Kế hoạch tăng trưởng tiếp theo</h2>
             <p className="text-sm text-muted-foreground">
-              Đề xuất hành động được ưu tiên theo dữ liệu hiện tại
+              Chỉ giữ các chương trình có đối tượng, giá trị và cách đo rõ ràng
             </p>
           </div>
-          <Badge variant="secondary">{ideas.length} đề xuất</Badge>
+          <Badge variant="secondary">4 chương trình ưu tiên</Badge>
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {ideas.map((idea, index) => (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {ideas.slice(0, 4).map((idea, index) => (
             <Card
               key={idea.key}
-              className="group gap-4 overflow-hidden border-border/70 py-0 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              className="group gap-3 overflow-hidden border-border/70 py-0 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className={`h-1.5 ${idea.tone}`} />
-              <CardHeader className="gap-3 px-5 pt-1 md:px-6">
+              <CardHeader className="gap-3 px-5 pt-1">
                 <div className="flex items-center justify-between gap-3">
                   <Badge variant="outline">{idea.category}</Badge>
                   <span className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                     {String(index + 1).padStart(2, "0")}
                   </span>
                 </div>
-                <CardTitle className="text-lg leading-snug">
+                <CardTitle className="text-base leading-snug">
                   {idea.title}
                 </CardTitle>
-                <CardDescription className="leading-relaxed">
+                <CardDescription className="line-clamp-3 leading-relaxed">
                   {idea.evidence}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="px-5 pb-5 md:px-6 md:pb-6">
-                <div className="mb-4">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Ưu tiên thực hiện
-                  </p>
-                  <div className="space-y-1.5">
-                    {idea.targets.map((target) => (
-                      <div
-                        key={`${idea.key}-${target.name}`}
-                        className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2"
-                      >
-                        <div className="min-w-0">
-                          <p
-                            className="truncate text-sm font-medium"
-                            title={target.name}
-                          >
-                            {target.name}
-                          </p>
-                          {target.meta && (
-                            <p className="truncate text-xs text-muted-foreground">
-                              {target.meta}
-                            </p>
-                          )}
-                        </div>
-                        {target.value && (
-                          <strong className="shrink-0 text-xs text-primary">
-                            {target.value}
-                          </strong>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+              <CardContent className="mt-auto px-5 pb-5">
+                <div className="rounded-lg bg-muted/45 p-3">
+                  <p className="line-clamp-3 text-xs leading-5">{idea.action}</p>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-muted/40 p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Nên làm ngay
-                  </p>
-                  <p className="mt-1 text-sm leading-relaxed">{idea.action}</p>
-                </div>
-                <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3">
+                <div className="mt-3 flex items-end justify-between gap-3 border-t pt-3">
                   <div>
                     <span className="block text-xs text-muted-foreground">
                       {idea.impactLabel}
@@ -858,9 +880,6 @@ export function Dashboard() {
                   </div>
                   <div className="text-right">
                     <Badge variant="secondary">{idea.timeframe}</Badge>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      Đo bằng: {idea.successMetric}
-                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -1063,6 +1082,67 @@ function Ranking({
   );
 }
 
+function MarketCoverage({
+  items,
+}: {
+  items: GrowthDashboard["marketCoverage"];
+}) {
+  const chartData = items.slice(0, 5).map((item) => ({
+    ...item,
+    inactive_customers: Math.max(
+      0,
+      Number(item.total_customers) - Number(item.active_customers),
+    ),
+    activeRate:
+      Number(item.total_customers) > 0
+        ? (Number(item.active_customers) / Number(item.total_customers)) * 100
+        : 0,
+  }));
+
+  return (
+    <Card className="gap-3 overflow-hidden border-border/70 shadow-sm">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/60 bg-muted/20 pb-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <MapPinned className="size-5" />
+          </span>
+          <div>
+            <CardTitle className="text-base">Độ phủ khách theo khu vực</CardTitle>
+            <CardDescription className="mt-1">Khách có mua trong 90 ngày gần nhất</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="h-[270px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 36, bottom: 8, left: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.3} />
+              <XAxis type="number" allowDecimals={false} />
+              <YAxis type="category" dataKey="region" width={92} axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+              <Tooltip
+                formatter={(value, name) => [
+                  money(Number(value)),
+                  name === "active_customers" ? "Có mua trong 90 ngày" : "Chưa mua trong 90 ngày",
+                ]}
+                labelFormatter={(_, payload) => {
+                  const item = payload?.[0]?.payload as (typeof chartData)[number] | undefined;
+                  return item ? `${item.region} · hoạt động ${item.activeRate.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%` : "";
+                }}
+              />
+              <Legend formatter={(value) => value === "active_customers" ? "Đang hoạt động" : "Chưa hoạt động"} />
+              <Bar dataKey="active_customers" stackId="customers" fill="#14b8a6" radius={[5, 0, 0, 5]} />
+              <Bar dataKey="inactive_customers" stackId="customers" fill="#e2e8f0" radius={[0, 5, 5, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <p className="mt-2 border-t pt-3 text-xs text-muted-foreground">
+          Vùng có tỷ lệ hoạt động thấp là nơi cần tái kích hoạt khách hoặc mở thêm đại lý.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function DataRow({
   index,
   title,
@@ -1102,18 +1182,6 @@ function EmptyState({ text }: { text: string }) {
   return (
     <p className="py-8 text-center text-sm text-muted-foreground">{text}</p>
   );
-}
-
-function inventoryRiskLabel(
-  riskType: "NEGATIVE_STOCK" | "EXPIRED" | "EXPIRING_SOON",
-  daysToExpiry?: number | null,
-) {
-  if (riskType === "NEGATIVE_STOCK") return "Tồn kho âm";
-  if (daysToExpiry == null || Math.abs(daysToExpiry) > 3_650)
-    return "Ngày hết hạn không hợp lệ · cần sửa dữ liệu";
-  if (riskType === "EXPIRED")
-    return `Đã hết hạn ${Math.abs(daysToExpiry || 0)} ngày`;
-  return `Còn ${daysToExpiry ?? 0} ngày đến hạn`;
 }
 
 type BusinessIdea = {
