@@ -1,10 +1,13 @@
-import { ArrowDownLeft, ArrowUpRight, Boxes, Calculator, RotateCcw, Scale, type LucideIcon } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, Boxes, Calculator, ReceiptText, RotateCcw, Scale, type LucideIcon } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 
 type Props = {
     revenue: number
     returnRevenue: number
     actualRevenue: number
+    saleVat: number
+    returnVat: number
+    netVat: number
     saleQty: number
     returnQty: number
     actualQty: number
@@ -17,29 +20,50 @@ export function TransactionSummaryStrip({
     revenue,
     returnRevenue,
     actualRevenue,
+    saleVat,
+    returnVat,
+    netVat,
     saleQty,
     returnQty,
     actualQty,
     isLoading,
 }: Props) {
     return (
-        <div className="grid gap-2 md:grid-cols-3 2xl:grid-cols-6">
+        <div className="grid gap-2 md:grid-cols-3 2xl:grid-cols-9">
             <MetricCard
                 icon={ArrowUpRight}
-                label="Doanh thu"
+                label="Doanh thu sau CK"
                 value={isLoading ? loadingText : formatCurrency(revenue)}
                 tone="credit"
             />
             <MetricCard
                 icon={ArrowDownLeft}
-                label="Giá trị trả lại"
+                label="Trả lại sau CK"
                 value={isLoading ? loadingText : formatCurrency(returnRevenue)}
                 tone="debit"
             />
             <MetricCard
                 icon={Calculator}
-                label="Doanh thu thuần"
+                label="Doanh thu thuần sau CK"
                 value={isLoading ? loadingText : formatCurrency(actualRevenue)}
+                tone="closing"
+            />
+            <MetricCard
+                icon={ReceiptText}
+                label="VAT bán"
+                value={isLoading ? loadingText : formatCurrency(saleVat)}
+                tone="credit"
+            />
+            <MetricCard
+                icon={ReceiptText}
+                label="VAT trả lại"
+                value={isLoading ? loadingText : formatCurrency(returnVat)}
+                tone="debit"
+            />
+            <MetricCard
+                icon={ReceiptText}
+                label="VAT thuần"
+                value={isLoading ? loadingText : formatCurrency(netVat)}
                 tone="closing"
             />
             <MetricCard

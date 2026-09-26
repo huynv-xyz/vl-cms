@@ -12,6 +12,8 @@ const initialOrderItems = () => [
         product_id: undefined,
         quantity: 1,
         unit_price: 0,
+        discount: 0,
+        vat_code: undefined,
         line_type: "NORMAL",
         hdn_status: undefined,
         note: "",
@@ -19,14 +21,16 @@ const initialOrderItems = () => [
 ]
 
 function buildInitialHeader(initialData?: any) {
+    const orderDate = normalizeDate(initialData?.order_date) || new Date().toISOString().slice(0, 10)
     return {
         customer_id: initialData?.customer_id ?? initialData?.customer?.id ?? undefined,
         customer_type: initialData?.customer?.type ?? undefined,
         employee_id: initialData?.employee_id ?? initialData?.employee?.id ?? undefined,
-        order_date: normalizeDate(initialData?.order_date) || new Date().toISOString().slice(0, 10),
+        order_date: orderDate,
         expected_delivery_date: normalizeDate(initialData?.expected_delivery_date),
         status: "NEW",
         note: initialData?.note ?? "",
+        vat_version: orderDate >= "2026-10-01" ? 1 : null,
     }
 }
 
@@ -40,6 +44,7 @@ function buildInitialItems(initialData?: any) {
         quantity: item.quantity ?? 1,
         unit_price: item.unit_price ?? 0,
         discount: item.discount ?? 0,
+        vat_code: item.vat_code ?? undefined,
         line_type: item.line_type ?? "NORMAL",
         hdn_status: item.hdn_status ?? undefined,
         pp_status: item.pp_status ?? undefined,
@@ -71,6 +76,7 @@ export function CreateOrderDialog({ open, onOpenChange, initialData }: any) {
                 quantity: item.quantity,
                 unit_price: item.unit_price,
                 discount: item.discount ?? 0,
+                vat_code: item.vat_code,
                 line_type: item.line_type ?? "NORMAL",
                 hdn_status: item.hdn_status === "KO" ? "KO" : undefined,
                 pp_status: item.pp_status ?? undefined,

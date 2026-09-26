@@ -21,6 +21,10 @@ export type OrderItem = {
     quantity: number
     unit_price?: number
     discount?: number
+    vat_code?: "KCT" | "VAT5" | "VAT8" | "VAT10" | null
+    vat_rate?: number | null
+    vat_amount?: number | null
+    line_total_with_vat?: number
     line_type?: string
     hdn_status?: string
     pp_status?: string
@@ -53,6 +57,7 @@ export type Order = {
 
     order_date: string
     expected_delivery_date?: string
+    vat_version?: number | null
     status: string
 
     note?: string

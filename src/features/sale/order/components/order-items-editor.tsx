@@ -15,7 +15,7 @@ import { listGoodsDescriptions } from "@/api/sale/goods-description"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import { AlertTriangle, Check, ChevronsUpDown, Copy, GripVertical, PackageOpen, Trash2 } from "lucide-react"
 
-type OrderItem = {
+export type OrderItem = {
     id?: number
     product_id?: number
     product?: any
@@ -23,6 +23,7 @@ type OrderItem = {
     unit_price: number
     unit?: string
     discount?: number
+    vat_code?: "KCT" | "VAT5" | "VAT8" | "VAT10"
     line_type?: string
     hdn_status?: string
     pp_status?: string
@@ -40,11 +41,25 @@ type Props = {
     lockCommittedLines?: boolean
     itemError?: { orderItemId: number; message: string } | null
     customerType?: string
+    vatEnabled?: boolean
 }
 
 const NO_PP_STATUS_VALUE = "__NO_PP_STATUS__"
+const VAT_OPTIONS = [
+    { value: "KCT", label: "KCT" },
+    { value: "VAT5", label: "5%" },
+    { value: "VAT8", label: "8%" },
+    { value: "VAT10", label: "10%" },
+] as const
 
-export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorder = false, lockCommittedLines = false, itemError, customerType }: Props) {
+function vatRate(vatCode?: OrderItem["vat_code"]) {
+    if (vatCode === "VAT5") return 5
+    if (vatCode === "VAT8") return 8
+    if (vatCode === "VAT10") return 10
+    return 0
+}
+
+export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorder = false, lockCommittedLines = false, itemError, customerType, vatEnabled = true }: Props) {
     const rowRefs = useRef<Array<HTMLTableRowElement | null>>([])
     const pendingFocusIndexRef = useRef<number | null>(null)
     const lastAddRequestRef = useRef(addRequest)
@@ -60,6 +75,8 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
         product_id: undefined,
         quantity: 1,
         unit_price: 0,
+        discount: 0,
+        vat_code: undefined,
         line_type: "NORMAL",
         hdn_status: undefined,
         note: "",
@@ -213,6 +230,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
         unit_price: product.price ?? 0,
         unit: product.unit,
         discount: 0,
+        vat_code: undefined,
         line_type: "NORMAL",
         hdn_status: undefined,
         pp_status: isB2bCustomer ? product?.group?.pp_status || undefined : undefined,
@@ -253,7 +271,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
             }}
         >
             <div className="overflow-x-auto rounded-md border">
-                <table className="w-full min-w-[2250px] table-fixed text-sm">
+                <table className="w-full min-w-[2940px] table-fixed text-sm">
                     <colgroup>
                         <col className="w-9" />
                         <col className="w-11" />
@@ -263,13 +281,16 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                         <col className="w-[50px]" />
                         <col className="w-[90px]" />
                         <col className="w-[130px]" />
-                        <col className="w-[95px]" />
-                        <col className="w-[70px]" />
-                        <col className="w-[95px]" />
-                        <col className="w-[140px]" />
-                        <col className="w-[260px]" />
-                        <col className="w-[130px]" />
-                        <col className="w-[70px]" />
+                        <col className="w-[100px]" />
+                        <col className="w-[100px]" />
+                        <col className="w-[150px]" />
+                        <col className="w-[160px]" />
+                        <col className="w-[240px]" />
+                        <col className="w-[150px]" />
+                        <col className="w-[120px]" />
+                        <col className="w-[150px]" />
+                        <col className="w-[180px]" />
+                        <col className="w-[90px]" />
                     </colgroup>
                     <thead className="bg-muted/50 text-muted-foreground text-[10px] uppercase tracking-wider">
                         <tr>
@@ -287,6 +308,9 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                             <th className="px-2 py-2 text-center font-semibold">Tình trạng PP</th>
                             <th className="px-2 py-2 text-left font-semibold">Ghi chú</th>
                             <th className="px-2 py-2 text-right font-semibold">Thành tiền</th>
+                            <th className="px-2 py-2 text-center font-semibold">VAT</th>
+                            <th className="px-2 py-2 text-right font-semibold">Tiền VAT</th>
+                            <th className="px-2 py-2 text-right font-semibold">Thành tiền gồm VAT</th>
                             <th className="px-2 py-2" />
                         </tr>
                     </thead>
@@ -302,6 +326,8 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                     : (row.quantity || 0) * (row.unit_price || 0) - Number(row.discount || 0),
                                 0
                             )
+                            const vatAmount = Math.round(lineTotal * vatRate(row.vat_code) / 100)
+                            const lineTotalWithVat = lineTotal + vatAmount
                             const isInvalid = !row.product_id || (row.quantity ?? 0) <= 0
                             const hasServerError =
                                 itemError != null && Number(row.id) === Number(itemError.orderItemId)
@@ -447,7 +473,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                     <td className="px-2 py-2 align-middle">
                                         <DecimalInput
                                             value={row.discount ?? 0}
-                                            disabled={isPromotion || isCommitted}
+                                            disabled
                                             onKeyDown={(event) => addRowOnEnter(event, i)}
                                             onChange={(discount) => updateRow(i, { discount })}
                                         />
@@ -462,6 +488,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                                     line_type: checked ? "PROMOTION" : "NORMAL",
                                                     unit_price: checked ? 0 : row.product?.price ?? row.unit_price,
                                                     discount: checked ? 0 : row.discount,
+                                                    vat_code: checked && vatEnabled ? "KCT" : row.vat_code,
                                                 })
                                             }
                                         />
@@ -519,6 +546,31 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                     </td>
 
                                     <td className="px-2 py-2 align-middle">
+                                        <Select
+                                            value={row.vat_code}
+                                            disabled={!vatEnabled || isCommitted || isPromotion}
+                                            onValueChange={(value) => updateRow(i, { vat_code: value as OrderItem["vat_code"] })}
+                                        >
+                                            <SelectTrigger className="h-9 bg-white">
+                                                <SelectValue placeholder={vatEnabled ? "Chọn VAT" : "-"} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {VAT_OPTIONS.map((option) => (
+                                                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </td>
+
+                                    <td className="px-2 py-2 text-right align-middle font-semibold tabular-nums">
+                                        {formatNumber(vatAmount)}
+                                    </td>
+
+                                    <td className="px-2 py-2 text-right align-middle font-bold tabular-nums">
+                                        {formatNumber(lineTotalWithVat)}
+                                    </td>
+
+                                    <td className="px-2 py-2 align-middle">
                                         <div className="flex items-center justify-center gap-1">
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
@@ -558,7 +610,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
 
                         {!items.length && (
                             <tr>
-                                <td colSpan={15} className="px-4 py-14">
+                                <td colSpan={18} className="px-4 py-14">
                                     <div
                                         className="text-muted-foreground flex flex-col items-center gap-3 text-center text-sm"
                                         tabIndex={0}
@@ -930,5 +982,4 @@ function DecimalInput({
     )
 }
 
-export type { OrderItem }
 export { formatCurrency }

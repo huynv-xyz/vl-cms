@@ -68,6 +68,10 @@ type TransactionTableProps = {
     totalRevenue: number
     totalReturnRevenue: number
     totalActualRevenue: number
+    totalGrossRevenue: number
+    totalSaleDiscount: number
+    totalSaleVat: number
+    totalReturnVat: number
     totalSaleQty: number
     totalReturnQty: number
     totalActualQty: number
@@ -104,6 +108,10 @@ export function TransactionTable({
     totalRevenue,
     totalReturnRevenue,
     totalActualRevenue,
+    totalGrossRevenue,
+    totalSaleDiscount,
+    totalSaleVat,
+    totalReturnVat,
     totalSaleQty,
     totalReturnQty,
     totalActualQty,
@@ -157,6 +165,10 @@ export function TransactionTable({
         revenue: totalRevenue,
         returnRevenue: totalReturnRevenue,
         actualRevenue: totalActualRevenue,
+        grossRevenue: totalGrossRevenue,
+        saleDiscount: totalSaleDiscount,
+        saleVat: totalSaleVat,
+        returnVat: totalReturnVat,
         saleQty: totalSaleQty,
         returnQty: totalReturnQty,
         actualQty: totalActualQty,
@@ -414,7 +426,7 @@ export function TransactionTable({
                 enableColumnPinning
                 defaultPinnedColumnId="customer_name"
                 headerVariant="report"
-                className="[&_td]:border-r [&_td]:border-slate-200 [&_td:last-child]:border-r-0 [&_tbody_tr]:border-b [&_th]:border-r [&_th]:border-slate-200 [&_th:last-child]:border-r-0"
+                className="[&_td]:border-r [&_td]:border-slate-200 [&_td:last-child]:border-r-0 [&_tbody_tr]:border-b [&_th]:border-r [&_th]:border-slate-200 [&_th:last-child]:border-r-0 [&_th]:whitespace-normal [&_th]:break-words [&_th]:py-3 [&_th]:leading-5 [&_th]:tracking-normal"
             />
             <UnitPriceCorrectionDialog
                 row={unitPriceRow}

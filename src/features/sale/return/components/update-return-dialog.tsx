@@ -106,6 +106,7 @@ export function UpdateReturnDialog({
                 warehouse_id: i.warehouse_id,
                 quantity: i.quantity ?? 0,
                 unit_price: i.unit_price ?? 0,
+                vat_code: i.vat_code ?? undefined,
                 note: i.note ?? "",
             })))
             initializedRef.current = true
@@ -174,6 +175,10 @@ export function UpdateReturnDialog({
             if (isManualReturn && selected.some((item) => !item.product_id || item.unit_price == null || item.unit_price < 0)) {
                 throw new Error("Vui lòng chọn sản phẩm và đơn giá hợp lệ")
             }
+            const isLegacyManualReturn = isManualReturn && (detail?.items ?? []).every((item: any) => item.vat_code == null)
+            if (isManualReturn && !isLegacyManualReturn && selected.some((item) => !item.vat_code)) {
+                throw new Error("Vui lòng chọn VAT cho tất cả dòng hàng trả")
+            }
 
             return updateReturn({
                 id: returnData.id,
@@ -190,6 +195,7 @@ export function UpdateReturnDialog({
                     warehouse_id: i.warehouse_id,
                     quantity: i.quantity,
                     unit_price: i.unit_price,
+                    vat_code: i.vat_code,
                     note: i.note ?? "",
                 } as any)),
             } as any)

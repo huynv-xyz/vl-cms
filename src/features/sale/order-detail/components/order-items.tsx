@@ -50,7 +50,7 @@ export function OrderItems({ order, items }: any) {
         },
     })
 
-    const total = items.reduce((sum: number, i: any) => {
+    const subtotal = items.reduce((sum: number, i: any) => {
         if (i.line_type === "PROMOTION") return sum
 
         const quantity = Number(i.quantity || 0)
@@ -58,6 +58,8 @@ export function OrderItems({ order, items }: any) {
         const discount = Number(i.discount || 0)
         return sum + Number(i.line_total ?? Math.max(quantity * unitPrice - discount, 0))
     }, 0)
+    const totalVat = items.reduce((sum: number, i: any) => sum + Number(i.vat_amount || 0), 0)
+    const total = subtotal + totalVat
     const stockByProduct = buildStockCheckMap(items)
 
     return (
@@ -114,6 +116,9 @@ export function OrderItems({ order, items }: any) {
                                 <TableHead className="text-right text-xs font-semibold uppercase">Chiết khấu</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">Đơn giá</TableHead>
                                 <TableHead className="text-right text-xs font-semibold uppercase">Thành tiền</TableHead>
+                                <TableHead className="text-center text-xs font-semibold uppercase">VAT</TableHead>
+                                <TableHead className="text-right text-xs font-semibold uppercase">Tiền VAT</TableHead>
+                                <TableHead className="text-right text-xs font-semibold uppercase">Thành tiền gồm VAT</TableHead>
                                 {isEditable && <TableHead className="w-[96px]" />}
                             </TableRow>
                         </TableHeader>
@@ -247,6 +252,18 @@ export function OrderItems({ order, items }: any) {
                                             {formatCurrency(isPromotion ? 0 : (i.line_total ?? Math.max(quantity * unitPrice - discount, 0)))}
                                         </TableCell>
 
+                                        <TableCell className="text-center font-medium">
+                                            {i.vat_code == null ? "—" : i.vat_code === "KCT" ? "KCT" : String(i.vat_rate ?? 0) + "%"}
+                                        </TableCell>
+
+                                        <TableCell className="text-right font-semibold tabular-nums">
+                                            {i.vat_amount == null ? "—" : formatCurrency(Number(i.vat_amount))}
+                                        </TableCell>
+
+                                        <TableCell className="text-right font-bold tabular-nums">
+                                            {formatCurrency(Number(i.line_total_with_vat ?? i.line_total ?? 0))}
+                                        </TableCell>
+
                                         {isEditable && (
                                             <TableCell>
                                                 <div className="flex justify-end gap-0.5">
@@ -290,8 +307,11 @@ export function OrderItems({ order, items }: any) {
                                     Tổng cộng
                                 </TableCell>
                                 <TableCell className="text-right text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-                                    {formatCurrency(total)}
+                                    {formatCurrency(subtotal)}
                                 </TableCell>
+                                <TableCell />
+                                <TableCell className="text-right text-base font-bold tabular-nums">{formatCurrency(totalVat)}</TableCell>
+                                <TableCell className="text-right text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{formatCurrency(total)}</TableCell>
                                 {isEditable && <TableCell />}
                             </TableRow>
                         </TableFooter>

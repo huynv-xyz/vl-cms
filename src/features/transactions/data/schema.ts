@@ -20,6 +20,9 @@ export type Transaction = {
     unit_price: number
     discount: number
     revenue: number
+    vat_code?: "KCT" | "VAT5" | "VAT8" | "VAT10" | null
+    vat_rate?: number | null
+    vat_amount?: number | null
     sale_user_code?: string
     sale_user_name: string
     sale_user_title?: string
