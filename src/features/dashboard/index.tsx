@@ -6,10 +6,11 @@ import {
   ArrowUpRight,
   Banknote,
   CalendarDays,
-  ChartNoAxesCombined,
   CircleDollarSign,
   Crown,
   Clock3,
+  DatabaseZap,
+  Gauge,
   ListChecks,
   MapPinned,
   PackageSearch,
@@ -19,6 +20,7 @@ import {
   TrendingDown,
   TrendingUp,
   Truck,
+  Target,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -54,15 +56,33 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-const money = (value: number) =>
-  new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(value);
+const safeNumber = (value: unknown) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+};
 
-const compactMoney = (value: number) => {
+const money = (value: unknown) =>
+  new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(
+    safeNumber(value),
+  );
+
+const compactMoney = (rawValue: unknown) => {
+  const value = safeNumber(rawValue);
   const absolute = Math.abs(value);
   if (absolute >= 1_000_000_000)
     return `${(value / 1_000_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 2 })} tỷ`;
   if (absolute >= 1_000_000)
     return `${(value / 1_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tr`;
+  return money(value);
+};
+
+const compactQuantity = (rawValue: unknown) => {
+  const value = safeNumber(rawValue);
+  const absolute = Math.abs(value);
+  if (absolute >= 1_000_000)
+    return `${(value / 1_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 2 })} triệu`;
+  if (absolute >= 1_000)
+    return `${(value / 1_000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} nghìn`;
   return money(value);
 };
 
@@ -181,23 +201,21 @@ export function Dashboard() {
     ? (topEmployee.netRevenue / Math.max(operations.netRevenue, 1)) * 100
     : 0;
   const profitSummary = data.profitability.summary;
+  const profitTotalRows = safeNumber(profitSummary.totalRows);
+  const profitCoveredRows = safeNumber(profitSummary.coveredRows);
+  const coveredNetRevenue = safeNumber(profitSummary.coveredNetRevenue);
+  const coveredProfit = safeNumber(
+    profitSummary.estimatedProfitOnCoveredRows,
+  );
   const costCoverage =
-    profitSummary.totalRows > 0
-      ? (profitSummary.coveredRows / profitSummary.totalRows) * 100
+    profitTotalRows > 0
+      ? (profitCoveredRows / profitTotalRows) * 100
       : 0;
   const grossMargin =
-    profitSummary.coveredNetRevenue > 0
-      ? (profitSummary.estimatedProfitOnCoveredRows /
-          profitSummary.coveredNetRevenue) *
-        100
+    coveredNetRevenue > 0
+      ? (coveredProfit / coveredNetRevenue) * 100
       : 0;
-  const lowMarginGroups = [...data.profitability.items]
-    .filter((item) => item.estimatedPercent != null)
-    .sort(
-      (left, right) =>
-        Number(left.estimatedPercent) - Number(right.estimatedPercent),
-    )
-    .slice(0, 5);
+  const hasProfitData = profitCoveredRows > 0 && coveredNetRevenue > 0;
   const targetPerformance = [...data.salesTargets]
     .filter((item) => item.target_amount > 0)
     .sort(
@@ -225,11 +243,15 @@ export function Dashboard() {
       tone: "text-amber-600 bg-amber-50 dark:bg-amber-950/30",
     },
     {
-      label: "Lô sắp hết hạn",
-      value: operations.expiringLots,
-      note: "Cần ưu tiên bán",
-      icon: PackageSearch,
-      tone: "text-orange-600 bg-orange-50 dark:bg-orange-950/30",
+      label: hasProfitData ? "Độ phủ giá vốn" : "Dữ liệu giá vốn",
+      value: hasProfitData
+        ? `${costCoverage.toLocaleString("vi-VN", { maximumFractionDigits: 0 })}%`
+        : `${data.profitability.incompleteGroups} nhóm`,
+      note: hasProfitData ? "Giao dịch đã đối chiếu" : "Cần bổ sung để tính lãi",
+      icon: DatabaseZap,
+      tone: hasProfitData
+        ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
+        : "text-orange-600 bg-orange-50 dark:bg-orange-950/30",
     },
     {
       label: "Lô hàng đang về",
@@ -500,7 +522,11 @@ export function Dashboard() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-muted-foreground">{alert.label}</p>
                 <div className="flex items-baseline justify-between gap-2">
-                  <strong className="text-xl">{money(alert.value)}</strong>
+                  <strong className="text-xl">
+                    {typeof alert.value === "number"
+                      ? money(alert.value)
+                      : alert.value}
+                  </strong>
                   <span className="truncate text-xs text-muted-foreground">{alert.note}</span>
                 </div>
               </div>
@@ -639,104 +665,93 @@ export function Dashboard() {
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold">Lợi nhuận và tiến độ mục tiêu</h2>
-          <p className="text-sm text-muted-foreground">
-            Đánh giá chất lượng doanh thu, dữ liệu giá vốn và sale đang hụt kế hoạch
-          </p>
+      <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-gradient-to-br from-slate-50 via-white to-teal-50/60 p-5 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-teal-950/20 md:p-7">
+        <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-600">Nhịp cuối tháng</p>
+            <h2 className="mt-1 text-xl font-bold tracking-tight">Dự báo doanh thu và sức kéo đội sale</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Dự báo theo tốc độ bán hiện tại; chỉ tiêu sale hiển thị theo sản lượng quy đổi
+            </p>
+          </div>
+          <Badge variant="outline" className="w-fit bg-background/80">
+            Ngày {data.summary.elapsedDays}/{data.summary.daysInMonth}
+          </Badge>
         </div>
-        <div className="grid items-stretch gap-4 xl:grid-cols-3">
-          <Card className="border-border/70 shadow-sm">
-            <CardHeader className="flex flex-row items-center gap-3">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30">
-                <ChartNoAxesCombined className="size-5" />
-              </span>
-              <div>
-                <CardTitle className="text-base">Sức khỏe lợi nhuận gộp</CardTitle>
-                <CardDescription>Chỉ tính trên giao dịch đã có giá vốn</CardDescription>
+
+        <div className="grid gap-4 xl:grid-cols-[minmax(300px,0.8fr)_minmax(0,1.5fr)]">
+          <Card className="relative overflow-hidden border-0 bg-slate-950 text-white shadow-xl shadow-slate-950/15">
+            <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-teal-400/20 blur-3xl" />
+            <CardContent className="relative flex h-full flex-col p-6">
+              <div className="flex items-center justify-between">
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-white/10 text-teal-300">
+                  <Gauge className="size-6" />
+                </span>
+                <Badge className="border-white/10 bg-white/10 text-white hover:bg-white/10">
+                  Dự báo
+                </Badge>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-emerald-50 p-4 dark:bg-emerald-950/20">
-                  <p className="text-xs text-muted-foreground">Lợi nhuận tạm tính</p>
-                  <strong className="mt-1 block text-xl text-emerald-700 dark:text-emerald-400">
-                    {compactMoney(profitSummary.estimatedProfitOnCoveredRows)}
+              <p className="mt-7 text-sm text-slate-400">Doanh thu dự kiến cuối tháng</p>
+              <strong className="mt-2 text-4xl font-bold tracking-tight">
+                {compactMoney(data.summary.forecastRevenue)}
+              </strong>
+              <p className="mt-1 text-sm text-slate-400">đồng, nếu giữ nhịp bán hiện tại</p>
+
+              <div className="mt-7 grid grid-cols-2 gap-3 border-t border-white/10 pt-5">
+                <div>
+                  <p className="text-xs text-slate-500">Tháng trước</p>
+                  <strong className="mt-1 block text-lg">
+                    {compactMoney(data.summary.previousFullMonthRevenue)}
                   </strong>
                 </div>
-                <div className="rounded-xl bg-muted/50 p-4">
-                  <p className="text-xs text-muted-foreground">Tỷ suất tạm tính</p>
-                  <strong className="mt-1 block text-xl">
-                    {grossMargin.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%
+                <div>
+                  <p className="text-xs text-slate-500">Chênh lệch dự báo</p>
+                  <strong className={`mt-1 block text-lg ${data.summary.forecastGrowthPercent >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {data.summary.forecastGrowthPercent > 0 ? "+" : ""}
+                    {safeNumber(data.summary.forecastGrowthPercent).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%
                   </strong>
                 </div>
-              </div>
-              <div>
-                <div className="mb-2 flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Độ phủ dữ liệu giá vốn</span>
-                  <strong>{costCoverage.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%</strong>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, costCoverage)}%` }} />
-                </div>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  {data.profitability.incompleteGroups > 0
-                    ? `${data.profitability.incompleteGroups} nhóm chưa đủ giá vốn; cần bổ sung trước khi chốt biên lợi nhuận.`
-                    : "Các nhóm sản phẩm trong kỳ đã đủ dữ liệu giá vốn."}
-                </p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-border/70 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base">Nhóm có biên thấp nhất</CardTitle>
-              <CardDescription>Ưu tiên kiểm tra giá bán và chiết khấu</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {lowMarginGroups.map((item) => (
-                <div key={item.code}>
-                  <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
-                    <span className="truncate font-medium" title={item.name}>{item.name || item.code}</span>
-                    <strong className={Number(item.estimatedPercent) < 10 ? "text-red-600" : "text-foreground"}>
-                      {Number(item.estimatedPercent).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%
-                    </strong>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={Number(item.estimatedPercent) < 10 ? "h-full rounded-full bg-red-500" : "h-full rounded-full bg-teal-500"}
-                      style={{ width: `${Math.max(2, Math.min(100, Number(item.estimatedPercent)))}%` }}
-                    />
-                  </div>
-                  <p className="mt-1 text-[11px] text-muted-foreground">Doanh thu {compactMoney(item.netRevenue)} đồng</p>
+          <Card className="border-0 bg-background/90 shadow-lg shadow-slate-900/5 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between gap-4 border-b pb-4">
+              <div className="flex items-center gap-3">
+                <span className="flex size-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/30">
+                  <Target className="size-5" />
+                </span>
+                <div>
+                  <CardTitle className="text-base">Sale cần tăng tốc</CardTitle>
+                  <CardDescription>Ưu tiên người có tỷ lệ hoàn thành thấp</CardDescription>
                 </div>
-              ))}
-              {lowMarginGroups.length === 0 && <EmptyState text="Chưa đủ dữ liệu xác định biên lợi nhuận" />}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/70 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base">Sale cần bám mục tiêu</CardTitle>
-              <CardDescription>Xếp theo tỷ lệ hoàn thành thấp nhất</CardDescription>
+              </div>
+              <span className="hidden text-xs text-muted-foreground sm:block">Sản lượng quy đổi</span>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {targetPerformance.map((item) => {
-                const completion = Number(item.completion_percent ?? 0);
+            <CardContent className="grid gap-x-6 gap-y-4 pt-5 md:grid-cols-2">
+              {targetPerformance.map((item, index) => {
+                const completion = safeNumber(item.completion_percent);
                 return (
-                  <div key={item.employee_code}>
-                    <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
-                      <span className="truncate font-medium">{item.employee_name}</span>
-                      <strong className={completion < 80 ? "text-amber-600" : "text-emerald-600"}>
+                  <div key={item.employee_code} className="rounded-xl border border-border/60 bg-card/70 p-3.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-bold">
+                          {index + 1}
+                        </span>
+                        <span className="truncate text-sm font-semibold">{item.employee_name}</span>
+                      </div>
+                      <strong className={completion < 70 ? "text-amber-600" : "text-emerald-600"}>
                         {completion.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%
                       </strong>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-muted">
-                      <div className={completion < 80 ? "h-full rounded-full bg-amber-500" : "h-full rounded-full bg-emerald-500"} style={{ width: `${Math.min(100, completion)}%` }} />
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={completion < 70 ? "h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-500" : "h-full rounded-full bg-gradient-to-r from-teal-400 to-emerald-500"}
+                        style={{ width: `${Math.max(1, Math.min(100, completion))}%` }}
+                      />
                     </div>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      Thực hiện {compactMoney(item.actual_amount)} / {compactMoney(item.target_amount)}
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      {compactQuantity(item.actual_amount)} / {compactQuantity(item.target_amount)} sản lượng
                     </p>
                   </div>
                 );
@@ -745,17 +760,40 @@ export function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {hasProfitData && (
+          <div className="mt-4 grid gap-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900 dark:bg-emerald-950/20 sm:grid-cols-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Lợi nhuận gộp tạm tính</p>
+              <strong className="mt-1 block text-lg text-emerald-700 dark:text-emerald-400">{compactMoney(coveredProfit)} đồng</strong>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Tỷ suất trên phần đủ giá vốn</p>
+              <strong className="mt-1 block text-lg">{grossMargin.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%</strong>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Độ phủ dữ liệu giá vốn</p>
+              <strong className="mt-1 block text-lg">{costCoverage.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%</strong>
+            </div>
+          </div>
+        )}
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold">Khách hàng cần hành động</h2>
+      <section className="space-y-4 rounded-3xl border border-border/60 bg-muted/25 p-5 md:p-7">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Danh sách ưu tiên</p>
+          <h2 className="mt-1 text-xl font-bold tracking-tight">Khách hàng cần hành động</h2>
           <p className="text-sm text-muted-foreground">
             Giữ khách VIP, tạo đơn thứ hai cho khách mới và kiểm soát công nợ lớn
           </p>
+          </div>
+          <Badge variant="outline" className="w-fit bg-background">
+            {data.vipInactiveCustomers.length + activeNewCustomers.length + data.topReceivables.length} khách cần theo dõi
+          </Badge>
         </div>
         <div className="grid items-start gap-4 xl:grid-cols-3">
-          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
+          <Card className="gap-4 overflow-hidden border-0 bg-background/90 shadow-lg shadow-slate-900/5">
             <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
               <span className="flex size-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/30">
                 <Crown className="size-5" />
@@ -780,7 +818,7 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
+          <Card className="gap-4 overflow-hidden border-0 bg-background/90 shadow-lg shadow-slate-900/5">
             <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
               <span className="flex size-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30">
                 <UserPlus className="size-5" />
@@ -808,7 +846,7 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
+          <Card className="gap-4 overflow-hidden border-0 bg-background/90 shadow-lg shadow-slate-900/5">
             <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
               <span className="flex size-9 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-950/30">
                 <CircleDollarSign className="size-5" />
@@ -834,56 +872,43 @@ export function Dashboard() {
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div className="flex items-end justify-between gap-4">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950 p-6 text-white shadow-xl shadow-slate-950/10 md:p-8">
+        <div className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full bg-teal-400/10 blur-3xl" />
+        <div className="relative flex flex-col justify-between gap-4 border-b border-white/10 pb-6 sm:flex-row sm:items-end">
           <div>
-            <h2 className="text-lg font-semibold">Kế hoạch tăng trưởng tiếp theo</h2>
-            <p className="text-sm text-muted-foreground">
-              Chỉ giữ các chương trình có đối tượng, giá trị và cách đo rõ ràng
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-300">Kế hoạch hành động</p>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight">Bốn việc tạo tăng trưởng tiếp theo</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              Mỗi chương trình đều có đối tượng, giá trị kỳ vọng và thời hạn rõ ràng
             </p>
           </div>
-          <Badge variant="secondary">4 chương trình ưu tiên</Badge>
+          <Badge className="w-fit border-white/10 bg-white/10 text-white hover:bg-white/10">Ưu tiên trong 14 ngày</Badge>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="relative mt-6 grid gap-px overflow-hidden rounded-2xl bg-white/10 md:grid-cols-2 xl:grid-cols-4">
           {ideas.slice(0, 4).map((idea, index) => (
-            <Card
+            <div
               key={idea.key}
-              className="group gap-3 overflow-hidden border-border/70 py-0 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              className="group flex min-h-[300px] flex-col bg-slate-950/80 p-5 transition-colors hover:bg-white/[0.07]"
             >
-              <div className={`h-1.5 ${idea.tone}`} />
-              <CardHeader className="gap-3 px-5 pt-1">
-                <div className="flex items-center justify-between gap-3">
-                  <Badge variant="outline">{idea.category}</Badge>
-                  <span className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                </div>
-                <CardTitle className="text-base leading-snug">
-                  {idea.title}
-                </CardTitle>
-                <CardDescription className="line-clamp-3 leading-relaxed">
-                  {idea.evidence}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="mt-auto px-5 pb-5">
-                <div className="rounded-lg bg-muted/45 p-3">
-                  <p className="line-clamp-3 text-xs leading-5">{idea.action}</p>
-                </div>
-                <div className="mt-3 flex items-end justify-between gap-3 border-t pt-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-teal-300">{idea.category}</span>
+                <span className="text-3xl font-black text-white/10 transition-colors group-hover:text-teal-300/30">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+              </div>
+              <h3 className="mt-5 text-lg font-semibold leading-snug">{idea.title}</h3>
+              <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-400">{idea.evidence}</p>
+              <div className="mt-auto pt-6">
+                <div className="flex items-end justify-between gap-3 border-t border-white/10 pt-4">
                   <div>
-                    <span className="block text-xs text-muted-foreground">
-                      {idea.impactLabel}
-                    </span>
-                    <strong className="text-sm text-primary">
-                      {idea.impactValue}
-                    </strong>
+                    <span className="block text-[11px] text-slate-500">{idea.impactLabel}</span>
+                    <strong className="mt-1 block text-base text-teal-300">{idea.impactValue}</strong>
                   </div>
-                  <div className="text-right">
-                    <Badge variant="secondary">{idea.timeframe}</Badge>
-                  </div>
+                  <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-slate-300">{idea.timeframe}</span>
                 </div>
-              </CardContent>
-            </Card>
+                <p className="mt-4 line-clamp-2 text-xs leading-5 text-slate-400">{idea.action}</p>
+              </div>
+            </div>
           ))}
         </div>
       </section>

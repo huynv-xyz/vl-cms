@@ -134,6 +134,11 @@ export type GrowthDashboard = {
     monthRevenue: number;
     previousComparableRevenue: number;
     growthPercent: number;
+    forecastRevenue: number;
+    previousFullMonthRevenue: number;
+    forecastGrowthPercent: number;
+    elapsedDays: number;
+    daysInMonth: number;
     estimatedOpportunityRevenue: number;
     activeTasks: number;
     completedTasks: number;
