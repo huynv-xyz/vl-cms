@@ -3,11 +3,13 @@ import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
   ArrowRight,
+  ArrowUpRight,
   Banknote,
   Boxes,
   CalendarDays,
   CircleDollarSign,
   Clock3,
+  ListChecks,
   PackageSearch,
   RefreshCw,
   ShoppingCart,
@@ -153,6 +155,30 @@ export function Dashboard() {
   }));
   const ideas = buildBusinessIdeas(data);
   const opportunityMix = buildOpportunityMix(data);
+  const activeTasks = data.tasks.filter((task) => task.status !== "DONE");
+  const assignedOpportunityKeys = new Set(
+    activeTasks.map((task) => task.opportunity_key),
+  );
+  const executionFunnel = [
+    { label: "Đã phát hiện", value: data.opportunities.length, color: "#14b8a6" },
+    { label: "Đang thực hiện", value: data.summary.activeTasks, color: "#6366f1" },
+    { label: "Đã hoàn thành", value: data.summary.completedTasks, color: "#22c55e" },
+  ];
+  const recoveryOpportunities = data.opportunities.filter(
+    (item) => item.type === "REACTIVATE" || item.type === "RECOVER_DECLINE",
+  );
+  const recoveryValue = recoveryOpportunities.reduce(
+    (total, item) => total + item.estimatedRevenue,
+    0,
+  );
+  const topReceivableValue = data.topReceivables.reduce(
+    (total, item) => total + Math.max(0, item.balance),
+    0,
+  );
+  const topEmployee = data.topEmployees[0];
+  const topEmployeeShare = topEmployee
+    ? (topEmployee.netRevenue / Math.max(operations.netRevenue, 1)) * 100
+    : 0;
   const alerts = [
     {
       label: "Đơn quá hạn",
@@ -254,6 +280,37 @@ export function Dashboard() {
           detail={`${data.opportunities.length} cơ hội được phát hiện`}
           icon={Sparkles}
           accent="positive"
+        />
+      </section>
+
+      <section className="grid gap-3 lg:grid-cols-3">
+        <DecisionCard
+          index="01"
+          eyebrow={growth < 0 ? "Cần phục hồi" : "Đà tăng trưởng"}
+          title={
+            growth < 0
+              ? `${recoveryOpportunities.length} khách đang giảm nhịp mua`
+              : "Duy trì nhóm khách đang tăng trưởng"
+          }
+          value={`${compactMoney(recoveryValue)} đồng`}
+          note="Giá trị doanh thu có thể phục hồi từ dữ liệu 30 ngày gần nhất"
+          tone={growth < 0 ? "negative" : "positive"}
+        />
+        <DecisionCard
+          index="02"
+          eyebrow="Dòng tiền"
+          title="Kiểm soát khách có dư công nợ cao"
+          value={`${compactMoney(topReceivableValue)} đồng`}
+          note="Tổng dư nợ của 5 khách lớn nhất trước khi mở thêm hạn mức"
+          tone="warning"
+        />
+        <DecisionCard
+          index="03"
+          eyebrow="Đội sale"
+          title={topEmployee ? `${topEmployee.name} đang dẫn đầu` : "Hiệu quả đội sale"}
+          value={`${topEmployeeShare.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}% doanh thu`}
+          note="Dùng cơ cấu khách và sản phẩm của sale dẫn đầu để nhân rộng cách bán"
+          tone="primary"
         />
       </section>
 
@@ -421,6 +478,109 @@ export function Dashboard() {
           ))}
         </CardContent>
       </Card>
+
+      <section className="space-y-3">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div>
+            <h2 className="text-lg font-semibold">Cơ hội bán hàng hôm nay</h2>
+            <p className="text-sm text-muted-foreground">
+              Khách nào cần gọi, sale nào phụ trách và giá trị có thể mang về
+            </p>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/ai-assistant">
+              Mở danh sách giao việc <ArrowUpRight />
+            </Link>
+          </Button>
+        </div>
+        <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(330px,1fr)]">
+          <Card className="overflow-hidden border-border/70 py-0 shadow-sm">
+            <CardContent className="divide-y p-0">
+              {data.opportunities.slice(0, 6).map((opportunity, index) => {
+                const style = opportunityStyles[opportunity.type];
+                const assigned = assignedOpportunityKeys.has(opportunity.key);
+                return (
+                  <div
+                    key={opportunity.key}
+                    className="grid gap-3 p-4 transition-colors hover:bg-muted/35 md:grid-cols-[36px_minmax(0,1fr)_145px_120px] md:items-center"
+                  >
+                    <span className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-bold">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate font-semibold" title={opportunity.entityName}>
+                          {opportunity.entityName}
+                        </p>
+                        <Badge variant="outline" className="font-normal">
+                          <span className="mr-1.5 size-1.5 rounded-full" style={{ backgroundColor: style.color }} />
+                          {style.label}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {opportunity.saleName || "Chưa phân sale"} · {opportunity.description}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Cơ hội</p>
+                      <strong className="text-sm text-emerald-700 dark:text-emerald-400">
+                        {compactMoney(opportunity.estimatedRevenue)} đồng
+                      </strong>
+                    </div>
+                    <Badge variant={assigned ? "secondary" : opportunity.priority === "HIGH" ? "destructive" : "outline"}>
+                      {assigned ? "Đã giao việc" : opportunity.priority === "HIGH" ? "Xử lý ngay" : "Theo dõi"}
+                    </Badge>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/70 shadow-sm">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30">
+                  <ListChecks className="size-5" />
+                </span>
+                <div>
+                  <CardTitle className="text-base">Phễu thực thi</CardTitle>
+                  <CardDescription>Từ cơ hội đến doanh thu ghi nhận</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[205px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={executionFunnel} margin={{ top: 18, right: 8, left: 8, bottom: 6 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} width={28} />
+                    <Tooltip formatter={(value) => [`${money(Number(value))} việc`, "Số lượng"]} />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={58}>
+                      {executionFunnel.map((item) => <Cell key={item.label} fill={item.color} />)}
+                      <LabelList dataKey="value" position="top" className="fill-foreground text-xs font-bold" />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid grid-cols-2 gap-3 border-t pt-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Doanh thu đã ghi nhận</p>
+                  <strong className="mt-1 block text-lg text-emerald-700 dark:text-emerald-400">
+                    {compactMoney(data.summary.realizedRevenue)} đồng
+                  </strong>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Cơ hội chưa giao</p>
+                  <strong className="mt-1 block text-lg">
+                    {Math.max(0, data.opportunities.length - assignedOpportunityKeys.size)}
+                  </strong>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
 
       <section className="space-y-3">
         <div>
@@ -615,55 +775,6 @@ export function Dashboard() {
         </div>
       </section>
 
-      <Card className="overflow-hidden border-border/70 shadow-sm">
-        <CardHeader className="border-b border-border/60 bg-muted/20 pb-4">
-          <div>
-            <CardTitle>Cơ hội tăng trưởng ưu tiên</CardTitle>
-            <CardDescription>
-              Khách hàng cần sale ưu tiên chăm sóc
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="divide-y rounded-xl border p-0">
-          {data.opportunities.slice(0, 6).map((opportunity) => (
-            <div
-              key={opportunity.key}
-              className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_140px_130px] sm:items-center"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium" title={opportunity.title}>
-                  {opportunity.title}
-                </p>
-                <p className="mt-1 truncate text-sm text-muted-foreground">
-                  {opportunity.description}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">
-                  Doanh thu ước tính
-                </p>
-                <p className="font-semibold text-emerald-700 dark:text-emerald-400">
-                  {compactMoney(opportunity.estimatedRevenue)} đồng
-                </p>
-              </div>
-              <div className="flex items-center justify-between gap-2 sm:justify-end">
-                <span className="truncate text-xs text-muted-foreground">
-                  {opportunity.saleName || "Chưa phân công"}
-                </span>
-                <Badge
-                  variant={
-                    opportunity.priority === "HIGH"
-                      ? "destructive"
-                      : "secondary"
-                  }
-                >
-                  {opportunity.priority === "HIGH" ? "Ưu tiên" : "Theo dõi"}
-                </Badge>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
       <section className="space-y-3">
         <div className="flex items-end justify-between gap-4">
           <div>
@@ -758,6 +869,41 @@ export function Dashboard() {
         </div>
       </section>
     </Main>
+  );
+}
+
+function DecisionCard({
+  index,
+  eyebrow,
+  title,
+  value,
+  note,
+  tone,
+}: {
+  index: string;
+  eyebrow: string;
+  title: string;
+  value: string;
+  note: string;
+  tone: "primary" | "positive" | "warning" | "negative";
+}) {
+  const styles = {
+    primary: "border-cyan-200 bg-cyan-50/70 text-cyan-700 dark:border-cyan-900 dark:bg-cyan-950/20 dark:text-cyan-300",
+    positive: "border-emerald-200 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-300",
+    warning: "border-amber-200 bg-amber-50/70 text-amber-700 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300",
+    negative: "border-red-200 bg-red-50/70 text-red-700 dark:border-red-900 dark:bg-red-950/20 dark:text-red-300",
+  }[tone];
+
+  return (
+    <Card className={`relative overflow-hidden border shadow-none ${styles}`}>
+      <span className="absolute right-4 top-3 text-4xl font-black opacity-[0.08]">{index}</span>
+      <CardContent className="p-5">
+        <p className="text-[11px] font-bold uppercase tracking-[0.12em]">{eyebrow}</p>
+        <h3 className="mt-2 text-base font-semibold text-foreground">{title}</h3>
+        <strong className="mt-3 block text-xl">{value}</strong>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{note}</p>
+      </CardContent>
+    </Card>
   );
 }
 
