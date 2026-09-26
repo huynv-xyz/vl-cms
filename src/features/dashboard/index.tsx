@@ -20,9 +20,16 @@ import {
   Users,
 } from "lucide-react";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  LabelList,
+  Legend,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -58,6 +65,32 @@ const compactMoney = (value: number) => {
 
 const date = (value: string) =>
   new Intl.DateTimeFormat("vi-VN").format(new Date(`${value}T00:00:00`));
+
+const opportunityStyles = {
+  REACTIVATE: { label: "Kích hoạt lại", color: "#f97316" },
+  RECOVER_DECLINE: { label: "Phục hồi giảm mua", color: "#ef4444" },
+  REORDER_DUE: { label: "Đến chu kỳ mua lại", color: "#14b8a6" },
+  CROSS_SELL: { label: "Bán chéo", color: "#6366f1" },
+} as const;
+
+function buildOpportunityMix(data: GrowthDashboard) {
+  return Object.entries(opportunityStyles)
+    .map(([type, style]) => {
+      const opportunities = data.opportunities.filter(
+        (item) => item.type === type,
+      );
+      return {
+        type,
+        ...style,
+        count: opportunities.length,
+        value: opportunities.reduce(
+          (total, item) => total + item.estimatedRevenue,
+          0,
+        ),
+      };
+    })
+    .filter((item) => item.count > 0);
+}
 
 export function Dashboard() {
   const dashboard = useQuery({
@@ -119,6 +152,7 @@ export function Dashboard() {
     label: `${date(point.fromDate)}–${date(point.toDate)}`,
   }));
   const ideas = buildBusinessIdeas(data);
+  const opportunityMix = buildOpportunityMix(data);
   const alerts = [
     {
       label: "Đơn quá hạn",
@@ -192,7 +226,7 @@ export function Dashboard() {
         </div>
       )}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title="Doanh thu thuần trong kỳ"
           value={`${compactMoney(operations.netRevenue)} đồng`}
@@ -221,36 +255,33 @@ export function Dashboard() {
           icon={Sparkles}
           accent="positive"
         />
-        <MetricCard
-          title="Hàng trả lại"
-          value={`${compactMoney(operations.returnRevenue)} đồng`}
-          detail={`${((operations.returnRevenue / (operations.netRevenue + operations.returnRevenue || 1)) * 100).toLocaleString("vi-VN", { maximumFractionDigits: 2 })}% doanh thu gộp`}
-          icon={PackageSearch}
-          accent={operations.returnRevenue > 0 ? "negative" : undefined}
-        />
-        <MetricCard
-          title="Giá trị đơn trung bình"
-          value={`${compactMoney(operations.netRevenue / (operations.totalOrders || 1))} đồng`}
-          detail={`${money(operations.totalOrders)} đơn trong kỳ`}
-          icon={ShoppingCart}
-          accent="primary"
-        />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,1fr)]">
         <Card className="border-border/70 shadow-sm">
-          <CardHeader>
-            <CardTitle>Doanh thu thuần theo tuần</CardTitle>
-            <CardDescription>
-              Xu hướng doanh thu trong kỳ hiện tại
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between gap-4">
+            <div>
+              <CardTitle>Nhịp doanh thu theo tuần</CardTitle>
+              <CardDescription>
+                Nhìn đồng thời doanh thu bán, doanh thu thuần và hàng trả lại
+              </CardDescription>
+            </div>
+            <Badge variant={growth >= 0 ? "secondary" : "destructive"}>
+              {growth > 0 ? "+" : ""}{growth.toLocaleString("vi-VN")}%
+            </Badge>
           </CardHeader>
-          <CardContent className="h-[300px] pl-2">
+          <CardContent className="h-[330px] pl-2">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart
+              <AreaChart
                 data={trend}
-                margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+                margin={{ top: 8, right: 20, left: 8, bottom: 8 }}
               >
+                <defs>
+                  <linearGradient id="netRevenueFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   vertical={false}
@@ -270,55 +301,126 @@ export function Dashboard() {
                   width={62}
                 />
                 <Tooltip
-                  formatter={(value) => [
+                  formatter={(value, name) => [
                     `${money(Number(value))} đồng`,
-                    "Doanh thu thuần",
+                    name === "netRevenue"
+                      ? "Doanh thu thuần"
+                      : name === "grossRevenue"
+                        ? "Doanh thu bán"
+                        : "Hàng trả lại",
                   ]}
                   labelStyle={{ color: "#0f172a" }}
                 />
-                <Bar
-                  dataKey="netRevenue"
-                  fill="#14b8a6"
-                  radius={[5, 5, 0, 0]}
-                  maxBarSize={70}
+                <Legend
+                  formatter={(value) =>
+                    value === "netRevenue"
+                      ? "Doanh thu thuần"
+                      : value === "grossRevenue"
+                        ? "Doanh thu bán"
+                        : "Hàng trả lại"
+                  }
                 />
-              </BarChart>
+                <Area
+                  type="monotone"
+                  dataKey="grossRevenue"
+                  stroke="#94a3b8"
+                  fill="transparent"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="netRevenue"
+                  stroke="#0f9f91"
+                  fill="url(#netRevenueFill)"
+                  strokeWidth={3}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="returnRevenue"
+                  stroke="#f97316"
+                  fill="transparent"
+                  strokeWidth={2}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
         <Card className="border-border/70 shadow-sm">
           <CardHeader>
-            <CardTitle>Cảnh báo vận hành</CardTitle>
+            <CardTitle>Cơ cấu cơ hội tăng trưởng</CardTitle>
             <CardDescription>
-              Các việc cần chú ý theo dữ liệu hiện tại
+              Giá trị doanh thu có thể hành động theo từng nhóm
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            {alerts.map((alert) => (
-              <div
-                key={alert.label}
-                className="flex items-center gap-3 rounded-xl border p-3"
-              >
-                <span
-                  className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${alert.tone}`}
-                >
-                  <alert.icon className="size-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-muted-foreground">{alert.label}</p>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <strong className="text-xl">{money(alert.value)}</strong>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {alert.note}
-                    </span>
-                  </div>
-                </div>
+          <CardContent>
+            <div className="relative h-[210px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={opportunityMix}
+                    dataKey="value"
+                    nameKey="label"
+                    innerRadius={58}
+                    outerRadius={86}
+                    paddingAngle={3}
+                    strokeWidth={0}
+                  >
+                    {opportunityMix.map((item) => (
+                      <Cell key={item.type} fill={item.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value) => `${money(Number(value))} đồng`}
+                    labelStyle={{ color: "#0f172a" }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                <strong className="text-xl">
+                  {compactMoney(data.summary.estimatedOpportunityRevenue)}
+                </strong>
+                <span className="text-xs text-muted-foreground">doanh thu cơ hội</span>
               </div>
-            ))}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+              {opportunityMix.map((item) => (
+                <div key={item.type} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                    <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="truncate">{item.label} · {item.count}</span>
+                  </span>
+                  <strong className="shrink-0">{compactMoney(item.value)}</strong>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </section>
+
+      <Card className="border-border/70 shadow-sm">
+        <CardHeader>
+          <CardTitle>Cảnh báo vận hành hôm nay</CardTitle>
+          <CardDescription>Các điểm cần xử lý để bảo vệ doanh thu và tiến độ giao hàng</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {alerts.map((alert) => (
+            <div key={alert.label} className="flex items-center gap-3 rounded-xl border bg-card p-3">
+              <span className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${alert.tone}`}>
+                <alert.icon className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-muted-foreground">{alert.label}</p>
+                <div className="flex items-baseline justify-between gap-2">
+                  <strong className="text-xl">{money(alert.value)}</strong>
+                  <span className="truncate text-xs text-muted-foreground">{alert.note}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
       <section className="space-y-3">
         <div>
@@ -732,11 +834,15 @@ function Ranking({
   icon: typeof Users;
   items: GrowthRankingItem[];
 }) {
-  const maxRevenue = Math.max(...items.map((item) => item.netRevenue), 1);
   const totalRevenue = items.reduce((sum, item) => sum + item.netRevenue, 0);
+  const chartData = items.map((item, index) => ({
+    ...item,
+    rank: index + 1,
+    displayName: item.name || item.code,
+  }));
 
   return (
-    <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
+    <Card className="gap-3 overflow-hidden border-border/70 shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/60 bg-muted/20 pb-4">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -756,51 +862,56 @@ function Ranking({
           <strong className="text-sm">{compactMoney(totalRevenue)}</strong>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {items.map((item, index) => (
-          <div
-            key={`${item.code}-${index}`}
-            className="relative overflow-hidden rounded-xl border border-transparent px-3 py-3 transition-colors hover:border-border hover:bg-muted/40"
-          >
-            <div
-              className="pointer-events-none absolute inset-y-0 left-0 bg-primary/[0.055]"
-              style={{
-                width: `${Math.max(5, (item.netRevenue / maxRevenue) * 100)}%`,
-              }}
-            />
-            <div className="relative flex items-center gap-3">
-              <span
-                className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${index === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-              >
-                {index + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold" title={item.name}>
-                  {item.name || item.code}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Trả hàng{" "}
-                  {item.returnRatePercent.toLocaleString("vi-VN", {
-                    maximumFractionDigits: 2,
-                  })}
-                  % · SL {money(item.saleQuantity)}
-                </p>
-              </div>
-              <p className="shrink-0 text-right">
-                <strong className="block text-sm">
-                  {compactMoney(item.netRevenue)}
-                </strong>
-                <span className="text-[11px] text-muted-foreground">
-                  {(
-                    (item.netRevenue / (totalRevenue || 1)) *
-                    100
-                  ).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}
-                  % top
-                </span>
-              </p>
-            </div>
-          </div>
-        ))}
+      <CardContent>
+        <div className="h-[270px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              margin={{ top: 2, right: 62, bottom: 2, left: 12 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.3} />
+              <XAxis type="number" hide domain={[0, "dataMax"]} />
+              <YAxis
+                type="category"
+                dataKey="displayName"
+                width={128}
+                tick={{ fontSize: 11, fill: "currentColor" }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value) =>
+                  String(value).length > 20
+                    ? `${String(value).slice(0, 18)}…`
+                    : String(value)
+                }
+              />
+              <Tooltip
+                formatter={(value, name) => {
+                  if (name === "netRevenue")
+                    return [`${money(Number(value))} đồng`, "Doanh thu thuần"];
+                  return [value, name];
+                }}
+                labelFormatter={(_, payload) => {
+                  const item = payload?.[0]?.payload as GrowthRankingItem | undefined;
+                  return item?.name || item?.code || "";
+                }}
+                contentStyle={{ borderRadius: 12, borderColor: "#e2e8f0" }}
+              />
+              <Bar dataKey="netRevenue" fill="#14b8a6" radius={[0, 6, 6, 0]} maxBarSize={28}>
+                <LabelList
+                  dataKey="netRevenue"
+                  position="right"
+                  formatter={(value) => compactMoney(Number(value ?? 0))}
+                  className="fill-foreground text-[11px] font-semibold"
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 border-t pt-3 text-xs text-muted-foreground">
+          <span>Doanh thu top: <strong className="text-foreground">{compactMoney(totalRevenue)}</strong></span>
+          <span>Trả hàng cao nhất: <strong className="text-foreground">{Math.max(...items.map((item) => item.returnRatePercent), 0).toLocaleString("vi-VN", { maximumFractionDigits: 2 })}%</strong></span>
+        </div>
       </CardContent>
     </Card>
   );
