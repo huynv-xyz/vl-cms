@@ -39,10 +39,22 @@ export function CreateCustomerDialog({
             submitText="Tạo khách hàng"
             loadingText="Đang tạo..."
             mutationFn={createCustomer}
-            mapFormToRequest={(values) => ({
+            mapFormToRequest={(values, _syncHistoricalData, primaryLocation) => ({
                 code: values.code,
                 name: values.name,
                 address: values.address?.trim() ? values.address.trim() : "",
+                primary_location: primaryLocation ? {
+                    name: primaryLocation.name,
+                    address_detail: primaryLocation.address_detail,
+                    old_admin_unit_id: primaryLocation.old_admin_unit_id,
+                    current_admin_unit_id: primaryLocation.current_admin_unit_id,
+                    latitude: primaryLocation.latitude,
+                    longitude: primaryLocation.longitude,
+                    location_accuracy_meters: primaryLocation.location_accuracy_meters,
+                    location_verified: primaryLocation.location_verified ? 1 : 0,
+                    is_primary: 1,
+                    status: 1,
+                } : undefined,
                 phone: values.phone?.trim() ? values.phone.trim() : "",
                 type: values.type,
                 region: values.region,

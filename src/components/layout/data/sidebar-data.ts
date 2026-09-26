@@ -38,6 +38,8 @@ import {
     CalendarDays,
     ScrollText,
     Sparkles,
+    Landmark,
+    Network,
 } from 'lucide-react'
 import { SidebarData } from '../types'
 import { Logo } from '@/assets/logo'
@@ -100,12 +102,22 @@ export const sidebarData: SidebarData = {
                     icon: ReceiptText,
                 },
                 {
-                    title: 'Khu vực',
+                    title: 'Địa giới hành chính',
+                    url: '/administrative-units',
+                    icon: Landmark,
+                },
+                {
+                    title: 'Phân vùng quản lý',
+                    url: '/business-areas',
+                    icon: Network,
+                },
+                {
+                    title: 'Khu vực lương',
                     url: '/provinces',
                     icon: MapPin, // 📍 OK
                 },
                 {
-                    title: 'Vùng',
+                    title: 'Vùng lương',
                     url: '/regions',
                     icon: Globe, // 🌍 better than Map
                 },
