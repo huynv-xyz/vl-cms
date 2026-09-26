@@ -20,6 +20,8 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
+  ThumbsDown,
+  ThumbsUp,
   TrendingUp,
   Truck,
   Trash2,
@@ -41,6 +43,7 @@ import {
   getAiConversationMessages,
   listAiConversations,
   sendAiMessage,
+  sendAiFeedback,
   type AiChatResponse,
 } from "@/api/ai/chat";
 import { getMyPermissions } from "@/api/auth/permission";
@@ -105,18 +108,6 @@ const overviewCategoryOrder: PromptCategory[] = [
   "production",
   "purchasing",
 ];
-const promptCategoryLabels: Record<PromptCategory, string> = {
-  executive: "Điều hành",
-  sales: "Doanh thu",
-  orders: "Đơn hàng",
-  receivables: "Công nợ",
-  inventory: "Tồn kho",
-  shipments: "Hàng về",
-  production: "Sản xuất",
-  purchasing: "Nhà cung cấp",
-  vip: "Khách VIP",
-};
-
 function createChatMessageId() {
   const browserCrypto = globalThis.crypto;
   if (typeof browserCrypto?.randomUUID === "function") {
@@ -896,7 +887,7 @@ export default function AiChatPage({
         "flex w-full flex-col gap-0",
         embedded
           ? "h-full min-h-0 max-w-none overflow-hidden p-0"
-          : "min-h-[calc(100vh-4rem)] max-w-none overflow-hidden p-0",
+          : "h-[calc(100dvh-4rem)] min-h-0 max-w-none overflow-hidden p-0",
       )}
     >
       <div
@@ -930,8 +921,8 @@ export default function AiChatPage({
         )}
       </div>
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-60 shrink-0 flex-col border-r border-border/60 bg-muted/20 lg:flex">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <aside className="hidden min-h-0 w-60 shrink-0 flex-col overflow-hidden border-r border-border/60 bg-muted/20 lg:flex">
           <div className="space-y-2 border-b p-4">
             <Button className="w-full justify-start" onClick={newConversation}>
               <MessageSquarePlus className="size-4" /> Hội thoại mới
@@ -1003,7 +994,7 @@ export default function AiChatPage({
             </div>
           )}
         </aside>
-        <section className="flex min-w-0 flex-1 flex-col">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div className="flex items-center gap-2 border-b bg-background px-3 py-2 lg:hidden">
             <Button
               variant="outline"
@@ -1241,10 +1232,7 @@ export default function AiChatPage({
 
           {!showGuide && (
             <div
-              className={cn(
-                "bg-background/95 shrink-0 border-t px-3 py-3 backdrop-blur sm:px-6 sm:py-4",
-                !embedded && "sticky bottom-0",
-              )}
+              className="shrink-0 border-t bg-background/95 px-3 py-3 backdrop-blur sm:px-6 sm:py-4"
             >
               <div className="relative mx-auto w-full max-w-4xl min-w-0">
                 {showPromptSuggestions && (
@@ -2002,6 +1990,11 @@ function AssistantBubble({ message }: { message: AssistantMessage }) {
   const sources = message.result.sources ?? [];
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
+  const [feedback, setFeedback] = useState<"USEFUL" | "NOT_USEFUL" | null>(null);
+  const [feedbackReason, setFeedbackReason] = useState<string | null>(null);
+  const feedbackMutation = useMutation({
+    mutationFn: sendAiFeedback,
+  });
   const { answer, actions } = splitActionSection(message.content);
 
   async function copyAnswer() {
@@ -2013,6 +2006,16 @@ function AssistantBubble({ message }: { message: AssistantMessage }) {
     } catch {
       setCopyError(true);
     }
+  }
+
+  function rate(rating: "USEFUL" | "NOT_USEFUL", reasonCode?: string) {
+    setFeedback(rating);
+    if (reasonCode) setFeedbackReason(reasonCode);
+    feedbackMutation.mutate({
+      request_id: message.result.request_id,
+      rating,
+      reason_code: reasonCode,
+    });
   }
 
   return (
@@ -2163,6 +2166,63 @@ function AssistantBubble({ message }: { message: AssistantMessage }) {
         <div className="text-muted-foreground flex items-center gap-2 px-1 text-[10px]">
           <PackageCheck className="size-3" /> Kết quả được tổng hợp từ dữ liệu
           VLife · {message.result.request_id.slice(0, 8)}
+        </div>
+        <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-medium">Câu trả lời này có hữu ích không?</span>
+            <Button
+              type="button"
+              size="sm"
+              variant={feedback === "USEFUL" ? "default" : "outline"}
+              className="h-8 gap-1.5 rounded-full text-xs"
+              disabled={feedbackMutation.isPending}
+              onClick={() => rate("USEFUL")}
+            >
+              <ThumbsUp className="size-3.5" /> Hữu ích
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={feedback === "NOT_USEFUL" ? "destructive" : "outline"}
+              className="h-8 gap-1.5 rounded-full text-xs"
+              disabled={feedbackMutation.isPending}
+              onClick={() => rate("NOT_USEFUL")}
+            >
+              <ThumbsDown className="size-3.5" /> Chưa tốt
+            </Button>
+            {feedback === "USEFUL" && (
+              <span className="text-xs text-emerald-600">Đã ghi nhận, cảm ơn bạn.</span>
+            )}
+          </div>
+          {feedback === "NOT_USEFUL" && (
+            <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
+              {[
+                ["MISSING_DATA", "Thiếu số liệu"],
+                ["WRONG_DATA", "Sai số liệu"],
+                ["NOT_RELEVANT", "Chưa đúng trọng tâm"],
+                ["HARD_TO_UNDERSTAND", "Khó hiểu"],
+                ["TOO_SLOW", "Phản hồi chậm"],
+              ].map(([code, label]) => (
+                <Button
+                  key={code}
+                  type="button"
+                  size="sm"
+                  variant={feedbackReason === code ? "secondary" : "ghost"}
+                  className="h-7 rounded-full px-3 text-[11px]"
+                  disabled={feedbackMutation.isPending}
+                  onClick={() => rate("NOT_USEFUL", code)}
+                >
+                  {label}
+                </Button>
+              ))}
+              {feedbackReason && (
+                <span className="self-center text-xs text-muted-foreground">Đã ghi nhận lý do.</span>
+              )}
+            </div>
+          )}
+          {feedbackMutation.isError && (
+            <p className="mt-2 text-xs text-destructive">{feedbackMutation.error instanceof Error && feedbackMutation.error.message !== "Failed to fetch" ? feedbackMutation.error.message : "Chưa lưu được đánh giá. Vui lòng thử lại."}</p>
+          )}
         </div>
       </div>
     </div>

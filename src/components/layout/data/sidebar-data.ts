@@ -10,7 +10,6 @@ import {
     DollarSign,
     BarChart3,
     MapPin,
-    Map,
     Boxes,
     ListOrdered,
     UserCircle,
@@ -38,10 +37,11 @@ import {
     CalendarDays,
     ScrollText,
     Sparkles,
+    BrainCircuit,
     Landmark,
     Network,
 } from 'lucide-react'
-import { SidebarData } from '../types'
+import type { SidebarData } from '../types'
 import { Logo } from '@/assets/logo'
 
 export const sidebarData: SidebarData = {
@@ -60,6 +60,11 @@ export const sidebarData: SidebarData = {
                     title: 'Trợ lý điều hành',
                     url: '/ai-assistant',
                     icon: Sparkles,
+                },
+                {
+                    title: 'Quản trị AI',
+                    url: '/ai-management',
+                    icon: BrainCircuit,
                 },
             ],
         },
