@@ -15,6 +15,10 @@ export function getMyAdminStatus() {
     return apiGet<{ admin: boolean }>("/auth/me/admin")
 }
 
+export function hasPermission(permissions: Permission[], module: string, action: string) {
+    return permissions.some((permission) => permission.module === module && permission.action === action)
+}
+
 // CRUD permission
 
 export type PermissionItem = {

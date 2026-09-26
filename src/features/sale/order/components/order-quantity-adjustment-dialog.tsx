@@ -164,19 +164,13 @@ export function OrderQuantityAdjustmentDialog({ open, order, onOpenChange }: Pro
 
     const totalOld = items.reduce((sum: number, item: any) => {
         const quantity = Number(item.quantity || 0)
-        const price = Number(item.unit_price || 0)
-        const discount = Number(item.discount || 0)
-        const isPromotion = item.line_type === "PROMOTION"
-        return sum + (isPromotion ? 0 : Math.max(quantity * price - discount, 0))
+        return sum + calculateLineTotal(item, quantity)
     }, 0)
 
     const totalNew = items.reduce((sum: number, item: any) => {
         const row = rowMap.get(Number(item.id))
         const quantity = parseQuantity(row?.quantity ?? item.quantity ?? 0)
-        const price = Number(item.unit_price || 0)
-        const discount = Number(item.discount || 0)
-        const isPromotion = item.line_type === "PROMOTION"
-        return sum + (isPromotion ? 0 : Math.max(quantity * price - discount, 0))
+        return sum + calculateLineTotal(item, quantity)
     }, 0)
 
     const updateRow = (orderItemId: number, quantity: string) => {
@@ -279,7 +273,7 @@ export function OrderQuantityAdjustmentDialog({ open, order, onOpenChange }: Pro
                                     <TableHead className="w-[130px] text-right">SL đã trả</TableHead>
                                     <TableHead className="w-[140px] text-right">Đơn giá</TableHead>
                                     <TableHead className="w-[140px] text-right">CK</TableHead>
-                                    <TableHead className="w-[160px] text-right">Thành tiền mới</TableHead>
+                                    <TableHead className="w-[170px] text-right">Tổng gồm VAT</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -288,8 +282,7 @@ export function OrderQuantityAdjustmentDialog({ open, order, onOpenChange }: Pro
                                     const quantity = parseQuantity(row?.quantity ?? item.quantity ?? 0)
                                     const price = Number(item.unit_price || 0)
                                     const discount = Number(item.discount || 0)
-                                    const isPromotion = item.line_type === "PROMOTION"
-                                    const amount = isPromotion ? 0 : Math.max(quantity * price - discount, 0)
+                                    const amount = calculateLineTotal(item, quantity)
                                     const productId = item.product?.id ?? item.product_id
                                     const productCode = item.product?.code ?? item.product_code
                                     const lotAllocations = row?.lot_allocations ?? []
@@ -393,6 +386,22 @@ export function OrderQuantityAdjustmentDialog({ open, order, onOpenChange }: Pro
             </DialogContent>
         </Dialog>
     )
+}
+
+function calculateLineTotal(item: any, quantity: number) {
+    if (item?.line_type === "PROMOTION") return 0
+    const beforeVat = Math.max(
+        quantity * Number(item?.unit_price || 0) - Number(item?.discount || 0),
+        0,
+    )
+    const rate = item?.vat_code === "VAT5"
+        ? 5
+        : item?.vat_code === "VAT8"
+            ? 8
+            : item?.vat_code === "VAT10"
+                ? 10
+                : 0
+    return beforeVat + Math.round(beforeVat * rate / 100)
 }
 
 function Summary({ label, value }: { label: string; value: string }) {

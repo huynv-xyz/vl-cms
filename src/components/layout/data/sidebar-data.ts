@@ -1,4 +1,4 @@
-﻿import {
+import {
     Crown,
     Users,
     Calculator,
@@ -38,6 +38,8 @@
     ScrollText,
     Sparkles,
     BrainCircuit,
+    Landmark,
+    Network,
 } from 'lucide-react'
 import type { SidebarData } from '../types'
 import { Logo } from '@/assets/logo'
@@ -105,12 +107,22 @@ export const sidebarData: SidebarData = {
                     icon: ReceiptText,
                 },
                 {
-                    title: 'Khu vực',
+                    title: 'Địa giới hành chính',
+                    url: '/administrative-units',
+                    icon: Landmark,
+                },
+                {
+                    title: 'Phân vùng quản lý',
+                    url: '/business-areas',
+                    icon: Network,
+                },
+                {
+                    title: 'Khu vực lương',
                     url: '/provinces',
                     icon: MapPin, // 📍 OK
                 },
                 {
-                    title: 'Vùng',
+                    title: 'Vùng lương',
                     url: '/regions',
                     icon: Globe, // 🌍 better than Map
                 },
@@ -128,6 +140,17 @@ export const sidebarData: SidebarData = {
                     title: 'Công ty',
                     url: '/companies',
                     icon: Building2,
+                },
+            ],
+        },
+
+        {
+            title: 'Hồ sơ pháp lý',
+            items: [
+                {
+                    title: 'Quyết định lưu hành',
+                    url: '/regulatory/circulation-decisions',
+                    icon: ScrollText,
                 },
             ],
         },
@@ -211,11 +234,6 @@ export const sidebarData: SidebarData = {
                     title: 'Danh sách hội thảo',
                     url: '/seminars',
                     icon: CalendarDays,
-                },
-                {
-                    title: 'Quyết định lưu hành',
-                    url: '/seminars/circulation-decisions',
-                    icon: ScrollText,
                 },
             ],
         },

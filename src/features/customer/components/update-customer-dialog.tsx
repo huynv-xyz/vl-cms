@@ -28,6 +28,7 @@ export function UpdateCustomerDialog({
         <>
             <CustomerEditorDialog<UpdateCustomerRequest, unknown>
                 title="Cập nhật khách hàng"
+                customer={customer}
                 open={open}
                 onOpenChange={(next) => {
                     if (!next) setAliasDialogOpen(false)

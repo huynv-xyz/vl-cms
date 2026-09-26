@@ -5,6 +5,7 @@ import { getWarehouse, listWarehouses } from "@/api/warehouse"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatCurrency } from "@/lib/utils"
 import { warehouseOption } from "@/lib/option-mapper"
 
@@ -14,6 +15,7 @@ type Props = {
 }
 
 export function ManualReturnItemsEditor({ items, onChange }: Props) {
+    const vatRate = (code?: string) => code === "VAT5" ? 5 : code === "VAT8" ? 8 : code === "VAT10" ? 10 : 0
     const updateRow = (index: number, patch: any) => {
         onChange(items.map((item, i) => (i === index ? { ...item, ...patch } : item)))
     }
@@ -31,6 +33,7 @@ export function ManualReturnItemsEditor({ items, onChange }: Props) {
                 warehouse_id: undefined,
                 quantity: 0,
                 unit_price: 0,
+                vat_code: undefined,
                 note: "",
             },
         ])
@@ -54,7 +57,7 @@ export function ManualReturnItemsEditor({ items, onChange }: Props) {
             </div>
 
             <div className="overflow-x-auto">
-                <table className="w-full min-w-[1720px] text-sm">
+                <table className="w-full min-w-[2100px] text-sm">
                     <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                         <tr>
                             <th className="w-12 px-3 py-2 text-center">#</th>
@@ -64,12 +67,18 @@ export function ManualReturnItemsEditor({ items, onChange }: Props) {
                             <th className="w-[190px] px-3 py-2 text-right">Số lượng</th>
                             <th className="w-[210px] px-3 py-2 text-right">Đơn giá</th>
                             <th className="w-[220px] px-3 py-2 text-right">Thành tiền</th>
+                            <th className="w-[130px] px-3 py-2 text-center">VAT</th>
+                            <th className="w-[180px] px-3 py-2 text-right">Tiền VAT</th>
+                            <th className="w-[220px] px-3 py-2 text-right">Gồm VAT</th>
                             <th className="w-[340px] px-3 py-2 text-left">Ghi chú</th>
                             <th className="w-14 px-3 py-2" />
                         </tr>
                     </thead>
                     <tbody>
-                        {items.map((item, index) => (
+                        {items.map((item, index) => {
+                            const amount = Number(item.quantity || 0) * Number(item.unit_price || 0)
+                            const vatAmount = Math.round(amount * vatRate(item.vat_code) / 100)
+                            return (
                             <tr key={index} className="border-t">
                                 <td className="px-3 py-2 text-center text-muted-foreground">{index + 1}</td>
                                 <td className="px-3 py-2">
@@ -148,8 +157,21 @@ export function ManualReturnItemsEditor({ items, onChange }: Props) {
                                     />
                                 </td>
                                 <td className="px-3 py-2 text-right font-medium">
-                                    {formatCurrency(Number(item.quantity || 0) * Number(item.unit_price || 0))}
+                                    {formatCurrency(amount)}
                                 </td>
+                                <td className="px-3 py-2">
+                                    <Select value={item.vat_code} onValueChange={(vat_code) => updateRow(index, { vat_code })}>
+                                        <SelectTrigger><SelectValue placeholder="Chọn VAT" /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="KCT">KCT</SelectItem>
+                                            <SelectItem value="VAT5">5%</SelectItem>
+                                            <SelectItem value="VAT8">8%</SelectItem>
+                                            <SelectItem value="VAT10">10%</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </td>
+                                <td className="px-3 py-2 text-right font-medium">{formatCurrency(vatAmount)}</td>
+                                <td className="px-3 py-2 text-right font-semibold">{formatCurrency(amount + vatAmount)}</td>
                                 <td className="px-3 py-2">
                                     <Input
                                         value={item.note || ""}
@@ -168,7 +190,8 @@ export function ManualReturnItemsEditor({ items, onChange }: Props) {
                                     </Button>
                                 </td>
                             </tr>
-                        ))}
+                            )
+                        })}
                     </tbody>
                 </table>
             </div>

@@ -991,7 +991,11 @@ export async function exportOrdersXlsx(data: Order[], filename?: string) {
             const quantity = Number(item?.quantity || 0)
             const unitPrice = Number(item?.unit_price || 0)
             const discount = Number(item?.discount || 0)
-            const amount = Math.max(quantity * unitPrice - discount, 0)
+            const amount = Number(item?.line_total ?? Math.max(quantity * unitPrice - discount, 0))
+            const vatAmount = item?.vat_amount == null
+                ? ""
+                : Number(item.vat_amount)
+            const amountWithVat = Number(item?.line_total_with_vat ?? amount + Number(vatAmount || 0))
 
             sheet.addRow([
                 parseExcelDate(order.order_date),
@@ -1011,6 +1015,9 @@ export async function exportOrdersXlsx(data: Order[], filename?: string) {
                 normalizeExcelNumber(unitPrice),
                 normalizeExcelNumber(discount),
                 normalizeExcelNumber(amount),
+                item?.vat_code || "",
+                vatAmount === "" ? "" : normalizeExcelNumber(vatAmount),
+                normalizeExcelNumber(amountWithVat),
                 order.note || "",
                 item?.note || "",
             ])
@@ -1107,7 +1114,10 @@ const ORDER_EXPORT_COLUMNS: OrderExportColumn[] = [
     { header: "Số lượng", width: 14, type: "number" },
     { header: "Đơn giá bán", width: 16, type: "number" },
     { header: "Chiết khấu", width: 16, type: "number" },
-    { header: "Thành tiền", width: 18, type: "number" },
+    { header: "Thành tiền chưa VAT", width: 20, type: "number" },
+    { header: "VAT", width: 10 },
+    { header: "Tiền VAT", width: 16, type: "number" },
+    { header: "Thành tiền gồm VAT", width: 20, type: "number" },
     { header: "Ghi chú đơn hàng", width: 30 },
     { header: "Ghi chú sản phẩm", width: 30 },
 ] as const

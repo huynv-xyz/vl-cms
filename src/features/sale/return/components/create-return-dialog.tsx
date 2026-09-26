@@ -127,6 +127,9 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
             if (isManualReturn && selected.some((item) => !item.product_id || item.unit_price == null || item.unit_price < 0)) {
                 throw new Error("Vui lòng chọn sản phẩm và đơn giá hợp lệ")
             }
+            if (isManualReturn && selected.some((item) => !item.vat_code)) {
+                throw new Error("Vui lòng chọn VAT cho tất cả dòng hàng trả")
+            }
 
             return createReturn({
                 return_type: formData.return_type,
@@ -142,6 +145,7 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
                     warehouse_id: item.warehouse_id,
                     quantity: item.quantity,
                     unit_price: item.unit_price,
+                    vat_code: item.vat_code,
                     note: item.note ?? "",
                 })) as any,
             })

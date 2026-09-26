@@ -31,8 +31,9 @@ export const AsyncSelect = React.memo(function AsyncSelect({
     optionWrapLabel = false,
     wrapLabel = false,
     autoOpen = false,
+    inline = false,
 }: any) {
-    const [open, setOpen] = React.useState(false)
+    const [open, setOpen] = React.useState(Boolean(autoOpen || inline))
     const [keyword, setKeyword] = React.useState("")
     const [loading, setLoading] = React.useState(false)
     const [options, setOptions] = React.useState<any[]>([])
@@ -43,10 +44,10 @@ export const AsyncSelect = React.memo(function AsyncSelect({
     const dataSourceParamsKey = JSON.stringify(dataSource?.params ?? {})
 
     React.useEffect(() => {
-        if (autoOpen && !disabled) {
+        if ((autoOpen || inline) && !disabled) {
             setOpen(true)
         }
-    }, [autoOpen, disabled])
+    }, [autoOpen, disabled, inline])
 
     React.useEffect(() => {
         if (!open || !dataSource?.getList) return
@@ -118,6 +119,77 @@ export const AsyncSelect = React.memo(function AsyncSelect({
         }
     }, [value, initialOption, dataSource, mapOption])
 
+    const command = (
+        <Command shouldFilter={false}>
+            <CommandInput
+                placeholder={searchPlaceholder}
+                value={keyword}
+                onValueChange={setKeyword}
+            />
+
+            <CommandList
+                className={cn(
+                    "max-h-[calc(var(--radix-popover-content-available-height)-3.5rem)] overflow-y-auto",
+                    inline && "max-h-72",
+                    commandListClassName,
+                )}
+            >
+                <CommandEmpty>
+                    {loading ? "Đang tải..." : emptyText}
+                </CommandEmpty>
+
+                {!required && (
+                    <CommandItem
+                        onSelect={() => {
+                            setSelected(null)
+                            onChange(undefined, null)
+                            if (!inline) setOpen(false)
+                        }}
+                    >
+                        <span className="text-muted-foreground">
+                            {clearText}
+                        </span>
+                    </CommandItem>
+                )}
+
+                {options.map((item, index) => (
+                    <CommandItem
+                        key={`${item.value}-${index}`}
+                        className="min-w-0"
+                        onSelect={() => {
+                            setSelected(item)
+                            onChange(item.value, item)
+                            if (!inline) setOpen(false)
+                        }}
+                    >
+                        <Check
+                            className={cn(
+                                "mr-2 h-4 w-4",
+                                String(value) === String(item.value)
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                            )}
+                        />
+                        <span
+                            className={cn(
+                                "min-w-0",
+                                optionWrapLabel || wrapLabel
+                                    ? "whitespace-normal break-words leading-snug"
+                                    : "truncate",
+                            )}
+                        >
+                            {item.label}
+                        </span>
+                    </CommandItem>
+                ))}
+            </CommandList>
+        </Command>
+    )
+
+    if (inline) {
+        return <div className={cn("overflow-hidden", className)}>{command}</div>
+    }
+
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
@@ -148,69 +220,7 @@ export const AsyncSelect = React.memo(function AsyncSelect({
                     popoverContentClassName,
                 )}
             >
-                <Command shouldFilter={false}>
-                    <CommandInput
-                        placeholder={searchPlaceholder}
-                        value={keyword}
-                        onValueChange={setKeyword}
-                    />
-
-                    <CommandList
-                        className={cn(
-                            "max-h-[calc(var(--radix-popover-content-available-height)-3.5rem)] overflow-y-auto",
-                            commandListClassName,
-                        )}
-                    >
-                        <CommandEmpty>
-                            {loading ? "Đang tải..." : emptyText}
-                        </CommandEmpty>
-
-                        {!required && (
-                            <CommandItem
-                                onSelect={() => {
-                                    setSelected(null)
-                                    onChange(undefined, null)
-                                    setOpen(false)
-                                }}
-                            >
-                                <span className="text-muted-foreground">
-                                    {clearText}
-                                </span>
-                            </CommandItem>
-                        )}
-
-                        {options.map((item, index) => (
-                            <CommandItem
-                                key={`${item.value}-${index}`}
-                                className="min-w-0"
-                                onSelect={() => {
-                                    setSelected(item)
-                                    onChange(item.value, item)
-                                    setOpen(false)
-                                }}
-                            >
-                                <Check
-                                    className={cn(
-                                        "mr-2 h-4 w-4",
-                                        String(value) === String(item.value)
-                                            ? "opacity-100"
-                                            : "opacity-0"
-                                    )}
-                                />
-                                <span
-                                    className={cn(
-                                        "min-w-0",
-                                        optionWrapLabel || wrapLabel
-                                            ? "whitespace-normal break-words leading-snug"
-                                            : "truncate",
-                                    )}
-                                >
-                                    {item.label}
-                                </span>
-                            </CommandItem>
-                        ))}
-                    </CommandList>
-                </Command>
+                {command}
             </PopoverContent>
         </Popover>
     )

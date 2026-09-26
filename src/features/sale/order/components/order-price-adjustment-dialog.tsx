@@ -13,6 +13,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
     Table,
     TableBody,
@@ -33,6 +34,7 @@ type RowState = {
     order_item_id: number
     unit_price: number
     discount: number
+    vat_code?: string
 }
 
 export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props) {
@@ -40,6 +42,7 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
     const [rows, setRows] = useState<RowState[]>([])
 
     const items = useMemo(() => order?.items ?? [], [order])
+    const vatRequired = isVatRequired(order?.order_date)
 
     useEffect(() => {
         if (!open) return
@@ -50,6 +53,7 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
                     order_item_id: Number(item.id),
                     unit_price: Number(item.unit_price || 0),
                     discount: Number(item.discount || 0),
+                    vat_code: item.vat_code ?? undefined,
                 }))
         )
     }, [open, items])
@@ -84,7 +88,8 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
         const quantity = Number(item.quantity || 0)
         const price = Number(item.unit_price || 0)
         const discount = Number(item.discount || 0)
-        return sum + Math.max(quantity * price - discount, 0)
+        const beforeVat = Math.max(quantity * price - discount, 0)
+        return sum + beforeVat + (vatRequired ? Math.round(beforeVat * vatRate(item.vat_code) / 100) : 0)
     }, 0)
 
     const totalNew = items.reduce((sum: number, item: any) => {
@@ -92,7 +97,8 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
         const quantity = Number(item.quantity || 0)
         const price = Number(row?.unit_price ?? item.unit_price ?? 0)
         const discount = Number(row?.discount ?? item.discount ?? 0)
-        return sum + Math.max(quantity * price - discount, 0)
+        const beforeVat = Math.max(quantity * price - discount, 0)
+        return sum + beforeVat + (vatRequired ? Math.round(beforeVat * vatRate(row?.vat_code ?? item.vat_code) / 100) : 0)
     }, 0)
 
     const updateRow = (orderItemId: number, patch: Partial<RowState>) => {
@@ -123,7 +129,7 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
                     </div>
 
                     <div className="overflow-x-auto rounded-lg border">
-                        <Table className="min-w-[1320px]">
+                        <Table className="min-w-[1480px]">
                             <TableHeader>
                                 <TableRow className="bg-muted/70">
                                     <TableHead className="w-[56px] text-center">#</TableHead>
@@ -136,6 +142,7 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
                                     <TableHead className="w-[160px] text-right">Đơn giá mới</TableHead>
                                     <TableHead className="w-[150px] text-right">CK cũ</TableHead>
                                     <TableHead className="w-[160px] text-right">CK mới</TableHead>
+                                    <TableHead className="w-[130px] text-center">VAT</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -170,12 +177,26 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
                                                     min={0}
                                                     className="text-right"
                                                     value={row?.discount ?? 0}
-                                                    onChange={(event) =>
-                                                        updateRow(Number(item.id), {
-                                                            discount: Number(event.target.value || 0),
-                                                        })
-                                                    }
+                                                    disabled
                                                 />
+                                            </TableCell>
+                                            <TableCell>
+                                                {!vatRequired ? (
+                                                    <span className="block text-center text-muted-foreground">—</span>
+                                                ) : (
+                                                    <Select
+                                                        value={row?.vat_code}
+                                                        onValueChange={(vat_code) => updateRow(Number(item.id), { vat_code })}
+                                                    >
+                                                        <SelectTrigger><SelectValue placeholder="Chọn VAT" /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="KCT">KCT</SelectItem>
+                                                            <SelectItem value="VAT5">5%</SelectItem>
+                                                            <SelectItem value="VAT8">8%</SelectItem>
+                                                            <SelectItem value="VAT10">10%</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     )
@@ -191,7 +212,7 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
                     </Button>
                     <Button
                         className="gap-2"
-                        disabled={mutation.isPending || !rows.length}
+                        disabled={mutation.isPending || !rows.length || (vatRequired && rows.some((row) => !row.vat_code))}
                         onClick={() => mutation.mutate()}
                     >
                         <Save className="h-4 w-4" />
@@ -201,6 +222,17 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
             </DialogContent>
         </Dialog>
     )
+}
+
+function vatRate(code?: string) {
+    if (code === "VAT5") return 5
+    if (code === "VAT8") return 8
+    if (code === "VAT10") return 10
+    return 0
+}
+
+function isVatRequired(orderDate?: string) {
+    return Boolean(orderDate && orderDate.slice(0, 10) >= "2026-10-01")
 }
 
 function Summary({ label, value }: { label: string; value: string }) {

@@ -16,6 +16,7 @@ type MasterDataReportTableProps<T> = {
     entityName: string
     summaryLabel: string
     summaryValue?: number
+    summaryItems?: Array<{ label: string; value: number; icon?: LucideIcon }>
     searchPlaceholder: string
     pagination: PaginationState
     onPaginationChange: OnChangeFn<PaginationState>
@@ -24,6 +25,9 @@ type MasterDataReportTableProps<T> = {
     onKeywordChange: (value: string) => void
     icon?: LucideIcon
     filters?: ReactNode
+    modeControl?: ReactNode
+    tableTitle?: string
+    tableClassName?: string
 }
 
 export function MasterDataReportTable<T>({
@@ -32,6 +36,7 @@ export function MasterDataReportTable<T>({
     entityName,
     summaryLabel,
     summaryValue,
+    summaryItems,
     searchPlaceholder,
     pagination,
     onPaginationChange,
@@ -40,15 +45,24 @@ export function MasterDataReportTable<T>({
     onKeywordChange,
     icon = Database,
     filters,
+    modeControl,
+    tableTitle,
+    tableClassName,
 }: MasterDataReportTableProps<T>) {
+    const metrics = summaryItems?.length
+        ? summaryItems
+        : [{ label: summaryLabel, value: summaryValue ?? 0, icon }]
     return (
         <div className="space-y-4">
-            <div className="grid gap-2 md:grid-cols-3">
-                <MetricCard
-                    icon={icon}
-                    label={summaryLabel}
-                    value={formatNumber(summaryValue ?? 0)}
-                />
+            {modeControl && <div className="flex items-center justify-between">{modeControl}</div>}
+
+            <div className={cn("grid gap-2", metrics.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3")}>
+                {metrics.map((metric) => <MetricCard
+                    key={metric.label}
+                    icon={metric.icon ?? icon}
+                    label={metric.label}
+                    value={formatNumber(metric.value)}
+                />)}
             </div>
 
             <div className="flex w-full flex-wrap items-center gap-2">
@@ -62,6 +76,10 @@ export function MasterDataReportTable<T>({
                 {filters}
             </div>
 
+            {tableTitle && <div className="flex items-center justify-between border-b pb-2">
+                <h2 className="text-sm font-semibold text-foreground">{tableTitle}</h2>
+            </div>}
+
             <CrudTable<T>
                 data={data}
                 columns={columns}
@@ -74,6 +92,7 @@ export function MasterDataReportTable<T>({
                 enableStickyHorizontalScroll
                 headerVariant="report"
                 footer={false}
+                className={tableClassName}
             />
         </div>
     )

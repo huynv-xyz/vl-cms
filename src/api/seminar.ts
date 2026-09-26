@@ -1,7 +1,5 @@
 import { apiDelete, apiDownload, apiGet, apiPost, apiPostMultipart, apiPut, type PagedResult } from "@/api/client"
 import type {
-    CirculationDecision,
-    CirculationProduct,
     Seminar,
     SeminarDocument,
     SeminarProduct,
@@ -16,27 +14,7 @@ export type SeminarListParams = {
     to_date?: string
 }
 
-export type CirculationDecisionListParams = {
-    page: number
-    size: number
-    keyword?: string
-    validity?: string
-    source_type?: string
-    expired_date_sort?: "asc" | "desc"
-}
-
-export type CirculationProductListParams = {
-    page: number
-    size: number
-    keyword?: string
-    decision_id?: number
-    active_only?: boolean
-    effective_date?: string
-}
-
 export type UpsertSeminarRequest = Partial<Seminar>
-export type UpsertDecisionRequest = Partial<CirculationDecision>
-export type UpsertCirculationProductRequest = Partial<CirculationProduct>
 
 export function listSeminars(params: SeminarListParams) {
     return apiGet<PagedResult<Seminar>>("/seminars", { ...params, limit: params.size })
@@ -83,58 +61,6 @@ export async function downloadSeminarTemplate(templateCode: "permit_application"
     return downloadBlob(await apiDownload(`/seminars/templates/${templateCode}/download`))
 }
 
-export function listCirculationDecisions(params: CirculationDecisionListParams) {
-    return apiGet<PagedResult<CirculationDecision>>("/seminars/circulation-decisions", { ...params, limit: params.size })
-}
-
-export function getCirculationDecision(id: number) {
-    return apiGet<CirculationDecision>(`/seminars/circulation-decisions/${id}`)
-}
-
-export function createCirculationDecision(body: UpsertDecisionRequest) {
-    return apiPost<CirculationDecision>("/seminars/circulation-decisions", body)
-}
-
-export function updateCirculationDecision(id: number, body: UpsertDecisionRequest) {
-    return apiPut<CirculationDecision>(`/seminars/circulation-decisions/${id}`, body)
-}
-
-export function deleteCirculationDecision(id: number) {
-    return apiDelete<string>(`/seminars/circulation-decisions/${id}`, { id })
-}
-
-export function uploadCirculationDecisionPdf(id: number, file: File) {
-    const formData = new FormData()
-    formData.append("file", file)
-    return apiPostMultipart<CirculationDecision>(`/seminars/circulation-decisions/${id}/pdf`, formData)
-}
-
-export function uploadCirculationDecisionAuthorizationFile(id: number, file: File) {
-    const formData = new FormData()
-    formData.append("file", file)
-    return apiPostMultipart<CirculationDecision>(`/seminars/circulation-decisions/${id}/authorization-files`, formData)
-}
-
-export function deleteCirculationDecisionAuthorizationFile(id: number, index: number) {
-    return apiDelete<CirculationDecision>(`/seminars/circulation-decisions/${id}/authorization-files/${index}`, { id, index })
-}
-
-export function listCirculationProducts(params: CirculationProductListParams) {
-    return apiGet<PagedResult<CirculationProduct>>("/seminars/circulation-decisions/products", { ...params, limit: params.size })
-}
-
-export function createCirculationProduct(decisionId: number, body: UpsertCirculationProductRequest) {
-    return apiPost<CirculationProduct>(`/seminars/circulation-decisions/${decisionId}/products`, body)
-}
-
-export function updateCirculationProduct(id: number, body: UpsertCirculationProductRequest) {
-    return apiPut<CirculationProduct>(`/seminars/circulation-decisions/products/${id}`, body)
-}
-
-export function deleteCirculationProduct(id: number) {
-    return apiDelete<string>(`/seminars/circulation-decisions/products/${id}`, { id })
-}
-
 export async function downloadSeminarDocument(id: number) {
     return downloadBlob(await apiDownload(`/seminars/documents/${id}/download`))
 }
@@ -145,14 +71,6 @@ export async function downloadSeminarCirculationDecisionFiles(id: number, fallba
 
 export async function downloadSeminarCirculationDecisionFilesWithAuthorizations(id: number, fallbackFileName?: string) {
     return downloadBlob(await apiDownload(`/seminars/${id}/circulation-decision-files`, { include_authorizations: true }), fallbackFileName)
-}
-
-export async function downloadCirculationDecisionPdf(id: number, fallbackFileName?: string) {
-    return downloadBlob(await apiDownload(`/seminars/circulation-decisions/${id}/pdf`), fallbackFileName)
-}
-
-export async function downloadCirculationDecisionAuthorizationFile(id: number, index: number, fallbackFileName?: string) {
-    return downloadBlob(await apiDownload(`/seminars/circulation-decisions/${id}/authorization-files/${index}`), fallbackFileName)
 }
 
 function downloadBlob(result: { blob: Blob; fileName: string }, fallbackFileName?: string) {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { ColumnDef, PaginationState } from "@tanstack/react-table"
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, Check, Edit, FileDown, Funnel, Loader2, Plus, Save, Search, Trash2, Upload } from "lucide-react"
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Edit, FileDown, Funnel, Loader2, Plus, Save, Search, Trash2, Upload, X } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -16,10 +16,10 @@ import {
     updateCirculationDecision,
     uploadCirculationDecisionAuthorizationFile,
     uploadCirculationDecisionPdf,
-} from "@/api/seminar"
+} from "@/api/regulatory"
 import { getCompany, listCompanies } from "@/api/company"
 import { getMyPermissions } from "@/api/auth/permission"
-import type { CirculationDecision, CirculationProduct } from "./data/schema"
+import type { CirculationDecision, CirculationProduct } from "@/features/regulatory/data/schema"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { PageSection } from "@/components/page-section"
 import { CrudTable } from "@/components/crud/crud-table"
@@ -66,9 +66,18 @@ export default function CirculationDecisionsPage() {
     const authorizationFileInputRef = useRef<HTMLInputElement | null>(null)
     const [keyword, setKeyword] = useState("")
     const debouncedKeyword = useDebouncedValue(keyword, 300)
+    const [decisionNoFilter, setDecisionNoFilter] = useState("")
     const [sourceTypeFilter, setSourceTypeFilter] = useState("ALL")
+    const [sourceKeywords, setSourceKeywords] = useState<string[]>([])
+    const [issuedDateFrom, setIssuedDateFrom] = useState("")
+    const [issuedDateTo, setIssuedDateTo] = useState("")
+    const [expiredDateFrom, setExpiredDateFrom] = useState("")
+    const [expiredDateTo, setExpiredDateTo] = useState("")
+    const [dateSort, setDateSort] = useState<{ field: "issued_date" | "expired_date"; direction: "asc" | "desc" }>({
+        field: "expired_date",
+        direction: "asc",
+    })
     const [nearExpiryOnly, setNearExpiryOnly] = useState(false)
-    const [expiredDateSort, setExpiredDateSort] = useState<"asc" | "desc">("asc")
     const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 20 })
     const [expandedRows, setExpandedRows] = useState<number[]>([])
     const [dialogOpen, setDialogOpen] = useState(false)
@@ -81,42 +90,129 @@ export default function CirculationDecisionsPage() {
     const [pdfFile, setPdfFile] = useState<File | null>(null)
     const [authorizationFiles, setAuthorizationFiles] = useState<File[]>([])
     const permissionsQuery = useQuery({ queryKey: ["my-permissions"], queryFn: getMyPermissions })
-    const canUpdateDecisions = hasPermission(permissionsQuery.data ?? [], "seminars.circulation-decisions", "update")
+    const canUpdateDecisions = hasPermission(permissionsQuery.data ?? [], "regulatory.circulation-decisions", "update")
+
+    const requestFilters = {
+        keyword: debouncedKeyword || undefined,
+        decision_no: decisionNoFilter || undefined,
+        source_type: sourceTypeFilter === "ALL" ? undefined : sourceTypeFilter,
+        source_keywords: sourceKeywords.length ? sourceKeywords.join("|") : undefined,
+        issued_date_from: issuedDateFrom || undefined,
+        issued_date_to: issuedDateTo || undefined,
+        expired_date_from: expiredDateFrom || undefined,
+        expired_date_to: expiredDateTo || undefined,
+        sort_field: dateSort.field,
+        sort_direction: dateSort.direction,
+    }
 
     const decisionsQuery = useQuery({
-        queryKey: ["circulation-decisions", debouncedKeyword, sourceTypeFilter, nearExpiryOnly, expiredDateSort, pagination.pageIndex, pagination.pageSize],
+        queryKey: ["circulation-decisions", requestFilters, nearExpiryOnly, pagination.pageIndex, pagination.pageSize],
         queryFn: () => listCirculationDecisions({
             page: pagination.pageIndex + 1,
             size: pagination.pageSize,
-            keyword: debouncedKeyword,
-            source_type: sourceTypeFilter === "ALL" ? undefined : sourceTypeFilter,
+            ...requestFilters,
             validity: nearExpiryOnly ? "expiring_soon" : undefined,
-            expired_date_sort: expiredDateSort,
         }),
         placeholderData: keepPreviousData,
     })
 
     const nearExpiryCountQuery = useQuery({
-        queryKey: ["circulation-decisions-near-expiry-count", debouncedKeyword, sourceTypeFilter],
+        queryKey: ["circulation-decisions-near-expiry-count", requestFilters],
         queryFn: () => listCirculationDecisions({
             page: 1,
             size: 1,
-            keyword: debouncedKeyword,
-            source_type: sourceTypeFilter === "ALL" ? undefined : sourceTypeFilter,
+            ...requestFilters,
             validity: "expiring_soon",
         }),
         placeholderData: keepPreviousData,
     })
     const nearExpiryCount = nearExpiryCountQuery.data?.total ?? 0
+    const clearFilter = (clear: () => void) => {
+        clear()
+        setPagination((current) => current.pageIndex === 0 ? current : { ...current, pageIndex: 0 })
+    }
+    const activeFilterChips = [
+        keyword
+            ? { key: "keyword", label: `Tìm kiếm "${keyword}"`, onClear: () => clearFilter(() => setKeyword("")) }
+            : null,
+        decisionNoFilter
+            ? { key: "decision_no", label: `Số QĐLH chứa "${decisionNoFilter}"`, onClear: () => clearFilter(() => setDecisionNoFilter("")) }
+            : null,
+        sourceTypeFilter !== "ALL"
+            ? {
+                key: "source_type",
+                label: `Nguồn: ${sourceTypeFilter === "INTERNAL" ? "Công ty trực thuộc" : "Công ty ngoài ủy quyền"}`,
+                onClear: () => clearFilter(() => setSourceTypeFilter("ALL")),
+            }
+            : null,
+        sourceKeywords.length
+            ? { key: "source_keywords", label: `Tên nguồn: ${sourceKeywords.join(", ")}`, onClear: () => clearFilter(() => setSourceKeywords([])) }
+            : null,
+        issuedDateFrom
+            ? { key: "issued_date_from", label: `Ngày cấp từ: ${formatDate(issuedDateFrom)}`, onClear: () => clearFilter(() => setIssuedDateFrom("")) }
+            : null,
+        issuedDateTo
+            ? { key: "issued_date_to", label: `Ngày cấp đến: ${formatDate(issuedDateTo)}`, onClear: () => clearFilter(() => setIssuedDateTo("")) }
+            : null,
+        expiredDateFrom
+            ? { key: "expired_date_from", label: `Ngày hết hạn từ: ${formatDate(expiredDateFrom)}`, onClear: () => clearFilter(() => setExpiredDateFrom("")) }
+            : null,
+        expiredDateTo
+            ? { key: "expired_date_to", label: `Ngày hết hạn đến: ${formatDate(expiredDateTo)}`, onClear: () => clearFilter(() => setExpiredDateTo("")) }
+            : null,
+        nearExpiryOnly
+            ? { key: "near_expiry", label: "Còn hạn dưới 4 tháng", onClear: () => clearFilter(() => setNearExpiryOnly(false)) }
+            : null,
+    ].filter((chip): chip is { key: string; label: string; onClear: () => void } => Boolean(chip))
 
+    const clearAllActiveFilters = () => {
+        setKeyword("")
+        setDecisionNoFilter("")
+        setSourceTypeFilter("ALL")
+        setSourceKeywords([])
+        setIssuedDateFrom("")
+        setIssuedDateTo("")
+        setExpiredDateFrom("")
+        setExpiredDateTo("")
+        setNearExpiryOnly(false)
+        setPagination((current) => current.pageIndex === 0 ? current : { ...current, pageIndex: 0 })
+    }
     const columns = useCirculationDecisionColumns({
         expandedRows,
         setExpandedRows,
         canUpdate: canUpdateDecisions,
-        expiredDateSort,
-        onExpiredDateSortChange: (value) => {
-            setExpiredDateSort(value)
-            setPagination((current) => current.pageIndex === 0 ? current : { ...current, pageIndex: 0 })
+        filters: {
+            decisionNo: decisionNoFilter,
+            sourceType: sourceTypeFilter,
+            sourceKeywords,
+            issuedDateFrom,
+            issuedDateTo,
+            expiredDateFrom,
+            expiredDateTo,
+            dateSort,
+        },
+        onDecisionNoChange: (value) => {
+            setDecisionNoFilter(value)
+            setPagination((current) => ({ ...current, pageIndex: 0 }))
+        },
+        onSourceFiltersChange: (sourceType, keywords) => {
+            setSourceTypeFilter(sourceType)
+            setSourceKeywords(keywords)
+            setPagination((current) => ({ ...current, pageIndex: 0 }))
+        },
+        onDateFilterChange: (field, from, to) => {
+            if (field === "issued_date") {
+                setIssuedDateFrom(from)
+                setIssuedDateTo(to)
+            } else {
+                setExpiredDateFrom(from)
+                setExpiredDateTo(to)
+            }
+            setPagination((current) => ({ ...current, pageIndex: 0 }))
+        },
+        onDateSortChange: (field, direction) => {
+            setDateSort({ field, direction })
+            setPagination((current) => ({ ...current, pageIndex: 0 }))
         },
         onEdit: openEditDialog,
         onDownloadPdf: (item) => downloadCirculationDecisionPdf(item.id, item.pdf_file_name),
@@ -225,22 +321,6 @@ export default function CirculationDecisionsPage() {
                                 placeholder="Tìm số QĐLH hoặc tên sản phẩm..."
                             />
                         </div>
-                        <Select
-                            value={sourceTypeFilter}
-                            onValueChange={(value) => {
-                                setSourceTypeFilter(value)
-                                setPagination((current) => current.pageIndex === 0 ? current : { ...current, pageIndex: 0 })
-                            }}
-                        >
-                            <SelectTrigger className="h-10 w-[230px] bg-white">
-                                <SelectValue placeholder="Nguồn QĐLH" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">Tất cả nguồn</SelectItem>
-                                <SelectItem value="INTERNAL">Công ty trực thuộc</SelectItem>
-                                <SelectItem value="EXTERNAL_AUTHORIZED">Công ty ngoài ủy quyền</SelectItem>
-                            </SelectContent>
-                        </Select>
                         <Button
                             type="button"
                             variant={nearExpiryOnly ? "default" : "outline"}
@@ -263,6 +343,34 @@ export default function CirculationDecisionsPage() {
                             </span>
                         </Button>
                     </div>
+
+                    {activeFilterChips.length ? (
+                        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-white px-3 py-2">
+                            {activeFilterChips.map((chip) => (
+                                <Badge key={chip.key} variant="secondary" className="gap-1.5 rounded-md font-medium">
+                                    {chip.label}
+                                    <button
+                                        type="button"
+                                        className="text-muted-foreground hover:text-foreground"
+                                        onClick={chip.onClear}
+                                        aria-label={`Xóa bộ lọc ${chip.label}`}
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </Badge>
+                            ))}
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                onClick={clearAllActiveFilters}
+                            >
+                                <X className="mr-1 h-3 w-3" />
+                                Xóa tất cả
+                            </Button>
+                        </div>
+                    ) : null}
 
                     <CrudTable<CirculationDecision>
                         data={page.items}
@@ -351,26 +459,43 @@ export default function CirculationDecisionsPage() {
     )
 }
 
+type CirculationDecisionColumnFilters = {
+    decisionNo: string
+    sourceType: string
+    sourceKeywords: string[]
+    issuedDateFrom: string
+    issuedDateTo: string
+    expiredDateFrom: string
+    expiredDateTo: string
+    dateSort: { field: "issued_date" | "expired_date"; direction: "asc" | "desc" }
+}
+
 function useCirculationDecisionColumns({
     expandedRows,
     setExpandedRows,
     canUpdate,
-    expiredDateSort,
-    onExpiredDateSortChange,
+    filters,
+    onDecisionNoChange,
+    onSourceFiltersChange,
+    onDateFilterChange,
+    onDateSortChange,
     onEdit,
     onDownloadPdf,
 }: {
     expandedRows: number[]
     setExpandedRows: (rows: number[]) => void
     canUpdate: boolean
-    expiredDateSort: "asc" | "desc"
-    onExpiredDateSortChange: (value: "asc" | "desc") => void
+    filters: CirculationDecisionColumnFilters
+    onDecisionNoChange: (value: string) => void
+    onSourceFiltersChange: (sourceType: string, keywords: string[]) => void
+    onDateFilterChange: (field: "issued_date" | "expired_date", from: string, to: string) => void
+    onDateSortChange: (field: "issued_date" | "expired_date", direction: "asc" | "desc") => void
     onEdit: (item: CirculationDecision) => void
     onDownloadPdf: (item: CirculationDecision) => void
 }) {
     return useMemo<ColumnDef<CirculationDecision>[]>(() => {
         const gridCell = "border-r border-slate-200 last:border-r-0"
-        const centerCell = `${gridCell} text-center`
+        const centerCell = gridCell + " text-center"
 
         return [
             {
@@ -378,62 +503,100 @@ function useCirculationDecisionColumns({
                 size: 56,
                 minSize: 48,
                 meta: {
-                    thClassName: `w-14 whitespace-nowrap ${centerCell}`,
-                    tdClassName: `w-14 whitespace-nowrap ${centerCell}`,
+                    thClassName: "w-14 whitespace-nowrap " + centerCell,
+                    tdClassName: "w-14 whitespace-nowrap " + centerCell,
                 },
             },
-            buildTextColumn({
+            {
                 accessorKey: "decision_no",
-                title: "Số QĐLH",
-                width: 170,
-                className: `w-[170px] ${centerCell}`,
-                render: (row) => <OneLineText value={row.decision_no} className="text-center text-sm font-medium" />,
-            }),
-            buildTextColumn({
-                title: "Nguồn",
-                width: 220,
-                className: `w-[220px] ${centerCell}`,
-                render: (row) => row.source_type === "EXTERNAL_AUTHORIZED" ? (
-                    <div className="flex w-full min-w-0 items-center justify-center gap-2">
-                        <OneLineText value={row.source_company_name} className="text-center text-sm font-medium" />
+                header: () => (
+                    <TextFilterHeader
+                        title="Số QĐLH"
+                        value={filters.decisionNo}
+                        onApply={onDecisionNoChange}
+                    />
+                ),
+                enableSorting: false,
+                size: 190,
+                cell: ({ row }) => <OneLineText value={row.original.decision_no} className="text-left text-sm font-medium" />,
+                meta: {
+                    thClassName: "w-[190px] whitespace-nowrap " + gridCell + " text-left",
+                    tdClassName: "w-[190px] " + gridCell + " text-left",
+                },
+            },
+            {
+                id: "source",
+                header: () => (
+                    <SourceFilterHeader
+                        sourceType={filters.sourceType}
+                        keywords={filters.sourceKeywords}
+                        onApply={onSourceFiltersChange}
+                    />
+                ),
+                enableSorting: false,
+                size: 250,
+                cell: ({ row }) => row.original.source_type === "EXTERNAL_AUTHORIZED" ? (
+                    <div className="flex w-full min-w-0 items-center justify-start gap-2">
+                        <OneLineText value={row.original.source_company_name} className="text-left text-sm font-medium" />
                         <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
                             Ủy quyền
                         </Badge>
                     </div>
                 ) : (
                     <OneLineText
-                        value={row.source_company?.alias || row.source_company?.name || row.source_company_name}
-                        className="text-center text-sm font-medium"
+                        value={row.original.source_company?.alias || row.original.source_company?.name || row.original.source_company_name}
+                        className="text-left text-sm font-medium"
                     />
                 ),
-            }),
-            buildTextColumn({
-                accessorKey: "issued_date",
-                title: "Ngày cấp",
-                width: 130,
-                className: `w-[130px] ${centerCell}`,
-                render: (row) => <OneLineText value={formatDate(row.issued_date)} className="text-center text-sm" />,
-            }),
+                meta: {
+                    thClassName: "w-[250px] whitespace-nowrap " + gridCell + " text-left",
+                    tdClassName: "w-[250px] " + gridCell + " text-left",
+                },
+            },
             {
-                accessorKey: "expired_date",
+                accessorKey: "issued_date",
                 header: () => (
-                    <ExpiredDateSortHeader
-                        value={expiredDateSort}
-                        onChange={onExpiredDateSortChange}
+                    <DateFilterHeader
+                        title="Ngày cấp"
+                        from={filters.issuedDateFrom}
+                        to={filters.issuedDateTo}
+                        sortDirection={filters.dateSort.field === "issued_date" ? filters.dateSort.direction : undefined}
+                        onApply={(from, to) => onDateFilterChange("issued_date", from, to)}
+                        onSortChange={(direction) => onDateSortChange("issued_date", direction)}
                     />
                 ),
                 enableSorting: false,
-                size: 160,
+                size: 150,
+                cell: ({ row }) => <OneLineText value={formatDate(row.original.issued_date)} className="text-center text-sm" />,
+                meta: {
+                    thClassName: "w-[150px] whitespace-nowrap " + centerCell,
+                    tdClassName: "w-[150px] whitespace-nowrap " + centerCell,
+                },
+            },
+            {
+                accessorKey: "expired_date",
+                header: () => (
+                    <DateFilterHeader
+                        title="Ngày hết hạn"
+                        from={filters.expiredDateFrom}
+                        to={filters.expiredDateTo}
+                        sortDirection={filters.dateSort.field === "expired_date" ? filters.dateSort.direction : undefined}
+                        onApply={(from, to) => onDateFilterChange("expired_date", from, to)}
+                        onSortChange={(direction) => onDateSortChange("expired_date", direction)}
+                    />
+                ),
+                enableSorting: false,
+                size: 165,
                 cell: ({ row }) => <OneLineText value={formatDate(row.original.expired_date)} className="text-center text-sm" />,
                 meta: {
-                    thClassName: `w-[160px] whitespace-nowrap ${centerCell}`,
-                    tdClassName: `w-[160px] whitespace-nowrap ${centerCell}`,
+                    thClassName: "w-[165px] whitespace-nowrap " + centerCell,
+                    tdClassName: "w-[165px] whitespace-nowrap " + centerCell,
                 },
             },
             buildTextColumn({
                 title: "Thời gian còn hạn",
                 width: 170,
-                className: `w-[170px] ${centerCell}`,
+                className: "w-[170px] " + centerCell,
                 render: (row) => {
                     const remaining = circulationRemaining(row.expired_date)
                     return (
@@ -446,7 +609,7 @@ function useCirculationDecisionColumns({
             buildTextColumn({
                 title: "Sản phẩm thuộc quyết định",
                 width: 430,
-                className: `w-[430px] ${gridCell}`,
+                className: "w-[430px] " + gridCell,
                 render: (row) => (
                     <DecisionProductsCell
                         decision={row}
@@ -459,14 +622,14 @@ function useCirculationDecisionColumns({
                 accessorKey: "note",
                 title: "Ghi chú",
                 width: 240,
-                className: `w-[240px] ${gridCell}`,
+                className: "w-[240px] " + gridCell,
                 render: (row) => <OneLineText value={row.note} className="text-sm" />,
             }),
             buildTextColumn({
                 accessorKey: "pdf_file_name",
                 title: "PDF",
                 width: 220,
-                className: `w-[220px] ${gridCell}`,
+                className: "w-[220px] " + gridCell,
                 render: (row) => <OneLineText value={row.pdf_file_name} className="text-sm" />,
             }),
             {
@@ -493,76 +656,286 @@ function useCirculationDecisionColumns({
                     </div>
                 ),
                 meta: {
-                    thClassName: `w-24 whitespace-nowrap ${centerCell}`,
-                    tdClassName: `w-24 whitespace-nowrap ${centerCell}`,
+                    thClassName: "w-24 whitespace-nowrap " + centerCell,
+                    tdClassName: "w-24 whitespace-nowrap " + centerCell,
                 },
             },
         ]
-    }, [canUpdate, expandedRows, expiredDateSort, onDownloadPdf, onEdit, onExpiredDateSortChange, setExpandedRows])
+    }, [canUpdate, expandedRows, filters, onDateFilterChange, onDateSortChange, onDecisionNoChange, onDownloadPdf, onEdit, onSourceFiltersChange, setExpandedRows])
 }
 
-function ExpiredDateSortHeader({
+function TextFilterHeader({
+    title,
     value,
-    onChange,
+    onApply,
 }: {
-    value: "asc" | "desc"
-    onChange: (value: "asc" | "desc") => void
+    title: string
+    value: string
+    onApply: (value: string) => void
 }) {
     const [open, setOpen] = useState(false)
-    const options = [
-        { value: "asc" as const, label: "Tăng dần", icon: ArrowUpNarrowWide },
-        { value: "desc" as const, label: "Giảm dần", icon: ArrowDownWideNarrow },
-    ]
+    const [draft, setDraft] = useState(value)
+
+    useEffect(() => {
+        if (open) setDraft(value)
+    }, [open, value])
+
+    const apply = () => {
+        onApply(draft.trim())
+        setOpen(false)
+    }
 
     return (
-        <div className="flex min-w-0 items-center justify-center gap-1.5">
-            <span className="truncate">Ngày hết hạn</span>
+        <div className="flex min-w-0 items-center justify-start gap-1.5">
+            <span className="truncate">{title}</span>
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
-                    <button
-                        type="button"
-                        className={cn(
-                            "inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent",
-                            value === "asc"
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                        )}
-                        aria-label="Sắp xếp ngày hết hạn"
-                    >
+                    <button type="button" className={filterButtonClass(Boolean(value))} aria-label={"Lọc " + title}>
                         <Funnel className="h-4 w-4" />
                     </button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-56 p-2">
-                    <div className="px-2 pb-2 font-semibold text-foreground">Sắp xếp ngày hết hạn</div>
-                    <div className="space-y-1">
-                        {options.map((option) => {
-                            const Icon = option.icon
-                            return (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    className={cn(
-                                        "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-muted",
-                                        value === option.value && "bg-primary/10 text-primary",
-                                    )}
-                                    onClick={() => {
-                                        onChange(option.value)
-                                        setOpen(false)
-                                    }}
-                                >
-                                    <Icon className="h-4 w-4" />
-                                    <span>{option.label}</span>
-                                    {value === option.value ? <Check className="ml-auto h-4 w-4" /> : null}
-                                </button>
-                            )
-                        })}
-                    </div>
+                <PopoverContent align="start" className="w-80 p-3">
+                    <div className="mb-2 text-sm font-semibold">Lọc {title}</div>
+                    <Input
+                        autoFocus
+                        value={draft}
+                        onChange={(event) => setDraft(event.target.value)}
+                        onKeyDown={(event) => event.key === "Enter" && apply()}
+                        placeholder={"Nhập " + title.toLowerCase() + " có chứa..."}
+                    />
+                    <FilterActions
+                        onClear={() => {
+                            onApply("")
+                            setOpen(false)
+                        }}
+                        onApply={apply}
+                    />
                 </PopoverContent>
             </Popover>
         </div>
     )
 }
 
+function SourceFilterHeader({
+    sourceType,
+    keywords,
+    onApply,
+}: {
+    sourceType: string
+    keywords: string[]
+    onApply: (sourceType: string, keywords: string[]) => void
+}) {
+    const [open, setOpen] = useState(false)
+    const [draftType, setDraftType] = useState(sourceType)
+    const [draftKeywords, setDraftKeywords] = useState<string[]>(keywords)
+    const [input, setInput] = useState("")
+    const active = sourceType !== "ALL" || keywords.length > 0
+
+    useEffect(() => {
+        if (!open) return
+        setDraftType(sourceType)
+        setDraftKeywords(keywords)
+        setInput("")
+    }, [open, sourceType, keywords])
+
+    const addKeyword = (raw: string) => {
+        const value = raw.trim()
+        if (!value) return
+        setDraftKeywords((current) => current.some((item) => item.toLocaleLowerCase() === value.toLocaleLowerCase()) ? current : [...current, value])
+        setInput("")
+    }
+
+    const apply = () => {
+        const finalKeywords = input.trim()
+            ? [...draftKeywords, input.trim()].filter((item, index, values) => values.findIndex((value) => value.toLocaleLowerCase() === item.toLocaleLowerCase()) === index)
+            : draftKeywords
+        onApply(draftType, finalKeywords)
+        setOpen(false)
+    }
+
+    return (
+        <div className="flex min-w-0 items-center justify-start gap-1.5">
+            <span className="truncate">Nguồn</span>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <button type="button" className={filterButtonClass(active)} aria-label="Lọc nguồn">
+                        <Funnel className="h-4 w-4" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-96 p-3">
+                    <div className="space-y-4">
+                        <div>
+                            <Label className="mb-1.5 block">Loại nguồn</Label>
+                            <Select value={draftType} onValueChange={setDraftType}>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">Tất cả nguồn</SelectItem>
+                                    <SelectItem value="INTERNAL">Công ty trực thuộc</SelectItem>
+                                    <SelectItem value="EXTERNAL_AUTHORIZED">Công ty ngoài ủy quyền</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label className="mb-1.5 block">Alias hoặc tên công ty</Label>
+                            <Input
+                                value={input}
+                                onChange={(event) => setInput(event.target.value)}
+                                onKeyDown={(event) => {
+                                    if (event.key === "Enter" || event.key === ",") {
+                                        event.preventDefault()
+                                        addKeyword(input)
+                                    }
+                                }}
+                                placeholder="Nhập rồi nhấn Enter..."
+                            />
+                            {draftKeywords.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {draftKeywords.map((keyword) => (
+                                        <Badge key={keyword} variant="secondary" className="gap-1 pr-1">
+                                            <span className="max-w-[220px] truncate">{keyword}</span>
+                                            <button
+                                                type="button"
+                                                className="rounded p-0.5 hover:bg-black/10"
+                                                aria-label={"Bỏ " + keyword}
+                                                onClick={() => setDraftKeywords((current) => current.filter((item) => item !== keyword))}
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </Badge>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </div>
+                    </div>
+                    <FilterActions
+                        onClear={() => {
+                            onApply("ALL", [])
+                            setOpen(false)
+                        }}
+                        onApply={apply}
+                    />
+                </PopoverContent>
+            </Popover>
+        </div>
+    )
+}
+
+function DateFilterHeader({
+    title,
+    from,
+    to,
+    sortDirection,
+    onApply,
+    onSortChange,
+}: {
+    title: string
+    from: string
+    to: string
+    sortDirection?: "asc" | "desc"
+    onApply: (from: string, to: string) => void
+    onSortChange: (direction: "asc" | "desc") => void
+}) {
+    const [open, setOpen] = useState(false)
+    const [draftFrom, setDraftFrom] = useState(from)
+    const [draftTo, setDraftTo] = useState(to)
+    const [draftSort, setDraftSort] = useState<"asc" | "desc">(sortDirection ?? "asc")
+    const active = Boolean(from || to)
+
+    useEffect(() => {
+        if (!open) return
+        setDraftFrom(from)
+        setDraftTo(to)
+        setDraftSort(sortDirection ?? "asc")
+    }, [open, from, to, sortDirection])
+
+    const apply = () => {
+        onApply(draftFrom, draftTo)
+        onSortChange(draftSort)
+        setOpen(false)
+    }
+
+    return (
+        <div className="flex min-w-0 items-center justify-center gap-1.5">
+            <span className="truncate">{title}</span>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <button type="button" className={filterButtonClass(active)} aria-label={"Lọc " + title}>
+                        <Funnel className="h-4 w-4" />
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-80 p-3">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="text-sm font-semibold">Lọc {title}</div>
+                        <div className="flex items-center gap-1" aria-label={"Sắp xếp " + title}>
+                            <button
+                                type="button"
+                                className={dateSortButtonClass(draftSort === "asc")}
+                                onClick={() => setDraftSort("asc")}
+                                aria-label="Sắp xếp tăng dần"
+                                title="Tăng dần"
+                            >
+                                <ArrowUpNarrowWide className="h-4 w-4" />
+                            </button>
+                            <button
+                                type="button"
+                                className={dateSortButtonClass(draftSort === "desc")}
+                                onClick={() => setDraftSort("desc")}
+                                aria-label="Sắp xếp giảm dần"
+                                title="Giảm dần"
+                            >
+                                <ArrowDownWideNarrow className="h-4 w-4" />
+                            </button>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <Field label="Từ ngày">
+                            <Input type="date" value={draftFrom} max={draftTo || undefined} onChange={(event) => setDraftFrom(event.target.value)} />
+                        </Field>
+                        <Field label="Đến ngày">
+                            <Input type="date" value={draftTo} min={draftFrom || undefined} onChange={(event) => setDraftTo(event.target.value)} />
+                        </Field>
+                    </div>
+                    <FilterActions
+                        onClear={() => {
+                            onApply("", "")
+                            setOpen(false)
+                        }}
+                        onApply={apply}
+                    />
+                </PopoverContent>
+            </Popover>
+        </div>
+    )
+}
+
+function dateSortButtonClass(active: boolean) {
+    return cn(
+        "inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors",
+        active
+            ? "border-primary bg-primary/10 text-primary"
+            : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground",
+    )
+}
+
+function FilterActions({ onClear, onApply }: { onClear: () => void; onApply: () => void }) {
+    return (
+        <div className="mt-4 flex justify-end gap-2 border-t pt-3">
+            <Button type="button" variant="ghost" size="sm" onClick={onClear}>Xóa lọc</Button>
+            <Button type="button" size="sm" onClick={onApply}>Áp dụng</Button>
+        </div>
+    )
+}
+
+function filterButtonClass(active: boolean) {
+    return cn(
+        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent",
+        active
+            ? "bg-primary/10 text-primary"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+    )
+}
 function DecisionProductsCell({
     decision,
     expanded,
