@@ -868,7 +868,7 @@ function Ranking({
             <BarChart
               data={chartData}
               layout="vertical"
-              margin={{ top: 2, right: 62, bottom: 2, left: 12 }}
+              margin={{ top: 2, right: 88, bottom: 2, left: 12 }}
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.3} />
               <XAxis type="number" hide domain={[0, "dataMax"]} />
