@@ -160,9 +160,10 @@ export function ManualReturnItemsEditor({ items, onChange }: Props) {
                                     {formatCurrency(amount)}
                                 </td>
                                 <td className="px-3 py-2">
-                                    <Select value={item.vat_code} onValueChange={(vat_code) => updateRow(index, { vat_code })}>
-                                        <SelectTrigger><SelectValue placeholder="Chọn VAT" /></SelectTrigger>
+                                    <Select value={item.vat_code || "NONE"} onValueChange={(vat_code) => updateRow(index, { vat_code: vat_code === "NONE" ? undefined : vat_code })}>
+                                        <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
                                         <SelectContent>
+                                            <SelectItem value="NONE">-</SelectItem>
                                             <SelectItem value="KCT">KCT</SelectItem>
                                             <SelectItem value="VAT5">5%</SelectItem>
                                             <SelectItem value="VAT8">8%</SelectItem>
@@ -170,7 +171,7 @@ export function ManualReturnItemsEditor({ items, onChange }: Props) {
                                         </SelectContent>
                                     </Select>
                                 </td>
-                                <td className="px-3 py-2 text-right font-medium">{formatCurrency(vatAmount)}</td>
+                                <td className="px-3 py-2 text-right font-medium">{item.vat_code ? formatCurrency(vatAmount) : "-"}</td>
                                 <td className="px-3 py-2 text-right font-semibold">{formatCurrency(amount + vatAmount)}</td>
                                 <td className="px-3 py-2">
                                     <Input

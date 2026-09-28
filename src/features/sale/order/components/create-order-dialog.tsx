@@ -30,7 +30,7 @@ function buildInitialHeader(initialData?: any) {
         expected_delivery_date: normalizeDate(initialData?.expected_delivery_date),
         status: "NEW",
         note: initialData?.note ?? "",
-        vat_version: orderDate >= "2026-10-01" ? 1 : null,
+        vat_version: null,
     }
 }
 

@@ -74,7 +74,6 @@ const DIALOG_META: Record<Props["mode"], {
     },
 }
 
-const VAT_REQUIRED_FROM = "2026-10-01"
 
 export function OrderFormDialog({
     mode,
@@ -94,14 +93,13 @@ export function OrderFormDialog({
 }: Props) {
     const meta = DIALOG_META[mode]
     const Icon = meta.icon
-    const vatRequired = isVatRequired(headerData?.order_date)
     const totalQty = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
     const subtotalAmount = items.reduce((sum, item) => {
         if (item.line_type === "PROMOTION") return sum
         const lineTotal = Number(item.quantity || 0) * Number(item.unit_price || 0)
         return sum + Math.max(lineTotal - Number(item.discount || 0), 0)
     }, 0)
-    const totalVatAmount = vatRequired ? items.reduce((sum, item) => {
+    const totalVatAmount = items.reduce((sum, item) => {
         if (item.line_type === "PROMOTION") return sum
         const lineTotal = Math.max(
             Number(item.quantity || 0) * Number(item.unit_price || 0) - Number(item.discount || 0),
@@ -109,7 +107,7 @@ export function OrderFormDialog({
         )
         const rate = item.vat_code === "VAT5" ? 5 : item.vat_code === "VAT8" ? 8 : item.vat_code === "VAT10" ? 10 : 0
         return sum + Math.round(lineTotal * rate / 100)
-    }, 0) : 0
+    }, 0)
     const totalAmount = subtotalAmount + totalVatAmount
     const formId = mode === "create" ? "order-create-form" : "order-update-form"
     const ready = !isLoading && !!headerData
@@ -198,7 +196,6 @@ export function OrderFormDialog({
                                         lockCommittedLines={lockAfterDoneExport}
                                         itemError={itemError}
                                         customerType={headerData.customer_type}
-                                        vatEnabled={vatRequired}
                                     />
                                 </OrderFormCard>
                             </div>
@@ -243,12 +240,7 @@ function validateOrderForm(headerData: OrderHeaderForm | null, items: OrderItem[
     for (const item of items) {
         if (!item.product_id) return "Chưa chọn sản phẩm"
         if ((item.quantity ?? 0) <= 0) return "Số lượng phải > 0"
-        if (isVatRequired(headerData.order_date) && !item.vat_code) return "Vui lòng chọn VAT cho tất cả dòng hàng từ ngày 01/10/2026"
     }
 
     return null
-}
-
-function isVatRequired(orderDate?: string) {
-    return Boolean(orderDate && orderDate.slice(0, 10) >= VAT_REQUIRED_FROM)
 }

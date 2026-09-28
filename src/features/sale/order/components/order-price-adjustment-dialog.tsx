@@ -42,7 +42,6 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
     const [rows, setRows] = useState<RowState[]>([])
 
     const items = useMemo(() => order?.items ?? [], [order])
-    const vatRequired = isVatRequired(order?.order_date)
 
     useEffect(() => {
         if (!open) return
@@ -68,10 +67,12 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
         onSuccess: async (res: any) => {
             await Promise.all([
                 queryClient.invalidateQueries({ queryKey: ["orders"] }),
-                queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] }),
+                queryClient.invalidateQueries({ queryKey: ["order-detail"] }),
                 queryClient.invalidateQueries({ queryKey: ["ar-summary"] }),
                 queryClient.invalidateQueries({ queryKey: ["ar-ledgers"] }),
-                queryClient.invalidateQueries({ queryKey: ["sales-transactions"] }),
+                queryClient.invalidateQueries({ queryKey: ["ar-ledgers-totals"] }),
+                queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+                queryClient.invalidateQueries({ queryKey: ["transactions-summary"] }),
             ])
             const data = res ?? {}
             toast.success(
@@ -89,7 +90,7 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
         const price = Number(item.unit_price || 0)
         const discount = Number(item.discount || 0)
         const beforeVat = Math.max(quantity * price - discount, 0)
-        return sum + beforeVat + (vatRequired ? Math.round(beforeVat * vatRate(item.vat_code) / 100) : 0)
+        return sum + beforeVat + Math.round(beforeVat * vatRate(item.vat_code) / 100)
     }, 0)
 
     const totalNew = items.reduce((sum: number, item: any) => {
@@ -98,7 +99,7 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
         const price = Number(row?.unit_price ?? item.unit_price ?? 0)
         const discount = Number(row?.discount ?? item.discount ?? 0)
         const beforeVat = Math.max(quantity * price - discount, 0)
-        return sum + beforeVat + (vatRequired ? Math.round(beforeVat * vatRate(row?.vat_code ?? item.vat_code) / 100) : 0)
+        return sum + beforeVat + Math.round(beforeVat * vatRate(row ? row.vat_code : item.vat_code ?? undefined) / 100)
     }, 0)
 
     const updateRow = (orderItemId: number, patch: Partial<RowState>) => {
@@ -181,22 +182,19 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
                                                 />
                                             </TableCell>
                                             <TableCell>
-                                                {!vatRequired ? (
-                                                    <span className="block text-center text-muted-foreground">—</span>
-                                                ) : (
-                                                    <Select
-                                                        value={row?.vat_code}
-                                                        onValueChange={(vat_code) => updateRow(Number(item.id), { vat_code })}
-                                                    >
-                                                        <SelectTrigger><SelectValue placeholder="Chọn VAT" /></SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="KCT">KCT</SelectItem>
-                                                            <SelectItem value="VAT5">5%</SelectItem>
-                                                            <SelectItem value="VAT8">8%</SelectItem>
-                                                            <SelectItem value="VAT10">10%</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                )}
+                                                <Select
+                                                    value={row?.vat_code || "NONE"}
+                                                    onValueChange={(vat_code) => updateRow(Number(item.id), { vat_code: vat_code === "NONE" ? undefined : vat_code })}
+                                                >
+                                                    <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="NONE">-</SelectItem>
+                                                        <SelectItem value="KCT">KCT</SelectItem>
+                                                        <SelectItem value="VAT5">5%</SelectItem>
+                                                        <SelectItem value="VAT8">8%</SelectItem>
+                                                        <SelectItem value="VAT10">10%</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                             </TableCell>
                                         </TableRow>
                                     )
@@ -212,7 +210,7 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
                     </Button>
                     <Button
                         className="gap-2"
-                        disabled={mutation.isPending || !rows.length || (vatRequired && rows.some((row) => !row.vat_code))}
+                        disabled={mutation.isPending || !rows.length}
                         onClick={() => mutation.mutate()}
                     >
                         <Save className="h-4 w-4" />
@@ -229,10 +227,6 @@ function vatRate(code?: string) {
     if (code === "VAT8") return 8
     if (code === "VAT10") return 10
     return 0
-}
-
-function isVatRequired(orderDate?: string) {
-    return Boolean(orderDate && orderDate.slice(0, 10) >= "2026-10-01")
 }
 
 function Summary({ label, value }: { label: string; value: string }) {

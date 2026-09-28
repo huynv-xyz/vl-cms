@@ -41,7 +41,6 @@ type Props = {
     lockCommittedLines?: boolean
     itemError?: { orderItemId: number; message: string } | null
     customerType?: string
-    vatEnabled?: boolean
 }
 
 const NO_PP_STATUS_VALUE = "__NO_PP_STATUS__"
@@ -59,7 +58,7 @@ function vatRate(vatCode?: OrderItem["vat_code"]) {
     return 0
 }
 
-export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorder = false, lockCommittedLines = false, itemError, customerType, vatEnabled = true }: Props) {
+export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorder = false, lockCommittedLines = false, itemError, customerType }: Props) {
     const rowRefs = useRef<Array<HTMLTableRowElement | null>>([])
     const pendingFocusIndexRef = useRef<number | null>(null)
     const lastAddRequestRef = useRef(addRequest)
@@ -301,7 +300,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                             <th className="px-2 py-2 text-left font-semibold">Mô tả HH</th>
                             <th className="px-2 py-2 text-center font-semibold">ĐVT</th>
                             <th className="px-2 py-2 text-right font-semibold">Số lượng</th>
-                            <th className="px-2 py-2 text-right font-semibold">Đơn giá</th>
+                            <th className="px-2 py-2 text-right font-semibold">Đơn giá chưa VAT</th>
                             <th className="px-2 py-2 text-right font-semibold">Chiết khấu</th>
                             <th className="px-2 py-2 text-center font-semibold">Hàng KM</th>
                             <th className="px-2 py-2 text-center font-semibold">Không tính HĐN</th>
@@ -488,7 +487,6 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                                     line_type: checked ? "PROMOTION" : "NORMAL",
                                                     unit_price: checked ? 0 : row.product?.price ?? row.unit_price,
                                                     discount: checked ? 0 : row.discount,
-                                                    vat_code: checked && vatEnabled ? "KCT" : row.vat_code,
                                                 })
                                             }
                                         />
@@ -547,14 +545,15 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
 
                                     <td className="px-2 py-2 align-middle">
                                         <Select
-                                            value={row.vat_code}
-                                            disabled={!vatEnabled || isCommitted || isPromotion}
-                                            onValueChange={(value) => updateRow(i, { vat_code: value as OrderItem["vat_code"] })}
+                                            value={row.vat_code || "NONE"}
+                                            disabled={isCommitted}
+                                            onValueChange={(value) => updateRow(i, { vat_code: value === "NONE" ? undefined : value as OrderItem["vat_code"] })}
                                         >
                                             <SelectTrigger className="h-9 bg-white">
-                                                <SelectValue placeholder={vatEnabled ? "Chọn VAT" : "-"} />
+                                                <SelectValue placeholder="-" />
                                             </SelectTrigger>
                                             <SelectContent>
+                                                <SelectItem value="NONE">-</SelectItem>
                                                 {VAT_OPTIONS.map((option) => (
                                                     <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                                                 ))}
@@ -563,7 +562,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                     </td>
 
                                     <td className="px-2 py-2 text-right align-middle font-semibold tabular-nums">
-                                        {formatNumber(vatAmount)}
+                                        {row.vat_code ? formatNumber(vatAmount) : "-"}
                                     </td>
 
                                     <td className="px-2 py-2 text-right align-middle font-bold tabular-nums">

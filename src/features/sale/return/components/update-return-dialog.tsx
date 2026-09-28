@@ -175,10 +175,6 @@ export function UpdateReturnDialog({
             if (isManualReturn && selected.some((item) => !item.product_id || item.unit_price == null || item.unit_price < 0)) {
                 throw new Error("Vui lòng chọn sản phẩm và đơn giá hợp lệ")
             }
-            const isLegacyManualReturn = isManualReturn && (detail?.items ?? []).every((item: any) => item.vat_code == null)
-            if (isManualReturn && !isLegacyManualReturn && selected.some((item) => !item.vat_code)) {
-                throw new Error("Vui lòng chọn VAT cho tất cả dòng hàng trả")
-            }
 
             return updateReturn({
                 id: returnData.id,
