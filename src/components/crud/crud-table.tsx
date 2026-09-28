@@ -45,6 +45,7 @@ type CrudTableProps<T> = {
     defaultPinnedUntil?: number
     defaultPinnedColumnId?: string
     headerVariant?: "default" | "report"
+    showCellBorders?: boolean
     className?: string
 }
 
@@ -73,6 +74,7 @@ export function CrudTable<T>({
     defaultPinnedUntil,
     defaultPinnedColumnId,
     headerVariant,
+    showCellBorders,
     className,
 }: CrudTableProps<T>) {
     return (
@@ -101,6 +103,7 @@ export function CrudTable<T>({
             defaultPinnedUntil={defaultPinnedUntil}
             defaultPinnedColumnId={defaultPinnedColumnId}
             headerVariant={headerVariant}
+            showCellBorders={showCellBorders}
             className={className}
         />
     )

@@ -251,6 +251,11 @@ export const sidebarData: SidebarData = {
                     icon: Ship,
                 },
                 {
+                    title: 'Thông tin hàng hóa',
+                    url: '/purchasing/cargo-details',
+                    icon: FileText,
+                },
+                {
                     title: 'Công nợ NCC',
                     url: '/purchasing/ap-summary',
                     icon: Calculator,
