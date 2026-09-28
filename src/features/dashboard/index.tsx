@@ -3,11 +3,16 @@ import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
   ArrowRight,
+  ArrowUpRight,
   Banknote,
-  Boxes,
   CalendarDays,
   CircleDollarSign,
+  Crown,
   Clock3,
+  DatabaseZap,
+  Gauge,
+  ListChecks,
+  MapPinned,
   PackageSearch,
   RefreshCw,
   ShoppingCart,
@@ -15,14 +20,21 @@ import {
   TrendingDown,
   TrendingUp,
   Truck,
+  Target,
   UserPlus,
-  UserRoundX,
   Users,
 } from "lucide-react";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  LabelList,
+  Legend,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -44,10 +56,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-const money = (value: number) =>
-  new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(value);
+const safeNumber = (value: unknown) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+};
 
-const compactMoney = (value: number) => {
+const money = (value: unknown) =>
+  new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(
+    safeNumber(value),
+  );
+
+const compactMoney = (rawValue: unknown) => {
+  const value = safeNumber(rawValue);
   const absolute = Math.abs(value);
   if (absolute >= 1_000_000_000)
     return `${(value / 1_000_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 2 })} tỷ`;
@@ -56,8 +76,44 @@ const compactMoney = (value: number) => {
   return money(value);
 };
 
+const compactQuantity = (rawValue: unknown) => {
+  const value = safeNumber(rawValue);
+  const absolute = Math.abs(value);
+  if (absolute >= 1_000_000)
+    return `${(value / 1_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 2 })} triệu`;
+  if (absolute >= 1_000)
+    return `${(value / 1_000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} nghìn`;
+  return money(value);
+};
+
 const date = (value: string) =>
   new Intl.DateTimeFormat("vi-VN").format(new Date(`${value}T00:00:00`));
+
+const opportunityStyles = {
+  REACTIVATE: { label: "Kích hoạt lại", color: "#f97316" },
+  RECOVER_DECLINE: { label: "Phục hồi giảm mua", color: "#ef4444" },
+  REORDER_DUE: { label: "Đến chu kỳ mua lại", color: "#14b8a6" },
+  CROSS_SELL: { label: "Bán chéo", color: "#6366f1" },
+} as const;
+
+function buildOpportunityMix(data: GrowthDashboard) {
+  return Object.entries(opportunityStyles)
+    .map(([type, style]) => {
+      const opportunities = data.opportunities.filter(
+        (item) => item.type === type,
+      );
+      return {
+        type,
+        ...style,
+        count: opportunities.length,
+        value: opportunities.reduce(
+          (total, item) => total + item.estimatedRevenue,
+          0,
+        ),
+      };
+    })
+    .filter((item) => item.count > 0);
+}
 
 export function Dashboard() {
   const dashboard = useQuery({
@@ -119,6 +175,58 @@ export function Dashboard() {
     label: `${date(point.fromDate)}–${date(point.toDate)}`,
   }));
   const ideas = buildBusinessIdeas(data);
+  const opportunityMix = buildOpportunityMix(data);
+  const activeTasks = data.tasks.filter((task) => task.status !== "DONE");
+  const assignedOpportunityKeys = new Set(
+    activeTasks.map((task) => task.opportunity_key),
+  );
+  const executionFunnel = [
+    { label: "Đã phát hiện", value: data.opportunities.length, color: "#14b8a6" },
+    { label: "Đang thực hiện", value: data.summary.activeTasks, color: "#6366f1" },
+    { label: "Đã hoàn thành", value: data.summary.completedTasks, color: "#22c55e" },
+  ];
+  const recoveryOpportunities = data.opportunities.filter(
+    (item) => item.type === "REACTIVATE" || item.type === "RECOVER_DECLINE",
+  );
+  const recoveryValue = recoveryOpportunities.reduce(
+    (total, item) => total + item.estimatedRevenue,
+    0,
+  );
+  const topReceivableValue = data.topReceivables.reduce(
+    (total, item) => total + Math.max(0, item.balance),
+    0,
+  );
+  const topEmployee = data.topEmployees[0];
+  const topEmployeeShare = topEmployee
+    ? (topEmployee.netRevenue / Math.max(operations.netRevenue, 1)) * 100
+    : 0;
+  const profitSummary = data.profitability.summary;
+  const profitTotalRows = safeNumber(profitSummary.totalRows);
+  const profitCoveredRows = safeNumber(profitSummary.coveredRows);
+  const coveredNetRevenue = safeNumber(profitSummary.coveredNetRevenue);
+  const coveredProfit = safeNumber(
+    profitSummary.estimatedProfitOnCoveredRows,
+  );
+  const costCoverage =
+    profitTotalRows > 0
+      ? (profitCoveredRows / profitTotalRows) * 100
+      : 0;
+  const grossMargin =
+    coveredNetRevenue > 0
+      ? (coveredProfit / coveredNetRevenue) * 100
+      : 0;
+  const hasProfitData = profitCoveredRows > 0 && coveredNetRevenue > 0;
+  const targetPerformance = [...data.salesTargets]
+    .filter((item) => item.target_amount > 0)
+    .sort(
+      (left, right) =>
+        Number(left.completion_percent ?? 0) -
+        Number(right.completion_percent ?? 0),
+    )
+    .slice(0, 6);
+  const activeNewCustomers = data.newCustomers.filter(
+    (item) => Number(item.net_revenue) > 0,
+  );
   const alerts = [
     {
       label: "Đơn quá hạn",
@@ -135,11 +243,15 @@ export function Dashboard() {
       tone: "text-amber-600 bg-amber-50 dark:bg-amber-950/30",
     },
     {
-      label: "Lô sắp hết hạn",
-      value: operations.expiringLots,
-      note: "Cần ưu tiên bán",
-      icon: PackageSearch,
-      tone: "text-orange-600 bg-orange-50 dark:bg-orange-950/30",
+      label: hasProfitData ? "Độ phủ giá vốn" : "Dữ liệu giá vốn",
+      value: hasProfitData
+        ? `${costCoverage.toLocaleString("vi-VN", { maximumFractionDigits: 0 })}%`
+        : `${data.profitability.incompleteGroups} nhóm`,
+      note: hasProfitData ? "Giao dịch đã đối chiếu" : "Cần bổ sung để tính lãi",
+      icon: DatabaseZap,
+      tone: hasProfitData
+        ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
+        : "text-orange-600 bg-orange-50 dark:bg-orange-950/30",
     },
     {
       label: "Lô hàng đang về",
@@ -192,7 +304,7 @@ export function Dashboard() {
         </div>
       )}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title="Doanh thu thuần trong kỳ"
           value={`${compactMoney(operations.netRevenue)} đồng`}
@@ -221,36 +333,64 @@ export function Dashboard() {
           icon={Sparkles}
           accent="positive"
         />
-        <MetricCard
-          title="Hàng trả lại"
-          value={`${compactMoney(operations.returnRevenue)} đồng`}
-          detail={`${((operations.returnRevenue / (operations.netRevenue + operations.returnRevenue || 1)) * 100).toLocaleString("vi-VN", { maximumFractionDigits: 2 })}% doanh thu gộp`}
-          icon={PackageSearch}
-          accent={operations.returnRevenue > 0 ? "negative" : undefined}
+      </section>
+
+      <section className="grid gap-3 lg:grid-cols-3">
+        <DecisionCard
+          index="01"
+          eyebrow={growth < 0 ? "Cần phục hồi" : "Đà tăng trưởng"}
+          title={
+            growth < 0
+              ? `${recoveryOpportunities.length} khách đang giảm nhịp mua`
+              : "Duy trì nhóm khách đang tăng trưởng"
+          }
+          value={`${compactMoney(recoveryValue)} đồng`}
+          note="Giá trị doanh thu có thể phục hồi từ dữ liệu 30 ngày gần nhất"
+          tone={growth < 0 ? "negative" : "positive"}
         />
-        <MetricCard
-          title="Giá trị đơn trung bình"
-          value={`${compactMoney(operations.netRevenue / (operations.totalOrders || 1))} đồng`}
-          detail={`${money(operations.totalOrders)} đơn trong kỳ`}
-          icon={ShoppingCart}
-          accent="primary"
+        <DecisionCard
+          index="02"
+          eyebrow="Dòng tiền"
+          title="Kiểm soát khách có dư công nợ cao"
+          value={`${compactMoney(topReceivableValue)} đồng`}
+          note="Tổng dư nợ của 5 khách lớn nhất trước khi mở thêm hạn mức"
+          tone="warning"
+        />
+        <DecisionCard
+          index="03"
+          eyebrow="Đội sale"
+          title={topEmployee ? `${topEmployee.name} đang dẫn đầu` : "Hiệu quả đội sale"}
+          value={`${topEmployeeShare.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}% doanh thu`}
+          note="Dùng cơ cấu khách và sản phẩm của sale dẫn đầu để nhân rộng cách bán"
+          tone="primary"
         />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,1fr)]">
         <Card className="border-border/70 shadow-sm">
-          <CardHeader>
-            <CardTitle>Doanh thu thuần theo tuần</CardTitle>
-            <CardDescription>
-              Xu hướng doanh thu trong kỳ hiện tại
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between gap-4">
+            <div>
+              <CardTitle>Nhịp doanh thu theo tuần</CardTitle>
+              <CardDescription>
+                Nhìn đồng thời doanh thu bán, doanh thu thuần và hàng trả lại
+              </CardDescription>
+            </div>
+            <Badge variant={growth >= 0 ? "secondary" : "destructive"}>
+              {growth > 0 ? "+" : ""}{growth.toLocaleString("vi-VN")}%
+            </Badge>
           </CardHeader>
-          <CardContent className="h-[300px] pl-2">
+          <CardContent className="h-[330px] pl-2">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart
+              <AreaChart
                 data={trend}
-                margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+                margin={{ top: 8, right: 20, left: 8, bottom: 8 }}
               >
+                <defs>
+                  <linearGradient id="netRevenueFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   vertical={false}
@@ -270,103 +410,457 @@ export function Dashboard() {
                   width={62}
                 />
                 <Tooltip
-                  formatter={(value) => [
+                  formatter={(value, name) => [
                     `${money(Number(value))} đồng`,
-                    "Doanh thu thuần",
+                    name === "netRevenue"
+                      ? "Doanh thu thuần"
+                      : name === "grossRevenue"
+                        ? "Doanh thu bán"
+                        : "Hàng trả lại",
                   ]}
                   labelStyle={{ color: "#0f172a" }}
                 />
-                <Bar
-                  dataKey="netRevenue"
-                  fill="#14b8a6"
-                  radius={[5, 5, 0, 0]}
-                  maxBarSize={70}
+                <Legend
+                  formatter={(value) =>
+                    value === "netRevenue"
+                      ? "Doanh thu thuần"
+                      : value === "grossRevenue"
+                        ? "Doanh thu bán"
+                        : "Hàng trả lại"
+                  }
                 />
-              </BarChart>
+                <Area
+                  type="monotone"
+                  dataKey="grossRevenue"
+                  stroke="#94a3b8"
+                  fill="transparent"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="netRevenue"
+                  stroke="#0f9f91"
+                  fill="url(#netRevenueFill)"
+                  strokeWidth={3}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="returnRevenue"
+                  stroke="#f97316"
+                  fill="transparent"
+                  strokeWidth={2}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
         <Card className="border-border/70 shadow-sm">
           <CardHeader>
-            <CardTitle>Cảnh báo vận hành</CardTitle>
+            <CardTitle>Cơ cấu cơ hội tăng trưởng</CardTitle>
             <CardDescription>
-              Các việc cần chú ý theo dữ liệu hiện tại
+              Giá trị doanh thu có thể hành động theo từng nhóm
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            {alerts.map((alert) => (
-              <div
-                key={alert.label}
-                className="flex items-center gap-3 rounded-xl border p-3"
-              >
-                <span
-                  className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${alert.tone}`}
-                >
-                  <alert.icon className="size-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-muted-foreground">{alert.label}</p>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <strong className="text-xl">{money(alert.value)}</strong>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {alert.note}
-                    </span>
-                  </div>
-                </div>
+          <CardContent>
+            <div className="relative h-[210px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={opportunityMix}
+                    dataKey="value"
+                    nameKey="label"
+                    innerRadius={58}
+                    outerRadius={86}
+                    paddingAngle={3}
+                    strokeWidth={0}
+                  >
+                    {opportunityMix.map((item) => (
+                      <Cell key={item.type} fill={item.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value) => `${money(Number(value))} đồng`}
+                    labelStyle={{ color: "#0f172a" }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                <strong className="text-xl">
+                  {compactMoney(data.summary.estimatedOpportunityRevenue)}
+                </strong>
+                <span className="text-xs text-muted-foreground">doanh thu cơ hội</span>
               </div>
-            ))}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+              {opportunityMix.map((item) => (
+                <div key={item.type} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                    <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="truncate">{item.label} · {item.count}</span>
+                  </span>
+                  <strong className="shrink-0">{compactMoney(item.value)}</strong>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </section>
 
+      <Card className="border-border/70 shadow-sm">
+        <CardHeader>
+          <CardTitle>Cảnh báo vận hành hôm nay</CardTitle>
+          <CardDescription>Các điểm cần xử lý để bảo vệ doanh thu và tiến độ giao hàng</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {alerts.map((alert) => (
+            <div key={alert.label} className="flex items-center gap-3 rounded-xl border bg-card p-3">
+              <span className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${alert.tone}`}>
+                <alert.icon className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-muted-foreground">{alert.label}</p>
+                <div className="flex items-baseline justify-between gap-2">
+                  <strong className="text-xl">
+                    {typeof alert.value === "number"
+                      ? money(alert.value)
+                      : alert.value}
+                  </strong>
+                  <span className="truncate text-xs text-muted-foreground">{alert.note}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
       <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold">Xếp hạng kinh doanh</h2>
-          <p className="text-sm text-muted-foreground">
-            So sánh doanh thu, tỷ trọng và mức trả hàng theo từng chiều
-          </p>
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div>
+            <h2 className="text-lg font-semibold">Cơ hội bán hàng hôm nay</h2>
+            <p className="text-sm text-muted-foreground">
+              Khách nào cần gọi, sale nào phụ trách và giá trị có thể mang về
+            </p>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/ai-assistant">
+              Mở danh sách giao việc <ArrowUpRight />
+            </Link>
+          </Button>
+        </div>
+        <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(330px,1fr)]">
+          <Card className="overflow-hidden border-border/70 py-0 shadow-sm">
+            <CardContent className="divide-y p-0">
+              {data.opportunities.slice(0, 6).map((opportunity, index) => {
+                const style = opportunityStyles[opportunity.type];
+                const assigned = assignedOpportunityKeys.has(opportunity.key);
+                return (
+                  <div
+                    key={opportunity.key}
+                    className="grid gap-3 p-4 transition-colors hover:bg-muted/35 md:grid-cols-[36px_minmax(0,1fr)_145px_120px] md:items-center"
+                  >
+                    <span className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-bold">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate font-semibold" title={opportunity.entityName}>
+                          {opportunity.entityName}
+                        </p>
+                        <Badge variant="outline" className="font-normal">
+                          <span className="mr-1.5 size-1.5 rounded-full" style={{ backgroundColor: style.color }} />
+                          {style.label}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {opportunity.saleName || "Chưa phân sale"} · {opportunity.description}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Cơ hội</p>
+                      <strong className="text-sm text-emerald-700 dark:text-emerald-400">
+                        {compactMoney(opportunity.estimatedRevenue)} đồng
+                      </strong>
+                    </div>
+                    <Badge variant={assigned ? "secondary" : opportunity.priority === "HIGH" ? "destructive" : "outline"}>
+                      {assigned ? "Đã giao việc" : opportunity.priority === "HIGH" ? "Xử lý ngay" : "Theo dõi"}
+                    </Badge>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/70 shadow-sm">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30">
+                  <ListChecks className="size-5" />
+                </span>
+                <div>
+                  <CardTitle className="text-base">Phễu thực thi</CardTitle>
+                  <CardDescription>Từ cơ hội đến doanh thu ghi nhận</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[205px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={executionFunnel} margin={{ top: 18, right: 8, left: 8, bottom: 6 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} width={28} />
+                    <Tooltip formatter={(value) => [`${money(Number(value))} việc`, "Số lượng"]} />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={58}>
+                      {executionFunnel.map((item) => <Cell key={item.label} fill={item.color} />)}
+                      <LabelList dataKey="value" position="top" className="fill-foreground text-xs font-bold" />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid grid-cols-2 gap-3 border-t pt-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Doanh thu đã ghi nhận</p>
+                  <strong className="mt-1 block text-lg text-emerald-700 dark:text-emerald-400">
+                    {compactMoney(data.summary.realizedRevenue)} đồng
+                  </strong>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Cơ hội chưa giao</p>
+                  <strong className="mt-1 block text-lg">
+                    {Math.max(0, data.opportunities.length - assignedOpportunityKeys.size)}
+                  </strong>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <section className="space-y-5 rounded-3xl border border-slate-200/80 bg-gradient-to-br from-slate-100/80 via-white to-teal-50/40 p-5 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-teal-950/20 md:p-7">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Hiệu suất thị trường</p>
+            <h2 className="mt-1 text-xl font-bold tracking-tight">Xếp hạng kinh doanh</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Doanh thu, tỷ trọng và mức trả hàng theo từng chiều
+            </p>
+          </div>
+          <Badge variant="outline" className="w-fit bg-background/80">Doanh thu thuần</Badge>
         </div>
         <div className="grid items-start gap-4 lg:grid-cols-2">
           <Ranking
             title="Top nhân viên sale"
             icon={Users}
             items={data.topEmployees}
+            tone="indigo"
           />
-          <Ranking title="Top khu vực" icon={Boxes} items={data.topRegions} />
+          <MarketCoverage items={data.marketCoverage} />
           <Ranking
             title="Top khách hàng"
             icon={Users}
             items={data.topCustomers}
+            tone="teal"
           />
           <Ranking
             title="Top nhóm sản phẩm"
             icon={PackageSearch}
             items={data.topProductGroups}
+            tone="amber"
           />
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold">Điểm cần điều hành</h2>
-          <p className="text-sm text-muted-foreground">
-            Công nợ, tồn kho và giao hàng cần được theo dõi sát
-          </p>
+      <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-gradient-to-br from-slate-50 via-white to-teal-50/60 p-5 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-teal-950/20 md:p-7">
+        <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-600">Nhịp cuối tháng</p>
+            <h2 className="mt-1 text-xl font-bold tracking-tight">Dự báo doanh thu và sức kéo đội sale</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Dự báo theo tốc độ bán hiện tại; chỉ tiêu sale hiển thị theo sản lượng quy đổi
+            </p>
+          </div>
+          <Badge variant="outline" className="w-fit bg-background/80">
+            Ngày {data.summary.elapsedDays}/{data.summary.daysInMonth}
+          </Badge>
         </div>
-        <div className="grid gap-4 xl:grid-cols-3">
-          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
+
+        <div className="grid gap-4 xl:grid-cols-[minmax(300px,0.8fr)_minmax(0,1.5fr)]">
+          <Card className="relative overflow-hidden border-0 bg-slate-950 text-white shadow-xl shadow-slate-950/15">
+            <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-teal-400/20 blur-3xl" />
+            <CardContent className="relative flex h-full flex-col p-6">
+              <div className="flex items-center justify-between">
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-white/10 text-teal-300">
+                  <Gauge className="size-6" />
+                </span>
+                <Badge className="border-white/10 bg-white/10 text-white hover:bg-white/10">
+                  Dự báo
+                </Badge>
+              </div>
+              <p className="mt-7 text-sm text-slate-400">Doanh thu dự kiến cuối tháng</p>
+              <strong className="mt-2 text-4xl font-bold tracking-tight">
+                {compactMoney(data.summary.forecastRevenue)}
+              </strong>
+              <p className="mt-1 text-sm text-slate-400">đồng, nếu giữ nhịp bán hiện tại</p>
+
+              <div className="mt-7 grid grid-cols-2 gap-3 border-t border-white/10 pt-5">
+                <div>
+                  <p className="text-xs text-slate-500">Tháng trước</p>
+                  <strong className="mt-1 block text-lg">
+                    {compactMoney(data.summary.previousFullMonthRevenue)}
+                  </strong>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Chênh lệch dự báo</p>
+                  <strong className={`mt-1 block text-lg ${data.summary.forecastGrowthPercent >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {data.summary.forecastGrowthPercent > 0 ? "+" : ""}
+                    {safeNumber(data.summary.forecastGrowthPercent).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%
+                  </strong>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 bg-background/90 shadow-lg shadow-slate-900/5 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between gap-4 border-b pb-4">
+              <div className="flex items-center gap-3">
+                <span className="flex size-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/30">
+                  <Target className="size-5" />
+                </span>
+                <div>
+                  <CardTitle className="text-base">Sale cần tăng tốc</CardTitle>
+                  <CardDescription>Ưu tiên người có tỷ lệ hoàn thành thấp</CardDescription>
+                </div>
+              </div>
+              <span className="hidden text-xs text-muted-foreground sm:block">Sản lượng quy đổi</span>
+            </CardHeader>
+            <CardContent className="grid gap-x-6 gap-y-4 pt-5 md:grid-cols-2">
+              {targetPerformance.map((item, index) => {
+                const completion = safeNumber(item.completion_percent);
+                return (
+                  <div key={item.employee_code} className="rounded-xl border border-border/60 bg-card/70 p-3.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-bold">
+                          {index + 1}
+                        </span>
+                        <span className="truncate text-sm font-semibold">{item.employee_name}</span>
+                      </div>
+                      <strong className={completion < 70 ? "text-amber-600" : "text-emerald-600"}>
+                        {completion.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%
+                      </strong>
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={completion < 70 ? "h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-500" : "h-full rounded-full bg-gradient-to-r from-teal-400 to-emerald-500"}
+                        style={{ width: `${Math.max(1, Math.min(100, completion))}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      {compactQuantity(item.actual_amount)} / {compactQuantity(item.target_amount)} sản lượng
+                    </p>
+                  </div>
+                );
+              })}
+              {targetPerformance.length === 0 && <EmptyState text="Chưa có dữ liệu chỉ tiêu năm nay" />}
+            </CardContent>
+          </Card>
+        </div>
+
+        {hasProfitData && (
+          <div className="mt-4 grid gap-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/70 p-4 dark:border-emerald-900 dark:bg-emerald-950/20 sm:grid-cols-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Lợi nhuận gộp tạm tính</p>
+              <strong className="mt-1 block text-lg text-emerald-700 dark:text-emerald-400">{compactMoney(coveredProfit)} đồng</strong>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Tỷ suất trên phần đủ giá vốn</p>
+              <strong className="mt-1 block text-lg">{grossMargin.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%</strong>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Độ phủ dữ liệu giá vốn</p>
+              <strong className="mt-1 block text-lg">{costCoverage.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%</strong>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-4 rounded-3xl border border-border/60 bg-muted/25 p-5 md:p-7">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Danh sách ưu tiên</p>
+          <h2 className="mt-1 text-xl font-bold tracking-tight">Khách hàng cần hành động</h2>
+          <p className="text-sm text-muted-foreground">
+            Giữ khách VIP, tạo đơn thứ hai cho khách mới và kiểm soát công nợ lớn
+          </p>
+          </div>
+          <Badge variant="outline" className="w-fit bg-background">
+            {data.vipInactiveCustomers.length + activeNewCustomers.length + data.topReceivables.length} khách cần theo dõi
+          </Badge>
+        </div>
+        <div className="grid items-start gap-4 xl:grid-cols-3">
+          <Card className="gap-4 overflow-hidden border-0 bg-background/90 shadow-lg shadow-slate-900/5">
+            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/30">
+                <Crown className="size-5" />
+              </span>
+              <div>
+                <CardTitle className="text-base">VIP có nguy cơ mất</CardTitle>
+                <CardDescription>Từ 30 ngày chưa mua trở lên</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {data.vipInactiveCustomers.slice(0, 5).map((item, index) => (
+                <DataRow
+                  key={item.customer_code}
+                  index={index}
+                  title={item.customer_name}
+                  subtitle={`${item.vip_tier} · ${item.employee_name || "Chưa phân sale"}`}
+                  value={item.inactive_days == null ? "Chưa từng mua" : `${item.inactive_days} ngày`}
+                  negative
+                />
+              ))}
+              {data.vipInactiveCustomers.length === 0 && <EmptyState text="Không có VIP cần cảnh báo" />}
+            </CardContent>
+          </Card>
+
+          <Card className="gap-4 overflow-hidden border-0 bg-background/90 shadow-lg shadow-slate-900/5">
+            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30">
+                <UserPlus className="size-5" />
+              </span>
+              <div>
+                <CardTitle className="text-base">
+                  Khách hàng mới trong tháng
+                </CardTitle>
+                <CardDescription>Doanh thu phát sinh lần đầu</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {activeNewCustomers.map((item, index) => (
+                <DataRow
+                  key={item.customer_code}
+                  index={index}
+                  title={item.customer_name}
+                  subtitle={`${item.assigned_employee_name || "Chưa phân sale"} · ${date(item.first_purchase_date)}`}
+                  value={compactMoney(item.net_revenue)}
+                />
+              ))}
+              {activeNewCustomers.length === 0 && (
+                <EmptyState text="Chưa có khách mới phát sinh doanh thu" />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="gap-4 overflow-hidden border-0 bg-background/90 shadow-lg shadow-slate-900/5">
             <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
               <span className="flex size-9 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-950/30">
                 <CircleDollarSign className="size-5" />
               </span>
               <div>
-                <CardTitle className="text-base">
-                  Công nợ khách hàng cao
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  5 khách có dư nợ lớn nhất
-                </CardDescription>
+                <CardTitle className="text-base">Công nợ cần kiểm soát</CardTitle>
+                <CardDescription>5 khách có dư nợ lớn nhất</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="space-y-1">
@@ -382,280 +876,85 @@ export function Dashboard() {
               ))}
             </CardContent>
           </Card>
-
-          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
-            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-950/30">
-                <PackageSearch className="size-5" />
-              </span>
-              <div>
-                <CardTitle className="text-base">Rủi ro tồn kho</CardTitle>
-                <CardDescription className="mt-1">
-                  Lô cần kiểm tra và xử lý sớm
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {data.inventoryRisks.map((item, index) => (
-                <DataRow
-                  key={`${item.riskType}-${item.productCode}-${item.lotCode || index}`}
-                  index={index}
-                  title={item.productName}
-                  subtitle={inventoryRiskLabel(
-                    item.riskType,
-                    item.daysToExpiry,
-                  )}
-                  value={`${money(item.quantity)} ${item.unit || ""}`}
-                  negative={item.riskType !== "EXPIRING_SOON"}
-                />
-              ))}
-              {data.inventoryRisks.length === 0 && (
-                <EmptyState text="Không có rủi ro tồn kho" />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
-            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/30">
-                <Truck className="size-5" />
-              </span>
-              <div>
-                <CardTitle className="text-base">Hiệu suất giao hàng</CardTitle>
-                <CardDescription className="mt-1">
-                  Đơn trễ và đơn đang giao theo sale
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {data.deliveryPerformance.map((item, index) => (
-                <DataRow
-                  key={item.employee_code}
-                  index={index}
-                  title={item.employee_name}
-                  subtitle={`${item.late_orders} trễ · ${item.pending_orders} đang giao`}
-                  value={
-                    item.on_time_percent == null
-                      ? "Chưa đủ dữ liệu"
-                      : `${item.on_time_percent.toLocaleString("vi-VN")}% đúng hạn`
-                  }
-                  negative={(item.late_orders || 0) > 0}
-                />
-              ))}
-            </CardContent>
-          </Card>
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold">Khách hàng cần theo dõi</h2>
-          <p className="text-sm text-muted-foreground">
-            Ưu tiên tạo đơn mua lại và phân công sale chăm sóc
-          </p>
-        </div>
-        <div className="grid items-start gap-4 lg:grid-cols-2">
-          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
-            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30">
-                <UserPlus className="size-5" />
-              </span>
-              <div>
-                <CardTitle className="text-base">
-                  Khách hàng mới trong tháng
-                </CardTitle>
-                <CardDescription>Doanh thu phát sinh lần đầu</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {data.newCustomers.map((item, index) => (
-                <DataRow
-                  key={item.customer_code}
-                  index={index}
-                  title={item.customer_name}
-                  subtitle={`${item.assigned_employee_name || "Chưa phân sale"} · ${date(item.first_purchase_date)}`}
-                  value={compactMoney(item.net_revenue)}
-                />
-              ))}
-              {data.newCustomers.length === 0 && (
-                <EmptyState text="Chưa có khách hàng mới trong kỳ" />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
-            <CardHeader className="flex flex-row items-center gap-3 border-b border-border/60 bg-muted/20 pb-4">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/30">
-                <UserRoundX className="size-5" />
-              </span>
-              <div>
-                <CardTitle className="text-base">
-                  Khách hàng cần chăm sóc lại
-                </CardTitle>
-                <CardDescription>
-                  Không mua hàng từ 60 ngày trở lên
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {data.inactiveCustomers.map((item, index) => (
-                <DataRow
-                  key={item.customer_code}
-                  index={index}
-                  title={item.customer_name}
-                  subtitle={`${item.employee_name || "Chưa phân sale"} · ${item.inactive_days == null ? "Chưa từng mua" : `${item.inactive_days} ngày`}`}
-                  value={compactMoney(item.revenue_last_12_months)}
-                  negative
-                />
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      <Card className="overflow-hidden border-border/70 shadow-sm">
-        <CardHeader className="border-b border-border/60 bg-muted/20 pb-4">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950 p-6 text-white shadow-xl shadow-slate-950/10 md:p-8">
+        <div className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full bg-teal-400/10 blur-3xl" />
+        <div className="relative flex flex-col justify-between gap-4 border-b border-white/10 pb-6 sm:flex-row sm:items-end">
           <div>
-            <CardTitle>Cơ hội tăng trưởng ưu tiên</CardTitle>
-            <CardDescription>
-              Khách hàng cần sale ưu tiên chăm sóc
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="divide-y rounded-xl border p-0">
-          {data.opportunities.slice(0, 6).map((opportunity) => (
-            <div
-              key={opportunity.key}
-              className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_140px_130px] sm:items-center"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium" title={opportunity.title}>
-                  {opportunity.title}
-                </p>
-                <p className="mt-1 truncate text-sm text-muted-foreground">
-                  {opportunity.description}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">
-                  Doanh thu ước tính
-                </p>
-                <p className="font-semibold text-emerald-700 dark:text-emerald-400">
-                  {compactMoney(opportunity.estimatedRevenue)} đồng
-                </p>
-              </div>
-              <div className="flex items-center justify-between gap-2 sm:justify-end">
-                <span className="truncate text-xs text-muted-foreground">
-                  {opportunity.saleName || "Chưa phân công"}
-                </span>
-                <Badge
-                  variant={
-                    opportunity.priority === "HIGH"
-                      ? "destructive"
-                      : "secondary"
-                  }
-                >
-                  {opportunity.priority === "HIGH" ? "Ưu tiên" : "Theo dõi"}
-                </Badge>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-      <section className="space-y-3">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold">
-              Ý tưởng phát triển kinh doanh
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Đề xuất hành động được ưu tiên theo dữ liệu hiện tại
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-300">Kế hoạch hành động</p>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight">Bốn việc tạo tăng trưởng tiếp theo</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              Mỗi chương trình đều có đối tượng, giá trị kỳ vọng và thời hạn rõ ràng
             </p>
           </div>
-          <Badge variant="secondary">{ideas.length} đề xuất</Badge>
+          <Badge className="w-fit border-white/10 bg-white/10 text-white hover:bg-white/10">Ưu tiên trong 14 ngày</Badge>
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {ideas.map((idea, index) => (
-            <Card
+        <div className="relative mt-6 grid gap-px overflow-hidden rounded-2xl bg-white/10 md:grid-cols-2 xl:grid-cols-4">
+          {ideas.slice(0, 4).map((idea, index) => (
+            <div
               key={idea.key}
-              className="group gap-4 overflow-hidden border-border/70 py-0 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              className="group flex min-h-[300px] flex-col bg-slate-950/80 p-5 transition-colors hover:bg-white/[0.07]"
             >
-              <div className={`h-1.5 ${idea.tone}`} />
-              <CardHeader className="gap-3 px-5 pt-1 md:px-6">
-                <div className="flex items-center justify-between gap-3">
-                  <Badge variant="outline">{idea.category}</Badge>
-                  <span className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                </div>
-                <CardTitle className="text-lg leading-snug">
-                  {idea.title}
-                </CardTitle>
-                <CardDescription className="leading-relaxed">
-                  {idea.evidence}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="px-5 pb-5 md:px-6 md:pb-6">
-                <div className="mb-4">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Ưu tiên thực hiện
-                  </p>
-                  <div className="space-y-1.5">
-                    {idea.targets.map((target) => (
-                      <div
-                        key={`${idea.key}-${target.name}`}
-                        className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2"
-                      >
-                        <div className="min-w-0">
-                          <p
-                            className="truncate text-sm font-medium"
-                            title={target.name}
-                          >
-                            {target.name}
-                          </p>
-                          {target.meta && (
-                            <p className="truncate text-xs text-muted-foreground">
-                              {target.meta}
-                            </p>
-                          )}
-                        </div>
-                        {target.value && (
-                          <strong className="shrink-0 text-xs text-primary">
-                            {target.value}
-                          </strong>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border/60 bg-muted/40 p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Nên làm ngay
-                  </p>
-                  <p className="mt-1 text-sm leading-relaxed">{idea.action}</p>
-                </div>
-                <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-teal-300">{idea.category}</span>
+                <span className="text-3xl font-black text-white/10 transition-colors group-hover:text-teal-300/30">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+              </div>
+              <h3 className="mt-5 text-lg font-semibold leading-snug">{idea.title}</h3>
+              <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-400">{idea.evidence}</p>
+              <div className="mt-auto pt-6">
+                <div className="flex items-end justify-between gap-3 border-t border-white/10 pt-4">
                   <div>
-                    <span className="block text-xs text-muted-foreground">
-                      {idea.impactLabel}
-                    </span>
-                    <strong className="text-sm text-primary">
-                      {idea.impactValue}
-                    </strong>
+                    <span className="block text-[11px] text-slate-500">{idea.impactLabel}</span>
+                    <strong className="mt-1 block text-base text-teal-300">{idea.impactValue}</strong>
                   </div>
-                  <div className="text-right">
-                    <Badge variant="secondary">{idea.timeframe}</Badge>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      Đo bằng: {idea.successMetric}
-                    </p>
-                  </div>
+                  <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-slate-300">{idea.timeframe}</span>
                 </div>
-              </CardContent>
-            </Card>
+                <p className="mt-4 line-clamp-2 text-xs leading-5 text-slate-400">{idea.action}</p>
+              </div>
+            </div>
           ))}
         </div>
       </section>
     </Main>
+  );
+}
+
+function DecisionCard({
+  index,
+  eyebrow,
+  title,
+  value,
+  note,
+  tone,
+}: {
+  index: string;
+  eyebrow: string;
+  title: string;
+  value: string;
+  note: string;
+  tone: "primary" | "positive" | "warning" | "negative";
+}) {
+  const styles = {
+    primary: "border-cyan-200 bg-cyan-50/70 text-cyan-700 dark:border-cyan-900 dark:bg-cyan-950/20 dark:text-cyan-300",
+    positive: "border-emerald-200 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-300",
+    warning: "border-amber-200 bg-amber-50/70 text-amber-700 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300",
+    negative: "border-red-200 bg-red-50/70 text-red-700 dark:border-red-900 dark:bg-red-950/20 dark:text-red-300",
+  }[tone];
+
+  return (
+    <Card className={`relative overflow-hidden border shadow-none ${styles}`}>
+      <span className="absolute right-4 top-3 text-4xl font-black opacity-[0.08]">{index}</span>
+      <CardContent className="p-5">
+        <p className="text-[11px] font-bold uppercase tracking-[0.12em]">{eyebrow}</p>
+        <h3 className="mt-2 text-base font-semibold text-foreground">{title}</h3>
+        <strong className="mt-3 block text-xl">{value}</strong>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{note}</p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -727,19 +1026,45 @@ function Ranking({
   title,
   icon: Icon,
   items,
+  tone,
 }: {
   title: string;
   icon: typeof Users;
   items: GrowthRankingItem[];
+  tone: "teal" | "indigo" | "amber";
 }) {
-  const maxRevenue = Math.max(...items.map((item) => item.netRevenue), 1);
   const totalRevenue = items.reduce((sum, item) => sum + item.netRevenue, 0);
+  const maxRevenue = Math.max(...items.map((item) => item.netRevenue), 1);
+  const highestReturn = Math.max(
+    ...items.map((item) => item.returnRatePercent),
+    0,
+  );
+  const styles = {
+    teal: {
+      icon: "bg-teal-50 text-teal-600 dark:bg-teal-950/30",
+      bar: "bg-gradient-to-r from-teal-400 to-emerald-500",
+      rank: "bg-teal-600 text-white shadow-teal-600/25",
+      value: "text-teal-700 dark:text-teal-300",
+    },
+    indigo: {
+      icon: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30",
+      bar: "bg-gradient-to-r from-indigo-400 to-violet-500",
+      rank: "bg-indigo-600 text-white shadow-indigo-600/25",
+      value: "text-indigo-700 dark:text-indigo-300",
+    },
+    amber: {
+      icon: "bg-amber-50 text-amber-600 dark:bg-amber-950/30",
+      bar: "bg-gradient-to-r from-amber-400 to-orange-500",
+      rank: "bg-amber-500 text-white shadow-amber-500/25",
+      value: "text-amber-700 dark:text-amber-300",
+    },
+  }[tone];
 
   return (
-    <Card className="gap-4 overflow-hidden border-border/70 shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/60 bg-muted/20 pb-4">
+    <Card className="gap-0 overflow-hidden border-0 bg-background/95 py-0 shadow-lg shadow-slate-900/5">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/60 px-5 py-5">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${styles.icon}`}>
             <Icon className="size-5" />
           </span>
           <div className="min-w-0">
@@ -751,56 +1076,116 @@ function Ranking({
         </div>
         <div className="shrink-0 text-right">
           <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-            Tổng top
+            Tổng doanh thu
           </p>
-          <strong className="text-sm">{compactMoney(totalRevenue)}</strong>
+          <strong className={`text-base ${styles.value}`}>{compactMoney(totalRevenue)}</strong>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {items.map((item, index) => (
-          <div
-            key={`${item.code}-${index}`}
-            className="relative overflow-hidden rounded-xl border border-transparent px-3 py-3 transition-colors hover:border-border hover:bg-muted/40"
-          >
-            <div
-              className="pointer-events-none absolute inset-y-0 left-0 bg-primary/[0.055]"
-              style={{
-                width: `${Math.max(5, (item.netRevenue / maxRevenue) * 100)}%`,
-              }}
-            />
-            <div className="relative flex items-center gap-3">
-              <span
-                className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${index === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+      <CardContent className="space-y-2.5 p-4">
+        <div className="space-y-2.5">
+          {items.map((item, index) => {
+            const share = totalRevenue > 0 ? (item.netRevenue / totalRevenue) * 100 : 0;
+            const relativeWidth = (item.netRevenue / maxRevenue) * 100;
+            return (
+              <div
+                key={`${item.code}-${index}`}
+                className={`relative overflow-hidden rounded-xl border p-3.5 ${index === 0 ? "border-primary/20 bg-primary/[0.035]" : "border-border/60 bg-card"}`}
               >
-                {index + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold" title={item.name}>
-                  {item.name || item.code}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Trả hàng{" "}
-                  {item.returnRatePercent.toLocaleString("vi-VN", {
-                    maximumFractionDigits: 2,
-                  })}
-                  % · SL {money(item.saleQuantity)}
-                </p>
+                <div className="absolute inset-x-0 bottom-0 h-1 bg-muted/60">
+                  <div className={`h-full rounded-r-full ${styles.bar}`} style={{ width: `${relativeWidth}%` }} />
+                </div>
+                <div className="relative flex items-center gap-3">
+                  <span className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${index === 0 ? `${styles.rank} shadow-lg` : "bg-muted text-muted-foreground"}`}>
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold" title={item.name || item.code}>{item.name || item.code}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Tỷ trọng {share.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%
+                      {item.returnRatePercent > 0 && ` · Trả hàng ${item.returnRatePercent.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%`}
+                    </p>
+                  </div>
+                  <strong className={`shrink-0 text-sm ${styles.value}`}>{compactMoney(item.netRevenue)}</strong>
+                </div>
               </div>
-              <p className="shrink-0 text-right">
-                <strong className="block text-sm">
-                  {compactMoney(item.netRevenue)}
-                </strong>
-                <span className="text-[11px] text-muted-foreground">
-                  {(
-                    (item.netRevenue / (totalRevenue || 1)) *
-                    100
-                  ).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}
-                  % top
-                </span>
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-between gap-3 px-1 pt-1 text-xs text-muted-foreground">
+          <span>{items.length} vị trí dẫn đầu</span>
+          <span>Trả hàng cao nhất <strong className="text-foreground">{highestReturn.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%</strong></span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MarketCoverage({
+  items,
+}: {
+  items: GrowthDashboard["marketCoverage"];
+}) {
+  const chartData = items.slice(0, 5).map((item) => ({
+    ...item,
+    inactive_customers: Math.max(
+      0,
+      Number(item.total_customers) - Number(item.active_customers),
+    ),
+    activeRate:
+      Number(item.total_customers) > 0
+        ? (Number(item.active_customers) / Number(item.total_customers)) * 100
+        : 0,
+  }));
+
+  return (
+    <Card className="gap-0 overflow-hidden border-0 bg-background/95 py-0 shadow-lg shadow-slate-900/5">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/60 px-5 py-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600 dark:bg-cyan-950/30">
+            <MapPinned className="size-5" />
+          </span>
+          <div>
+            <CardTitle className="text-base">Độ phủ khách theo khu vực</CardTitle>
+            <CardDescription className="mt-1">Khách có mua trong 90 ngày gần nhất</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 p-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {chartData.map((item) => (
+            <div key={item.region} className="rounded-2xl border border-border/60 bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-cyan-600">Khu vực</span>
+                  <h3 className="mt-1 text-2xl font-bold">{item.region}</h3>
+                </div>
+                <div className="text-right">
+                  <strong className="text-xl text-cyan-700 dark:text-cyan-300">{item.activeRate.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%</strong>
+                  <p className="text-[11px] text-muted-foreground">đang hoạt động</p>
+                </div>
+              </div>
+              <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-teal-500" style={{ width: `${Math.max(1, item.activeRate)}%` }} />
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-3 text-xs">
+                <div>
+                  <p className="text-muted-foreground">Có mua 90 ngày</p>
+                  <strong className="mt-1 block text-base">{money(item.active_customers)}</strong>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Tổng khách</p>
+                  <strong className="mt-1 block text-base">{money(item.total_customers)}</strong>
+                </div>
+              </div>
+              <p className="mt-3 truncate rounded-lg bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground" title={`${money(item.revenue_90_days)} đồng`}>
+                Doanh thu 90 ngày · <strong className="text-foreground">{compactMoney(item.revenue_90_days)}</strong>
               </p>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+        <p className="rounded-xl bg-cyan-50/70 px-4 py-3 text-xs leading-5 text-cyan-900 dark:bg-cyan-950/20 dark:text-cyan-200">
+          Ưu tiên vùng có tỷ lệ hoạt động thấp: tái kích hoạt khách cũ trước, sau đó mới mở thêm đại lý.
+        </p>
       </CardContent>
     </Card>
   );
@@ -845,18 +1230,6 @@ function EmptyState({ text }: { text: string }) {
   return (
     <p className="py-8 text-center text-sm text-muted-foreground">{text}</p>
   );
-}
-
-function inventoryRiskLabel(
-  riskType: "NEGATIVE_STOCK" | "EXPIRED" | "EXPIRING_SOON",
-  daysToExpiry?: number | null,
-) {
-  if (riskType === "NEGATIVE_STOCK") return "Tồn kho âm";
-  if (daysToExpiry == null || Math.abs(daysToExpiry) > 3_650)
-    return "Ngày hết hạn không hợp lệ · cần sửa dữ liệu";
-  if (riskType === "EXPIRED")
-    return `Đã hết hạn ${Math.abs(daysToExpiry || 0)} ngày`;
-  return `Còn ${daysToExpiry ?? 0} ngày đến hạn`;
 }
 
 type BusinessIdea = {
