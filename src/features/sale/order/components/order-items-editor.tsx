@@ -14,6 +14,8 @@ import { listProducts, getProduct } from "@/api/product"
 import { listGoodsDescriptions } from "@/api/sale/goods-description"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import { AlertTriangle, Check, ChevronsUpDown, Copy, GripVertical, PackageOpen, Trash2 } from "lucide-react"
+import { calculateOrderAmounts, getInclusiveUnitPrice, getPriceBasis, toPreVatInputPrice, type PriceBasis } from "../data/order-money"
+import { PriceBasisSelect } from "./price-basis-select"
 
 export type OrderItem = {
     id?: number
@@ -21,6 +23,8 @@ export type OrderItem = {
     product?: any
     quantity: number
     unit_price: number
+    price_basis?: PriceBasis
+    unit_price_including_vat?: number
     unit?: string
     discount?: number
     vat_code?: "KCT" | "VAT5" | "VAT8" | "VAT10"
@@ -51,13 +55,6 @@ const VAT_OPTIONS = [
     { value: "VAT10", label: "10%" },
 ] as const
 
-function vatRate(vatCode?: OrderItem["vat_code"]) {
-    if (vatCode === "VAT5") return 5
-    if (vatCode === "VAT8") return 8
-    if (vatCode === "VAT10") return 10
-    return 0
-}
-
 export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorder = false, lockCommittedLines = false, itemError, customerType }: Props) {
     const rowRefs = useRef<Array<HTMLTableRowElement | null>>([])
     const pendingFocusIndexRef = useRef<number | null>(null)
@@ -74,6 +71,8 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
         product_id: undefined,
         quantity: 1,
         unit_price: 0,
+        price_basis: "VAT_INCLUSIVE",
+        unit_price_including_vat: 0,
         discount: 0,
         vat_code: undefined,
         line_type: "NORMAL",
@@ -206,17 +205,24 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
             ...newItems[index],
             ...patch,
         }
+        const row = newItems[index]
+        if (row.price_basis === "VAT_INCLUSIVE" && !(lockCommittedLines && Number(row.exported_quantity || 0) > 0)) {
+            row.unit_price = toPreVatInputPrice(row.unit_price_including_vat ?? 0, row.vat_code, row.quantity)
+        }
         setItems(newItems)
     }
 
     const selectProduct = (index: number, value: number | undefined, option: any) => {
         const isPromotion = items[index]?.line_type === "PROMOTION"
         const ppStatus = isB2bCustomer ? option?.raw?.group?.pp_status : undefined
+        const inclusivePrice = isPromotion ? 0 : Number(option?.raw?.price ?? 0)
 
         updateRow(index, {
             product_id: value,
             product: option?.raw,
-            unit_price: isPromotion ? 0 : option?.raw?.price ?? 0,
+            price_basis: "VAT_INCLUSIVE",
+            unit_price_including_vat: inclusivePrice,
+            unit_price: toPreVatInputPrice(inclusivePrice, items[index]?.vat_code),
             unit: option?.raw?.unit,
             pp_status: ppStatus || undefined,
         })
@@ -226,7 +232,9 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
         product_id: product.id,
         product,
         quantity: 1,
-        unit_price: product.price ?? 0,
+        unit_price: toPreVatInputPrice(product.price ?? 0, undefined, 1),
+        price_basis: "VAT_INCLUSIVE",
+        unit_price_including_vat: product.price ?? 0,
         unit: product.unit,
         discount: 0,
         vat_code: undefined,
@@ -270,7 +278,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
             }}
         >
             <div className="overflow-x-auto rounded-md border">
-                <table className="w-full min-w-[2940px] table-fixed text-sm">
+                <table className="w-full min-w-[3270px] table-fixed text-sm">
                     <colgroup>
                         <col className="w-9" />
                         <col className="w-11" />
@@ -279,14 +287,16 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                         <col className="w-[260px]" />
                         <col className="w-[50px]" />
                         <col className="w-[90px]" />
+                        <col className="w-[180px]" />
+                        <col className="w-[120px]" />
                         <col className="w-[130px]" />
+                        <col className="w-[150px]" />
                         <col className="w-[100px]" />
                         <col className="w-[100px]" />
                         <col className="w-[150px]" />
                         <col className="w-[160px]" />
                         <col className="w-[240px]" />
                         <col className="w-[150px]" />
-                        <col className="w-[120px]" />
                         <col className="w-[150px]" />
                         <col className="w-[180px]" />
                         <col className="w-[90px]" />
@@ -300,14 +310,16 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                             <th className="px-2 py-2 text-left font-semibold">Mô tả HH</th>
                             <th className="px-2 py-2 text-center font-semibold">ĐVT</th>
                             <th className="px-2 py-2 text-right font-semibold">Số lượng</th>
+                            <th className="px-2 py-2 text-center font-semibold">Nguồn giá</th>
+                            <th className="px-2 py-2 text-center font-semibold">VAT</th>
                             <th className="px-2 py-2 text-right font-semibold">Đơn giá chưa VAT</th>
+                            <th className="px-2 py-2 text-right font-semibold">Đơn giá gồm VAT</th>
                             <th className="px-2 py-2 text-right font-semibold">Chiết khấu</th>
                             <th className="px-2 py-2 text-center font-semibold">Hàng KM</th>
                             <th className="px-2 py-2 text-center font-semibold">Không tính HĐN</th>
                             <th className="px-2 py-2 text-center font-semibold">Tình trạng PP</th>
                             <th className="px-2 py-2 text-left font-semibold">Ghi chú</th>
                             <th className="px-2 py-2 text-right font-semibold">Thành tiền</th>
-                            <th className="px-2 py-2 text-center font-semibold">VAT</th>
                             <th className="px-2 py-2 text-right font-semibold">Tiền VAT</th>
                             <th className="px-2 py-2 text-right font-semibold">Thành tiền gồm VAT</th>
                             <th className="px-2 py-2" />
@@ -319,14 +331,12 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                             const isPromotion = row.line_type === "PROMOTION"
                             const doneExportQty = Number(row.exported_quantity ?? 0)
                             const isCommitted = lockCommittedLines && doneExportQty > 0
-                            const lineTotal = Math.max(
-                                isPromotion
-                                    ? 0
-                                    : (row.quantity || 0) * (row.unit_price || 0) - Number(row.discount || 0),
-                                0
-                            )
-                            const vatAmount = Math.round(lineTotal * vatRate(row.vat_code) / 100)
-                            const lineTotalWithVat = lineTotal + vatAmount
+                            const basis = getPriceBasis(row)
+                            const amounts = calculateOrderAmounts(row)
+                            const lineTotal = amounts.beforeVat
+                            const vatAmount = amounts.vat
+                            const inclusivePrice = getInclusiveUnitPrice(row)
+                            const lineTotalWithVat = amounts.total
                             const isInvalid = !row.product_id || (row.quantity ?? 0) <= 0
                             const hasServerError =
                                 itemError != null && Number(row.id) === Number(itemError.orderItemId)
@@ -462,11 +472,54 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                     </td>
 
                                     <td className="px-2 py-2 align-middle">
+                                        <PriceBasisSelect value={basis} disabled={isCommitted} onChange={(price_basis) => updateRow(i, {
+                                            price_basis,
+                                            unit_price_including_vat: price_basis === "VAT_INCLUSIVE" ? inclusivePrice : undefined,
+                                            unit_price: price_basis === "VAT_INCLUSIVE" ? toPreVatInputPrice(inclusivePrice, row.vat_code) : row.unit_price,
+                                        })} />
+                                    </td>
+                                    <td className="px-2 py-2 align-middle">
+                                        <Select
+                                            value={row.vat_code || "NONE"}
+                                            disabled={isCommitted || basis === "LEGACY"}
+                                            onValueChange={(value) => {
+                                                const vat_code = value === "NONE" ? undefined : value as OrderItem["vat_code"]
+                                                updateRow(i, {
+                                                    vat_code,
+                                                    unit_price_including_vat: basis === "VAT_INCLUSIVE" ? inclusivePrice : undefined,
+                                                    unit_price: basis === "VAT_INCLUSIVE" ? toPreVatInputPrice(inclusivePrice, vat_code) : row.unit_price,
+                                                })
+                                            }}
+                                        >
+                                            <SelectTrigger className="h-9 bg-white">
+                                                <SelectValue placeholder="-" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="NONE">-</SelectItem>
+                                                {VAT_OPTIONS.map((option) => (
+                                                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </td>
+                                    <td className="px-2 py-2 align-middle">
                                         <DecimalInput
                                             value={row.unit_price}
+                                            readOnly={basis === "VAT_INCLUSIVE"}
+                                            disabled={isPromotion || isCommitted}
+                                            onChange={(unit_price) => updateRow(i, { unit_price })}
+                                        />
+                                    </td>
+                                    <td className="px-2 py-2 align-middle">
+                                        <DecimalInput
+                                            value={inclusivePrice}
+                                            readOnly={basis !== "VAT_INCLUSIVE"}
                                             disabled={isPromotion || isCommitted}
                                             onKeyDown={(event) => addRowOnEnter(event, i)}
-                                            onChange={(unit_price) => updateRow(i, { unit_price })}
+                                            onChange={(unit_price_including_vat) => updateRow(i, {
+                                                unit_price_including_vat,
+                                                unit_price: toPreVatInputPrice(unit_price_including_vat, row.vat_code),
+                                            })}
                                         />
                                     </td>
                                     <td className="px-2 py-2 align-middle">
@@ -485,7 +538,8 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                             onCheckedChange={(checked) =>
                                                 updateRow(i, {
                                                     line_type: checked ? "PROMOTION" : "NORMAL",
-                                                    unit_price: checked ? 0 : row.product?.price ?? row.unit_price,
+                                                    unit_price_including_vat: basis === "VAT_INCLUSIVE" ? (checked ? 0 : Number(row.product?.price ?? inclusivePrice)) : undefined,
+                                                    unit_price: checked ? 0 : basis === "VAT_INCLUSIVE" ? toPreVatInputPrice(Number(row.product?.price ?? inclusivePrice), row.vat_code) : Number(row.product?.price ?? row.unit_price),
                                                     discount: checked ? 0 : row.discount,
                                                 })
                                             }
@@ -543,24 +597,6 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
                                         </div>
                                     </td>
 
-                                    <td className="px-2 py-2 align-middle">
-                                        <Select
-                                            value={row.vat_code || "NONE"}
-                                            disabled={isCommitted}
-                                            onValueChange={(value) => updateRow(i, { vat_code: value === "NONE" ? undefined : value as OrderItem["vat_code"] })}
-                                        >
-                                            <SelectTrigger className="h-9 bg-white">
-                                                <SelectValue placeholder="-" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="NONE">-</SelectItem>
-                                                {VAT_OPTIONS.map((option) => (
-                                                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </td>
-
                                     <td className="px-2 py-2 text-right align-middle font-semibold tabular-nums">
                                         {row.vat_code ? formatNumber(vatAmount) : "-"}
                                     </td>
@@ -609,7 +645,7 @@ export function OrderItemsEditor({ items, setItems, addRequest = 0, enableReorde
 
                         {!items.length && (
                             <tr>
-                                <td colSpan={18} className="px-4 py-14">
+                                <td colSpan={20} className="px-4 py-14">
                                     <div
                                         className="text-muted-foreground flex flex-col items-center gap-3 text-center text-sm"
                                         tabIndex={0}
@@ -924,13 +960,15 @@ function formatOrderInput(value?: number) {
 function DecimalInput({
     value,
     disabled,
+    readOnly,
     onKeyDown,
     onChange,
 }: {
     value?: number
     disabled?: boolean
+    readOnly?: boolean
     onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>
-    onChange: (value: number) => void
+    onChange?: (value: number) => void
 }) {
     const [focused, setFocused] = useState(false)
     const [raw, setRaw] = useState(formatOrderInput(value))
@@ -950,13 +988,13 @@ function DecimalInput({
         setRaw(next)
 
         if (!next || next === ".") {
-            onChange(0)
+            onChange?.(0)
             return
         }
 
         const parsed = Number(next)
         if (Number.isFinite(parsed)) {
-            onChange(parsed)
+            onChange?.(parsed)
         }
     }
 
@@ -964,9 +1002,10 @@ function DecimalInput({
         <Input
             type="text"
             inputMode="decimal"
-            className="text-right tabular-nums"
+            className={cn("text-right tabular-nums", readOnly && "bg-muted/50")}
             value={focused ? raw : formatOrderInput(value)}
             disabled={disabled}
+            readOnly={readOnly}
             onFocus={() => {
                 setFocused(true)
                 setRaw(value ? String(value) : "")

@@ -1,3 +1,5 @@
+import { calculateOrderAmounts, getPriceBasis } from "../../order/data/order-money"
+import { OrderLinePriceFields, type LinePricing } from "../../order/components/order-line-price-fields"
 import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -35,6 +37,7 @@ export function CreateOrderItemDialog({ order, open, onOpenChange }: Props) {
 
     const [quantity, setQuantity] = useState(1)
     const [unitPrice, setUnitPrice] = useState(0)
+    const [pricing, setPricing] = useState<LinePricing>({ price_basis: "VAT_INCLUSIVE", unit_price_including_vat: 0 })
     const [discount, setDiscount] = useState(0)
     const [description, setDescription] = useState<string | undefined>()
     const [isPromotion, setIsPromotion] = useState(false)
@@ -44,6 +47,7 @@ export function CreateOrderItemDialog({ order, open, onOpenChange }: Props) {
         setProduct(null)
         setQuantity(1)
         setUnitPrice(0)
+        setPricing({ price_basis: "VAT_INCLUSIVE", unit_price_including_vat: 0 })
         setDiscount(0)
         setDescription(undefined)
         setIsPromotion(false)
@@ -99,6 +103,8 @@ export function CreateOrderItemDialog({ order, open, onOpenChange }: Props) {
                 product_id: productId,
                 quantity,
                 unit_price: unitPrice,
+                ...pricing,
+                unit_price_including_vat: pricing.price_basis === "VAT_INCLUSIVE" ? (isPromotion ? 0 : pricing.unit_price_including_vat) : null,
                 discount: isPromotion ? 0 : discount,
                 line_type: isPromotion ? "PROMOTION" : "NORMAL",
                 description,
@@ -132,6 +138,7 @@ export function CreateOrderItemDialog({ order, open, onOpenChange }: Props) {
                                 setProductId(value)
                                 setProduct(option?.raw)
                                 setUnitPrice(option?.raw?.price ?? 0)
+                                setPricing({ price_basis: "VAT_INCLUSIVE", unit_price_including_vat: option?.raw?.price ?? 0 })
                             }}
                             dataSource={{
                                 getList: listProducts,
@@ -209,17 +216,9 @@ export function CreateOrderItemDialog({ order, open, onOpenChange }: Props) {
                         />
                     </div>
 
-                    <div>
-                        <label className="text-sm font-medium">Đơn giá</label>
-                        <Input
-                            type="number"
-                            min={0}
-                            value={unitPrice}
-                            onChange={(e) =>
-                                setUnitPrice(Number(e.target.value))
-                            }
-                        />
-                    </div>
+                    <OrderLinePriceFields pricing={pricing} unitPrice={unitPrice} quantity={quantity}
+                        disabled={isPromotion || isPending}
+                        onChange={(pricing, price) => { setPricing(pricing); setUnitPrice(price) }} />
 
                     <div>
                         <label className="text-sm font-medium">Chiết khấu</label>
@@ -227,7 +226,7 @@ export function CreateOrderItemDialog({ order, open, onOpenChange }: Props) {
                             type="number"
                             min={0}
                             value={discount}
-                            disabled={isPromotion}
+                            disabled
                             onChange={(e) => setDiscount(Number(e.target.value))}
                         />
                     </div>
@@ -249,7 +248,7 @@ export function CreateOrderItemDialog({ order, open, onOpenChange }: Props) {
                     <div className="rounded-md border bg-muted/20 px-4 py-3">
                         <div className="text-sm text-muted-foreground">Thành tiền</div>
                         <div className="mt-1 text-xl font-bold">
-                            {formatCurrency(isPromotion ? 0 : Math.max(quantity * unitPrice - discount, 0))}
+                            {formatCurrency(calculateOrderAmounts({ ...pricing, quantity, unit_price: unitPrice, discount, line_type: isPromotion ? "PROMOTION" : "NORMAL" }).total)}
                         </div>
                     </div>
 

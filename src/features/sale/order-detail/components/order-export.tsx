@@ -1,3 +1,4 @@
+import { calculateOrderAmounts } from "../../order/data/order-money"
 import { useEffect, useState } from "react"
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
@@ -1542,7 +1543,8 @@ function resolveExportItemAmount(item: any, orderItem: any, quantity: number, un
         orderItem?.line_type ??
         orderItem?.lineType
     if (lineType === "PROMOTION") return 0
-    return Math.max(quantity * unitPrice - Number(discount || 0), 0)
+    if (item?.line_total_with_vat != null) return Number(item.line_total_with_vat)
+    return calculateOrderAmounts({ ...orderItem, quantity, unit_price: unitPrice, discount, line_type: lineType }).total
 }
 
 function resolvePhysicalWarehouseLabel(items: any[]) {

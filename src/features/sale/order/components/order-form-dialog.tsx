@@ -1,3 +1,4 @@
+import { calculateOrderAmounts } from "../data/order-money"
 import type { Dispatch, SetStateAction } from "react"
 import { useState } from "react"
 import { FileEdit, FilePlus, Loader2, Plus, Save, ShoppingCart, X, type LucideIcon } from "lucide-react"
@@ -94,20 +95,8 @@ export function OrderFormDialog({
     const meta = DIALOG_META[mode]
     const Icon = meta.icon
     const totalQty = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
-    const subtotalAmount = items.reduce((sum, item) => {
-        if (item.line_type === "PROMOTION") return sum
-        const lineTotal = Number(item.quantity || 0) * Number(item.unit_price || 0)
-        return sum + Math.max(lineTotal - Number(item.discount || 0), 0)
-    }, 0)
-    const totalVatAmount = items.reduce((sum, item) => {
-        if (item.line_type === "PROMOTION") return sum
-        const lineTotal = Math.max(
-            Number(item.quantity || 0) * Number(item.unit_price || 0) - Number(item.discount || 0),
-            0,
-        )
-        const rate = item.vat_code === "VAT5" ? 5 : item.vat_code === "VAT8" ? 8 : item.vat_code === "VAT10" ? 10 : 0
-        return sum + Math.round(lineTotal * rate / 100)
-    }, 0)
+    const subtotalAmount = items.reduce((sum, item) => sum + calculateOrderAmounts(item).beforeVat, 0)
+    const totalVatAmount = items.reduce((sum, item) => sum + calculateOrderAmounts(item).vat, 0)
     const totalAmount = subtotalAmount + totalVatAmount
     const formId = mode === "create" ? "order-create-form" : "order-update-form"
     const ready = !isLoading && !!headerData

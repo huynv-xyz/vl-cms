@@ -274,7 +274,7 @@ function returnRevenue(row: Transaction) {
 
 function grossSaleRevenue(row: Transaction) {
     return Number(row.sale_qty || 0) > 0
-        ? Number(row.sale_qty || 0) * Number(row.unit_price || 0)
+        ? Number(row.revenue || 0) + Number(row.discount || 0)
         : 0
 }
 

@@ -1,3 +1,4 @@
+import { calculateOrderAmounts } from "../data/order-money"
 import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { AlertTriangle, Save } from "lucide-react"
@@ -389,21 +390,8 @@ export function OrderQuantityAdjustmentDialog({ open, order, onOpenChange }: Pro
 }
 
 function calculateLineTotal(item: any, quantity: number) {
-    if (item?.line_type === "PROMOTION") return 0
-    const beforeVat = Math.max(
-        quantity * Number(item?.unit_price || 0) - Number(item?.discount || 0),
-        0,
-    )
-    const rate = item?.vat_code === "VAT5"
-        ? 5
-        : item?.vat_code === "VAT8"
-            ? 8
-            : item?.vat_code === "VAT10"
-                ? 10
-                : 0
-    return beforeVat + Math.round(beforeVat * rate / 100)
+    return calculateOrderAmounts({ ...item, quantity }).total
 }
-
 function Summary({ label, value }: { label: string; value: string }) {
     return (
         <div className="rounded-lg border bg-muted/30 px-3 py-2">
