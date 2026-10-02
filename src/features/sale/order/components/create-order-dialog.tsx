@@ -15,7 +15,7 @@ const initialOrderItems = () => [
         price_basis: "VAT_INCLUSIVE",
         unit_price_including_vat: 0,
         discount: 0,
-        vat_code: undefined,
+        vat_code: "VAT5",
         line_type: "NORMAL",
         hdn_status: undefined,
         note: "",

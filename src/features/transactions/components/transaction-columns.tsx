@@ -519,6 +519,7 @@ export function buildTransactionColumns(
     options: {
         canUseCorrections?: boolean
         onEditUnitPrice?: (row: Transaction) => void
+        onEditHdnStatus?: (row: Transaction) => void
         nppFilterOptions?: Option[]
     } = {},
 ): ColumnDef<Transaction>[] {
@@ -574,6 +575,7 @@ export function buildTransactionColumns(
                     row={row.original}
                     canUseCorrections={Boolean(options.canUseCorrections)}
                     onEditUnitPrice={options.onEditUnitPrice}
+                    onEditHdnStatus={options.onEditHdnStatus}
                 />
             ),
             meta: {
@@ -772,14 +774,17 @@ function TransactionCorrectionActions({
     row,
     canUseCorrections,
     onEditUnitPrice,
+    onEditHdnStatus,
 }: {
     row: Transaction
     canUseCorrections: boolean
     onEditUnitPrice?: (row: Transaction) => void
+    onEditHdnStatus?: (row: Transaction) => void
 }) {
     const canEditUnitPrice = canUseCorrections && Boolean(row.import_batch_id) && Boolean(onEditUnitPrice)
+    const canEditHdnStatus = canUseCorrections && Boolean(onEditHdnStatus)
 
-    if (!canEditUnitPrice) {
+    if (!canEditUnitPrice && !canEditHdnStatus) {
         return <span className="text-muted-foreground">-</span>
     }
 
@@ -792,7 +797,7 @@ function TransactionCorrectionActions({
             </PopoverTrigger>
             <PopoverContent align="start" className="w-64 p-1">
                 <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Thao tác sửa sai</div>
-                <button
+                {canEditUnitPrice && <button
                     type="button"
                     className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
                     onClick={() => onEditUnitPrice?.(row)}
@@ -802,7 +807,15 @@ function TransactionCorrectionActions({
                         <span className="block font-medium">Sửa đơn giá theo ĐVC</span>
                         <span className="block text-xs text-muted-foreground">Chỉ áp dụng cho dữ liệu được import từ file.</span>
                     </span>
-                </button>
+                </button>}
+                {canEditHdnStatus && <button
+                    type="button"
+                    className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                    onClick={() => onEditHdnStatus?.(row)}
+                >
+                    <Pencil className="mt-0.5 h-4 w-4 text-primary" />
+                    <span className="block font-medium">Sửa tình trạng HĐN</span>
+                </button>}
             </PopoverContent>
         </Popover>
     )

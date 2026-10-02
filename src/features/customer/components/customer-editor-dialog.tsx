@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { MapPin } from "lucide-react"
 import { toast } from "sonner"
 
 import { getEmployee, listEmployees } from "@/api/employee"
-import { getMyPermissions, hasPermission } from "@/api/auth/permission"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import {
     AlertDialog,
@@ -76,10 +75,6 @@ export function CustomerEditorDialog<TRequest, TResponse>({
     const [syncChoiceOpen, setSyncChoiceOpen] = useState(false)
     const [locationsOpen, setLocationsOpen] = useState(false)
     const [primaryLocation, setPrimaryLocation] = useState<LocationFormState | null>(null)
-    const permissionsQuery = useQuery({ queryKey: ["my-permissions"], queryFn: getMyPermissions })
-    const permissions = permissionsQuery.data ?? []
-    const canViewLocations = !customer || hasPermission(permissions, "customer-locations", "view")
-    const canUpdateLocations = !customer || hasPermission(permissions, "customer-locations", "update")
 
     useEffect(() => {
         if (open) {
@@ -206,13 +201,7 @@ export function CustomerEditorDialog<TRequest, TResponse>({
                                         <div className="min-h-16 min-w-0 flex-1 whitespace-pre-wrap rounded-md border px-3 py-2 text-sm">
                                             {form.address || <span className="text-muted-foreground">Chưa có địa chỉ giao dịch</span>}
                                         </div>
-                                        {canViewLocations && <Button type="button" variant="outline" onClick={() => {
-                                            if (customer) {
-                                                setLocationsOpen(true)
-                                            } else {
-                                                setLocationsOpen(true)
-                                            }
-                                        }}><MapPin className="mr-2 h-4 w-4" />Địa điểm</Button>}
+                                        <Button type="button" variant="outline" onClick={() => setLocationsOpen(true)}><MapPin className="mr-2 h-4 w-4" />Địa điểm</Button>
                                     </div>
                                 </Field>
                                 <Field label="Ghi chú">
@@ -308,8 +297,8 @@ export function CustomerEditorDialog<TRequest, TResponse>({
                 </DialogContent>
             </Dialog>
 
-            {customer && canViewLocations && <CustomerLocationsDialog customer={customer} open={locationsOpen}
-                onOpenChange={setLocationsOpen} canUpdate={canUpdateLocations}
+            {customer && <CustomerLocationsDialog customer={customer} open={locationsOpen}
+                onOpenChange={setLocationsOpen}
                 onAddressChange={(address) => update({ address })} />}
             {!customer && <DraftCustomerLocationsDialog name={form.name} open={locationsOpen}
                 onOpenChange={setLocationsOpen} value={primaryLocation} address={form.address ?? ""}

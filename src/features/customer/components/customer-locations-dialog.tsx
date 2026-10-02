@@ -8,6 +8,7 @@ import {
     type CustomerLocation, type CustomerLocationRequest,
 } from "@/api/customer-location"
 import { getCustomer } from "@/api/customer"
+import { getMyPermissions, hasPermission } from "@/api/auth/permission"
 import {
     getAdministrativeUnit, getAdministrativeUnitCounterparts, listAdministrativeUnits,
     type AdministrativeUnit,
@@ -27,9 +28,11 @@ import { Textarea } from "@/components/ui/textarea"
 import type { Customer } from "../data/schema"
 import { emptyLocationForm, type LocationFormState } from "./types"
 
-type Props = { customer: Customer; open: boolean; onOpenChange: (open: boolean) => void; canUpdate: boolean }
-export function CustomerLocationsDialog({ customer, open, onOpenChange, canUpdate, onAddressChange }: Props & { onAddressChange?: (address: string) => void }) {
+type Props = { customer: Customer; open: boolean; onOpenChange: (open: boolean) => void }
+export function CustomerLocationsDialog({ customer, open, onOpenChange, onAddressChange }: Props & { onAddressChange?: (address: string) => void }) {
     const queryClient = useQueryClient()
+    const { data: permissions = [] } = useQuery({ queryKey: ["my-permissions"], queryFn: getMyPermissions })
+    const canUpdate = hasPermission(permissions, "customers", "update")
     const [editing, setEditing] = useState<CustomerLocation | null | undefined>(undefined)
     const [pendingDelete, setPendingDelete] = useState<CustomerLocation | null>(null)
     const [form, setForm] = useState<LocationFormState>(emptyLocationForm)

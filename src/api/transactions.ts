@@ -180,3 +180,7 @@ export function applyTransactionUnitPriceImport(file: File) {
 export function updateTransactionUnitPrice(id: number, unitPrice: number) {
     return apiPut<Transaction>(`/transactions/${id}/unit-price`, { unitPrice })
 }
+
+export function updateTransactionHdnStatus(id: number, hdnStatus: string | null) {
+    return apiPut<Transaction>(`/transactions/${id}/hdn-status`, { hdnStatus })
+}

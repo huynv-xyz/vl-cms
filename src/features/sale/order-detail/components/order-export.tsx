@@ -1,4 +1,4 @@
-import { calculateOrderAmounts } from "../../order/data/order-money"
+import { calculateOrderAmounts, getInclusiveUnitPrice } from "../../order/data/order-money"
 import { useEffect, useState } from "react"
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
@@ -876,8 +876,14 @@ function ItemsTable({
                         <TableHead className="text-right text-xs font-semibold uppercase">Số lượng</TableHead>
                         <TableHead className="text-right text-xs font-semibold uppercase">Tồn kho</TableHead>
                         <TableHead className="w-[130px] text-center text-xs font-semibold uppercase">Cảnh báo</TableHead>
-                        <TableHead className="text-right text-xs font-semibold uppercase">Đơn giá</TableHead>
-                        <TableHead className="text-right text-xs font-semibold uppercase">Thành tiền</TableHead>
+                        <TableHead className="min-w-[125px] text-right text-xs font-semibold uppercase">
+                            <span className="block whitespace-nowrap">Đơn giá</span>
+                            <span className="block whitespace-nowrap">(Gồm VAT)</span>
+                        </TableHead>
+                        <TableHead className="min-w-[125px] text-right text-xs font-semibold uppercase">
+                            <span className="block whitespace-nowrap">Thành tiền</span>
+                            <span className="block whitespace-nowrap">(Gồm VAT)</span>
+                        </TableHead>
                         <TableHead className="min-w-[240px] text-xs font-semibold uppercase">Kho xuất</TableHead>
                         <TableHead className="min-w-[180px] text-xs font-semibold uppercase">Lô hàng</TableHead>
                         <TableHead className="min-w-[220px] text-xs font-semibold uppercase">Ghi chú</TableHead>
@@ -910,6 +916,7 @@ function ItemsTable({
                         )
                         const orderItem = resolveOrderItem(item, orderItemById, orderItemByProductId)
                         const unitPrice = resolveUnitPrice(orderItem)
+                        const inclusiveUnitPrice = getInclusiveUnitPrice(orderItem ?? item?.order_item ?? item)
                         const discount = resolveProratedDiscount(orderItem, quantity)
                         const amount = resolveExportItemAmount(item, orderItem, quantity, unitPrice, discount)
 
@@ -961,7 +968,7 @@ function ItemsTable({
                                     )}
                                 </TableCell>
                                 <TableCell className="text-right text-sm tabular-nums">
-                                    {formatCurrency(unitPrice)}
+                                    {formatCurrency(inclusiveUnitPrice)}
                                 </TableCell>
                                 <TableCell className="text-right text-sm font-medium tabular-nums">
                                     {formatCurrency(amount)}
@@ -1517,6 +1524,7 @@ function resolveOrderItem(
         const orderItem = orderItemById.get(Number(orderItemId))
         if (orderItem) return orderItem
     }
+    if (item?.order_item) return item.order_item
     const productId = item?.product_id ?? item?.productId
     return productId != null ? orderItemByProductId.get(Number(productId)) : undefined
 }

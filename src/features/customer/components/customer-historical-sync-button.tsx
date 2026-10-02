@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AlertTriangle, CheckCircle2, Loader2, RefreshCcw, SearchCheck } from "lucide-react"
 import { toast } from "sonner"
 
-import { getMyPermissions } from "@/api/auth/permission"
+import { getMyPermissions, hasPermission } from "@/api/auth/permission"
 import {
     applyCustomerHistoricalSync,
     applyCustomerHistoricalSyncMappings,
@@ -39,10 +39,7 @@ export function CustomerHistoricalSyncButton() {
         queryFn: getMyPermissions,
     })
 
-    const canUse = useMemo(
-        () => hasPermission(permissions, "customers", "data-admin"),
-        [permissions],
-    )
+    const canUse = hasPermission(permissions, "customers", "data-admin")
 
     const checkMutation = useMutation({
         mutationFn: checkCustomerHistoricalSync,
@@ -395,13 +392,5 @@ function Metric({
             <div className="text-xs font-medium uppercase">{label}</div>
             <div className="mt-1 text-right text-lg font-semibold tabular-nums">{formatNumber(value)}</div>
         </div>
-    )
-}
-
-function hasPermission(permissions: any[], module: string, action: string) {
-    return permissions.some((permission) =>
-        (permission.module === module && permission.action === action)
-        || permission.module === "*"
-        || permission.action === "*",
     )
 }
