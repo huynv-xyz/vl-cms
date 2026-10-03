@@ -24,6 +24,7 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
 
     const [formData, setFormData] = useState<any>({
         customer_id: order?.customer_id,
+        sales_employee_id: undefined,
         return_type: "FROM_EXPORT",
         export_id: undefined,
         return_date: todayYmd(),
@@ -61,6 +62,7 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
             initializedRef.current = false
             setFormData({
                 customer_id: order?.customer_id,
+                sales_employee_id: undefined,
                 return_type: "FROM_EXPORT",
                 export_id: undefined,
                 return_date: todayYmd(),
@@ -107,6 +109,9 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
             if (isManualReturn && !formData.customer_id) {
                 throw new Error("Vui lòng chọn khách hàng")
             }
+            if (isManualReturn && !formData.sales_employee_id) {
+                throw new Error("Vui lòng chọn nhân viên bán hàng")
+            }
 
             const selected = isManualReturn ? items : items.filter((item) => item.selected)
 
@@ -131,6 +136,7 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
             return createReturn({
                 return_type: formData.return_type,
                 customer_id: formData.customer_id,
+                sales_employee_id: isManualReturn ? formData.sales_employee_id : undefined,
                 export_id: isManualReturn ? undefined : exportId,
                 order_id: isManualReturn ? undefined : order?.id ?? exportDetail?.order_id,
                 return_date: formData.return_date,
@@ -193,7 +199,7 @@ export function CreateReturnDialog({ open, onOpenChange, order }: any) {
                                     }
                                 }}
                             />
-                            {exportDetail?.order_id && (
+                            {!isManualReturn && exportDetail?.order_id && (
                                 <div className="mt-3 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
                                     Đơn hàng:{" "}
                                     <span className="font-medium text-foreground">

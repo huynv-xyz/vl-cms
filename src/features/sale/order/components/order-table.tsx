@@ -52,6 +52,7 @@ import { cn, formatCurrency, formatNumber } from "@/lib/utils"
 import { OrderDocumentDialog } from "./order-document-dialog"
 import { CreateOrderDialog } from "./create-order-dialog"
 import { OrderPriceAdjustmentDialog } from "./order-price-adjustment-dialog"
+import { OrderSplitAction } from "./order-split-dialog"
 import { OrderPpStatusAdjustmentDialog } from "./order-pp-status-adjustment-dialog"
 import { OrderQuantityAdjustmentDialog } from "./order-quantity-adjustment-dialog"
 import { OrderSalespersonAdjustmentDialog } from "./order-salesperson-adjustment-dialog"
@@ -691,6 +692,7 @@ function OrderCard({
                         Đơn
                     </button>
 
+                    <OrderSplitAction order={order} />
                     <OrderRowMenu
                         order={order}
                         canEdit={!isLocked && canUpdateOrder}

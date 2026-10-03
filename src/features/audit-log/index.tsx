@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils"
 
 const initialFilters: AuditLogFilters = { page: 1, size: 25 }
-const riskyActions = new Set(["DELETE", "DELETE_AND_ROLLBACK", "UPDATE_PERMISSIONS", "ADJUST_PRICE", "ADJUST_QUANTITY", "LOCK", "UNLOCK"])
+const riskyActions = new Set(["DELETE", "DELETE_AND_ROLLBACK", "UPDATE_PERMISSIONS", "ADJUST_PRICE", "ADJUST_QUANTITY", "SPLIT_LINES", "LOCK", "UNLOCK"])
 const fallbackSourceTypes = ["USER", "FALLBACK", "IMPORT", "JOB", "SYSTEM"]
 const fallbackResultStatuses = ["SUCCESS", "FAILED", "DENIED"]
 type FilterKey = Exclude<keyof AuditLogFilters, "page" | "size">
@@ -991,6 +991,7 @@ function actionLabel(action: string) {
         PERMISSION_DENIED: "Từ chối quyền",
         ADJUST_PRICE: "Sửa giá",
         ADJUST_QUANTITY: "Sửa số lượng",
+        SPLIT_LINES: "Tách dòng đơn hàng",
         ADJUST_PP_STATUS: "Sửa PP",
         MARK_COST_PERIOD_STALE: "Đánh dấu cần tính lại",
         LOGIN_SUCCESS: "Login thành công",
@@ -1090,6 +1091,7 @@ const actionOptions = [
     "PERMISSION_DENIED",
     "ADJUST_PRICE",
     "ADJUST_QUANTITY",
+    "SPLIT_LINES",
     "ADJUST_PP_STATUS",
     "LOGIN_SUCCESS",
     "LOGIN_FAILED",

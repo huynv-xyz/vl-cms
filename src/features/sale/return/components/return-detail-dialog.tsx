@@ -68,6 +68,9 @@ export function ReturnDetailDialog({
                             <DetailInfoGrid>
                                 <DetailInfoItem label="Ngày trả" value={formatReturnDate(data.return_date || data.created_at)} />
                                 <DetailInfoItem label="Khách hàng" value={formatCustomer(data)} />
+                                {data.return_type === "MANUAL" && (
+                                    <DetailInfoItem label="Nhân viên bán hàng" value={data.sales_employee?.name || "-"} />
+                                )}
                                 <DetailInfoItem label="Đơn hàng" value={data.order?.order_no || data.order_id || "-"} />
                                 <DetailInfoItem label="Phiếu xuất" value={data.export?.export_no || data.export_id || "-"} />
                                 <DetailInfoItem label="Lý do" value={data.reason || "-"} className="lg:col-span-2" />

@@ -1,4 +1,7 @@
+import { useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { getCustomer, listCustomers } from "@/api/customer"
+import { getEmployee, listEmployees } from "@/api/employee"
 import { getExport, listExports } from "@/api/sale/export"
 import { DatePicker } from "@/components/date-picker"
 import { AsyncSelect } from "@/components/rjsf/async-select"
@@ -40,6 +43,18 @@ export function ReturnHeaderFields({
     const update = (patch: any) => onChange({ ...value, ...patch })
     const returnType = value.return_type || "FROM_EXPORT"
     const isManualReturn = returnType === "MANUAL"
+    const customerId = Number(value.customer_id || 0)
+    const { data: selectedCustomer } = useQuery({
+        queryKey: ["return-customer", customerId],
+        queryFn: () => getCustomer(customerId),
+        enabled: isManualReturn && customerId > 0 && !value.sales_employee_id,
+    })
+
+    useEffect(() => {
+        if (isManualReturn && !value.sales_employee_id && selectedCustomer?.employee_id) {
+            update({ sales_employee_id: selectedCustomer.employee_id })
+        }
+    }, [isManualReturn, selectedCustomer?.employee_id, value.sales_employee_id, value.customer_id])
 
     return (
         <div className="grid gap-x-5 gap-y-4 md:grid-cols-2">
@@ -53,6 +68,7 @@ export function ReturnHeaderFields({
                             export_id: nextType === "MANUAL" ? undefined : value.export_id,
                             order_id: nextType === "MANUAL" ? undefined : value.order_id,
                             export_date: nextType === "MANUAL" ? undefined : value.export_date,
+                            sales_employee_id: nextType === "MANUAL" ? value.sales_employee_id : undefined,
                         })
                     }
                 >
@@ -71,9 +87,12 @@ export function ReturnHeaderFields({
                     placeholder="Chọn khách hàng"
                     searchPlaceholder="Tìm khách hàng..."
                     value={value.customer_id}
-                    onChange={(customerId: any) =>
+                    onChange={(customerId: any, customerOption: any) =>
                         update({
                             customer_id: customerId,
+                            sales_employee_id: isManualReturn
+                                ? customerOption?.raw?.employee_id ?? customerOption?.raw?.employee?.id ?? undefined
+                                : undefined,
                             export_id:
                                 customerId === value.customer_id
                                     ? value.export_id
@@ -92,6 +111,23 @@ export function ReturnHeaderFields({
                     optionWrapLabel
                 />
             </Field>
+
+            {isManualReturn && (
+                <Field label="Nhân viên bán hàng" required>
+                    <AsyncSelect
+                        placeholder="Chọn nhân viên bán hàng"
+                        value={value.sales_employee_id}
+                        onChange={(employeeId: any) => update({ sales_employee_id: employeeId })}
+                        required
+                        dataSource={{ getList: listEmployees, getById: getEmployee }}
+                        mapOption={(employee: any) => ({
+                            value: employee.id,
+                            label: employee.code ? `${employee.code} - ${employee.name}` : employee.name || `#${employee.id}`,
+                            raw: employee,
+                        })}
+                    />
+                </Field>
+            )}
 
             <Field label="Phiếu xuất" required={!isManualReturn}>
                 <AsyncSelect
