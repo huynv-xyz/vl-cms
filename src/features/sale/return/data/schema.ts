@@ -1,5 +1,6 @@
 import { Product } from "@/features/product/data/schema"
 import { Customer } from "@/features/customer/data/schema"
+import { Employee } from "@/features/employee/data/schema"
 import { Warehouse } from "@/features/warehouse/data/schema"
 import { Export } from "../../export/data/schema"
 import { Order } from "../../order/data/schema"
@@ -25,6 +26,8 @@ export type Return = {
     order?: Order
     customer?: Customer
     customer_id?: number
+    sales_employee_id?: number
+    sales_employee?: Employee | null
     return_type?: "FROM_EXPORT" | "MANUAL"
 
     export_id: number

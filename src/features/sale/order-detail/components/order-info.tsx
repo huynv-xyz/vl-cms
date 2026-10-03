@@ -10,6 +10,7 @@ import { OrderDocumentDialog } from "../../order/components/order-document-dialo
 import { CreateOrderDialog } from "../../order/components/create-order-dialog"
 import { UpdateOrderDialog } from "../../order/components/update-order-dialog"
 import { OrderPriceAdjustmentDialog } from "../../order/components/order-price-adjustment-dialog"
+import { OrderSplitAction } from "../../order/components/order-split-dialog"
 import { OrderPpStatusAdjustmentDialog } from "../../order/components/order-pp-status-adjustment-dialog"
 import { OrderQuantityAdjustmentDialog } from "../../order/components/order-quantity-adjustment-dialog"
 import { OrderSalespersonAdjustmentDialog } from "../../order/components/order-salesperson-adjustment-dialog"
@@ -151,6 +152,7 @@ export function OrderInfo({ order, metrics }: Props) {
                         <Pencil className="h-3.5 w-3.5" />
                         Sửa đơn
                     </Button>
+                    <OrderSplitAction order={order} />
                     {canAdjustPrice && hasDoneExport && (
                         <Button
                             type="button"

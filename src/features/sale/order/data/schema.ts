@@ -5,7 +5,6 @@ import { Delivery } from "../../delivery/data/schema"
 import { Export } from "../../export/data/schema"
 import { Receipt } from "../../receipt/data/schema"
 import { Return } from "../../return/data/schema"
-
 // ========================
 // ITEM
 // ========================
@@ -20,7 +19,13 @@ export type OrderItem = {
 
     quantity: number
     unit_price?: number
+    price_basis?: "LEGACY" | "VAT_INCLUSIVE" | "VAT_EXCLUSIVE"
+    unit_price_including_vat?: number | null
     discount?: number
+    vat_code?: "KCT" | "VAT5" | "VAT8" | "VAT10" | null
+    vat_rate?: number | null
+    vat_amount?: number | null
+    line_total_with_vat?: number
     line_type?: string
     hdn_status?: string
     pp_status?: string
@@ -53,6 +58,7 @@ export type Order = {
 
     order_date: string
     expected_delivery_date?: string
+    vat_version?: number | null
     status: string
 
     note?: string

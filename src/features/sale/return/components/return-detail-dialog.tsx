@@ -68,6 +68,9 @@ export function ReturnDetailDialog({
                             <DetailInfoGrid>
                                 <DetailInfoItem label="Ngày trả" value={formatReturnDate(data.return_date || data.created_at)} />
                                 <DetailInfoItem label="Khách hàng" value={formatCustomer(data)} />
+                                {data.return_type === "MANUAL" && (
+                                    <DetailInfoItem label="Nhân viên bán hàng" value={data.sales_employee?.name || "-"} />
+                                )}
                                 <DetailInfoItem label="Đơn hàng" value={data.order?.order_no || data.order_id || "-"} />
                                 <DetailInfoItem label="Phiếu xuất" value={data.export?.export_no || data.export_id || "-"} />
                                 <DetailInfoItem label="Lý do" value={data.reason || "-"} className="lg:col-span-2" />
@@ -105,7 +108,10 @@ function ReturnItemsTable({ items }: { items?: any[] }) {
                         <th className="px-3 py-2 text-left font-medium">ĐVT</th>
                         <th className="px-3 py-2 text-right font-medium">SL</th>
                         <th className="px-3 py-2 text-right font-medium">Đơn giá</th>
-                        <th className="px-3 py-2 text-right font-medium">Thành tiền</th>
+                        <th className="px-3 py-2 text-right font-medium">Sau CK</th>
+                        <th className="px-3 py-2 text-center font-medium">VAT</th>
+                        <th className="px-3 py-2 text-right font-medium">Tiền VAT</th>
+                        <th className="px-3 py-2 text-right font-medium">Tổng cộng</th>
                         <th className="px-3 py-2 text-left font-medium">Kho nhập</th>
                         <th className="px-3 py-2 text-left font-medium">Ghi chú</th>
                     </tr>
@@ -130,9 +136,20 @@ function ReturnItemsTable({ items }: { items?: any[] }) {
                                     {item.unit_price == null ? "-" : formatNumber(Number(item.unit_price))}
                                 </td>
                                 <td className="px-3 py-2 text-right align-top font-medium">
-                                    {item.unit_price == null
+                                    {item.amount_before_vat == null
                                         ? "-"
-                                        : formatNumber(Number(item.quantity || 0) * Number(item.unit_price || 0))}
+                                        : formatNumber(Number(item.amount_before_vat))}
+                                </td>
+                                <td className="px-3 py-2 text-center align-top">
+                                    {item.vat_code ?? "-"}
+                                </td>
+                                <td className="px-3 py-2 text-right align-top font-medium">
+                                    {item.vat_amount == null ? "-" : formatNumber(Number(item.vat_amount))}
+                                </td>
+                                <td className="px-3 py-2 text-right align-top font-semibold">
+                                    {item.amount_before_vat == null
+                                        ? "-"
+                                        : formatNumber(Number(item.amount_before_vat) + Number(item.vat_amount || 0))}
                                 </td>
                                 <td className="px-3 py-2 align-top">
                                     {item.warehouse?.name || item.warehouse?.code || item.warehouse_id || "-"}
@@ -144,7 +161,7 @@ function ReturnItemsTable({ items }: { items?: any[] }) {
                         ))
                     ) : (
                         <tr>
-                            <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+                            <td colSpan={11} className="px-3 py-8 text-center text-muted-foreground">
                                 Chưa có sản phẩm
                             </td>
                         </tr>

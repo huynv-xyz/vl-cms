@@ -1,3 +1,5 @@
+import { calculateOrderAmounts, getInclusiveUnitPrice, getPriceBasis, toPreVatInputPrice, type PriceBasis } from "../data/order-money"
+import { PriceBasisSelect } from "./price-basis-select"
 import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -13,6 +15,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
     Table,
     TableBody,
@@ -32,7 +35,10 @@ type Props = {
 type RowState = {
     order_item_id: number
     unit_price: number
+    price_basis: PriceBasis
+    unit_price_including_vat?: number
     discount: number
+    vat_code?: string
 }
 
 export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props) {
@@ -49,7 +55,10 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
                 .map((item: any) => ({
                     order_item_id: Number(item.id),
                     unit_price: Number(item.unit_price || 0),
+                    price_basis: getPriceBasis(item),
+                    unit_price_including_vat: item.unit_price_including_vat ?? undefined,
                     discount: Number(item.discount || 0),
+                    vat_code: item.vat_code ?? undefined,
                 }))
         )
     }, [open, items])
@@ -64,10 +73,12 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
         onSuccess: async (res: any) => {
             await Promise.all([
                 queryClient.invalidateQueries({ queryKey: ["orders"] }),
-                queryClient.invalidateQueries({ queryKey: ["order-detail", order.id] }),
+                queryClient.invalidateQueries({ queryKey: ["order-detail"] }),
                 queryClient.invalidateQueries({ queryKey: ["ar-summary"] }),
                 queryClient.invalidateQueries({ queryKey: ["ar-ledgers"] }),
-                queryClient.invalidateQueries({ queryKey: ["sales-transactions"] }),
+                queryClient.invalidateQueries({ queryKey: ["ar-ledgers-totals"] }),
+                queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+                queryClient.invalidateQueries({ queryKey: ["transactions-summary"] }),
             ])
             const data = res ?? {}
             toast.success(
@@ -80,26 +91,22 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
         },
     })
 
-    const totalOld = items.reduce((sum: number, item: any) => {
-        const quantity = Number(item.quantity || 0)
-        const price = Number(item.unit_price || 0)
-        const discount = Number(item.discount || 0)
-        return sum + Math.max(quantity * price - discount, 0)
-    }, 0)
-
-    const totalNew = items.reduce((sum: number, item: any) => {
-        const row = rowMap.get(Number(item.id))
-        const quantity = Number(item.quantity || 0)
-        const price = Number(row?.unit_price ?? item.unit_price ?? 0)
-        const discount = Number(row?.discount ?? item.discount ?? 0)
-        return sum + Math.max(quantity * price - discount, 0)
-    }, 0)
+    const totalOld = items.reduce((sum: number, item: any) => sum + calculateOrderAmounts(item).total, 0)
+    const totalNew = items.reduce((sum: number, item: any) =>
+        sum + calculateOrderAmounts({ ...item, ...rowMap.get(Number(item.id)) }).total, 0)
 
     const updateRow = (orderItemId: number, patch: Partial<RowState>) => {
         setRows((prev) =>
             prev.map((row) =>
                 row.order_item_id === orderItemId
-                    ? { ...row, ...patch }
+                    ? (() => {
+                        const next = { ...row, ...patch }
+                        if (next.price_basis === "VAT_INCLUSIVE") {
+                            next.unit_price = toPreVatInputPrice(next.unit_price_including_vat ?? 0, next.vat_code,
+                                Number(items.find((item: any) => Number(item.id) === orderItemId)?.quantity || 0))
+                        }
+                        return next
+                    })()
                     : row
             )
         )
@@ -123,7 +130,7 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
                     </div>
 
                     <div className="overflow-x-auto rounded-lg border">
-                        <Table className="min-w-[1320px]">
+                        <Table className="min-w-[1480px]">
                             <TableHeader>
                                 <TableRow className="bg-muted/70">
                                     <TableHead className="w-[56px] text-center">#</TableHead>
@@ -133,9 +140,12 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
                                     <TableHead className="w-[130px] text-right">SL đã xuất</TableHead>
                                     <TableHead className="w-[130px] text-right">SL đã trả</TableHead>
                                     <TableHead className="w-[150px] text-right">Đơn giá cũ</TableHead>
-                                    <TableHead className="w-[160px] text-right">Đơn giá mới</TableHead>
+                                    <TableHead className="min-w-[180px]">Nguồn giá</TableHead>
+                                    <TableHead className="min-w-[160px] text-right">Đơn giá chưa VAT</TableHead>
+                                    <TableHead className="min-w-[160px] text-right">Đơn giá gồm VAT</TableHead>
                                     <TableHead className="w-[150px] text-right">CK cũ</TableHead>
                                     <TableHead className="w-[160px] text-right">CK mới</TableHead>
+                                    <TableHead className="w-[130px] text-center">VAT</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -151,10 +161,24 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
                                             <TableCell className="text-right tabular-nums">{formatNumber(item.returned_quantity || 0)}</TableCell>
                                             <TableCell className="text-right tabular-nums">{formatCurrency(item.unit_price || 0)}</TableCell>
                                             <TableCell>
+                                                <PriceBasisSelect value={row?.price_basis ?? getPriceBasis(item)} disabled={mutation.isPending}
+                                                    onChange={(price_basis) => {
+                                                        const inclusive = getInclusiveUnitPrice({ ...item, ...row })
+                                                        updateRow(Number(item.id), {
+                                                            price_basis,
+                                                            unit_price_including_vat: price_basis === "VAT_INCLUSIVE" ? inclusive : undefined,
+                                                            unit_price: price_basis === "VAT_INCLUSIVE" ? toPreVatInputPrice(inclusive, row?.vat_code) : row?.unit_price ?? 0,
+                                                        })
+                                                    }} />
+                                            </TableCell>
+                                            <TableCell>
                                                 <Input
                                                     type="number"
                                                     min={0}
+                                                    step="0.001"
                                                     className="text-right"
+                                                    readOnly={row?.price_basis === "VAT_INCLUSIVE"}
+                                                    disabled={item.line_type === "PROMOTION" || mutation.isPending}
                                                     value={row?.unit_price ?? 0}
                                                     onChange={(event) =>
                                                         updateRow(Number(item.id), {
@@ -163,6 +187,16 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
                                                     }
                                                 />
                                             </TableCell>
+                                            <TableCell>
+                                                <Input type="number" min={0} step="0.001" className="text-right"
+                                                    value={getInclusiveUnitPrice({ ...item, ...row })}
+                                                    readOnly={row?.price_basis !== "VAT_INCLUSIVE"}
+                                                    disabled={item.line_type === "PROMOTION" || mutation.isPending}
+                                                    onChange={(event) => {
+                                                        const inclusive = Number(event.target.value || 0)
+                                                        updateRow(Number(item.id), { unit_price_including_vat: inclusive, unit_price: toPreVatInputPrice(inclusive, row?.vat_code) })
+                                                    }} />
+                                            </TableCell>
                                             <TableCell className="text-right tabular-nums">{formatCurrency(item.discount || 0)}</TableCell>
                                             <TableCell>
                                                 <Input
@@ -170,12 +204,31 @@ export function OrderPriceAdjustmentDialog({ open, order, onOpenChange }: Props)
                                                     min={0}
                                                     className="text-right"
                                                     value={row?.discount ?? 0}
-                                                    onChange={(event) =>
-                                                        updateRow(Number(item.id), {
-                                                            discount: Number(event.target.value || 0),
-                                                        })
-                                                    }
+                                                    disabled
                                                 />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Select
+                                                    value={row?.vat_code || "NONE"}
+                                                    disabled={row?.price_basis === "LEGACY" || mutation.isPending}
+                                                    onValueChange={(value) => {
+                                                        const vat_code = value === "NONE" ? undefined : value
+                                                        updateRow(Number(item.id), {
+                                                            vat_code,
+                                                            unit_price: row?.price_basis === "VAT_INCLUSIVE"
+                                                                ? toPreVatInputPrice(row.unit_price_including_vat ?? 0, vat_code) : row?.unit_price ?? 0,
+                                                        })
+                                                    }}
+                                                >
+                                                    <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="NONE">-</SelectItem>
+                                                        <SelectItem value="KCT">KCT</SelectItem>
+                                                        <SelectItem value="VAT5">5%</SelectItem>
+                                                        <SelectItem value="VAT8">8%</SelectItem>
+                                                        <SelectItem value="VAT10">10%</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                             </TableCell>
                                         </TableRow>
                                     )

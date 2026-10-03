@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { MapPin } from "lucide-react"
 import { toast } from "sonner"
 
 import { getEmployee, listEmployees } from "@/api/employee"
@@ -31,7 +32,9 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { CustomerFormValues } from "./types"
+import type { Customer } from "../data/schema"
+import { CustomerLocationsDialog, DraftCustomerLocationsDialog } from "./customer-locations-dialog"
+import type { CustomerFormValues, LocationFormState } from "./types"
 
 type Props<TRequest, TResponse> = {
     title: string
@@ -41,9 +44,10 @@ type Props<TRequest, TResponse> = {
     submitText: string
     loadingText: string
     mutationFn: (body: TRequest) => Promise<TResponse>
-    mapFormToRequest: (values: CustomerFormValues, syncHistoricalData?: boolean) => TRequest
+    mapFormToRequest: (values: CustomerFormValues, syncHistoricalData?: boolean, primaryLocation?: LocationFormState | null) => TRequest
     confirmHistoricalSync?: boolean
     invoiceSectionOverride?: React.ReactNode
+    customer?: Customer
 }
 
 const employeeDataSource = {
@@ -62,22 +66,28 @@ export function CustomerEditorDialog<TRequest, TResponse>({
     mapFormToRequest,
     confirmHistoricalSync,
     invoiceSectionOverride,
+    customer,
 }: Props<TRequest, TResponse>) {
     const queryClient = useQueryClient()
-    const initialData = useMemo(() => defaultValues, [defaultValues])
-    const [form, setForm] = useState<CustomerFormValues>(initialData)
+    const initialData = useRef(defaultValues)
+    useEffect(() => { initialData.current = defaultValues }, [defaultValues])
+    const [form, setForm] = useState<CustomerFormValues>(defaultValues)
     const [syncChoiceOpen, setSyncChoiceOpen] = useState(false)
+    const [locationsOpen, setLocationsOpen] = useState(false)
+    const [primaryLocation, setPrimaryLocation] = useState<LocationFormState | null>(null)
 
     useEffect(() => {
         if (open) {
-            setForm(initialData)
+            setForm(initialData.current)
             setSyncChoiceOpen(false)
+            setLocationsOpen(false)
+            setPrimaryLocation(null)
         }
-    }, [open, initialData])
+    }, [open, customer?.id])
 
     const mutation = useMutation({
         mutationFn: (syncHistoricalData?: boolean) =>
-            mutationFn(mapFormToRequest(form, syncHistoricalData)),
+            mutationFn(mapFormToRequest(form, syncHistoricalData, primaryLocation)),
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ["customer"] })
             toast.success("Đã lưu khách hàng")
@@ -139,7 +149,7 @@ export function CustomerEditorDialog<TRequest, TResponse>({
                                         value={form.employee_id}
                                         onChange={(value: number | undefined) => update({ employee_id: value })}
                                         dataSource={employeeDataSource}
-                                        mapOption={(x: any) => ({
+                                        mapOption={(x: { id: number; code?: string; name: string }) => ({
                                             value: x.id,
                                             label: x.code ? `${x.code} - ${x.name}` : x.name,
                                             raw: x,
@@ -187,11 +197,12 @@ export function CustomerEditorDialog<TRequest, TResponse>({
                                     </Select>
                                 </Field>
                                 <Field label="Địa chỉ giao dịch" className="md:col-span-2">
-                                    <Textarea
-                                        rows={2}
-                                        value={form.address ?? ""}
-                                        onChange={(event) => update({ address: event.target.value })}
-                                    />
+                                    <div className="flex items-start gap-3">
+                                        <div className="min-h-16 min-w-0 flex-1 whitespace-pre-wrap rounded-md border px-3 py-2 text-sm">
+                                            {form.address || <span className="text-muted-foreground">Chưa có địa chỉ giao dịch</span>}
+                                        </div>
+                                        <Button type="button" variant="outline" onClick={() => setLocationsOpen(true)}><MapPin className="mr-2 h-4 w-4" />Địa điểm</Button>
+                                    </div>
                                 </Field>
                                 <Field label="Ghi chú">
                                     <Textarea
@@ -285,6 +296,16 @@ export function CustomerEditorDialog<TRequest, TResponse>({
                     </form>
                 </DialogContent>
             </Dialog>
+
+            {customer && <CustomerLocationsDialog customer={customer} open={locationsOpen}
+                onOpenChange={setLocationsOpen}
+                onAddressChange={(address) => update({ address })} />}
+            {!customer && <DraftCustomerLocationsDialog name={form.name} open={locationsOpen}
+                onOpenChange={setLocationsOpen} value={primaryLocation} address={form.address ?? ""}
+                onChange={(location, address) => {
+                    setPrimaryLocation(location)
+                    update({ address })
+                }} />}
 
             <AlertDialog open={syncChoiceOpen} onOpenChange={setSyncChoiceOpen}>
                 <AlertDialogContent>

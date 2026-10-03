@@ -4,7 +4,7 @@ import { ClipboardList, Layers, Loader2, MapPin, Users, X } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { listProductGroupPpStatusLookups } from "@/api/app-lookup"
 import { getMyPermissions } from "@/api/auth/permission"
-import { listTransactionOptions, updateTransactionUnitPrice } from "@/api/transactions"
+import { listTransactionOptions, updateTransactionHdnStatus, updateTransactionUnitPrice } from "@/api/transactions"
 import { CrudTable } from "@/components/crud/crud-table"
 import { DateFilterInput } from "@/components/date-filter-input"
 import { SearchOnBlurInput } from "@/components/search-on-blur-input"
@@ -27,6 +27,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import type { Transaction } from "../data/schema"
 import { buildTransactionColumns, numberFilterDescription } from "./transaction-columns"
@@ -68,6 +69,10 @@ type TransactionTableProps = {
     totalRevenue: number
     totalReturnRevenue: number
     totalActualRevenue: number
+    totalGrossRevenue: number
+    totalSaleDiscount: number
+    totalSaleVat: number
+    totalReturnVat: number
     totalSaleQty: number
     totalReturnQty: number
     totalActualQty: number
@@ -89,9 +94,9 @@ const CUSTOMER_TYPE_OPTIONS = [
 const NO_NPP_VALUE = "__NO_NPP__"
 
 const HDN_STATUS_OPTIONS = [
-    { value: "VALID", label: "Hop le" },
-    { value: "INVALID", label: "Khong hop le" },
-    { value: "PENDING", label: "Cho xu ly" },
+    { value: "KO", label: "KO" },
+    { value: "__EMPTY__", label: "-" },
+    { value: "__OTHER__", label: "Khác" },
 ]
 
 const IS_GIFT_OPTIONS = [
@@ -104,6 +109,10 @@ export function TransactionTable({
     totalRevenue,
     totalReturnRevenue,
     totalActualRevenue,
+    totalGrossRevenue,
+    totalSaleDiscount,
+    totalSaleVat,
+    totalReturnVat,
     totalSaleQty,
     totalReturnQty,
     totalActualQty,
@@ -117,6 +126,7 @@ export function TransactionTable({
 }: TransactionTableProps) {
     const queryClient = useQueryClient()
     const [unitPriceRow, setUnitPriceRow] = useState<Transaction | null>(null)
+    const [hdnStatusRow, setHdnStatusRow] = useState<Transaction | null>(null)
     const { data: permissions = [] } = useQuery({
         queryKey: ["my-permissions"],
         queryFn: getMyPermissions,
@@ -157,12 +167,17 @@ export function TransactionTable({
         revenue: totalRevenue,
         returnRevenue: totalReturnRevenue,
         actualRevenue: totalActualRevenue,
+        grossRevenue: totalGrossRevenue,
+        saleDiscount: totalSaleDiscount,
+        saleVat: totalSaleVat,
+        returnVat: totalReturnVat,
         saleQty: totalSaleQty,
         returnQty: totalReturnQty,
         actualQty: totalActualQty,
     }, {
         canUseCorrections,
         onEditUnitPrice: setUnitPriceRow,
+        onEditHdnStatus: setHdnStatusRow,
         nppFilterOptions: nppOptions,
     })
     const activeFilterChips = [
@@ -414,7 +429,7 @@ export function TransactionTable({
                 enableColumnPinning
                 defaultPinnedColumnId="customer_name"
                 headerVariant="report"
-                className="[&_td]:border-r [&_td]:border-slate-200 [&_td:last-child]:border-r-0 [&_tbody_tr]:border-b [&_th]:border-r [&_th]:border-slate-200 [&_th:last-child]:border-r-0"
+                className="[&_td]:border-r [&_td]:border-slate-200 [&_td:last-child]:border-r-0 [&_tbody_tr]:border-b [&_th]:border-r [&_th]:border-slate-200 [&_th:last-child]:border-r-0 [&_th]:whitespace-normal [&_th]:break-words [&_th]:py-3 [&_th]:leading-5 [&_th]:tracking-normal"
             />
             <UnitPriceCorrectionDialog
                 row={unitPriceRow}
@@ -428,12 +443,99 @@ export function TransactionTable({
                     setUnitPriceRow(null)
                 }}
             />
+            <HdnStatusCorrectionDialog
+                row={hdnStatusRow}
+                open={!!hdnStatusRow}
+                onOpenChange={(open) => {
+                    if (!open) setHdnStatusRow(null)
+                }}
+                onChanged={() => {
+                    queryClient.invalidateQueries({ queryKey: ["transactions"] })
+                    queryClient.invalidateQueries({ queryKey: ["transactions-summary"] })
+                    queryClient.invalidateQueries({ queryKey: ["order-detail"] })
+                    setHdnStatusRow(null)
+                }}
+            />
         </div>
     )
 }
 
 type IconComponent = React.ComponentType<{ className?: string }>
 type Option = { value: string; label: string }
+
+function HdnStatusCorrectionDialog({ row, open, onOpenChange, onChanged }: {
+    row: Transaction | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    onChanged: () => void
+}) {
+    const [mode, setMode] = useState("__EMPTY__")
+    const [otherValue, setOtherValue] = useState("")
+
+    useEffect(() => {
+        if (!open || !row) return
+        const current = row.hdn_status?.trim() || ""
+        setMode(!current || current === "-" ? "__EMPTY__" : current.toUpperCase() === "KO" ? "KO" : "__OTHER__")
+        setOtherValue(current && current !== "-" && current.toUpperCase() !== "KO" ? current : "")
+    }, [open, row])
+
+    const value = mode === "KO" ? "KO" : mode === "__OTHER__" ? otherValue.trim() : null
+    const currentValue = row?.hdn_status?.trim() || null
+    const current = !currentValue || currentValue === "-" ? null : currentValue.toUpperCase() === "KO" ? "KO" : currentValue
+    const invalidOther = mode === "__OTHER__" && (!value || value === "-" || value.toUpperCase() === "KO" || value.length > 100)
+    const mutation = useMutation({
+        mutationFn: () => updateTransactionHdnStatus(Number(row?.id), value),
+        onSuccess: () => {
+            toast.success("Đã cập nhật tình trạng HĐN")
+            onChanged()
+        },
+        onError: (error: any) => toast.error(error?.message || "Không cập nhật được tình trạng HĐN"),
+    })
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-[480px]">
+                <DialogHeader>
+                    <DialogTitle>Sửa tình trạng HĐN</DialogTitle>
+                    <DialogDescription>
+                        Dòng đơn hàng liên kết sẽ được cập nhật cùng giao dịch, nếu xác định được duy nhất.
+                    </DialogDescription>
+                </DialogHeader>
+                {row && <div className="space-y-4">
+                    <div className="grid gap-2 text-sm">
+                        <InfoLine label="Chứng từ" value={row.document_no || `#${row.id}`} />
+                        <InfoLine label="Hàng hóa" value={row.product_code || "-"} />
+                        <InfoLine label="Hiện tại" value={row.hdn_status || "-"} />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Tình trạng HĐN mới</label>
+                        <Select value={mode} onValueChange={setMode}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="KO">KO</SelectItem>
+                                <SelectItem value="__EMPTY__">-</SelectItem>
+                                <SelectItem value="__OTHER__">Khác</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {mode === "__OTHER__" && <Input
+                            value={otherValue}
+                            onChange={(event) => setOtherValue(event.target.value)}
+                            maxLength={100}
+                            placeholder="Nhập tình trạng HĐN"
+                        />}
+                    </div>
+                </div>}
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
+                    <Button disabled={!row || invalidOther || value === current || mutation.isPending} onClick={() => mutation.mutate()}>
+                        {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Cập nhật
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 function UnitPriceCorrectionDialog({
     row,

@@ -36,6 +36,7 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
             expected_delivery_date: normalizeDate(detail.expected_delivery_date),
             status: detail.status ?? "NEW",
             note: detail.note ?? "",
+            vat_version: detail.vat_version ?? null,
         })
 
         setItems(
@@ -45,7 +46,10 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
                 product: item.product,
                 quantity: item.quantity ?? 0,
                 unit_price: item.unit_price ?? 0,
+                price_basis: item.price_basis ?? (item.vat_code ? "VAT_EXCLUSIVE" : "LEGACY"),
+                unit_price_including_vat: item.unit_price_including_vat ?? undefined,
                 discount: item.discount ?? 0,
+                vat_code: item.vat_code ?? undefined,
                 line_type: item.line_type ?? "NORMAL",
                 hdn_status: item.hdn_status ?? undefined,
                 pp_status: item.pp_status ?? undefined,
@@ -69,7 +73,10 @@ export function UpdateOrderDialog({ order, open, onOpenChange }: Props) {
                 product_id: item.product_id,
                 quantity: item.quantity,
                 unit_price: item.unit_price,
+                price_basis: item.price_basis,
+                unit_price_including_vat: item.unit_price_including_vat,
                 discount: item.discount ?? 0,
+                vat_code: item.vat_code,
                 line_type: item.line_type ?? "NORMAL",
                 hdn_status: item.hdn_status === "KO" ? "KO" : undefined,
                 pp_status: item.pp_status ?? undefined,

@@ -22,6 +22,9 @@ export type CreateOrderItemRequest = {
     product_id: number
     quantity: number
     unit_price: number
+    price_basis?: "LEGACY" | "VAT_INCLUSIVE" | "VAT_EXCLUSIVE"
+    unit_price_including_vat?: number | null
+    vat_code?: string | null
     discount?: number
     line_type?: string
     hdn_status?: string
@@ -56,6 +59,9 @@ export const updateOrderItem = (
     data: {
         quantity: number
         unit_price: number
+        price_basis?: "LEGACY" | "VAT_INCLUSIVE" | "VAT_EXCLUSIVE"
+        unit_price_including_vat?: number | null
+        vat_code?: string | null
         discount?: number
         line_type?: string
         hdn_status?: string
@@ -75,6 +81,9 @@ export const updateOrderStatus = (id: number, status: string) =>
 export type AdjustOrderPriceItem = {
     order_item_id: number
     unit_price: number
+    price_basis?: "LEGACY" | "VAT_INCLUSIVE" | "VAT_EXCLUSIVE"
+    unit_price_including_vat?: number | null
+    vat_code?: string | null
     discount?: number
 }
 

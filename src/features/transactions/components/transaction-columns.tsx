@@ -272,6 +272,49 @@ function returnRevenue(row: Transaction) {
     return Number(row.return_qty || 0) > 0 ? Number(row.revenue || 0) : 0
 }
 
+function grossSaleRevenue(row: Transaction) {
+    return Number(row.sale_qty || 0) > 0
+        ? Number(row.revenue || 0) + Number(row.discount || 0)
+        : 0
+}
+
+function transactionDiscount(row: Transaction) {
+    return Number(row.discount || 0)
+}
+
+function vatAmountColumn(totalSaleVat = 0, totalReturnVat = 0): ColumnDef<Transaction> {
+    return {
+        id: "vat_amount",
+        accessorFn: (row) => row.vat_amount,
+        enableSorting: false,
+        minSize: 130,
+        size: 150,
+        header: ({ column }) => (
+            <div className="text-right">
+                <DataTableColumnHeader column={column} title="Tiền VAT" />
+            </div>
+        ),
+        cell: ({ row }) => {
+            const amount = row.original.vat_amount
+            return (
+                <span className="block text-right tabular-nums whitespace-nowrap">
+                    {amount == null ? "-" : formatCurrency(Number(amount))}
+                </span>
+            )
+        },
+        meta: {
+            thClassName: "w-[150px] whitespace-nowrap text-right",
+            tdClassName: "w-[150px] whitespace-nowrap",
+            footer: () => (
+                <div className="space-y-0.5 text-right text-xs tabular-nums whitespace-nowrap">
+                    <div>Bán: {formatCurrency(totalSaleVat)}</div>
+                    <div>Trả: {formatCurrency(totalReturnVat)}</div>
+                </div>
+            ),
+        },
+    }
+}
+
 function computedMoneyColumn({
     id,
     title,
@@ -461,10 +504,14 @@ function DateSortHeader({
 export function buildTransactionColumns(
     filters: TransactionColumnFilters,
     onFiltersChange: (filters: TransactionColumnFilters) => void,
-    totals: { revenue: number; returnRevenue: number; actualRevenue: number; saleQty: number; returnQty: number; actualQty: number } = {
+    totals: { revenue: number; returnRevenue: number; actualRevenue: number; grossRevenue: number; saleDiscount: number; saleVat: number; returnVat: number; saleQty: number; returnQty: number; actualQty: number } = {
         revenue: 0,
         returnRevenue: 0,
         actualRevenue: 0,
+        grossRevenue: 0,
+        saleDiscount: 0,
+        saleVat: 0,
+        returnVat: 0,
         saleQty: 0,
         returnQty: 0,
         actualQty: 0,
@@ -472,6 +519,7 @@ export function buildTransactionColumns(
     options: {
         canUseCorrections?: boolean
         onEditUnitPrice?: (row: Transaction) => void
+        onEditHdnStatus?: (row: Transaction) => void
         nppFilterOptions?: Option[]
     } = {},
 ): ColumnDef<Transaction>[] {
@@ -527,6 +575,7 @@ export function buildTransactionColumns(
                     row={row.original}
                     canUseCorrections={Boolean(options.canUseCorrections)}
                     onEditUnitPrice={options.onEditUnitPrice}
+                    onEditHdnStatus={options.onEditHdnStatus}
                 />
             ),
             meta: {
@@ -591,9 +640,23 @@ export function buildTransactionColumns(
         ),
         moneyColumn("unit_price", "Đơn giá theo ĐVC", 150, undefined, 110, "unit_price", filters, setNumberFilter, clearNumberFilter),
         computedMoneyColumn({
+            id: "gross_sale_revenue",
+            title: "Doanh thu trước chiết khấu",
+            width: 210,
+            value: grossSaleRevenue,
+            footer: <span className="block text-right tabular-nums whitespace-nowrap">{formatCurrency(totals.grossRevenue)}</span>,
+        }),
+        computedMoneyColumn({
+            id: "discount",
+            title: "Chiết khấu",
+            width: 150,
+            value: transactionDiscount,
+            footer: <span className="block text-right tabular-nums whitespace-nowrap">{formatCurrency(totals.saleDiscount)}</span>,
+        }),
+        computedMoneyColumn({
             id: "sale_revenue",
-            title: "Doanh thu",
-            width: 170,
+            title: "Doanh thu sau chiết khấu (chưa VAT)",
+            width: 190,
             value: saleRevenue,
             filterField: "sale_revenue",
             filters,
@@ -605,10 +668,12 @@ export function buildTransactionColumns(
                 </span>
             ),
         }),
+        textColumn("vat_code", "VAT", 100),
+        vatAmountColumn(totals.saleVat, totals.returnVat),
         computedMoneyColumn({
             id: "return_revenue",
-            title: "Giá trị trả lại",
-            width: 180,
+            title: "Giá trị trả lại sau chiết khấu (chưa VAT)",
+            width: 190,
             value: returnRevenue,
             filterField: "return_revenue",
             filters,
@@ -622,8 +687,8 @@ export function buildTransactionColumns(
         }),
         computedMoneyColumn({
             id: "actual_revenue",
-            title: "Doanh thu thuần",
-            width: 190,
+            title: "Doanh thu thuần sau chiết khấu (chưa VAT)",
+            width: 200,
             value: (row) => saleRevenue(row) - returnRevenue(row),
             filterField: "actual_revenue",
             filters,
@@ -632,6 +697,19 @@ export function buildTransactionColumns(
             footer: (
                 <span className="block text-right tabular-nums whitespace-nowrap">
                     {formatCurrency(totals.actualRevenue)}
+                </span>
+            ),
+        }),
+        computedMoneyColumn({
+            id: "actual_revenue_including_vat",
+            title: "Doanh thu thuần sau chiết khấu (có VAT)",
+            width: 200,
+            value: (row) => saleRevenue(row) - returnRevenue(row)
+                + (Number(row.sale_qty || 0) > 0 ? Number(row.vat_amount || 0) : 0)
+                - (Number(row.return_qty || 0) > 0 ? Number(row.vat_amount || 0) : 0),
+            footer: (
+                <span className="block text-right tabular-nums whitespace-nowrap">
+                    {formatCurrency(totals.actualRevenue + totals.saleVat - totals.returnVat)}
                 </span>
             ),
         }),
@@ -696,14 +774,17 @@ function TransactionCorrectionActions({
     row,
     canUseCorrections,
     onEditUnitPrice,
+    onEditHdnStatus,
 }: {
     row: Transaction
     canUseCorrections: boolean
     onEditUnitPrice?: (row: Transaction) => void
+    onEditHdnStatus?: (row: Transaction) => void
 }) {
     const canEditUnitPrice = canUseCorrections && Boolean(row.import_batch_id) && Boolean(onEditUnitPrice)
+    const canEditHdnStatus = canUseCorrections && Boolean(onEditHdnStatus)
 
-    if (!canEditUnitPrice) {
+    if (!canEditUnitPrice && !canEditHdnStatus) {
         return <span className="text-muted-foreground">-</span>
     }
 
@@ -716,7 +797,7 @@ function TransactionCorrectionActions({
             </PopoverTrigger>
             <PopoverContent align="start" className="w-64 p-1">
                 <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Thao tác sửa sai</div>
-                <button
+                {canEditUnitPrice && <button
                     type="button"
                     className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
                     onClick={() => onEditUnitPrice?.(row)}
@@ -726,7 +807,15 @@ function TransactionCorrectionActions({
                         <span className="block font-medium">Sửa đơn giá theo ĐVC</span>
                         <span className="block text-xs text-muted-foreground">Chỉ áp dụng cho dữ liệu được import từ file.</span>
                     </span>
-                </button>
+                </button>}
+                {canEditHdnStatus && <button
+                    type="button"
+                    className="flex w-full items-start gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-muted"
+                    onClick={() => onEditHdnStatus?.(row)}
+                >
+                    <Pencil className="mt-0.5 h-4 w-4 text-primary" />
+                    <span className="block font-medium">Sửa tình trạng HĐN</span>
+                </button>}
             </PopoverContent>
         </Popover>
     )
@@ -763,15 +852,15 @@ function ColumnNumberFilter({
     }
 
     return (
-        <div className="flex items-center justify-center gap-1">
-            <span>{label}</span>
+        <div className="flex min-w-0 items-center justify-center gap-1">
+            <span className="min-w-0 whitespace-normal break-words leading-5">{label}</span>
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className={cn("h-6 w-6", active && "bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800")}
+                        className={cn("h-6 w-6 shrink-0", active && "bg-teal-50 text-teal-700 hover:bg-teal-100 hover:text-teal-800")}
                         onClick={() => {
                             setDraftValue(value || "0")
                             setDraftOp(op || "gt")
@@ -958,7 +1047,7 @@ function ColumnFilterHeader({
 
     return (
         <div className="flex min-w-0 items-center gap-1">
-            <span className="truncate">{title}</span>
+            <span className="min-w-0 whitespace-normal break-words leading-5">{title}</span>
             <Popover
                 open={open}
                 onOpenChange={setOpen}
@@ -1119,7 +1208,7 @@ function UnitColumnFilterHeader({
 
     return (
         <div className="flex min-w-0 items-center justify-center gap-1.5">
-            <span className="truncate">{title}</span>
+            <span className="min-w-0 whitespace-normal break-words leading-5">{title}</span>
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <button

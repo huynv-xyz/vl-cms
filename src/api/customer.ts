@@ -1,6 +1,7 @@
 import { apiPost, apiPostMultipart } from "@/api/client"
 import { createCrudApi } from "@/api/crud"
 import type { Customer } from "@/features/customer/data/schema"
+import type { CustomerLocationRequest } from "@/api/customer-location"
 
 export type CustomerListParams = {
     page: number
@@ -16,6 +17,7 @@ export type CreateCustomerRequest = {
     code: string
     name: string
     address?: string
+    primary_location?: Omit<CustomerLocationRequest, "customer_id" | "id">
     phone?: string
     type: string
     region: string

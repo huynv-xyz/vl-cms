@@ -1,3 +1,4 @@
+import { calculateOrderAmounts } from "../data/order-money"
 import type { Dispatch, SetStateAction } from "react"
 import { useState } from "react"
 import { FileEdit, FilePlus, Loader2, Plus, Save, ShoppingCart, X, type LucideIcon } from "lucide-react"
@@ -25,6 +26,7 @@ export type OrderHeaderForm = {
     expected_delivery_date?: string
     status?: string
     note?: string
+    vat_version?: number | null
 }
 
 type Props = {
@@ -73,6 +75,7 @@ const DIALOG_META: Record<Props["mode"], {
     },
 }
 
+
 export function OrderFormDialog({
     mode,
     open,
@@ -92,11 +95,9 @@ export function OrderFormDialog({
     const meta = DIALOG_META[mode]
     const Icon = meta.icon
     const totalQty = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
-    const totalAmount = items.reduce((sum, item) => {
-        if (item.line_type === "PROMOTION") return sum
-        const lineTotal = Number(item.quantity || 0) * Number(item.unit_price || 0)
-        return sum + Math.max(lineTotal - Number(item.discount || 0), 0)
-    }, 0)
+    const subtotalAmount = items.reduce((sum, item) => sum + calculateOrderAmounts(item).beforeVat, 0)
+    const totalVatAmount = items.reduce((sum, item) => sum + calculateOrderAmounts(item).vat, 0)
+    const totalAmount = subtotalAmount + totalVatAmount
     const formId = mode === "create" ? "order-create-form" : "order-update-form"
     const ready = !isLoading && !!headerData
     const [addItemRequest, setAddItemRequest] = useState(0)
@@ -194,6 +195,8 @@ export function OrderFormDialog({
                                 <OrderSummaryBar
                                     lineCount={items.length}
                                     totalQty={totalQty}
+                                    subtotalAmount={subtotalAmount}
+                                    totalVatAmount={totalVatAmount}
                                     totalAmount={totalAmount}
                                 />
                                 <div className="flex items-center justify-end gap-2">

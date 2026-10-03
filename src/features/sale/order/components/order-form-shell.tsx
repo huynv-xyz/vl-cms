@@ -42,19 +42,25 @@ export function OrderFormCard({
 export function OrderSummaryBar({
     lineCount,
     totalQty,
+    subtotalAmount,
+    totalVatAmount,
     totalAmount,
 }: {
     lineCount: number
     totalQty: number
+    subtotalAmount: number
+    totalVatAmount: number
     totalAmount: number
 }) {
     return (
-        <div className="grid min-w-[520px] max-w-[720px] flex-1 grid-cols-3 gap-0 divide-x overflow-hidden rounded-md border bg-muted/30">
+        <div className="grid min-w-[760px] max-w-[980px] flex-1 grid-cols-5 gap-0 divide-x overflow-hidden rounded-md border bg-muted/30">
             <SummaryStat icon={Hash} label="Số dòng hàng" value={formatNumber(lineCount)} />
             <SummaryStat icon={Boxes} label="Tổng số lượng" value={formatNumber(totalQty)} />
+            <SummaryStat icon={Wallet} label="Cộng tiền hàng" value={formatCurrency(subtotalAmount)} />
+            <SummaryStat icon={Wallet} label="Tổng VAT" value={formatCurrency(totalVatAmount)} />
             <SummaryStat
                 icon={Wallet}
-                label="Tổng tiền"
+                label="Tổng thanh toán"
                 value={formatCurrency(totalAmount)}
                 strong
             />

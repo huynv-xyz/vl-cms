@@ -1,3 +1,13 @@
+import type { CustomerLocationRequest } from "@/api/customer-location"
+
+export type LocationFormState = Omit<CustomerLocationRequest, "customer_id" | "location_verified" | "is_primary"> & { location_verified: boolean; is_primary: boolean }
+
+export const emptyLocationForm: LocationFormState = {
+    name: "", address_detail: "",
+    latitude: undefined, longitude: undefined, location_accuracy_meters: undefined,
+    location_verified: false, is_primary: false, status: 1,
+}
+
 export type CustomerFormValues = {
     code: string
     name: string

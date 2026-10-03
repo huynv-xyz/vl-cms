@@ -112,6 +112,18 @@ export function apiGet<T>(path: string, query?: Record<string, any>) {
     return request<T>(path, { method: "GET" }, query)
 }
 
+export async function apiGetBlob(path: string): Promise<Blob> {
+    const headers = new Headers()
+    const token = getAccessToken()
+    if (token) headers.set("Authorization", `Bearer ${token}`)
+    const response = await fetch(buildUrl(path).toString(), { headers })
+    if (!response.ok) {
+        const text = await response.text().catch(() => "")
+        throw new Error(text || `HTTP ${response.status}`)
+    }
+    return response.blob()
+}
+
 export function apiPost<T>(path: string, body?: any) {
     return request<T>(path, {
         method: "POST",

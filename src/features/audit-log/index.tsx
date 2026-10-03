@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils"
 
 const initialFilters: AuditLogFilters = { page: 1, size: 25 }
-const riskyActions = new Set(["DELETE", "DELETE_AND_ROLLBACK", "UPDATE_PERMISSIONS", "ADJUST_PRICE", "ADJUST_QUANTITY", "LOCK", "UNLOCK"])
+const riskyActions = new Set(["DELETE", "DELETE_AND_ROLLBACK", "UPDATE_PERMISSIONS", "ADJUST_PRICE", "ADJUST_QUANTITY", "SPLIT_LINES", "LOCK", "UNLOCK"])
 const fallbackSourceTypes = ["USER", "FALLBACK", "IMPORT", "JOB", "SYSTEM"]
 const fallbackResultStatuses = ["SUCCESS", "FAILED", "DENIED"]
 type FilterKey = Exclude<keyof AuditLogFilters, "page" | "size">
@@ -675,7 +675,7 @@ function endpointLabel(path: string) {
 function inferRecordTitle(log: AuditLog) {
     if (log.business_key?.trim()) return log.business_key.trim()
     const values = { ...parseObject(log.old_values), ...parseObject(log.new_values) }
-    const first = pickValue(values, ["production_no", "export_no", "inventory_voucher_no", "voucher_no", "code", "ma", "ma_vthh", "ma_kh", "sku", "order_code", "contract_code", "invoice_no", "document_no"])
+    const first = pickValue(values, ["production_no", "export_no", "inventory_voucher_no", "voucher_no", "order_no", "code", "ma", "ma_vthh", "ma_kh", "sku", "order_code", "contract_code", "invoice_no", "document_no"])
     const second = pickValue(values, ["name", "ten", "ten_vthh", "customer_name", "supplier_name", "full_name", "email", "phone"])
     if (first && second && first !== second) return `${first} · ${second}`
     return first ?? second
@@ -821,7 +821,7 @@ function filterValueLabel(key: FilterKey, value: string, labelers: FilterValueLa
 function businessKeyPlaceholder(entityType?: string) {
     const normalized = entityType ? normalizeEntityType(entityType) : ""
     if (normalized.includes("sales_export")) return "VD: PX/2026/001137, PX-20260905-012"
-    if (normalized.includes("sales_order")) return "VD: DH001, SO-2026-001"
+    if (normalized.includes("sales_order")) return "VD: DH-20260926-003"
     if (normalized.includes("sales_delivery")) return "VD: GH001, DL-2026-001"
     if (normalized.includes("sales_return")) return "VD: TH001, SR-2026-001"
     if (normalized.includes("contract")) return "VD: HD001, PO-2026-001"
@@ -833,6 +833,7 @@ function businessKeyPlaceholder(entityType?: string) {
 }
 
 function normalizeEntityType(value: string) {
+    if (/^(sales_order|order)$/i.test(value)) return "sales_orders"
     if (/^auth_roles_\d+_permissions$/i.test(value)) return "role_permissions"
     if (/^inventory_costing_periods_\d+$/i.test(value)) return "inventory_costing_periods"
     if (/^inventory_costing_periods_\d+_calculate$/i.test(value)) return "inventory_costing_period_calculation"
@@ -990,6 +991,7 @@ function actionLabel(action: string) {
         PERMISSION_DENIED: "Từ chối quyền",
         ADJUST_PRICE: "Sửa giá",
         ADJUST_QUANTITY: "Sửa số lượng",
+        SPLIT_LINES: "Tách dòng đơn hàng",
         ADJUST_PP_STATUS: "Sửa PP",
         MARK_COST_PERIOD_STALE: "Đánh dấu cần tính lại",
         LOGIN_SUCCESS: "Login thành công",
@@ -1089,6 +1091,7 @@ const actionOptions = [
     "PERMISSION_DENIED",
     "ADJUST_PRICE",
     "ADJUST_QUANTITY",
+    "SPLIT_LINES",
     "ADJUST_PP_STATUS",
     "LOGIN_SUCCESS",
     "LOGIN_FAILED",

@@ -262,6 +262,9 @@ export default function TransactionPage() {
                         revenue={summary?.revenue ?? 0}
                         returnRevenue={summary?.return_revenue ?? 0}
                         actualRevenue={summary?.actual_revenue ?? 0}
+                        saleVat={summary?.sale_vat_amount ?? 0}
+                        returnVat={summary?.return_vat_amount ?? 0}
+                        netVat={summary?.net_vat_amount ?? 0}
                         saleQty={summary?.sale_qty ?? 0}
                         returnQty={summary?.return_qty ?? 0}
                         actualQty={summary?.actual_qty ?? 0}
@@ -272,6 +275,10 @@ export default function TransactionPage() {
                         totalRevenue={summary?.revenue ?? 0}
                         totalReturnRevenue={summary?.return_revenue ?? 0}
                         totalActualRevenue={summary?.actual_revenue ?? 0}
+                        totalGrossRevenue={summary?.gross_revenue ?? 0}
+                        totalSaleDiscount={summary?.sale_discount ?? 0}
+                        totalSaleVat={summary?.sale_vat_amount ?? 0}
+                        totalReturnVat={summary?.return_vat_amount ?? 0}
                         totalSaleQty={summary?.sale_qty ?? 0}
                         totalReturnQty={summary?.return_qty ?? 0}
                         totalActualQty={summary?.actual_qty ?? 0}

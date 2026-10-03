@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import type { ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Warehouse } from "lucide-react"
 
@@ -15,9 +16,10 @@ type WarehouseTreeFilterProps = {
     onChange: (value: number[]) => void
     className?: string
     salesInventoryVisibleOnly?: boolean
+    trigger?: ReactNode
 }
 
-export function WarehouseTreeFilter({ value, onChange, className, salesInventoryVisibleOnly = false }: WarehouseTreeFilterProps) {
+export function WarehouseTreeFilter({ value, onChange, className, salesInventoryVisibleOnly = false, trigger }: WarehouseTreeFilterProps) {
     const [open, setOpen] = useState(false)
     const [draftValue, setDraftValue] = useState<number[]>(value)
     const [warehouseKeyword, setWarehouseKeyword] = useState("")
@@ -33,11 +35,11 @@ export function WarehouseTreeFilter({ value, onChange, className, salesInventory
         }
     }, [open, value])
 
-    const { data: physicalData, isLoading: loadingPhysical } = useQuery({
+    const { data: physicalData, isLoading: loadingPhysical, error: physicalError } = useQuery({
         queryKey: ["inventory-warehouse-filter-physical-warehouses"],
         queryFn: () => listPhysicalWarehouses({ page: 1, size: 500, status: "ACTIVE" }),
     })
-    const { data: warehouseData, isLoading: loadingWarehouses } = useQuery({
+    const { data: warehouseData, isLoading: loadingWarehouses, error: warehouseError } = useQuery({
         queryKey: ["inventory-warehouse-filter-warehouses", salesInventoryVisibleOnly],
         queryFn: () => listWarehouses({
             page: 1,
@@ -129,17 +131,18 @@ export function WarehouseTreeFilter({ value, onChange, className, salesInventory
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-                <Button
+                {trigger || <Button
                     type="button"
                     variant="outline"
                     className={cn("min-w-[240px] justify-start overflow-hidden px-3 text-left font-normal", className)}
                 >
                     <Warehouse className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
                     <span className="truncate">{triggerLabel}</span>
-                </Button>
+                </Button>}
             </PopoverTrigger>
             <PopoverContent align="start" className="w-[720px] max-w-[calc(100vw-32px)] p-0">
-                <div className="grid max-h-[420px] grid-cols-[260px_1fr] overflow-hidden">
+                {(physicalError || warehouseError) && <div role="alert" className="border-b p-3 text-sm text-destructive">Không tải được danh sách kho. Vui lòng thử lại.</div>}
+                <div className="grid max-h-[420px] grid-cols-[minmax(0,1fr)_minmax(0,1fr)] overflow-hidden sm:grid-cols-[260px_minmax(0,1fr)]">
                     <div className="border-r bg-muted/30">
                         <div className="border-b px-3 py-2 text-sm font-semibold">Địa điểm kho</div>
                         <label className="mx-2 mt-2 flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-sm hover:bg-white">
@@ -265,6 +268,7 @@ export function WarehouseTreeFilter({ value, onChange, className, salesInventory
                         <Button
                             type="button"
                             size="sm"
+                            disabled={loading || Boolean(physicalError || warehouseError)}
                             onClick={() => {
                                 onChange(draftValue)
                                 setOpen(false)

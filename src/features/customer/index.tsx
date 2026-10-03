@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { getMyPermissions, hasPermission } from '@/api/auth/permission'
 import { PageSection } from '@/components/page-section'
 import { usePaginatedList } from '@/hooks/use-paginated-list'
 import { listCustomers, type CustomerListParams } from '@/api/customer'
@@ -15,6 +16,9 @@ import { useUrlPagination } from '@/hooks/use-url-pagination'
 import { useUrlListFilters } from '@/hooks/use-url-list-filters'
 
 export default function CustomerPage() {
+    const { data: permissions = [] } = useQuery({ queryKey: ['my-permissions'], queryFn: getMyPermissions })
+    const canUpdate = hasPermission(permissions, 'customers', 'update')
+    const canManageData = hasPermission(permissions, 'customers', 'data-admin')
     const search = Route.useSearch()
     const navigate = Route.useNavigate()
 
@@ -81,9 +85,9 @@ export default function CustomerPage() {
                             }}
                         />
                         <CustomerHistoricalSyncButton />
-                        <ImportCustomersButton />
-                        <ImportInvoiceAliasesButton />
-                        <CreateCustomerButton />
+                        {canManageData && <ImportCustomersButton />}
+                        {canManageData && <ImportInvoiceAliasesButton />}
+                        {canUpdate && <CreateCustomerButton />}
                     </div>
                 }
                 data={data}

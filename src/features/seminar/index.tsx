@@ -14,13 +14,14 @@ import {
     downloadSeminarTemplate,
     generateSeminarDocument,
     getSeminar,
-    listCirculationProducts,
     listSeminars,
     replaceSeminarProducts,
     updateSeminar,
     uploadSeminarTemplate,
 } from "@/api/seminar"
-import type { CirculationProduct, Seminar } from "./data/schema"
+import { listCirculationProducts } from "@/api/regulatory"
+import type { Seminar } from "./data/schema"
+import type { CirculationProduct } from "@/features/regulatory/data/schema"
 import { PageSection } from "@/components/page-section"
 import { AsyncSelect } from "@/components/rjsf/async-select"
 import { Button } from "@/components/ui/button"

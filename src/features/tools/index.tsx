@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { ArrowRight, Boxes, DatabaseBackup, DatabaseZap, GitCompareArrows, PackageCheck, ReceiptText, Ruler, ShieldCheck, TableProperties } from "lucide-react"
+import { ArrowRight, Boxes, DatabaseBackup, DatabaseZap, GitCompareArrows, PackageCheck, ReceiptText, Ruler, ShieldCheck, TableProperties, UserRoundCheck } from "lucide-react"
 
 import { Main } from "@/components/layout/main"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +15,13 @@ type ToolItem = {
 }
 
 const tools: ToolItem[] = [
+    {
+        title: "Bổ sung nhân viên bán hàng phiếu trả",
+        description: "Quét và fill mã/tên nhân viên bán hàng cho giao dịch trả hàng đang thiếu, có xem trước từng dòng.",
+        url: "/tools/return-sales-employee-repair",
+        status: "Bảo trì dữ liệu",
+        icon: UserRoundCheck,
+    },
     {
         title: "Backfill kế hoạch điểm VIP",
         description: "Chuẩn hóa kế hoạch cũ sang mô hình nhiều phương án, có kiểm tra, snapshot, hậu kiểm và rollback theo lần chạy.",

@@ -110,6 +110,13 @@ export type TransactionSummary = {
     revenue: number
     return_revenue: number
     actual_revenue: number
+    gross_revenue: number
+    gross_return_revenue: number
+    sale_discount: number
+    return_discount: number
+    sale_vat_amount: number
+    return_vat_amount: number
+    net_vat_amount: number
     sale_qty: number
     return_qty: number
     actual_qty: number
@@ -172,4 +179,8 @@ export function applyTransactionUnitPriceImport(file: File) {
 
 export function updateTransactionUnitPrice(id: number, unitPrice: number) {
     return apiPut<Transaction>(`/transactions/${id}/unit-price`, { unitPrice })
+}
+
+export function updateTransactionHdnStatus(id: number, hdnStatus: string | null) {
+    return apiPut<Transaction>(`/transactions/${id}/hdn-status`, { hdnStatus })
 }

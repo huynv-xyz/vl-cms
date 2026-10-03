@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
-import CirculationDecisionsPage from "@/features/seminar/circulation-decisions"
+import CirculationDecisionsPage from "@/features/regulatory/circulation-decisions"
 
-export const Route = createFileRoute("/_authenticated/seminars/circulation-decisions/")({
+export const Route = createFileRoute("/_authenticated/regulatory/circulation-decisions/")({
     validateSearch: (search: Record<string, unknown>) => ({
         page: Number(search.page ?? 1),
         size: Number(search.size ?? 20),

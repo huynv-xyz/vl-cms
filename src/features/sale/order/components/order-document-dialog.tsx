@@ -12,6 +12,7 @@ import { listArLedgerSummary } from "@/api/sale/ar-ledger"
 import { getOrder } from "@/api/sale/order"
 import type { Order } from "../data/schema"
 import { Download } from "lucide-react"
+import { getDocumentPreVatPrice, getInclusiveUnitPrice, getLineTotalWithVat } from "../data/order-money"
 
 type Props = {
     open: boolean
@@ -64,6 +65,7 @@ export function OrderDocumentDialog({ open, order, onClose }: Props) {
                             type="button"
                             size="sm"
                             className="gap-2"
+                            disabled={orderDetailQuery.isFetching || orderDetailQuery.isError || arSummaryQuery.isFetching}
                             onClick={() => void exportOrderDocumentXlsx(documentOrder, debtTotal)}
                         >
                             <Download className="h-4 w-4" />
@@ -73,7 +75,11 @@ export function OrderDocumentDialog({ open, order, onClose }: Props) {
                 </DialogHeader>
 
                 <div className="min-h-0 flex-1 overflow-y-auto bg-slate-100 p-5">
-                    {documentOrder ? (
+                    {orderDetailQuery.isPending && order?.id ? (
+                        <div className="py-10 text-center text-sm text-muted-foreground">Đang tải đơn hàng...</div>
+                    ) : orderDetailQuery.isError ? (
+                        <div className="py-10 text-center text-sm text-destructive">Không thể tải đơn hàng.</div>
+                    ) : documentOrder ? (
                         <OrderDocument order={documentOrder} debtTotal={debtTotal} />
                     ) : (
                         <div className="py-10 text-center text-sm text-muted-foreground">
@@ -90,7 +96,7 @@ function OrderDocument({ order, debtTotal }: { order: Order; debtTotal: number }
     const customer = order.customer
     const customerInvoiceInfo = getCustomerInvoiceInfo(customer)
     const items = order.items ?? []
-    const goodsTotal = items.reduce((sum, item: any) => sum + getLineAmount(item), 0)
+    const goodsTotal = items.reduce((sum, item: any) => sum + getLineTotalWithVat(item), 0)
     const paymentTotal = goodsTotal + debtTotal
 
     return (
@@ -145,9 +151,9 @@ function OrderDocument({ order, debtTotal }: { order: Order; debtTotal: number }
                             <Td>{item.description || ""}</Td>
                             <Td className="text-center">{item.product?.unit || item.unit || ""}</Td>
                             <Td className="text-right">{formatQty(item.quantity)}</Td>
-                            <Td className="text-right">{formatMoney(getPreVatPrice(item.unit_price))}</Td>
-                            <Td className="text-right">{formatMoney(item.unit_price)}</Td>
-                            <Td className="text-right">{formatMoney(getLineAmount(item))}</Td>
+                            <Td className="text-right">{formatPrice(getDocumentPreVatPrice(item))}</Td>
+                            <Td className="text-right">{formatPrice(getInclusiveUnitPrice(item))}</Td>
+                            <Td className="text-right">{formatMoney(getLineTotalWithVat(item))}</Td>
                             <Td>{lineTypeLabel(item.line_type)}</Td>
                         </tr>
                     ))}
@@ -209,7 +215,7 @@ async function exportOrderDocumentXlsx(order: Order, debtTotal: number) {
     const customer = order.customer
     const customerInvoiceInfo = getCustomerInvoiceInfo(customer)
     const items = order.items ?? []
-    const goodsTotal = items.reduce((sum, item: any) => sum + getLineAmount(item), 0)
+    const goodsTotal = items.reduce((sum, item: any) => sum + getLineTotalWithVat(item), 0)
     const paymentTotal = goodsTotal + debtTotal
 
     const workbook = new Workbook()
@@ -337,9 +343,9 @@ async function exportOrderDocumentXlsx(order: Order, debtTotal: number) {
             item.description || "",
             item.product?.unit || item.unit || "",
             Number(item.quantity || 0),
-            getPreVatPrice(item.unit_price),
-            Number(item.unit_price || 0),
-            getLineAmount(item),
+            getDocumentPreVatPrice(item),
+            getInclusiveUnitPrice(item),
+            getLineTotalWithVat(item),
             item.note || lineTypeLabel(item.line_type),
         ]
         row.height = Math.max(
@@ -349,6 +355,8 @@ async function exportOrderDocumentXlsx(order: Order, debtTotal: number) {
             estimateRowHeight(item.note || lineTypeLabel(item.line_type), 16),
         )
         row.eachCell((cell, colNumber) => {
+            if ([6, 7].includes(colNumber)) cell.numFmt = "#,##0.###"
+            if (colNumber === 8) cell.numFmt = "#,##0"
             cell.font = { name: "Times New Roman", size: 12 }
             cell.border = allBorders()
             cell.alignment = {
@@ -440,6 +448,7 @@ function addSummaryExcelRow(sheet: Worksheet, rowNumber: number, label: string, 
 
     labelCell.value = label
     valueCell.value = value
+    valueCell.numFmt = "#,##0"
 
     ;[labelCell, valueCell, noteCell].forEach((cell) => {
         cell.font = { name: "Times New Roman", size: 12, bold: true }
@@ -518,19 +527,12 @@ function formatQty(value: unknown) {
 }
 
 function formatMoney(value: unknown) {
-    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(Number(value || 0))
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Number(value || 0))
 }
 
-function getPreVatPrice(value: unknown) {
-    return Number(value || 0) / 1.05
-}
-
-function getLineAmount(item: any) {
-    if (item.line_total != null) return Number(item.line_total || 0)
-    const quantity = Number(item.quantity || 0)
-    const unitPrice = Number(item.unit_price || 0)
-    const discount = Number(item.discount || 0)
-    return Math.max(quantity * unitPrice - discount, 0)
+function formatPrice(value: number | null) {
+    if (value == null) return "-"
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 }).format(value)
 }
 
 function lineTypeLabel(value?: string) {

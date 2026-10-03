@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
+import { getMyPermissions, hasPermission } from "@/api/auth/permission"
 
 import {
     createCustomerAlias,
@@ -70,6 +71,8 @@ export function CustomerAliasDialog({
     onOpenChange: (open: boolean) => void
 }) {
     const queryClient = useQueryClient()
+    const { data: permissions = [] } = useQuery({ queryKey: ["my-permissions"], queryFn: getMyPermissions })
+    const canUpdate = hasPermission(permissions, "customers", "update")
     const [editorOpen, setEditorOpen] = useState(false)
     const [form, setForm] = useState<FormState>(emptyForm(customer))
 
@@ -150,12 +153,12 @@ export function CustomerAliasDialog({
                         <DialogTitle>Thông tin xuất HĐ - {customer.code} - {customer.name}</DialogTitle>
                     </DialogHeader>
 
-                    <div className="flex items-center justify-end">
+                    {canUpdate && <div className="flex items-center justify-end">
                         <Button type="button" size="sm" onClick={openCreate}>
                             <Plus className="mr-1 h-4 w-4" />
                             Thêm thông tin xuất HĐ
                         </Button>
-                    </div>
+                    </div>}
 
                     <div className="overflow-x-auto rounded-lg border">
                         <table className="w-full min-w-[980px] table-fixed text-sm">
@@ -209,24 +212,26 @@ export function CustomerAliasDialog({
                                                 <div className="line-clamp-2">{alias.note || "-"}</div>
                                             </td>
                                             <td className="px-2 py-2 text-right">
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => openEdit(alias)}
-                                                >
-                                                    Sửa
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-red-600 hover:text-red-700 disabled:text-slate-300"
-                                                    disabled={aliases.length <= 1 || deleteMutation.isPending}
-                                                    onClick={() => handleDelete(alias)}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                {canUpdate && <>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => openEdit(alias)}
+                                                    >
+                                                        Sửa
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-red-600 hover:text-red-700 disabled:text-slate-300"
+                                                        disabled={aliases.length <= 1 || deleteMutation.isPending}
+                                                        onClick={() => handleDelete(alias)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </>}
                                             </td>
                                         </tr>
                                     ))

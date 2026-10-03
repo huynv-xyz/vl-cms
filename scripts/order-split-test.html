@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Order split isolated test</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React from "react";
+      import { createRoot } from "react-dom/client";
+      import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+      import { TooltipProvider } from "../src/components/ui/tooltip";
+      import { OrderSplitDialog } from "../src/features/sale/order/components/order-split-dialog";
+      import "../src/styles/index.css";
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      if (!window.__SPLIT_TEST_MODE__)
+        throw new Error(
+          "This isolated fixture requires the mocked Playwright runner.",
+        );
+      createRoot(document.getElementById("root")).render(
+        React.createElement(
+          QueryClientProvider,
+          { client },
+          React.createElement(
+            TooltipProvider,
+            null,
+            React.createElement(OrderSplitDialog, {
+              open: true,
+              orderId: 1,
+              onOpenChange: () => {},
+            }),
+          ),
+        ),
+      );
+    </script>
+  </body>
+</html>

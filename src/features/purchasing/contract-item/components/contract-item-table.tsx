@@ -15,6 +15,11 @@ type Props = {
     currencyCode?: string
 }
 
+const inputPriceFormatter = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+})
+
 export function ContractItemTable(props: Props) {
     const data = (props.data ?? []) as ContractItem[]
     const totalQuantity = data.reduce((sum, item) => sum + (item.quantity ?? 0), 0)
@@ -186,7 +191,7 @@ function ContractItemCard({
                     <div className="mt-3 space-y-1 text-xs text-slate-700">
                         <SummaryRow
                             label="Đầu vào NT/ĐV"
-                            value={`${formatCurrency(item.input_price ?? item.price_before_tax ?? 0)} ${currency}`}
+                            value={`${inputPriceFormatter.format(item.input_price ?? item.price_before_tax ?? 0)} ${currency}`}
                         />
                         <SummaryRow
                             label="Đầu vào VNĐ/ĐV"

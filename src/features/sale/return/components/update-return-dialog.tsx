@@ -57,6 +57,7 @@ export function UpdateReturnDialog({
     // ===== FORM (CHỈ GIỮ FIELD CẦN)
     const [formData, setFormData] = useState<any>({
         customer_id: undefined,
+        sales_employee_id: undefined,
         return_type: "FROM_EXPORT",
         export_id: undefined,
         return_date: "",
@@ -76,6 +77,7 @@ export function UpdateReturnDialog({
 
         setFormData({
             customer_id: detail.customer?.id ?? detail.customer_id ?? detail.order?.customer_id,
+            sales_employee_id: detail.sales_employee_id ?? undefined,
             return_type: detail.return_type ?? "FROM_EXPORT",
             export_id: detail.return_type === "MANUAL" ? -1 : detail.export_id,
             return_date: dateOnly(detail.return_date || detail.created_at),
@@ -106,6 +108,7 @@ export function UpdateReturnDialog({
                 warehouse_id: i.warehouse_id,
                 quantity: i.quantity ?? 0,
                 unit_price: i.unit_price ?? 0,
+                vat_code: i.vat_code ?? undefined,
                 note: i.note ?? "",
             })))
             initializedRef.current = true
@@ -154,6 +157,7 @@ export function UpdateReturnDialog({
             if (!formData.export_id) throw new Error("Vui lòng chọn phiếu xuất")
 
             if (isManualReturn && !formData.customer_id) throw new Error("Vui lòng chọn khách hàng")
+            if (isManualReturn && !formData.sales_employee_id) throw new Error("Vui lòng chọn nhân viên bán hàng")
 
             const selected = isManualReturn ? items : items.filter(x => x.selected)
 
@@ -179,6 +183,7 @@ export function UpdateReturnDialog({
                 id: returnData.id,
                 return_type: formData.return_type,
                 customer_id: formData.customer_id,
+                sales_employee_id: isManualReturn ? formData.sales_employee_id : undefined,
                 export_id: isManualReturn ? undefined : formData.export_id,
                 order_id: isManualReturn ? undefined : exportDetail?.order_id,
                 return_date: formData.return_date,
@@ -190,6 +195,7 @@ export function UpdateReturnDialog({
                     warehouse_id: i.warehouse_id,
                     quantity: i.quantity,
                     unit_price: i.unit_price,
+                    vat_code: i.vat_code,
                     note: i.note ?? "",
                 } as any)),
             } as any)
@@ -248,7 +254,7 @@ export function UpdateReturnDialog({
                                     showStatus
                                     onChange={setFormData}
                                 />
-                                {exportDetail?.order_id && (
+                                {!isManualReturn && exportDetail?.order_id && (
                                     <div className="mt-3 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
                                         Đơn hàng:{" "}
                                         <span className="font-medium text-foreground">
