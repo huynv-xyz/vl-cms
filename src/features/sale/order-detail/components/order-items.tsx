@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { AlertTriangle, CheckCircle2, Package, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatCurrency } from "@/lib/utils"
 
 import {
@@ -20,12 +21,14 @@ import { deleteOrderItem } from "@/api/sale/order"
 import { getMyPermissions } from "@/api/auth/permission"
 import { CreateOrderItemDialog } from "./create-order-item-dialog"
 import { UpdateOrderItemDialog } from "./update-order-item-dialog"
+import { OrderPromotionAdjustmentDialog } from "./order-promotion-adjustment-dialog"
 
 export function OrderItems({ order, items }: any) {
     const queryClient = useQueryClient()
 
     const [createOpen, setCreateOpen] = useState(false)
     const [editRow, setEditRow] = useState<any>(null)
+    const [promotionRow, setPromotionRow] = useState<any>(null)
     const { data: permissions = [] } = useQuery({
         queryKey: ["my-permissions"],
         queryFn: getMyPermissions,
@@ -35,6 +38,9 @@ export function OrderItems({ order, items }: any) {
     )
 
     const isEditable = order?.status === "CONFIRMED" && canUpdateOrder
+    const canAdjustPromotion = order?.status === "DONE" && permissions.some(
+        (permission: any) => permission.module === "sales.orders" && permission.action === "promotion.adjust"
+    )
     const showStockWarning = order?.status !== "DONE"
 
     const { mutate: removeItem, isPending } = useMutation({
@@ -132,6 +138,11 @@ export function OrderItems({ order, items }: any) {
                                 const unitPrice = Number(i.unit_price || 0)
                                 const discount = Number(i.discount || 0)
                                 const isPromotion = i.line_type === "PROMOTION"
+                                const vatLabel = i.vat_code == null
+                                    ? "—"
+                                    : i.vat_code === "KCT"
+                                        ? "KCT"
+                                        : `${i.vat_rate ?? String(i.vat_code).replace(/\D/g, "")}%`
                                 const isRowLocked = !isEditable
                                 const stockCheck = stockByProduct.get(String(i.product_id ?? i.product?.id))
                                 const stockQuantity = Number(i.stock_quantity || 0)
@@ -182,13 +193,28 @@ export function OrderItems({ order, items }: any) {
                                         </TableCell>
 
                                         <TableCell className="text-center">
-                                            {isPromotion ? (
-                                                <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                                    Hàng KM
-                                                </span>
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground">—</span>
-                                            )}
+                                            <div className="inline-flex items-center gap-1">
+                                                {isPromotion ? (
+                                                    <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                                        Hàng KM
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">—</span>
+                                                )}
+                                                {canAdjustPromotion && (
+                                                    <Button
+                                                        type="button"
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="size-8 shrink-0"
+                                                        title="Sửa khuyến mãi"
+                                                        aria-label={`Sửa khuyến mãi cho ${i.product?.name ?? `dòng ${idx + 1}`}`}
+                                                        onClick={() => setPromotionRow(i)}
+                                                    >
+                                                        <Pencil className="size-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </TableCell>
 
                                         <TableCell className="text-right font-medium tabular-nums">
@@ -253,7 +279,22 @@ export function OrderItems({ order, items }: any) {
                                         </TableCell>
 
                                         <TableCell className="text-center font-medium">
-                                            {i.vat_code == null ? "—" : i.vat_code === "KCT" ? "KCT" : String(i.vat_rate ?? 0) + "%"}
+                                            {isPromotion && i.vat_code != null ? (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            type="button"
+                                                            className="text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-foreground"
+                                                            aria-label={`Thuế suất đã lưu: ${vatLabel}; dòng khuyến mãi không phát sinh tiền VAT`}
+                                                        >
+                                                            —
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        Thuế suất đã lưu: {vatLabel}; dòng khuyến mãi không phát sinh tiền VAT.
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            ) : isPromotion ? "—" : vatLabel}
                                         </TableCell>
 
                                         <TableCell className="text-right font-semibold tabular-nums">
@@ -336,6 +377,14 @@ export function OrderItems({ order, items }: any) {
                     onOpenChange={(v: boolean) => {
                         if (!v) setEditRow(null)
                     }}
+                />
+            )}
+            {promotionRow && (
+                <OrderPromotionAdjustmentDialog
+                    open={!!promotionRow}
+                    order={order}
+                    item={promotionRow}
+                    onOpenChange={(value) => { if (!value) setPromotionRow(null) }}
                 />
             )}
         </div>

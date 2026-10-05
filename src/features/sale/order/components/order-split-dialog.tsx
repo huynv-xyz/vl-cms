@@ -15,6 +15,7 @@ import { getOrder } from "@/api/sale/order";
 import { getWarehouse } from "@/api/warehouse";
 import { getMyPermissions } from "@/api/auth/permission";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -39,7 +40,7 @@ import {
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import { getPriceBasis } from "../data/order-money";
 
-type Part = { quantity: string; price: string };
+type Part = { quantity: string; price: string; promotion: boolean };
 type Mapping = { table: string; id: number; quantities: string[] };
 type Request = {
   itemId: number;
@@ -65,6 +66,7 @@ type Preview = {
   documents: Document[];
   parts: {
     quantity: number;
+    line_type?: string | null;
     amount_before_vat: number;
     vat_amount: number | null;
     total: number;
@@ -170,14 +172,14 @@ export function OrderSplitDialog({
     const quantity = new Decimal(String(item.quantity));
     const first = quantity.div(2).toDecimalPlaces(3, Decimal.ROUND_DOWN);
     const price = String(
-      getPriceBasis(item) === "VAT_INCLUSIVE"
+      item.line_type === "PROMOTION" ? 0 : getPriceBasis(item) === "VAT_INCLUSIVE"
         ? (item.unit_price_including_vat ?? 0)
         : (item.unit_price ?? 0),
     );
     setSource(item);
     setParts([
-      { quantity: first.toString(), price },
-      { quantity: quantity.minus(first).toString(), price },
+      { quantity: first.toString(), price, promotion: item.line_type === "PROMOTION" },
+      { quantity: quantity.minus(first).toString(), price, promotion: item.line_type === "PROMOTION" },
     ]);
     setChecked(null);
     setMappings([]);
@@ -197,7 +199,9 @@ export function OrderSplitDialog({
       difference === "0" &&
       parts.every(
         (row) =>
-          new Decimal(row.quantity).gt(0) && new Decimal(row.price).gte(0),
+          new Decimal(row.quantity).gt(0) && new Decimal(row.price).gte(0) &&
+          (!row.promotion || new Decimal(row.price).eq(0)) &&
+          (source.line_type !== "PROMOTION" || row.promotion),
       ) &&
       reason.trim().length > 0;
   } catch {
@@ -394,13 +398,14 @@ export function OrderSplitDialog({
                 </div>
               </div>
               <div className="overflow-x-auto border">
-                <Table className="min-w-[650px]">
+                <Table className="min-w-[740px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-12">Dòng</TableHead>
                       <TableHead className="min-w-36 text-right">
                         Số lượng
                       </TableHead>
+                      <TableHead className="w-28 text-center">Khuyến mãi</TableHead>
                       <TableHead className="min-w-44 text-right">
                         {basis === "VAT_INCLUSIVE"
                           ? "Đơn giá gồm VAT"
@@ -429,6 +434,21 @@ export function OrderSplitDialog({
                             }
                           />
                         </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox
+                            aria-label={`Khuyến mãi dòng ${index + 1}`}
+                            checked={part.promotion}
+                            disabled={busy || source.line_type === "PROMOTION"}
+                            onCheckedChange={(checked) => changePart(index, {
+                              promotion: checked === true,
+                              price: checked === true ? "0" : String(
+                                basis === "VAT_INCLUSIVE"
+                                  ? (source.unit_price_including_vat ?? 0)
+                                  : (source.unit_price ?? 0),
+                              ),
+                            })}
+                          />
+                        </TableCell>
                         <TableCell>
                           <Input
                             aria-label={`Đơn giá dòng ${index + 1}`}
@@ -436,7 +456,7 @@ export function OrderSplitDialog({
                             min="0"
                             step="0.001"
                             className="text-right"
-                            disabled={busy || source.line_type === "PROMOTION"}
+                            disabled={busy || part.promotion}
                             value={part.price}
                             onChange={(e) =>
                               changePart(index, { price: e.target.value })
@@ -524,7 +544,7 @@ export function OrderSplitDialog({
                           <TableHead className="text-right">SL gốc</TableHead>
                           {parts.map((_, i) => (
                             <TableHead key={i} className="min-w-32 text-right">
-                              Dòng {i + 1}
+                              Dòng {i + 1}{parts[i]?.promotion ? " (KM)" : ""}
                             </TableHead>
                           ))}
                         </TableRow>
@@ -636,7 +656,7 @@ export function OrderSplitDialog({
                       <TableBody>
                         {checked.preview.parts.map((row, i) => (
                           <TableRow key={i}>
-                            <TableCell>{i + 1}</TableCell>
+                            <TableCell>{i + 1}{row.line_type === "PROMOTION" ? " · KM" : ""}</TableCell>
                             <TableCell className="text-right">
                               {formatCurrency(row.amount_before_vat)}
                             </TableCell>

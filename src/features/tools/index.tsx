@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { ArrowRight, Boxes, DatabaseBackup, DatabaseZap, GitCompareArrows, PackageCheck, ReceiptText, Ruler, ShieldCheck, TableProperties, UserRoundCheck } from "lucide-react"
+import { ArrowRight, Boxes, DatabaseBackup, DatabaseZap, Gift, GitCompareArrows, PackageCheck, ReceiptText, Ruler, ShieldCheck, TableProperties, UserRoundCheck } from "lucide-react"
 
 import { Main } from "@/components/layout/main"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +15,13 @@ type ToolItem = {
 }
 
 const tools: ToolItem[] = [
+    {
+        title: "Sửa giao dịch hàng tặng",
+        description: "Đối chiếu và sửa đơn giá, doanh thu hàng tặng ghi sai trên giao dịch phiếu xuất.",
+        url: "/tools/sales-gift-transaction-repair",
+        status: "Bảo trì dữ liệu",
+        icon: Gift,
+    },
     {
         title: "Bổ sung nhân viên bán hàng phiếu trả",
         description: "Quét và fill mã/tên nhân viên bán hàng cho giao dịch trả hàng đang thiếu, có xem trước từng dòng.",
