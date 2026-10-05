@@ -2463,7 +2463,7 @@ function LedgerRow({
                 return (
                     <Td key={column.key} className="tabular-nums">
                         <div className="flex items-center justify-between gap-2">
-                            <CostPeriodIcon label={item.cost_period_label} docType={item.doc_type} />
+                            <CostPeriodIcon label={item.cost_period_label} docType={item.doc_type} overrideSource={item.applied_cost_override_source} />
                             <span className="min-w-0 text-right">{formatNumber(rowUnitPrice)}</span>
                         </div>
                     </Td>
@@ -7870,14 +7870,27 @@ function formatMoney(value?: number | string | null) {
     }).format(n)
 }
 
-function CostPeriodIcon({ label, docType }: { label?: string | null; docType?: string | null }) {
+function CostPeriodIcon({ label, docType, overrideSource }: {
+    label?: string | null
+    docType?: string | null
+    overrideSource?: string | null
+}) {
     const isOpening = String(docType || "").toUpperCase() === "OPENING"
     const hasPeriod = Boolean(label && label.trim())
     const isOk = hasPeriod || isOpening
-    const title = hasPeriod
-        ? `Đã lấy từ kỳ tính giá: ${label}`
-        : isOpening
-            ? "Đơn giá khai báo đầu kỳ"
+    const overrideLabel = overrideSource === "COST_OVERRIDE_FILE_IMPORT"
+        ? "Giá vốn cố định từ file import"
+        : overrideSource === "COST_OVERRIDE_MANUAL_UI"
+            ? "Giá vốn cố định sửa trên giao diện"
+            : overrideSource?.startsWith("COST_OVERRIDE_")
+                ? "Giá vốn cố định được nhập"
+                : null
+    const title = isOpening
+        ? "Đơn giá khai báo đầu kỳ"
+        : hasPeriod
+            ? overrideLabel
+                ? `${overrideLabel}. Đã ghi nhận trong kỳ: ${label}`
+                : `Đơn giá được ghi nhận trong kỳ tính giá: ${label}`
             : "Chưa có kỳ tính giá"
 
     return (

@@ -2,13 +2,16 @@ import { useEffect, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import Decimal from "decimal.js-light"
 
 import { apiPost } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatCurrency } from "@/lib/utils"
-import { getPriceBasis } from "../../order/data/order-money"
+import { getInclusiveUnitPrice, getPriceBasis, toPreVatInputPrice, type PriceBasis } from "../../order/data/order-money"
+import { PriceBasisSelect } from "../../order/components/price-basis-select"
 
 type Preview = {
   token: string
@@ -34,8 +37,10 @@ export function OrderPromotionAdjustmentDialog({
 }) {
   const client = useQueryClient()
   const targetPromotion = item?.line_type !== "PROMOTION"
-  const basis = item ? getPriceBasis(item) : "LEGACY"
+  const originalBasis = item ? getPriceBasis(item) : "LEGACY"
   const [price, setPrice] = useState("")
+  const [priceBasis, setPriceBasis] = useState<PriceBasis>(originalBasis)
+  const [vatCode, setVatCode] = useState("NONE")
   const [reason, setReason] = useState("")
   const [checked, setChecked] = useState<{ preview: Preview; request: object } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -43,6 +48,8 @@ export function OrderPromotionAdjustmentDialog({
 
   useEffect(() => {
     setPrice("")
+    setPriceBasis(originalBasis)
+    setVatCode(item?.vat_code ?? "NONE")
     setReason("")
     setChecked(null)
     setError("")
@@ -60,6 +67,8 @@ export function OrderPromotionAdjustmentDialog({
       itemId: item.id,
       promotion: targetPromotion,
       price: targetPromotion ? "0" : price.trim(),
+      priceBasis: targetPromotion ? undefined : priceBasis,
+      vatCode: targetPromotion ? undefined : vatCode,
       reason: reason.trim(),
     }
     setBusy(true)
@@ -96,6 +105,21 @@ export function OrderPromotionAdjustmentDialog({
   }
 
   const validPrice = targetPromotion || (price.trim() !== "" && Number.isFinite(Number(price)) && Number(price) > 0)
+  const selectedVat = vatCode === "NONE" ? undefined : vatCode
+  const inclusivePrice = price.trim() === "" ? "" : priceBasis === "VAT_INCLUSIVE"
+    ? price
+    : String(getInclusiveUnitPrice({ price_basis: priceBasis, unit_price: Number(price), vat_code: selectedVat }))
+  const preVatPrice = price.trim() === "" ? "" : priceBasis === "VAT_INCLUSIVE"
+    ? String(toPreVatInputPrice(Number(price), selectedVat, Number(item?.quantity)))
+    : price
+  const changeBasis = (next: PriceBasis) => {
+    if (next === priceBasis) return
+    const nextPrice = next === "VAT_INCLUSIVE" || next === "LEGACY" ? inclusivePrice : preVatPrice
+    change(setPrice, nextPrice === "" ? "" : next === "VAT_INCLUSIVE"
+      ? new Decimal(nextPrice).toDecimalPlaces(6).toString() : nextPrice)
+    setPriceBasis(next)
+    if (next === "LEGACY") setVatCode("NONE")
+  }
   return (
     <Dialog open={open} onOpenChange={(value) => { if (!busy) onOpenChange(value) }}>
       <DialogContent className="max-h-[90dvh] w-[min(96vw,620px)] overflow-y-auto sm:max-w-[620px]">
@@ -119,11 +143,37 @@ export function OrderPromotionAdjustmentDialog({
             </div>
           </div>
           {!targetPromotion && (
-            <label className="block space-y-1.5 text-sm font-medium">
-              <span>{basis === "VAT_INCLUSIVE" ? "Đơn giá gồm VAT" : basis === "VAT_EXCLUSIVE" ? "Đơn giá chưa VAT" : "Đơn giá"}</span>
-              <Input type="number" min="0.000001" step="0.000001" value={price} onChange={(event) => change(setPrice, event.target.value)} inputMode="decimal" placeholder="Nhập đơn giá bán" disabled={busy} />
-              <span className="block text-xs font-normal text-muted-foreground">VAT hiện tại: {item?.vat_code == null ? "-" : item.vat_code === "KCT" ? "KCT" : `${item.vat_rate ?? String(item.vat_code).replace(/\D/g, "")}%`}</span>
-            </label>
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5 text-sm font-medium">
+                  <span>Nguồn giá</span>
+                  <PriceBasisSelect value={priceBasis} allowLegacy={originalBasis === "LEGACY"} disabled={busy} onChange={changeBasis} />
+                </div>
+                <div className="space-y-1.5 text-sm font-medium">
+                  <label htmlFor="promotion-adjustment-vat">VAT</label>
+                  <Select value={vatCode} onValueChange={(value) => change(setVatCode, value)} disabled={busy || priceBasis === "LEGACY"}>
+                    <SelectTrigger id="promotion-adjustment-vat"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NONE">-</SelectItem>
+                      <SelectItem value="KCT">KCT</SelectItem>
+                      <SelectItem value="VAT5">5%</SelectItem>
+                      <SelectItem value="VAT8">8%</SelectItem>
+                      <SelectItem value="VAT10">10%</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block space-y-1.5 text-sm font-medium">
+                  <span>{priceBasis === "LEGACY" ? "Đơn giá" : "Đơn giá chưa VAT"}</span>
+                  <Input type="number" min="0.000001" step="0.000001" value={preVatPrice} onChange={(event) => change(setPrice, event.target.value)} inputMode="decimal" readOnly={priceBasis === "VAT_INCLUSIVE"} disabled={busy} />
+                </label>
+                <label className="block space-y-1.5 text-sm font-medium">
+                  <span>Đơn giá gồm VAT</span>
+                  <Input type="number" min="0.000001" step="0.000001" value={inclusivePrice} onChange={(event) => change(setPrice, event.target.value)} inputMode="decimal" readOnly={priceBasis !== "VAT_INCLUSIVE"} disabled={busy} />
+                </label>
+              </div>
+            </div>
           )}
           <label className="block space-y-1.5 text-sm font-medium">
             <span>Lý do sửa sai</span>

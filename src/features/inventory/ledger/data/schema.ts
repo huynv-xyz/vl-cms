@@ -77,6 +77,7 @@ export type InventoryLedgerReportRow = {
     unit_price?: number | null
     amount?: number | null
     cost_period_label?: string | null
+    applied_cost_override_source?: string | null
     lot_id?: number | null
     lot_code?: string | null
     quantity_in: number
