@@ -57,6 +57,8 @@ export type InventoryLedgerListParams = {
     closing_quantity_value?: string
     closing_value_op?: string
     closing_value_value?: string
+    zero_balance_mismatch_only?: boolean
+    warehouse_negative_value_only?: boolean
     time_sort?: "asc" | "desc" | string
     direction?: "IN" | "OUT" | string
     show_values?: boolean
@@ -995,6 +997,8 @@ export type LedgerAmountChangeResult = {
     direction: "IN" | "OUT" | string
     old_unit_price: number
     old_amount: number
+    current_unit_price: number
+    current_amount: number
     new_total_amount: number
     new_unit_price: number
     new_ledger_amount: number
@@ -1010,13 +1014,17 @@ export type LedgerAmountChangeResult = {
     changes: Record<string, number>
 }
 
-export function checkLedgerAmountChange(ledgerId: number, newTotalAmount: number) {
+export function checkLedgerAmountChange(ledgerId: number, newTotalAmount: number | string) {
     return apiPost<LedgerAmountChangeResult>(`/inventory/ledger/${ledgerId}/amount-change/check`, {
         newTotalAmount,
     })
 }
 
-export function applyLedgerAmountChange(ledgerId: number, newTotalAmount: number) {
+export function getLedgerAmountChangeContext(ledgerId: number) {
+    return apiPost<LedgerAmountChangeResult>(`/inventory/ledger/${ledgerId}/amount-change/check`, {})
+}
+
+export function applyLedgerAmountChange(ledgerId: number, newTotalAmount: number | string) {
     return apiPost<LedgerAmountChangeResult>(`/inventory/ledger/${ledgerId}/amount-change/apply`, {
         newTotalAmount,
     })

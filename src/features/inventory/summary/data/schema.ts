@@ -15,7 +15,10 @@ export type InventorySummary = {
     opening_value: number
     inbound_quantity: number
     inbound_value: number
-    avg_issue_unit_cost?: number
+    avg_issue_unit_cost?: number | null
+    outbound_cost_total_count?: number
+    outbound_cost_calculated_count?: number
+    outbound_cost_pending_count?: number
     outbound_quantity: number
     outbound_value: number
     closing_quantity: number

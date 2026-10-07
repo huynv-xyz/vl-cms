@@ -78,11 +78,20 @@ export type InventoryLedgerReportRow = {
     amount?: number | null
     cost_period_label?: string | null
     applied_cost_override_source?: string | null
+    applied_cost_source?: string | null
+    cost_source?: string | null
+    cost_adjustment_base_amount?: number | null
+    cost_adjustment_amount?: number | null
+    cost_adjustment_base_source?: string | null
     lot_id?: number | null
     lot_code?: string | null
     quantity_in: number
     quantity_out: number
+    // Full ledger: product + warehouse. IN/OUT quantity-only reports: product + warehouse + lot.
     balance_quantity: number
+    balance_value: number
+    warehouse_balance_quantity?: number
+    warehouse_balance_value?: number
     product_code: string
     product_name: string
     warehouse_code?: string | null

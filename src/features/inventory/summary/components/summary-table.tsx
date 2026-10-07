@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner"
 
 import { listProductNatureLookups, listProductUnitLookups } from "@/api/app-lookup"
+import { getMyPermissions } from "@/api/auth/permission"
 import {
     listInventorySummaryQuoteNameOptions,
     listInventorySummarys,
@@ -48,6 +49,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { cn, formatCurrency, formatNumber } from "@/lib/utils"
+import { hasViewPermissionForPath } from "@/lib/navigation-permissions"
+import { SummaryAverageCost } from "./summary-average-cost"
+import { summaryCostStatusText } from "../data/cost-status"
 import type { InventorySummary, InventorySummaryTotals } from "../data/schema"
 
 type TextFilterOp = "contains" | "equals" | "not_equals" | "not_contains"
@@ -161,6 +165,7 @@ type Props = {
 type ExportColumn = {
     label: string
     value: (row: InventorySummary, index: number) => string | number | null | undefined
+    valueColumn?: boolean
     width?: number
     type?: "number" | "text"
     numberFormat?: "integer" | "quantity" | "money"
@@ -300,6 +305,7 @@ const EXPORT_COLUMN_GROUPS: ExportColumnGroup[] = [
         columns: [
             { label: "Số lượng", value: (row) => row.outbound_quantity, width: 14, type: "number", numberFormat: "quantity" },
             { label: "Giá xuất BQ", value: (row) => row.avg_issue_unit_cost, width: 16, type: "number", numberFormat: "money" },
+            { label: "Tính giá", value: summaryCostStatusText, width: 28, valueColumn: true },
             { label: "Giá trị", value: (row) => row.outbound_value, width: 16, type: "number", numberFormat: "money" },
         ],
     },
@@ -327,7 +333,7 @@ function exportColumnGroups(showValues: boolean) {
         return {
             ...group,
             columns: group.columns
-                .filter((column) => column.numberFormat !== "money")
+                .filter((column) => column.numberFormat !== "money" && !column.valueColumn)
                 .map((column) => ({ ...column, label: group.label })),
         }
     })
@@ -358,6 +364,9 @@ export function SummaryTable({
     salesInventoryVisibleOnly = false,
     enableColumnPreferences = false,
 }: Props) {
+    const permissionsQuery = useQuery({ queryKey: ["my-permissions"], queryFn: getMyPermissions })
+    const canViewLedger = permissionsQuery.isSuccess
+        && hasViewPermissionForPath("/inventory/ledgers", permissionsQuery.data)
     const { data: tablePreference } = useQuery({
         queryKey: ["table-preference", SUMMARY_TABLE_PREFERENCE_KEY],
         queryFn: () => getTablePreference<SummaryTablePreference>(SUMMARY_TABLE_PREFERENCE_KEY),
@@ -956,6 +965,9 @@ export function SummaryTable({
                                         item={item}
                                         columns={visibleColumns}
                                         natureLabelMap={natureLabelMap}
+                                        fromDate={filters.from_date}
+                                        toDate={filters.to_date}
+                                        canViewLedger={canViewLedger}
                                     />
                                 ))}
                             </>
@@ -997,11 +1009,17 @@ function SummaryRow({
     item,
     columns,
     natureLabelMap,
+    fromDate,
+    toDate,
+    canViewLedger = false,
 }: {
     index: number
     item: InventorySummary
     columns: SummaryColumnDefinition[]
     natureLabelMap: Map<string, string>
+    fromDate?: string
+    toDate?: string
+    canViewLedger?: boolean
 }) {
     const status = getInventoryStatus(item)
     const ledgerSearch = (prev: any) => ({
@@ -1019,7 +1037,7 @@ function SummaryRow({
                     case "product_code":
                         return (
                             <Td key={column.key} className="text-muted-foreground text-center font-mono text-xs">
-                                {item.product_id ? (
+                                {item.product_id && canViewLedger ? (
                                     <Link
                                         to="/inventory/ledgers"
                                         search={ledgerSearch}
@@ -1037,7 +1055,7 @@ function SummaryRow({
                     case "product_name":
                         return (
                             <Td key={column.key} className="font-semibold text-foreground">
-                                {item.product_id ? (
+                                {item.product_id && canViewLedger ? (
                                     <Link
                                         to="/inventory/ledgers"
                                         search={ledgerSearch}
@@ -1071,10 +1089,7 @@ function SummaryRow({
                     case "avg_issue_unit_cost":
                         return (
                             <Td key={column.key} className="tabular-nums">
-                                <div className="flex items-center gap-1.5">
-                                    <CostPeriodIcon label={item.cost_period_label} />
-                                    <span className="ml-auto text-right">{formatCurrency(Number(item.avg_issue_unit_cost ?? 0))}</span>
-                                </div>
+                                <SummaryAverageCost row={item} fromDate={fromDate} toDate={toDate} />
                             </Td>
                         )
                     case "outbound_value":
@@ -2409,26 +2424,6 @@ async function exportSummaryXlsx(rows: InventorySummary[], filters: SummaryFilte
     downloadBlob(buffer, `nhap-xuat-ton-${todayYmd()}.xlsx`)
 }
 
-function CostPeriodIcon({ label }: { label?: string | null }) {
-    const hasPeriod = Boolean(label && label.trim())
-    const title = hasPeriod ? `Đã lấy từ kỳ tính giá: ${label}` : "Chưa có kỳ tính giá"
-
-    return (
-        <span
-            className={cn(
-                "inline-flex size-4 shrink-0 items-center justify-center rounded-full border",
-                hasPeriod
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-amber-200 bg-amber-50 text-amber-700",
-            )}
-            title={title}
-            aria-label={title}
-        >
-            {hasPeriod ? <CircleCheck className="size-3" /> : <AlertTriangle className="size-3" />}
-        </span>
-    )
-}
-
 function getInventoryStatus(row: InventorySummary) {
     const closing = Number(row.closing_quantity || 0)
     const inbound = Number(row.inbound_quantity || 0)
@@ -2483,7 +2478,7 @@ function normalizeCellValue(value: string | number | null | undefined, column: E
 
 function getExcelNumberFormat(value: unknown, column: ExportColumn) {
     const numberValue = Number(value)
-    if (column.numberFormat === "integer" || column.numberFormat === "money") return "#,##0"
+    if (column.numberFormat === "integer") return "#,##0"
     if (Number.isFinite(numberValue) && Number.isInteger(numberValue)) return "#,##0"
     return "#,##0.###"
 }

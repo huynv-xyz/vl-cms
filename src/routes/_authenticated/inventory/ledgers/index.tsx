@@ -72,6 +72,8 @@ export const Route = createFileRoute("/_authenticated/inventory/ledgers/")({
         closing_quantity_value: normalizeNumberValue(search.closing_quantity_value),
         closing_value_op: normalizeNumberOp(search.closing_value_op),
         closing_value_value: normalizeNumberValue(search.closing_value_value),
+        zero_balance_mismatch_only: search.zero_balance_mismatch_only === "true" || search.zero_balance_mismatch_only === true ? "true" : undefined,
+        warehouse_negative_value_only: search.warehouse_negative_value_only === "true" || search.warehouse_negative_value_only === true ? "true" : undefined,
         time_sort: search.time_sort === "desc" ? "desc" : "asc",
     }),
     component: InventoryLedgerPage,

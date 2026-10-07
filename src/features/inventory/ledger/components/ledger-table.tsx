@@ -1,5 +1,6 @@
 ﻿import type React from "react"
 import { useEffect, useMemo, useRef, useState } from "react"
+import Decimal from "decimal.js-light"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table"
 import { AlertTriangle, ArrowDownWideNarrow, ArrowUpNarrowWide, Check, CheckCircle2, CircleHelp, Clock, Columns3, Copy, Funnel, GripVertical, Loader2, MoreHorizontal, Pencil, Pin, Printer, RotateCcw, Trash2, Warehouse as WarehouseIcon, X } from "lucide-react"
@@ -33,6 +34,7 @@ import {
     checkDocumentPostingTimeChange,
     checkInboundWarehouseChange,
     checkLedgerAmountChange,
+    getLedgerAmountChangeContext,
     clearLedgerAmountOverride,
     checkLegacyPostingTimeNormalization,
     checkOtherExportLineDelete,
@@ -103,10 +105,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn, formatNumber } from "@/lib/utils"
 import type { InventoryLedgerReportRow, InventoryLedgerTotals } from "../data/schema"
+import { hasNegativeWarehouseValue, zeroBalanceDifference, ZERO_BALANCE_LIMIT } from "../data/cost-adjustment"
+import { CostSourceIndicator } from "./cost-source-indicator"
+import { getLedgerRunningBalance } from "../data/ledger-balance"
 import { getDocTypeMeta } from "../data/schema"
 import type { Warehouse } from "@/features/warehouse/data/schema"
 
 const EMPTY_ACCOUNT_FILTER_VALUE = "__VL_EMPTY_ACCOUNT__"
+const PriceDecimal = Decimal.clone({ precision: 50 })
 const EMPTY_ACCOUNT_FILTER_OPTION = { value: EMPTY_ACCOUNT_FILTER_VALUE, label: "Rỗng" }
 
 type TextFilterOp = "contains" | "equals" | "not_equals" | "not_contains"
@@ -177,6 +183,8 @@ type Props = {
         closing_quantity_value?: string
         closing_value_op?: NumberFilterOp | string
         closing_value_value?: string
+        zero_balance_mismatch_only?: boolean
+        warehouse_negative_value_only?: boolean
         time_sort?: "asc" | "desc" | string
     }
     onFiltersChange: (f: Props["filters"]) => void
@@ -596,6 +604,12 @@ export function InventoryLedgerTable({
     }
 
     const activeFilterChips = [
+        filters.zero_balance_mismatch_only
+            ? { key: "zero_balance_mismatch_only", label: "Hết hàng tại kho, lệch GT > 5.000 đồng", onClear: () => setFilter("zero_balance_mismatch_only", undefined) }
+            : null,
+        filters.warehouse_negative_value_only
+            ? { key: "warehouse_negative_value_only", label: "Còn hàng tại kho, GT âm", onClear: () => setFilter("warehouse_negative_value_only", undefined) }
+            : null,
         keyword
             ? { key: "keyword", label: `Tìm kiếm "${keyword}"`, onClear: () => onKeywordChange("") }
             : null,
@@ -766,6 +780,8 @@ export function InventoryLedgerTable({
             closing_quantity_value: undefined,
             closing_value_op: undefined,
             closing_value_value: undefined,
+            zero_balance_mismatch_only: undefined,
+            warehouse_negative_value_only: undefined,
             time_sort: "asc",
         })
     }
@@ -1025,6 +1041,20 @@ export function InventoryLedgerTable({
                         outboundTypes={direction === "IN" ? [] : outboundDocTypes}
                         onApply={(value) => setFilter("doc_type", value)}
                     />
+                    {showValues ? (
+                        <>
+                            <label className="flex min-h-10 max-w-full cursor-pointer items-center gap-2 px-2 text-sm">
+                                <Checkbox checked={Boolean(filters.zero_balance_mismatch_only)}
+                                    onCheckedChange={(checked) => setFilter("zero_balance_mismatch_only", checked === true || undefined)} />
+                                <span>Hết hàng tại kho, lệch GT &gt; 5.000 đồng</span>
+                            </label>
+                            <label className="flex min-h-10 max-w-full cursor-pointer items-center gap-2 px-2 text-sm">
+                                <Checkbox checked={Boolean(filters.warehouse_negative_value_only)}
+                                    onCheckedChange={(checked) => setFilter("warehouse_negative_value_only", checked === true || undefined)} />
+                                <span>Còn hàng tại kho, GT âm</span>
+                            </label>
+                        </>
+                    ) : null}
 
                     <DateFilterInput
                         aria-label="Từ ngày"
@@ -1108,7 +1138,9 @@ export function InventoryLedgerTable({
                         </>
                     )}
                     renderFooter={() => (
-                        <LedgerTotalsRow totals={filterTotals} columns={visibleColumns} direction={direction} />
+                        <LedgerTotalsRow totals={filterTotals} columns={visibleColumns} direction={direction}
+                            warningReport={showValues && Boolean(filters.zero_balance_mismatch_only || filters.warehouse_negative_value_only)}
+                            warningTotalLabel={filters.warehouse_negative_value_only ? (filters.zero_balance_mismatch_only ? "Tổng GT cảnh báo" : "Tổng GT âm") : "Tổng lệch"} />
                     )}
                 />
 
@@ -2242,10 +2274,14 @@ function LedgerTotalsRow({
     totals,
     columns,
     direction,
+    warningReport = false,
+    warningTotalLabel = "Tổng lệch",
 }: {
     totals: Required<InventoryLedgerTotals>
     columns: LedgerColumnDefinition[]
     direction?: "IN" | "OUT"
+    warningReport?: boolean
+    warningTotalLabel?: string
 }) {
     const displayValue = (value: number) => direction === "OUT" ? Math.abs(Number(value || 0)) : Number(value || 0)
     const totalByColumn: Partial<Record<LedgerColumnKey, number>> = {
@@ -2255,8 +2291,8 @@ function LedgerTotalsRow({
         inbound_value: displayValue(totals.inbound_value),
         outbound_quantity: displayValue(totals.outbound_quantity),
         outbound_value: displayValue(totals.outbound_value),
-        closing_quantity: displayValue(totals.closing_quantity),
-        closing_value: displayValue(totals.closing_value),
+        closing_quantity: warningReport ? Number(totals.closing_quantity || 0) : displayValue(totals.closing_quantity),
+        closing_value: warningReport ? Number(totals.closing_value || 0) : displayValue(totals.closing_value),
     }
 
     return (
@@ -2265,11 +2301,14 @@ function LedgerTotalsRow({
                 Tổng
             </Td>
             {columns.map((column, index) => {
+                if (warningReport && column.key.startsWith("opening_")) {
+                    return <Td key={column.key} className="bg-slate-50 text-right text-muted-foreground">-</Td>
+                }
                 const total = totalByColumn[column.key]
                 if (total === undefined) {
                     return (
                         <Td key={column.key} className={cn("bg-slate-50", index === 0 && "font-semibold text-slate-700")}>
-                            {index === 0 ? "Tổng theo bộ lọc" : ""}
+                            {index === 0 ? (warningReport ? warningTotalLabel : "Tổng theo bộ lọc") : ""}
                         </Td>
                     )
                 }
@@ -2280,9 +2319,12 @@ function LedgerTotalsRow({
                             "bg-slate-50 text-right font-semibold tabular-nums",
                             column.key.startsWith("inbound") && "text-emerald-700",
                             column.key.startsWith("outbound") && "text-rose-700",
+                            warningReport && column.key === "closing_value" && "text-red-600",
                         )}
+                        title={warningReport && column.key === "closing_value" ? "Tổng có dấu của giá trị tồn sau tại các dòng cảnh báo trong toàn bộ kết quả lọc, không phải tổng tồn kho cuối kỳ." : undefined}
                     >
                         {formatNumber(total)}
+                        {warningReport && column.key === "closing_value" ? <div className="whitespace-normal text-xs">{warningTotalLabel} (có dấu)</div> : null}
                     </Td>
                 )
             })}
@@ -2339,14 +2381,18 @@ function LedgerRow({
     const meta = getDocTypeMeta(item.doc_type)
     const quantityIn = Number(item.quantity_in || 0)
     const quantityOut = Number(item.quantity_out || 0)
-    const openingBalance = Number(item.balance_quantity || 0) - quantityIn + quantityOut
+    const balance = getLedgerRunningBalance(item)
+    const openingBalance = balance.openingQuantity
     const rowUnitPrice = Number(item.unit_price || 0)
     const rowAmount = Math.abs(Number(item.amount || 0))
-    const closingBalance = Number(item.balance_quantity || 0)
-    const openingValue = openingBalance * rowUnitPrice
+    const closingBalance = balance.closingQuantity
+    const closingValue = balance.closingValue
+    const openingValue = balance.openingValue
+    const valueDifference = zeroBalanceDifference(item)
+    const hasLargeValueDifference = Math.abs(valueDifference) > ZERO_BALANCE_LIMIT
+    const hasNegativeValue = hasNegativeWarehouseValue(item)
     const inboundValue = quantityIn ? rowAmount : 0
     const outboundValue = quantityOut ? rowAmount : 0
-    const closingValue = closingBalance * rowUnitPrice
     const centerVoucherFields = Boolean(direction)
 
     const renderLedgerDataCell = (column: LedgerColumnDefinition) => {
@@ -2462,10 +2508,7 @@ function LedgerRow({
             case "unit_price":
                 return (
                     <Td key={column.key} className="tabular-nums">
-                        <div className="flex items-center justify-between gap-2">
-                            <CostPeriodIcon label={item.cost_period_label} docType={item.doc_type} overrideSource={item.applied_cost_override_source} />
-                            <span className="min-w-0 text-right">{formatNumber(rowUnitPrice)}</span>
-                        </div>
+                        <CostSourceIndicator row={item} unitPrice={rowUnitPrice} />
                     </Td>
                 )
             case "opening_quantity":
@@ -2476,7 +2519,7 @@ function LedgerRow({
                 )
             case "opening_value":
                 return (
-                    <Td key={column.key} className="text-right tabular-nums">
+                    <Td key={column.key} className={cn("text-right tabular-nums", openingValue < 0 && "font-semibold text-red-600")}>
                         {formatNumber(openingValue)}
                     </Td>
                 )
@@ -2512,8 +2555,10 @@ function LedgerRow({
                 )
             case "closing_value":
                 return (
-                    <Td key={column.key} className="text-right tabular-nums">
+                    <Td key={column.key} className={cn("text-right tabular-nums", (closingValue < 0 || hasLargeValueDifference || hasNegativeValue) && "font-semibold text-red-600")}>
                         {formatNumber(closingValue)}
+                        {hasLargeValueDifference ? <div className="whitespace-normal break-words text-xs">Hết hàng tại kho, còn lệch GT</div> : null}
+                        {hasNegativeValue ? <div className="whitespace-normal break-words text-xs">Còn hàng nhưng giá trị âm</div> : null}
                     </Td>
                 )
             case "doc_type":
@@ -4908,49 +4953,86 @@ function LedgerAmountChangeDialog({
     onOpenChange: (open: boolean) => void
     onChanged: () => void
 }) {
-    const [amountText, setAmountText] = useState("")
+    const [unitPriceText, setUnitPriceText] = useState("")
     const [result, setResult] = useState<LedgerAmountChangeResult | null>(null)
     const [errorMessage, setErrorMessage] = useState("")
+    const [loadedLedgerId, setLoadedLedgerId] = useState<number | null>(null)
+    const contextQuery = useQuery({
+        queryKey: ["inventory-ledger-amount-context", row?.id],
+        queryFn: () => getLedgerAmountChangeContext(Number(row?.id)),
+        enabled: open && Boolean(row?.id),
+        staleTime: 0,
+        retry: false,
+        refetchOnWindowFocus: false,
+    })
+    const context = contextQuery.data?.ledger_id === row?.id ? contextQuery.data : undefined
 
     useEffect(() => {
-        if (open && row) {
-            const currentAmount = Math.abs(Number(row.amount || 0))
-            setAmountText(String(currentAmount))
-            setResult(null)
-            setErrorMessage("")
-            checkLedgerAmountChange(Number(row.id), currentAmount)
-                .then(setResult)
-                .catch(() => undefined)
-        }
-    }, [open, row])
+        setUnitPriceText("")
+        setLoadedLedgerId(null)
+        setResult(null)
+        setErrorMessage("")
+    }, [open, row?.id])
 
-    const newTotalAmount = parseDecimalInput(amountText)
-    const quantity = Math.abs(Number(row?.quantity_in || 0) || Number(row?.quantity_out || 0))
-    const currentAmount = Number(row?.amount || 0)
-    const previewUnitPrice = Number.isFinite(newTotalAmount) && quantity > 0 ? newTotalAmount / quantity : 0
-    const unchanged = Number.isFinite(newTotalAmount) && Math.abs(newTotalAmount - Math.abs(currentAmount)) < 0.000001
+    useEffect(() => {
+        if (!open || contextQuery.isFetching || !context || context.current_unit_price == null || context.current_amount == null) return
+        const savedPrice = context.override_unit_price
+            ?? (context.override_amount != null && Number(context.quantity) > 0
+                ? new PriceDecimal(context.override_amount).abs().div(context.quantity).toString()
+                : context.current_unit_price)
+        setUnitPriceText(String(savedPrice))
+        setLoadedLedgerId(context.ledger_id)
+    }, [open, contextQuery.isFetching, contextQuery.dataUpdatedAt, context])
+
+    const hasCurrentPrice = context?.current_unit_price != null && context.current_amount != null
+        && Number.isFinite(Number(context.current_unit_price)) && Number.isFinite(Number(context.current_amount))
+    const contextReady = Boolean(open && context && hasCurrentPrice && !contextQuery.isFetching && !contextQuery.isError && loadedLedgerId === row?.id)
+
+    const newUnitPrice = parseDecimalInput(unitPriceText)
+    const quantity = context ? Math.abs(Number(context.quantity)) : Math.abs(Number(row?.quantity_in || 0) || Number(row?.quantity_out || 0))
+    const newTotalAmount = useMemo(() => {
+        if (!Number.isFinite(newUnitPrice) || newUnitPrice < 0 || !Number.isFinite(quantity) || quantity <= 0) return null
+        try {
+            return new PriceDecimal(unitPriceText.trim().replace(/,/g, "")).mul(quantity).toFixed()
+        } catch {
+            return null
+        }
+    }, [unitPriceText, newUnitPrice, quantity])
+    const currentAmount = context ? Math.abs(Number(context.current_amount)) : Number.NaN
+    const editableAmount = context ? Math.abs(Number(context.override_amount ?? context.current_amount)) : Number.NaN
+    const editablePrice = context?.override_unit_price
+        ?? (context?.override_amount != null && quantity > 0 ? new PriceDecimal(context.override_amount).abs().div(quantity).toString() : context?.current_unit_price)
+    const unchanged = contextReady && newTotalAmount != null && editablePrice != null
+        && new PriceDecimal(unitPriceText.trim().replace(/,/g, "")).eq(editablePrice)
+    const matchingResult = result && result.ledger_id === row?.id && (result.applied || (newTotalAmount != null
+        && Math.abs(Number(result.new_total_amount) - Number(newTotalAmount)) < 0.000001)) ? result : null
+    const loadError = contextQuery.isError ? contextQuery.error?.message || "Không tải được giá hiện tại. Vui lòng thử lại."
+        : contextQuery.isSuccess && !contextQuery.isFetching && (!context || !hasCurrentPrice) ? "Chưa nhận được giá hiện tại từ sổ kho. Vui lòng thử lại." : ""
 
     const checkMutation = useMutation({
-        mutationFn: () => checkLedgerAmountChange(Number(row?.id), newTotalAmount),
+        mutationFn: () => checkLedgerAmountChange(Number(row?.id), newTotalAmount!),
         onSuccess: (data) => {
             setResult(data)
             setErrorMessage("")
         },
         onError: (error: any) => {
             setResult(null)
-            setErrorMessage(error?.message || "Không kiểm tra được tổng giá trị.")
+            setErrorMessage(error?.message || "Không kiểm tra được đơn giá.")
         },
     })
 
     const applyMutation = useMutation({
-        mutationFn: () => applyLedgerAmountChange(Number(row?.id), newTotalAmount),
+        mutationFn: () => applyLedgerAmountChange(Number(row?.id), newTotalAmount!),
         onSuccess: (data) => {
             setResult(data)
             setErrorMessage("")
-            if (data?.valid) onChanged()
+            if (data?.valid) {
+                onChanged()
+                void contextQuery.refetch()
+            }
         },
         onError: (error: any) => {
-            setErrorMessage(error?.message || "Không sửa được tổng giá trị.")
+            setErrorMessage(error?.message || "Không sửa được đơn giá.")
         },
     })
 
@@ -4960,16 +5042,17 @@ function LedgerAmountChangeDialog({
             setResult(data)
             setErrorMessage("")
             onChanged()
+            void contextQuery.refetch()
         },
         onError: (error: any) => {
             setErrorMessage(error?.message || "Không bỏ được giá vốn cố định.")
         },
     })
 
-    const busy = checkMutation.isPending || applyMutation.isPending || clearMutation.isPending
-    const canCheck = Boolean(row && Number.isFinite(newTotalAmount) && newTotalAmount >= 0 && !unchanged && !busy)
-    const canApply = Boolean(result?.valid && !result.applied && !unchanged && !busy)
-    const directionLabel = String(row?.doc_type || "").toUpperCase() === "OTHER_EXPORT" ? "xuất" : "nhập"
+    const busy = contextQuery.isFetching || checkMutation.isPending || applyMutation.isPending || clearMutation.isPending
+    const canCheck = Boolean(contextReady && newTotalAmount != null && !unchanged && !busy)
+    const canApply = Boolean(contextReady && matchingResult?.valid && !matchingResult.applied && !unchanged && !busy)
+    const directionLabel = (context?.direction === "OUT" || Number(row?.quantity_out) > 0) ? "xuất" : "nhập"
     const usesCostOverride = ["PURCHASE_RETURN", "OTHER_INBOUND", "TRANSFER_EXPORT", "OTHER_EXPORT"]
         .includes(String(row?.doc_type || "").toUpperCase())
 
@@ -4980,11 +5063,11 @@ function LedgerAmountChangeDialog({
                 style={{ width: "min(980px, calc(100vw - 32px))", maxWidth: "calc(100vw - 32px)" }}
             >
                 <DialogHeader>
-                    <DialogTitle>{usesCostOverride ? "Sửa giá vốn cố định" : "Sửa tổng giá trị"}</DialogTitle>
+                    <DialogTitle>{usesCostOverride ? "Sửa giá vốn cố định" : "Sửa đơn giá"}</DialogTitle>
                     <DialogDescription>
                         {usesCostOverride
                             ? "Giá này được giữ nguyên khi tính lại kỳ. Với chuyển kho, hệ thống cập nhật đồng thời cả dòng xuất và dòng nhập."
-                            : "Nhập tổng giá trị dương theo chứng từ cũ. Hệ thống giữ dấu sổ kho hiện tại và tính ngược đơn giá."}
+                            : "Giá trị được cập nhật theo số lượng và đơn giá mới, giữ nguyên chiều nhập/xuất."}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -5000,48 +5083,55 @@ function LedgerAmountChangeDialog({
                         </div>
 
                         <div className="grid gap-3 rounded-md border p-3 text-sm md:grid-cols-2">
-                            <InfoItem label="Đơn giá hiện tại" value={formatNumber(Number(row.unit_price || 0))} />
-                            <InfoItem label="Giá trị hiện tại" value={formatNumber(Math.abs(currentAmount))} />
-                            <InfoItem label="Đơn giá mới dự kiến" value={Number.isFinite(previewUnitPrice) ? formatNumber(previewUnitPrice) : "-"} />
-                            <InfoItem label="Tổng giá trị mới" value={Number.isFinite(newTotalAmount) ? formatNumber(newTotalAmount) : "-"} />
+                            <InfoItem label="Đơn giá hiện tại" value={contextReady ? formatNumber(Number(context?.current_unit_price)) : loadError ? "—" : "Đang tải…"} />
+                            <InfoItem label="Giá trị hiện tại" value={contextReady ? formatNumber(currentAmount) : loadError ? "—" : "Đang tải…"} />
+                            <InfoItem label="Đơn giá mới" value={newTotalAmount != null ? formatNumber(newUnitPrice) : "-"} />
+                            <InfoItem label="Giá trị mới" value={newTotalAmount != null ? formatNumber(Number(newTotalAmount)) : "-"} />
                         </div>
 
                         <div className="grid gap-2">
-                            <label className="text-sm font-medium">Tổng giá trị mới</label>
+                            <label htmlFor="ledger-new-unit-price" className="text-sm font-medium">Đơn giá mới</label>
                             <Input
-                                value={amountText}
+                                id="ledger-new-unit-price"
+                                inputMode="decimal"
+                                value={unitPriceText}
+                                disabled={!contextReady || busy}
                                 onChange={(event) => {
-                                    setAmountText(event.target.value)
+                                    setUnitPriceText(event.target.value)
                                     setResult(null)
                                     setErrorMessage("")
                                 }}
-                                placeholder="Nhập tổng giá trị"
+                                placeholder="Nhập đơn giá mới"
                                 className="h-10 font-mono"
                             />
-                            {!Number.isFinite(newTotalAmount) ? (
-                                <div className="text-sm text-destructive">Tổng giá trị mới không hợp lệ.</div>
+                            {contextReady && newTotalAmount == null ? (
+                                <div className="text-sm text-destructive">Đơn giá mới không hợp lệ.</div>
                             ) : null}
                             {unchanged ? (
-                                <div className="text-sm text-muted-foreground">Tổng giá trị mới đang trùng giá trị hiện tại.</div>
+                                <div className="text-sm text-muted-foreground">Đơn giá mới chưa thay đổi.</div>
+                            ) : null}
+                            {contextReady && context?.override_amount != null && Math.abs(editableAmount - currentAmount) >= 0.000001 ? (
+                                <div className="text-sm text-muted-foreground">Giá vốn cố định đã lưu: {formatNumber(editableAmount)} đ; khác với giá trị đang áp dụng trên sổ kho.</div>
                             ) : null}
                         </div>
 
-                        {errorMessage ? (
+                        {errorMessage || loadError ? (
                             <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                                 <div className="flex items-start gap-2 font-semibold">
                                     <AlertTriangle className="mt-0.5 h-4 w-4" />
-                                    Không thể sửa tổng giá trị
+                                    Không thể sửa đơn giá
                                 </div>
-                                <div className="mt-1 pl-6">{errorMessage}</div>
+                                <div className="mt-1 pl-6">{errorMessage || loadError}</div>
+                                {loadError ? <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => void contextQuery.refetch()}>Thử lại</Button> : null}
                             </div>
                         ) : null}
 
-                        {result ? <LedgerAmountChangeResultPanel result={result} /> : null}
+                        {contextReady && matchingResult ? <LedgerAmountChangeResultPanel result={matchingResult} /> : null}
                     </div>
                 ) : null}
 
                 <div className="flex justify-end gap-2 border-t pt-3">
-                    {result?.can_clear_override ? (
+                    {contextReady && context?.can_clear_override ? (
                         <Button type="button" variant="outline" disabled={busy} onClick={() => clearMutation.mutate()}>
                             {clearMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
                             Dùng lại giá hệ thống
@@ -5078,9 +5168,9 @@ function LedgerAmountChangeResultPanel({ result }: { result: LedgerAmountChangeR
         )}>
             <div className="flex items-start gap-2 font-semibold">
                 {valid ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertTriangle className="mt-0.5 h-4 w-4" />}
-                <span>{applied ? "Đã sửa tổng giá trị" : valid ? "Có thể sửa tổng giá trị" : "Không thể sửa tổng giá trị"}</span>
+                <span>{result.cleared ? "Đã bỏ giá vốn cố định" : applied ? "Đã sửa giá vốn" : valid ? "Có thể sửa giá vốn" : "Không thể sửa giá vốn"}</span>
             </div>
-            <div className="mt-1 pl-6">{result.message}</div>
+            {!valid || result.cleared ? <div className="mt-1 pl-6">{result.message}</div> : null}
 
             <div className="mt-3 grid gap-2 md:grid-cols-3">
                 <ResultInfo label="Giá trị cũ" value={formatNumber(Math.abs(Number(result.old_amount || 0)))} />
@@ -7191,7 +7281,7 @@ function ScopedVoucherCorrectionActions({
     }
     if (isLedgerAmountCorrectionLedger(row) && onChangeLedgerAmount) {
         const overridePrice = ["PURCHASE_RETURN", "OTHER_INBOUND", "TRANSFER_EXPORT", "OTHER_EXPORT"].includes(docType)
-        actions.push({ label: overridePrice ? "Sửa giá vốn cố định" : "Sửa tổng giá trị", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangeLedgerAmount(row), isNew: true })
+        actions.push({ label: overridePrice ? "Sửa giá vốn cố định" : "Sửa đơn giá", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangeLedgerAmount(row), isNew: true })
     }
     if (isSalesReturnUnitPriceCorrectionLedger(row) && onChangeSalesReturnUnitPrice) {
         actions.push({ label: "Sửa đơn giá nhập trả", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => onChangeSalesReturnUnitPrice(row) })
@@ -7274,6 +7364,7 @@ function voucherItemToLedgerRow(
         quantity_in: isInbound ? quantity : 0,
         quantity_out: isInbound ? 0 : quantity,
         balance_quantity: 0,
+        balance_value: 0,
         product_code: item.product?.code || "",
         product_name: item.product?.name || "",
         warehouse_code: warehouse.code || null,
@@ -7868,45 +7959,6 @@ function formatMoney(value?: number | string | null) {
     return new Intl.NumberFormat("vi-VN", {
         maximumFractionDigits: 3,
     }).format(n)
-}
-
-function CostPeriodIcon({ label, docType, overrideSource }: {
-    label?: string | null
-    docType?: string | null
-    overrideSource?: string | null
-}) {
-    const isOpening = String(docType || "").toUpperCase() === "OPENING"
-    const hasPeriod = Boolean(label && label.trim())
-    const isOk = hasPeriod || isOpening
-    const overrideLabel = overrideSource === "COST_OVERRIDE_FILE_IMPORT"
-        ? "Giá vốn cố định từ file import"
-        : overrideSource === "COST_OVERRIDE_MANUAL_UI"
-            ? "Giá vốn cố định sửa trên giao diện"
-            : overrideSource?.startsWith("COST_OVERRIDE_")
-                ? "Giá vốn cố định được nhập"
-                : null
-    const title = isOpening
-        ? "Đơn giá khai báo đầu kỳ"
-        : hasPeriod
-            ? overrideLabel
-                ? `${overrideLabel}. Đã ghi nhận trong kỳ: ${label}`
-                : `Đơn giá được ghi nhận trong kỳ tính giá: ${label}`
-            : "Chưa có kỳ tính giá"
-
-    return (
-        <span
-            className={cn(
-                "inline-flex size-4 shrink-0 items-center justify-center rounded-full border",
-                isOk
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-amber-200 bg-amber-50 text-amber-700",
-            )}
-            title={title}
-            aria-label={title}
-        >
-            {isOk ? <CheckCircle2 className="size-3" /> : <AlertTriangle className="size-3" />}
-        </span>
-    )
 }
 
 function escapeHtml(value: string) {
