@@ -105,9 +105,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn, formatNumber } from "@/lib/utils"
 import type { InventoryLedgerReportRow, InventoryLedgerTotals } from "../data/schema"
-import { hasNegativeWarehouseValue, zeroBalanceDifference, ZERO_BALANCE_LIMIT } from "../data/cost-adjustment"
+import { hasMonthEndNegativeValue, zeroBalanceDifference, ZERO_BALANCE_LIMIT } from "../data/cost-adjustment"
 import { CostSourceIndicator } from "./cost-source-indicator"
-import { getLedgerRunningBalance } from "../data/ledger-balance"
+import { getLedgerDisplayedValues, getLedgerRunningBalance } from "../data/ledger-balance"
 import { getDocTypeMeta } from "../data/schema"
 import type { Warehouse } from "@/features/warehouse/data/schema"
 
@@ -185,6 +185,7 @@ type Props = {
         closing_value_value?: string
         zero_balance_mismatch_only?: boolean
         warehouse_negative_value_only?: boolean
+        month_end_negative_value_only?: boolean
         time_sort?: "asc" | "desc" | string
     }
     onFiltersChange: (f: Props["filters"]) => void
@@ -238,6 +239,7 @@ type LedgerColumnKey =
     | "cost_object_code"
     | "cost_object_name"
     | "supplier_name"
+    | "provisional_value"
 
 type LedgerColumnDefinition = {
     key: LedgerColumnKey
@@ -282,6 +284,7 @@ const LEDGER_COLUMN_DEFINITIONS: LedgerColumnDefinition[] = [
     { key: "cost_object_code", label: "Mã đối tượng THCP", width: 180 },
     { key: "cost_object_name", label: "Tên đối tượng THCP", width: 300 },
     { key: "supplier_name", label: "Tên nhà cung cấp", width: 260 },
+    { key: "provisional_value", label: "Giá trị tồn (tạm tính)", width: 180, valueColumn: true },
 ]
 
 const LEDGER_COLUMN_MAP = new Map(LEDGER_COLUMN_DEFINITIONS.map((column) => [column.key, column]))
@@ -610,6 +613,9 @@ export function InventoryLedgerTable({
         filters.warehouse_negative_value_only
             ? { key: "warehouse_negative_value_only", label: "Còn hàng tại kho, GT âm", onClear: () => setFilter("warehouse_negative_value_only", undefined) }
             : null,
+        filters.month_end_negative_value_only
+            ? { key: "month_end_negative_value_only", label: "GT tồn âm cuối tháng", onClear: () => setFilter("month_end_negative_value_only", undefined) }
+            : null,
         keyword
             ? { key: "keyword", label: `Tìm kiếm "${keyword}"`, onClear: () => onKeywordChange("") }
             : null,
@@ -782,6 +788,7 @@ export function InventoryLedgerTable({
             closing_value_value: undefined,
             zero_balance_mismatch_only: undefined,
             warehouse_negative_value_only: undefined,
+            month_end_negative_value_only: undefined,
             time_sort: "asc",
         })
     }
@@ -1053,6 +1060,11 @@ export function InventoryLedgerTable({
                                     onCheckedChange={(checked) => setFilter("warehouse_negative_value_only", checked === true || undefined)} />
                                 <span>Còn hàng tại kho, GT âm</span>
                             </label>
+                            <label className="flex min-h-10 max-w-full cursor-pointer items-center gap-2 px-2 text-sm">
+                                <Checkbox checked={Boolean(filters.month_end_negative_value_only)}
+                                    onCheckedChange={(checked) => setFilter("month_end_negative_value_only", checked === true || undefined)} />
+                                <span>GT tồn âm cuối tháng</span>
+                            </label>
                         </>
                     ) : null}
 
@@ -1139,8 +1151,8 @@ export function InventoryLedgerTable({
                     )}
                     renderFooter={() => (
                         <LedgerTotalsRow totals={filterTotals} columns={visibleColumns} direction={direction}
-                            warningReport={showValues && Boolean(filters.zero_balance_mismatch_only || filters.warehouse_negative_value_only)}
-                            warningTotalLabel={filters.warehouse_negative_value_only ? (filters.zero_balance_mismatch_only ? "Tổng GT cảnh báo" : "Tổng GT âm") : "Tổng lệch"} />
+                            warningReport={showValues && Boolean(filters.zero_balance_mismatch_only || filters.warehouse_negative_value_only || filters.month_end_negative_value_only)}
+                            warningTotalLabel={filters.warehouse_negative_value_only || filters.month_end_negative_value_only ? (filters.zero_balance_mismatch_only ? "Tổng GT cảnh báo" : "Tổng GT âm") : "Tổng lệch"} />
                     )}
                 />
 
@@ -2293,6 +2305,7 @@ function LedgerTotalsRow({
         outbound_value: displayValue(totals.outbound_value),
         closing_quantity: warningReport ? Number(totals.closing_quantity || 0) : displayValue(totals.closing_quantity),
         closing_value: warningReport ? Number(totals.closing_value || 0) : displayValue(totals.closing_value),
+        provisional_value: Number(totals.closing_value || 0),
     }
 
     return (
@@ -2301,7 +2314,7 @@ function LedgerTotalsRow({
                 Tổng
             </Td>
             {columns.map((column, index) => {
-                if (warningReport && column.key.startsWith("opening_")) {
+                if (warningReport && column.key === "opening_quantity") {
                     return <Td key={column.key} className="bg-slate-50 text-right text-muted-foreground">-</Td>
                 }
                 const total = totalByColumn[column.key]
@@ -2319,12 +2332,14 @@ function LedgerTotalsRow({
                             "bg-slate-50 text-right font-semibold tabular-nums",
                             column.key.startsWith("inbound") && "text-emerald-700",
                             column.key.startsWith("outbound") && "text-rose-700",
-                            warningReport && column.key === "closing_value" && "text-red-600",
+                            warningReport && column.key === "provisional_value" && "text-red-600",
                         )}
-                        title={warningReport && column.key === "closing_value" ? "Tổng có dấu của giá trị tồn sau tại các dòng cảnh báo trong toàn bộ kết quả lọc, không phải tổng tồn kho cuối kỳ." : undefined}
+                        title={column.key === "provisional_value" ? (warningReport
+                            ? "Tổng có dấu của các dòng cảnh báo; một hàng/kho có thể xuất hiện nhiều lần. Đây không phải tổng tồn kho cuối kỳ."
+                            : "Giá trị tồn cuối theo toàn bộ bộ lọc, tính từ tồn đầu + nhập - xuất; không cộng tồn lũy kế của từng dòng.") : undefined}
                     >
                         {formatNumber(total)}
-                        {warningReport && column.key === "closing_value" ? <div className="whitespace-normal text-xs">{warningTotalLabel} (có dấu)</div> : null}
+                        {warningReport && column.key === "provisional_value" ? <div className="whitespace-normal text-xs">{warningTotalLabel} (có dấu)</div> : null}
                     </Td>
                 )
             })}
@@ -2382,15 +2397,15 @@ function LedgerRow({
     const quantityIn = Number(item.quantity_in || 0)
     const quantityOut = Number(item.quantity_out || 0)
     const balance = getLedgerRunningBalance(item)
+    const displayedValues = getLedgerDisplayedValues(item)
     const openingBalance = balance.openingQuantity
     const rowUnitPrice = Number(item.unit_price || 0)
     const rowAmount = Math.abs(Number(item.amount || 0))
     const closingBalance = balance.closingQuantity
-    const closingValue = balance.closingValue
-    const openingValue = balance.openingValue
+    const closingValue = displayedValues.provisionalValue
     const valueDifference = zeroBalanceDifference(item)
     const hasLargeValueDifference = Math.abs(valueDifference) > ZERO_BALANCE_LIMIT
-    const hasNegativeValue = hasNegativeWarehouseValue(item)
+    const hasNegativeValue = hasMonthEndNegativeValue(item)
     const inboundValue = quantityIn ? rowAmount : 0
     const outboundValue = quantityOut ? rowAmount : 0
     const centerVoucherFields = Boolean(direction)
@@ -2519,8 +2534,8 @@ function LedgerRow({
                 )
             case "opening_value":
                 return (
-                    <Td key={column.key} className={cn("text-right tabular-nums", openingValue < 0 && "font-semibold text-red-600")}>
-                        {formatNumber(openingValue)}
+                    <Td key={column.key} className={cn("text-right tabular-nums", displayedValues.openingValue == null && "text-muted-foreground")}>
+                        {displayedValues.openingValue == null ? "-" : formatNumber(displayedValues.openingValue)}
                     </Td>
                 )
             case "inbound_quantity":
@@ -2555,10 +2570,16 @@ function LedgerRow({
                 )
             case "closing_value":
                 return (
-                    <Td key={column.key} className={cn("text-right tabular-nums", (closingValue < 0 || hasLargeValueDifference || hasNegativeValue) && "font-semibold text-red-600")}>
+                    <Td key={column.key} className={cn("text-right tabular-nums", displayedValues.closingValue == null && "text-muted-foreground")}>
+                        {displayedValues.closingValue == null ? "-" : formatNumber(displayedValues.closingValue)}
+                    </Td>
+                )
+            case "provisional_value":
+                return (
+                    <Td key={column.key} className={cn("text-right tabular-nums", (hasLargeValueDifference || hasNegativeValue) && "font-semibold text-red-600")}>
                         {formatNumber(closingValue)}
                         {hasLargeValueDifference ? <div className="whitespace-normal break-words text-xs">Hết hàng tại kho, còn lệch GT</div> : null}
-                        {hasNegativeValue ? <div className="whitespace-normal break-words text-xs">Còn hàng nhưng giá trị âm</div> : null}
+                        {!hasLargeValueDifference && hasNegativeValue ? <div className="whitespace-normal break-words text-xs">GT tồn âm cuối tháng</div> : null}
                     </Td>
                 )
             case "doc_type":

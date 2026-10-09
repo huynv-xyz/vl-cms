@@ -14,6 +14,7 @@ import { OrderSplitAction } from "../../order/components/order-split-dialog"
 import { OrderPpStatusAdjustmentDialog } from "../../order/components/order-pp-status-adjustment-dialog"
 import { OrderQuantityAdjustmentDialog } from "../../order/components/order-quantity-adjustment-dialog"
 import { OrderSalespersonAdjustmentDialog } from "../../order/components/order-salesperson-adjustment-dialog"
+import { OrderCustomerTransferDialog } from "../../order/components/order-customer-transfer-dialog"
 import {
     CalendarDays,
     CalendarClock,
@@ -42,6 +43,7 @@ export function OrderInfo({ order, metrics }: Props) {
     const [ppStatusOpen, setPpStatusOpen] = useState(false)
     const [quantityOpen, setQuantityOpen] = useState(false)
     const [salespersonOpen, setSalespersonOpen] = useState(false)
+    const [customerTransferOpen, setCustomerTransferOpen] = useState(false)
     const statusMeta = getOrderStatusMeta(order.status)
     const StatusIcon = statusMeta.icon
     const { data: permissions = [] } = useQuery({
@@ -153,6 +155,11 @@ export function OrderInfo({ order, metrics }: Props) {
                         Sửa đơn
                     </Button>
                     <OrderSplitAction order={order} />
+                    {canAdjustPrice && order.status !== "CANCELLED" && (
+                        <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setCustomerTransferOpen(true)}>
+                            <UsersRound className="h-3.5 w-3.5" />Chuyển khách hàng
+                        </Button>
+                    )}
                     {canAdjustPrice && hasDoneExport && (
                         <Button
                             type="button"
@@ -257,6 +264,7 @@ export function OrderInfo({ order, metrics }: Props) {
                 open={salespersonOpen}
                 onOpenChange={setSalespersonOpen}
             />
+            <OrderCustomerTransferDialog order={order} open={customerTransferOpen} onOpenChange={setCustomerTransferOpen} />
 
             {/* INFO GRID */}
             <div className="grid gap-3 px-5 py-3 sm:grid-cols-2 lg:grid-cols-4">

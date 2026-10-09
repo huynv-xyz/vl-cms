@@ -6,8 +6,8 @@ import { listInventoryLedgerReport, type InventoryLedgerReportParams } from "@/a
 import { Button } from "@/components/ui/button"
 import type { InventoryLedgerReportRow, InventoryLedgerTotals } from "../data/schema"
 import { getDocTypeMeta } from "../data/schema"
-import { costSourceLabel, hasNegativeWarehouseValue, zeroBalanceDifference, ZERO_BALANCE_LIMIT } from "../data/cost-adjustment"
-import { getLedgerRunningBalance } from "../data/ledger-balance"
+import { costSourceLabel, hasMonthEndNegativeValue, zeroBalanceDifference, ZERO_BALANCE_LIMIT } from "../data/cost-adjustment"
+import { getLedgerDisplayedValues, getLedgerRunningBalance } from "../data/ledger-balance"
 
 type Props = {
     keyword?: string
@@ -47,15 +47,15 @@ const COLUMNS: ExportColumn[] = [
     { label: "Kho", value: (row) => row.warehouse_name, width: 28 },
     { label: "Đơn giá", value: (row) => row.unit_price, width: 16, type: "number", numberFormat: "money", valueColumn: true },
     { label: "Tồn đầu - Số lượng", value: (row) => getLedgerRunningBalance(row).openingQuantity, width: 18, type: "number", numberFormat: "quantity", total: true, totalKey: "opening_quantity", absoluteOnOutbound: true },
-    { label: "Tồn đầu - Giá trị", value: (row) => getLedgerRunningBalance(row).openingValue, width: 18, type: "number", numberFormat: "money", total: true, totalKey: "opening_value", valueColumn: true, absoluteOnOutbound: true },
+    { label: "Tồn đầu - Giá trị", value: (row) => getLedgerDisplayedValues(row).openingValue ?? "-", width: 18, type: "number", numberFormat: "money", total: true, totalKey: "opening_value", valueColumn: true, absoluteOnOutbound: true },
     { label: "Nhập - Số lượng", value: (row) => row.quantity_in, width: 18, type: "number", numberFormat: "quantity", total: true, totalKey: "inbound_quantity", absoluteOnOutbound: true },
     { label: "Nhập - Giá trị", value: (row) => Number(row.quantity_in || 0) > 0 ? Math.abs(Number(row.amount || 0)) : 0, width: 18, type: "number", numberFormat: "money", total: true, totalKey: "inbound_value", valueColumn: true, absoluteOnOutbound: true },
     { label: "Xuất - Số lượng", value: (row) => row.quantity_out, width: 18, type: "number", numberFormat: "quantity", total: true, totalKey: "outbound_quantity", absoluteOnOutbound: true },
     { label: "Xuất - Giá trị", value: (row) => Number(row.quantity_out || 0) > 0 ? Math.abs(Number(row.amount || 0)) : 0, width: 18, type: "number", numberFormat: "money", total: true, totalKey: "outbound_value", valueColumn: true, absoluteOnOutbound: true },
     { label: "Tồn sau - Số lượng", value: (row) => row.balance_quantity, width: 18, type: "number", numberFormat: "quantity", total: true, totalKey: "closing_quantity", absoluteOnOutbound: true },
-    { label: "Tồn sau - Giá trị", value: (row) => getLedgerRunningBalance(row).closingValue, width: 18, type: "number", numberFormat: "money", total: true, totalKey: "closing_value", valueColumn: true, absoluteOnOutbound: true },
+    { label: "Tồn sau - Giá trị", value: (row) => getLedgerDisplayedValues(row).closingValue ?? "-", width: 18, type: "number", numberFormat: "money", total: true, totalKey: "closing_value", valueColumn: true, absoluteOnOutbound: true },
     { label: "Chênh lệch GT khi hết hàng tại kho", value: (row) => row.warehouse_balance_quantity != null && Number(row.warehouse_balance_quantity) === 0 ? zeroBalanceDifference(row) : null, width: 28, type: "number", numberFormat: "money", valueColumn: true },
-    { label: "GT âm khi còn hàng tại kho", value: (row) => hasNegativeWarehouseValue(row) ? Number(row.warehouse_balance_value) : null, width: 26, type: "number", numberFormat: "money", valueColumn: true },
+    { label: "GT tồn âm cuối tháng", value: (row) => hasMonthEndNegativeValue(row) ? Number(row.warehouse_balance_value ?? row.balance_value) : null, width: 26, type: "number", numberFormat: "money", valueColumn: true },
     { label: "Điều chỉnh giá vốn", value: (row) => row.cost_adjustment_amount == null ? null : Number(row.cost_adjustment_amount) * (Number(row.quantity_out || 0) > 0 ? -1 : 1), width: 22, type: "number", numberFormat: "money", valueColumn: true },
     { label: "Nguồn giá trước điều chỉnh", value: (row) => row.cost_source === "ZERO_BALANCE_NORMALIZED" ? costSourceLabel(row.cost_adjustment_base_source) : "", width: 36, valueColumn: true },
     { label: "Loại chứng từ", value: (row) => getDocTypeMeta(row.doc_type).label, width: 34 },
@@ -63,6 +63,7 @@ const COLUMNS: ExportColumn[] = [
     { label: "Tên đối tượng tập hợp chi phí", value: (row) => row.cost_object_name, width: 42 },
     { label: "Tên nhà cung cấp", value: (row) => row.supplier_name, width: 28 },
     { label: "Mã loại", value: (row) => row.doc_type, width: 20 },
+    { label: "Giá trị tồn (tạm tính)", value: (row) => getLedgerDisplayedValues(row).provisionalValue, width: 26, type: "number", numberFormat: "money", total: true, totalKey: "closing_value", valueColumn: true },
 ]
 
 export function ExportInventoryLedgerButton({ keyword, filters, showValues = true, title = "SỔ CHI TIẾT VẬT TƯ HÀNG HÓA", filePrefix = "so-chi-tiet-vat-tu-hang-hoa" }: Props) {
@@ -107,6 +108,7 @@ export function ExportInventoryLedgerButton({ keyword, filters, showValues = tru
                 show_values: filters.show_values,
                 zero_balance_mismatch_only: filters.zero_balance_mismatch_only,
                 warehouse_negative_value_only: filters.warehouse_negative_value_only,
+                month_end_negative_value_only: filters.month_end_negative_value_only,
             })
 
             if (!exportData.rows.length) {
@@ -234,8 +236,8 @@ async function exportInventoryLedgerXlsx(
     workbook.created = new Date()
     const groupedHeader = showValues
     const exportDirection = filters.direction === "OUT" ? "OUT" : filters.direction === "IN" ? "IN" : undefined
-    const warningReport = showValues && Boolean(filters.zero_balance_mismatch_only || filters.warehouse_negative_value_only)
-    const warningTotalLabel = filters.warehouse_negative_value_only
+    const warningReport = showValues && Boolean(filters.zero_balance_mismatch_only || filters.warehouse_negative_value_only || filters.month_end_negative_value_only)
+    const warningTotalLabel = filters.warehouse_negative_value_only || filters.month_end_negative_value_only
         ? (filters.zero_balance_mismatch_only ? "Tổng GT cảnh báo" : "Tổng GT âm") : "Tổng lệch"
     const headerStartRow = 4
     const dataStartRow = groupedHeader ? 6 : 5
@@ -270,7 +272,7 @@ async function exportInventoryLedgerXlsx(
     sheet.addRow(columns.map((column, index) => {
         if (index === 0) return warningReport ? `${warningTotalLabel} (có dấu)` : "Tổng"
         if (!column.total) return ""
-        if (warningReport && column.totalKey?.startsWith("opening_")) return ""
+        if (warningReport && column.totalKey === "opening_quantity") return "-"
         if (column.totalKey && totals && totals[column.totalKey] !== undefined && totals[column.totalKey] !== null) {
             if (warningReport && column.totalKey.startsWith("closing_")) return Number(totals[column.totalKey] || 0)
             return displayExportValue(Number(totals[column.totalKey] || 0), column, exportDirection)
@@ -340,8 +342,9 @@ async function exportInventoryLedgerXlsx(
                 cell.numFmt = getExcelNumberFormat(cell.value, column)
             }
             if ((column.label === "Chênh lệch GT khi hết hàng tại kho" && Math.abs(Number(cell.value)) > ZERO_BALANCE_LIMIT)
-                || (column.label === "GT âm khi còn hàng tại kho" && Number(cell.value) < 0)
-                || (warningReport && isTotalRow && column.totalKey === "closing_value")) {
+                || (column.label === "GT tồn âm cuối tháng" && Number(cell.value) < 0)
+                || (column.label === "Giá trị tồn (tạm tính)" && (isTotalRow ? warningReport :
+                    Math.abs(zeroBalanceDifference(rows[rowIndex - dataStartRow])) > ZERO_BALANCE_LIMIT || hasMonthEndNegativeValue(rows[rowIndex - dataStartRow])))) {
                 cell.font = { ...cell.font, bold: true, color: { argb: "FFDC2626" } }
             }
         })
@@ -402,6 +405,7 @@ function normalizeCellValue(
     column: ExportColumn,
 ) {
     if (value == null || value === "") return ""
+    if (value === "-") return "-"
     if (column.type === "date") {
         return excelDateSerial(String(value)) || ""
     }

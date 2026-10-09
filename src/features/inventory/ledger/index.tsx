@@ -103,6 +103,7 @@ export function InventoryLedgerReportPage({
             "closing_value_value",
             "zero_balance_mismatch_only",
             "warehouse_negative_value_only",
+            "month_end_negative_value_only",
             "time_sort",
         ],
     )
@@ -182,6 +183,7 @@ export function InventoryLedgerReportPage({
             singleFilters.closing_value_value,
             singleFilters.zero_balance_mismatch_only,
             singleFilters.warehouse_negative_value_only,
+            singleFilters.month_end_negative_value_only,
             timeSort,
             direction,
             showValues,
@@ -238,6 +240,7 @@ export function InventoryLedgerReportPage({
             closing_value_value: requestFilters.closing_value_value,
             zero_balance_mismatch_only: showValues && requestFilters.zero_balance_mismatch_only === "true",
             warehouse_negative_value_only: showValues && requestFilters.warehouse_negative_value_only === "true",
+            month_end_negative_value_only: showValues && requestFilters.month_end_negative_value_only === "true",
             time_sort: timeSort,
             direction,
             show_values: showValues,
@@ -306,6 +309,7 @@ export function InventoryLedgerReportPage({
                             closing_value_value: requestFilters.closing_value_value,
                             zero_balance_mismatch_only: showValues && requestFilters.zero_balance_mismatch_only === "true",
                             warehouse_negative_value_only: showValues && requestFilters.warehouse_negative_value_only === "true",
+                            month_end_negative_value_only: showValues && requestFilters.month_end_negative_value_only === "true",
                             time_sort: timeSort,
                             direction,
                             show_values: showValues,
@@ -429,6 +433,7 @@ export function InventoryLedgerReportPage({
                             closing_value_value: singleFilters.closing_value_value,
                             zero_balance_mismatch_only: singleFilters.zero_balance_mismatch_only === "true",
                             warehouse_negative_value_only: singleFilters.warehouse_negative_value_only === "true",
+                            month_end_negative_value_only: singleFilters.month_end_negative_value_only === "true",
                             time_sort: timeSort,
                         }}
                         onFiltersChange={(next) =>
@@ -483,6 +488,7 @@ export function InventoryLedgerReportPage({
                                 closing_value_value: next.closing_value_value,
                                 zero_balance_mismatch_only: next.zero_balance_mismatch_only ? "true" : undefined,
                                 warehouse_negative_value_only: next.warehouse_negative_value_only ? "true" : undefined,
+                                month_end_negative_value_only: next.month_end_negative_value_only ? "true" : undefined,
                                 time_sort: next.time_sort === "desc" ? "desc" : "asc",
                             })
                         }}

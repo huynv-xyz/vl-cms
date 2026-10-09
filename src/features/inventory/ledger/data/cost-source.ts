@@ -1,5 +1,5 @@
 import type { InventoryLedgerReportRow } from "./schema"
-import { hasNegativeWarehouseValue, zeroBalanceDifference, ZERO_BALANCE_LIMIT } from "./cost-adjustment"
+import { hasMonthEndNegativeValue, zeroBalanceDifference, ZERO_BALANCE_LIMIT } from "./cost-adjustment"
 
 type SourceKind = "calculated" | "import" | "manual" | "linked" | "adjusted" | "pending" | "warning"
 
@@ -63,13 +63,13 @@ export function getCostSourcePresentation(row: InventoryLedgerReportRow) {
         details.push({ label: "Kỳ", value: row.cost_period_label })
     }
     const difference = zeroBalanceDifference(row)
-    if (Math.abs(difference) > ZERO_BALANCE_LIMIT || hasNegativeWarehouseValue(row)) {
+    if (Math.abs(difference) > ZERO_BALANCE_LIMIT || hasMonthEndNegativeValue(row)) {
         details.unshift({ label: "Nguồn giá", value: title })
         details.push({ label: Math.abs(difference) > ZERO_BALANCE_LIMIT ? "Lệch GT kho" : "GT kho âm",
-            value: Math.abs(difference) > ZERO_BALANCE_LIMIT ? difference : Number(row.warehouse_balance_value) })
+            value: Math.abs(difference) > ZERO_BALANCE_LIMIT ? difference : Number(row.warehouse_balance_value ?? row.balance_value) })
         kind = "warning"
         title = "Cần kiểm tra"
-        note = Math.abs(difference) > ZERO_BALANCE_LIMIT ? "Đã hết hàng nhưng giá trị kho còn lệch hơn 5.000 đồng." : "Kho còn hàng nhưng giá trị tồn âm."
+        note = Math.abs(difference) > ZERO_BALANCE_LIMIT ? "Đã hết hàng nhưng giá trị kho còn lệch hơn 5.000 đồng." : "Giao dịch cuối tháng của hàng/kho có giá trị tồn âm."
     }
     return { kind, title, details, note }
 }

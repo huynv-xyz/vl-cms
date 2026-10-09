@@ -92,6 +92,8 @@ export type InventoryLedgerReportRow = {
     balance_value: number
     warehouse_balance_quantity?: number
     warehouse_balance_value?: number
+    is_first_transaction_in_month?: boolean | number
+    is_last_transaction_in_month?: boolean | number
     product_code: string
     product_name: string
     warehouse_code?: string | null

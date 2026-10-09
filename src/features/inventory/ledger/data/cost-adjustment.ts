@@ -1,4 +1,5 @@
 import type { InventoryLedgerReportRow } from "./schema"
+import { isLastTransactionInMonth } from "./ledger-balance"
 
 export const ZERO_BALANCE_LIMIT = 5000
 
@@ -9,6 +10,10 @@ export function zeroBalanceDifference(row: InventoryLedgerReportRow) {
 
 export function hasNegativeWarehouseValue(row: InventoryLedgerReportRow) {
     return Number(row.warehouse_balance_quantity || 0) > 0 && Number(row.warehouse_balance_value || 0) < 0
+}
+
+export function hasMonthEndNegativeValue(row: InventoryLedgerReportRow) {
+    return isLastTransactionInMonth(row) && Number(row.warehouse_balance_value ?? row.balance_value ?? 0) < 0
 }
 
 export function costSourceLabel(source?: string | null) {

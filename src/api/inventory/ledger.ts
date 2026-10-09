@@ -59,6 +59,7 @@ export type InventoryLedgerListParams = {
     closing_value_value?: string
     zero_balance_mismatch_only?: boolean
     warehouse_negative_value_only?: boolean
+    month_end_negative_value_only?: boolean
     time_sort?: "asc" | "desc" | string
     direction?: "IN" | "OUT" | string
     show_values?: boolean
